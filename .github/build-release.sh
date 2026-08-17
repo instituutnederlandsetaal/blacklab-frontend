@@ -34,6 +34,26 @@ fi
 mkdir -p "$RELEASE_DIR"
 cp "$WAR_FILE" "$RELEASE_DIR/blacklab-frontend-${VERSION}.war"
 
+# Publish the same standalone declarations both as a raw download and as a
+# package-manager-friendly tarball. The WAR already contains this directory at
+# /js/customization-api/.
+CUSTOMIZATION_API_DIR="./src/frontend/dist/customization-api"
+CUSTOMIZATION_API_FILE="$CUSTOMIZATION_API_DIR/index.d.ts"
+if [ ! -f "$CUSTOMIZATION_API_FILE" ]; then
+    echo "Error: Customization API declarations not found: $CUSTOMIZATION_API_FILE"
+    exit 1
+fi
+CUSTOMIZATION_API_VERSION=$(npm pkg get version --prefix "$CUSTOMIZATION_API_DIR")
+CUSTOMIZATION_API_VERSION="${CUSTOMIZATION_API_VERSION#\"}"
+CUSTOMIZATION_API_VERSION="${CUSTOMIZATION_API_VERSION%\"}"
+if [ "$CUSTOMIZATION_API_VERSION" != "$VERSION" ]; then
+    echo "Error: Release tag version $VERSION does not match customization API version $CUSTOMIZATION_API_VERSION"
+    exit 1
+fi
+cp "$CUSTOMIZATION_API_FILE" "$RELEASE_DIR/blacklab-frontend-customization-api-${VERSION}.d.ts"
+npm pack "$CUSTOMIZATION_API_DIR" --pack-destination "$RELEASE_DIR"
+mv "$RELEASE_DIR/inl-blacklab-frontend-customization-api-${VERSION}.tgz" "$RELEASE_DIR/blacklab-frontend-customization-api-${VERSION}.tgz"
+
 # Copy release notes
 RELEASE_NOTES_FILE="docs/src/060_release_notes/${VERSION}.md"
 if [ ! -f "$RELEASE_NOTES_FILE" ]; then

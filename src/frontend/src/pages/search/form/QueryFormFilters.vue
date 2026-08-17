@@ -57,15 +57,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { watch } from 'vue';
+import { defineComponent, watch } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { useCustomizations, type SearchFilterTab } from '@/customization-api/internal/internal-api';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import { corpusCustomizations } from '@/utils/customization';
 
 import { mapReduce } from '@/shared/utils/array-utils';
 
@@ -77,6 +76,7 @@ export default defineComponent({
 	},
 	data: () => ({
 		corpus: useCorpus(),
+		customizations: useCustomizations(),
 		cancelFilterWatch: [] as Array<() => void>,
 	}),
 	methods: {
@@ -112,31 +112,8 @@ export default defineComponent({
 					return !seen;
 				});
 		},
-		tabs(): FilterStore.FilterGroupType[] {
-			const availableBuiltinFilters = this.corpus.allMetadataFieldsMap;
-			const builtinFiltersToShow = UIStore.getState().search.shared.searchMetadataIds;
-			const customFilters = Object.keys(FilterStore.getState().filters).filter(id => !availableBuiltinFilters[id]);
-			const allIdsToShow = new Set(builtinFiltersToShow.concat(customFilters));
-
-			// the filters should be in the correct order already
-			let result = FilterStore.getState().filterGroups.map<FilterStore.FilterGroupType>(
-				group =>
-					({
-						tabname: this.$tMetaGroupName(group.tabname)?.toString(),
-						subtabs: group.subtabs
-							.map(subtab => ({
-								tabname: this.$tMetaGroupName(subtab.tabname)?.toString(),
-								fields: subtab.fields.filter(id => {
-									const showField = corpusCustomizations.search.metadata.showField(id);
-									return showField === true || (showField === null && allIdsToShow.has(id));
-								}),
-							}))
-							.filter(subtab => subtab.fields.length),
-						query: group.query,
-					}) as FilterStore.FilterGroupType,
-			);
-			result = result.filter(g => g.subtabs.length);
-			return result;
+		tabs(): SearchFilterTab[] {
+			return this.customizations.searchFilterTabs(FilterStore.getState().filters, UIStore.getState().search.shared.searchMetadataIds, this);
 		},
 		filterMap(): Record<string, FilterStore.FullFilterState> {
 			return FilterStore.getState().filters;

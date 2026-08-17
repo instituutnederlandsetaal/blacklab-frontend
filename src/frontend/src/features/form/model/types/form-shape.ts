@@ -1,9 +1,9 @@
 import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { BooleanType, QueryIR } from '@/features/form/model/types/form-query-ir';
+import type { ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, QueryCombineMode } from '@/features/form/model/types/form-primitives';
+import type { QueryIR } from '@/features/form/model/types/form-query-ir';
 import type { AnyVueComponent } from '@/types/helpers';
 
-/** A plain value or a runtime resolver evaluated while rendering/compiling. */
-export type FormValue<T> = T | (() => T);
+export type { FieldPresentation, FormNodeKind, FormValue, QueryCombineMode } from '@/features/form/model/types/form-primitives';
 
 /** The base for all form nodes */
 export type BaseNode = {
@@ -13,9 +13,6 @@ export type BaseNode = {
 };
 // Container
 // ==========================================================================================================================
-
-type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | 'tab-badges' | 'columns' | 'panel-tabs' | (string & {}); // open-ended but with some fixed types we support internally.
-export type QueryCombineMode = BooleanType | 'sequence';
 
 export type BaseContainerNode = BaseNode & {
 	readonly kind: 'container';
@@ -53,8 +50,6 @@ export type ImplicitContainerComponentProps = BaseNode & {
 // Field
 // ==========================================================================================================================
 
-export type FieldPresentation = 'simple' | 'large' | 'small' | 'horizontal' | 'default' | (string & {}); // open-ended but with some fixed types we support internally.
-
 export type BaseFieldNode = BaseNode & {
 	readonly kind: 'field';
 	/** Defaults to default if unset */
@@ -90,5 +85,4 @@ export type NodeKindMap = {
 	field: FormFieldNode;
 	view: FormViewNode;
 };
-export type NodeKind = keyof NodeKindMap;
-export type FormNodeKind = NodeKind;
+export type NodeKind = FormNodeKind;

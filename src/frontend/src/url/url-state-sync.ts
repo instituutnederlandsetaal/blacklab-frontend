@@ -4,7 +4,8 @@ import { computed, watch, type Ref } from 'vue';
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
-import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import { compileFormNode, restoreFormState, type FormRuntime } from '@/features/form';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import * as HistoryStore from '@/features/history/model/query-history-state';
@@ -16,6 +17,7 @@ import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import type { PageMeta } from '@/navigation/page-context';
+import type { Corpus } from '@/types/apptypes';
 import { getSubmittedInterfaceState, type SearchPageQueryParamsInput } from '@/url/state-to-url';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
@@ -38,6 +40,7 @@ type UrlStateSyncDependencies = {
 	indexId: Ref<string | undefined>;
 	pageMeta: Ref<PageMeta | null>;
 	searchForms: Ref<FormRuntime | null>;
+	customizations: Customizations;
 };
 
 /** Key under which we store the state snapshot in the browser history API's state object */
@@ -327,6 +330,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 					createUrlStateParserSearchDependencies({
 						blacklabApi: dependencies.blacklabApi,
 						corpus: context.corpus,
+						customizations: dependencies.customizations,
 					}),
 				).get());
 

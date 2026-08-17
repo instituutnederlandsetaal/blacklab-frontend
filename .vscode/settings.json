@@ -17,10 +17,10 @@
 	"java.import.gradle.wrapper.enabled": false,
 	"java.import.projectSelection": "manual",
 	"java.project.resourceFilters": ["node_modules", "\\.git", "/src/frontend/", "/docs", "/target", "/docs"],
-	"oxc.configPath": "src/frontend/oxlint.config.mts",
+	"oxc.configPath": "src/frontend/tooling/oxlint.config.mts",
 	"oxc.enable": true,
 	"oxc.fixKind": "safe_fix",
-	"oxc.fmt.configPath": "src/frontend/oxfmt.config.mts",
+	"oxc.fmt.configPath": "src/frontend/tooling/oxfmt.config.mts",
 	"oxc.path.tsgolint": "src/frontend/node_modules/.bin",
 
 	"oxc.tsConfigPath": "src/frontend/tsconfig.app.json",

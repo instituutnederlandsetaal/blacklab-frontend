@@ -50,13 +50,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import { CqlGenerator } from '@/features/cql-query-builder/model';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import { snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 
@@ -81,13 +80,14 @@ export default defineComponent({
 	data: () => ({
 		blacklab: useBlackLabApi(),
 		corpus: useCorpus(),
+		customizations: useCustomizations(),
 	}),
 	computed: {
 		queryBuilderOptions(): CqlQueryBuilderOptions {
 			return createQueryBuilderOptions({
 				corpus: this.corpus,
 				blacklabApi: this.blacklab,
-				configuration: snapshotSearchFormConfiguration(UIStore.getState()),
+				customizations: this.customizations,
 				translate: this,
 			});
 		},

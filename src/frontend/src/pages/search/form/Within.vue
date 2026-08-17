@@ -38,8 +38,8 @@ import { defineComponent, type PropType } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import { corpusCustomizations } from '@/utils/customization';
 
 import { optionText, type Option } from '@/shared/utils/options';
 
@@ -50,6 +50,7 @@ export default defineComponent({
 	},
 	data: () => ({
 		corpus: useCorpus(),
+		customizations: useCustomizations(),
 	}),
 	computed: {
 		model: {
@@ -62,7 +63,7 @@ export default defineComponent({
 		},
 		withinOptions(): Option[] {
 			const { enabled, elements } = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
+			return enabled ? elements.filter(element => this.customizations.legacyShouldIncludeWithinSpan(element.value)) : [];
 		},
 		withinAttributes(): Option[] {
 			const option = this.modelValue && this.withinOptions.find(o => o.value === this.modelValue);
@@ -70,7 +71,7 @@ export default defineComponent({
 
 			// Which, if any, attribute filter fields should be displayed for this element?
 			const availableAttr = Object.keys(this.corpus.relations.spans?.[option.value].attributes ?? {});
-			const attr = availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(option.value, attrName)).map(a => ({ value: a })) || [];
+			const attr = availableAttr.filter(attrName => this.customizations.legacyShouldIncludeWithinAttribute(option.value, attrName)).map(a => ({ value: a })) || [];
 
 			return attr.map(el => (typeof el === 'string' ? { value: el } : el));
 		},

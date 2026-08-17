@@ -139,10 +139,10 @@
 import { defineComponent, watch } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import { corpusCustomizations } from '@/utils/customization';
 
 import ParallelFields from './parallel/ParallelFields';
 
@@ -171,6 +171,7 @@ export default defineComponent({
 		debug,
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
+		customizations: useCustomizations(),
 	}),
 	computed: {
 		exploreMode: {
@@ -249,7 +250,7 @@ export default defineComponent({
 				this,
 				debug.value,
 				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
-				corpusCustomizations.search.metadata.showField,
+				this.customizations.legacyShouldShowMetadataField,
 			);
 			optGroups.forEach(fix);
 			return optGroups;

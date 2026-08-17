@@ -4,6 +4,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as RootStore from '@/app/state/root-store';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { createCustomizations } from '@/customization-api/internal/internal-api';
+import { createCustomizationRegistry } from '@/customization-api/registry';
 import type { CompiledFormStateWithSummaries } from '@/features/form';
 import type { HistoryEntry } from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
@@ -13,7 +15,10 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
-import { corpusCustomizations } from '@/utils/customization';
+
+const corpus = { relations: { spans: {} } } as never;
+const customizationRegistry = createCustomizationRegistry(corpus);
+RootStore.setCustomizations(createCustomizations(customizationRegistry, corpus, {} as never));
 
 function resetStores() {
 	const context = {
@@ -105,7 +110,7 @@ describe('root-store result presets', () => {
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
 	});
 
-	test('does not request spans for an inactive new-form within control', () => {
+	test('does not request spans when a new-form submission has no withSpans preset', () => {
 		resetStores();
 		const snapshot: CompiledFormStateWithSummaries = {
 			filter: null,
@@ -127,13 +132,11 @@ describe('root-store result presets', () => {
 		InterfaceStore.actions.patternMode('expert');
 		PatternStore.actions.expert.query('[word="water"]');
 		FilterStore.actions.registerFilter({
-			filter: {
-				id: 'span:speech:person',
-				componentName: 'filter-text',
-				behaviourName: 'span-text',
-				defaultDisplayName: 'Speaker',
-				metadata: { name: 'speech', attribute: 'person' },
-			},
+			id: 'span:speech:person',
+			componentName: 'filter-text',
+			behaviourName: 'span-text',
+			defaultDisplayName: 'Speaker',
+			metadata: { name: 'speech', attribute: 'person' },
 		});
 
 		RootStore.actions.searchFromSubmit();
@@ -149,7 +152,7 @@ describe('root-store result presets', () => {
 
 	test('lets an explicit legacy withspans customization override the new-form preset', () => {
 		resetStores();
-		vi.spyOn(corpusCustomizations.search.pattern, 'shouldAddWithSpans').mockReturnValue(false);
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(false);
 		const snapshot: CompiledFormStateWithSummaries = {
 			filter: null,
 			formId: 'search.expert',
@@ -167,7 +170,7 @@ describe('root-store result presets', () => {
 
 	test('lets an explicit legacy withspans customization enable spans without a form preset', () => {
 		resetStores();
-		vi.spyOn(corpusCustomizations.search.pattern, 'shouldAddWithSpans').mockReturnValue(true);
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(true);
 		const snapshot: CompiledFormStateWithSummaries = {
 			filter: null,
 			formId: 'search.expert',

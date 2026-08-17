@@ -1,0 +1,10 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"entry": ["src/app/entrypoint/*.ts", "src/**/*.stories.ts", "test/**/*.{test,spec}.ts", "tooling/**/*.{mjs,js}", "assets/blf-schema.ts", ".storybook/*.ts"],
+	"project": ["src/**/*.{ts,tsx,vue,scss,sass,less,mdx}", "test/**/*.ts", "assets/**/*.{ts,js}", ".storybook/**/*.ts"],
+	"ignoreUnresolved": ["^\\./@assets/font/INLV.*\\.TTF$"],
+	"ignoreIssues": {
+		"src/customization-api/external/external-api.ts": ["exports", "types"]
+	},
+	"treatConfigHintsAsErrors": true
+}

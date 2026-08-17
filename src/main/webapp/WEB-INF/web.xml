@@ -49,6 +49,12 @@
         <url-pattern>/</url-pattern>
     </servlet-mapping>
 
+    <!-- Declaration files are source text, not MPEG transport streams. -->
+    <mime-mapping>
+        <extension>ts</extension>
+        <mime-type>text/plain; charset=UTF-8</mime-type>
+    </mime-mapping>
+
     <listener>
         <listener-class>nl.inl.corpuswebsite.config.GlobalConfig</listener-class>
     </listener>

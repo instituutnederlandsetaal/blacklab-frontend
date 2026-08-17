@@ -8,6 +8,8 @@ import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { createCustomizations } from '@/customization-api/internal/internal-api';
+import { createCustomizationRegistry } from '@/customization-api/registry';
 import { ContainerRenderer, FormBuilder, FormRuntime } from '@/features/form';
 import type { PageMeta } from '@/navigation/page-context';
 import type * as UrlStateParserSearchModule from '@/url/url-state-parser-search';
@@ -47,12 +49,15 @@ function startTestUrlSync(searchForms: Ref<FormRuntime | null>) {
 		isLoaded: () => true,
 		value: { index: { id: 'test-corpus' } },
 	} as unknown as LoadableFromRequest<CorpusContext>;
+	const corpus = { id: 'test-corpus', relations: { spans: {} } } as never;
+	const customizationRegistry = createCustomizationRegistry(corpus);
 	return startUrlSync(router, {
 		blacklabApi: createMockApi().blacklabApi,
 		corpusContext,
 		indexId: ref('test-corpus'),
 		pageMeta: ref({ name: 'search' } as PageMeta),
 		searchForms,
+		customizations: createCustomizations(customizationRegistry, corpus, {} as never),
 	});
 }
 

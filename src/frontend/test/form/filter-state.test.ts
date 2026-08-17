@@ -9,17 +9,12 @@ describe('legacy filter state', () => {
 	test('keeps corpus date fields configured as date filters', () => {
 		FilterStore.init({
 			index: {
-				metadataGroups: [
+				allMetadataFields: [
 					{
-						id: 'Publication',
-						fields: [
-							{
-								id: 'published',
-								uiType: 'date',
-								defaultDisplayName: 'Publication date',
-								defaultDescription: 'Date of publication',
-							},
-						],
+						id: 'published',
+						uiType: 'date',
+						defaultDisplayName: 'Publication date',
+						defaultDescription: 'Date of publication',
 					},
 				],
 			},

@@ -2,11 +2,13 @@
 	"extends": "./tsconfig.app.json",
 	"compilerOptions": {
 		"noEmit": false,
-		"noCheck": true,
+		"noCheck": false,
 		"declaration": true,
 		"emitDeclarationOnly": true,
+		"outDir": "./dist/customization-api",
 		"rootDir": "./src",
-		"outDir": "./tmp-types"
+		"types": []
 	},
-	"include": ["src/features/form/**/*.ts", "src/features/form/**/*.vue"]
+	"files": ["src/customization-api/external/external-api.ts"],
+	"include": []
 }

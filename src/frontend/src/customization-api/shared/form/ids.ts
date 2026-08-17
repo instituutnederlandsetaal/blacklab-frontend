@@ -1,7 +1,6 @@
-import type { PatternMode } from '@/features/search/model/form/pattern-state';
+import type { ExploreFormMode, SearchFormIds, SearchFormSection, SearchPatternMode } from '@/customization-api/external/external-api';
 
-export type ExploreFormMode = 'corpora' | 'ngram' | 'frequency';
-type SearchFormSection = 'search' | 'explore';
+/** A string ID or an object that provides one. */
 export type SemanticId = string | { id: string };
 
 const NAMESPACE = 'standard-search-form';
@@ -20,14 +19,19 @@ function segment(value: SemanticId): string {
 	return encodeURIComponent(semanticId(value));
 }
 
-function id(family: string, ...semanticPath: SemanticId[]): string {
-	return [NAMESPACE, family, ...semanticPath.map(segment)].join('/');
+function id(family: string, ...parts: SemanticId[]): string {
+	return [NAMESPACE, family, ...parts.map(segment)].join('/');
 }
 
 function formKind(formId: string): SearchFormSection | null {
 	if (formId.startsWith(`${id('search-form')}/`)) return 'search';
 	if (formId.startsWith(`${id('explore-form')}/`)) return 'explore';
 	return null;
+}
+
+/** Returns the lookup key for an annotation control setting. */
+export function searchFormAnnotationControlKey(annotationId: string, annotatedFieldId?: string): string {
+	return `${annotatedFieldId ?? '*'}\u0000${annotationId}`;
 }
 
 /** Predictable IDs for every node created by the standard search-form builder. */
@@ -37,7 +41,7 @@ export const searchFormIds = {
 	searchSection: () => id('section', 'search'),
 	searchSectionHeading: () => id('section-heading', 'search'),
 	searchFormsContainer: () => id('forms', 'search'),
-	searchForm: (mode: PatternMode) => id('search-form', mode),
+	searchForm: (mode: SearchPatternMode) => id('search-form', mode),
 
 	exploreSection: () => id('section', 'explore'),
 	exploreSectionHeading: () => id('section-heading', 'explore'),
@@ -55,12 +59,12 @@ export const searchFormIds = {
 
 	annotationTabs: () => id('annotation-tabs'),
 	annotationTab: (group: SemanticId) => id('annotation-tab', group),
-	annotationField: (scope: SemanticId, annotatedField: SemanticId, annotation: SemanticId) => id('annotation-field', scope, annotatedField, annotation),
+	annotationField: (area: SemanticId, annotatedField: SemanticId, annotation: SemanticId) => id('annotation-field', area, annotatedField, annotation),
 
-	queryRegion: (mode: PatternMode) => id('query-region', mode),
-	queryHeading: (mode: PatternMode) => id('query-heading', mode),
-	queryField: (mode: PatternMode) => id('query-field', mode),
-	queryFieldTemplate: (mode: PatternMode) => id('query-field-template', mode),
+	queryRegion: (mode: SearchPatternMode) => id('query-region', mode),
+	queryHeading: (mode: SearchPatternMode) => id('query-heading', mode),
+	queryField: (mode: SearchPatternMode) => id('query-field', mode),
+	queryFieldTemplate: (mode: SearchPatternMode) => id('query-field-template', mode),
 
 	exploreControls: (mode: ExploreFormMode) => id('explore-controls', mode),
 	exploreParallelSource: (mode: Exclude<ExploreFormMode, 'corpora'>) => id('explore-parallel-source', mode),
@@ -72,4 +76,4 @@ export const searchFormIds = {
 	exploreFrequencyAnnotation: () => id('explore-frequency-annotation'),
 
 	formKind,
-} as const;
+} as const satisfies SearchFormIds;

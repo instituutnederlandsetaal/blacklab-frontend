@@ -1,5 +1,6 @@
 import type { RestoreIssue } from '@/features/form/model/persistence';
 import type { BlackLabParameter, BlackLabParameters } from '@/features/form/model/types/blacklab-params';
+import type { BooleanType } from '@/features/form/model/types/form-primitives';
 
 import { unwrapLenientArray, type LenientArray } from '@/shared/utils/array-utils';
 import { optionLabels, type Options } from '@/shared/utils/options';
@@ -16,7 +17,7 @@ function valuesToArray(values: Values): string[] {
 
 // #region boolean group node primitives
 
-export type BooleanType = 'and' | 'or';
+export type { BooleanType } from '@/features/form/model/types/form-primitives';
 export type BooleanNode<TLeaf> = { type: BooleanType; children: Array<BooleanNode<TLeaf> | TLeaf> };
 
 /** Construct a boolean node from a given set of children */

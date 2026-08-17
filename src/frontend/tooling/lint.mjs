@@ -18,13 +18,13 @@ const checks = [
 		command: executable('tsc'),
 		args: ['--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'esnext', '--module', 'esnext', 'assets/blf-schema.ts'],
 	},
-	{ label: 'Oxlint', command: executable('oxlint'), args: ['--config', 'oxlint.config.mts', '.'] },
+	{ label: 'Oxlint', command: executable('oxlint'), args: ['--config', 'tooling/oxlint.config.mts', '.'] },
 ];
 
 if (await runChecks(checks)) {
 	await runChecks([
-		{ label: 'Knip', command: executable('knip'), args: [] },
-		{ label: 'abstraction heuristic', command: process.execPath, args: ['scripts/lint-abstractions.mjs'] },
+		{ label: 'Knip', command: executable('knip'), args: ['--config', 'tooling/knip.json'] },
+		{ label: 'abstraction heuristic', command: process.execPath, args: ['tooling/lint-abstractions.mjs'] },
 	]);
 }
 

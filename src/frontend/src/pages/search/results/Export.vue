@@ -44,9 +44,9 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
-import { corpusCustomizations } from '@/utils/customization';
 
 import { useBlackLabApi } from '@/shared/api';
 import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
@@ -65,6 +65,7 @@ export default defineComponent({
 	data: () => ({
 		corpus: useCorpus(),
 		blacklab: useBlackLabApi(),
+		customizations: useCustomizations(),
 		downloadInProgress: false,
 	}),
 	computed: {
@@ -73,7 +74,12 @@ export default defineComponent({
 			return spans.flatMap(([spanName, spanInfo]) =>
 				Object.keys(spanInfo.attributes || {})
 					.map(attrName => [spanName, attrName])
-					.filter(([spanName, attrName]) => corpusCustomizations.results.export.includeSpanAttribute(spanName, attrName))
+					.filter(([spanName, attrName]) =>
+						this.customizations.exportSpanAttribute({
+							elementName: spanName,
+							attributeName: attrName,
+						}),
+					)
 					.map(([spanName, attrName]) => `${spanName}.${attrName}`),
 			);
 		},
@@ -98,7 +104,7 @@ export default defineComponent({
 				const field = this.corpus.allAnnotatedFieldsMap[name];
 				return this.$tAnnotatedFieldDisplayName(field);
 			};
-			(params as any).csvdescription = corpusCustomizations.results.export.description(this.results.summary, fieldDisplayName) || '';
+			(params as any).csvdescription = this.customizations.exportDescription(this.results.summary, fieldDisplayName) || '';
 
 			debugLog('export', 'starting csv download', this.type, params);
 			apiCall(this.corpus.id!, params)

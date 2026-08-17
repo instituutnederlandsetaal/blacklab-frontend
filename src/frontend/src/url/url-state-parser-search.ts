@@ -3,8 +3,8 @@ import LuceneQueryParser from 'lucene-query-parser';
 import memoize from 'memoize-decorator';
 
 import * as UIModule from '@/app/state/ui-state';
-import type { Corpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
@@ -18,9 +18,9 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 // Results
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
+import type { Corpus } from '@/types/apptypes';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
 import { getCorrectUiType, uiTypeSupport } from '@/utils';
-import { corpusCustomizations } from '@/utils/customization';
 import parseLucene from '@/utils/luceneparser';
 
 import BaseUrlStateParser from './url-state-parser-base';
@@ -43,10 +43,10 @@ export type UrlStateParserSearchDependencies = {
 	globalResultsState: GlobalResultsModule.ModuleRootState;
 	tagsetState: TagsetModule.ModuleRootState;
 	uiState: UIModule.ModuleRootState;
-	customizations: typeof corpusCustomizations;
+	customizations: Customizations;
 };
 
-export function createUrlStateParserSearchDependencies(options: { blacklabApi: BlackLabApi; corpus: Corpus }): UrlStateParserSearchDependencies {
+export function createUrlStateParserSearchDependencies(options: { blacklabApi: BlackLabApi; corpus: Corpus; customizations: Customizations }): UrlStateParserSearchDependencies {
 	return {
 		blacklabApi: options.blacklabApi,
 		corpus: options.corpus,
@@ -54,7 +54,7 @@ export function createUrlStateParserSearchDependencies(options: { blacklabApi: B
 		globalResultsState: GlobalResultsModule.getState(),
 		tagsetState: TagsetModule.getState(),
 		uiState: UIModule.getState(),
-		customizations: corpusCustomizations,
+		customizations: options.customizations,
 	};
 }
 
@@ -576,7 +576,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// part of the query gets dropped on page reload, breaking the user's query...
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
-		const withinOptions = withinUi.enabled ? withinUi.elements.filter(element => this.dependencies.customizations.search.within.includeSpan(element.value)) : [];
+		const withinOptions = withinUi.enabled ? withinUi.elements.filter(element => this.dependencies.customizations.legacyShouldIncludeWithinSpan(element.value)) : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
@@ -588,7 +588,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 		// Which, if any, attribute filter fields should be displayed for this element?
 		const availableAttr = within ? Object.keys(this.dependencies.corpus.relations.spans?.[within].attributes ?? {}) : [];
-		const attr = within ? availableAttr.filter(attrName => this.dependencies.customizations.search.within.includeAttribute(within, attrName)).map(a => ({ value: a })) || [] : [];
+		const attr = within ? availableAttr.filter(attrName => this.dependencies.customizations.legacyShouldIncludeWithinAttribute(within, attrName)).map(a => ({ value: a })) || [] : [];
 
 		const attributesAcceptedByWithinWidget = within ? attr.map(el => (typeof el === 'string' ? { value: el } : el)) : [];
 		const withinAttributes = Object.fromEntries(

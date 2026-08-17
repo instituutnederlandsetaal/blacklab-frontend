@@ -12,14 +12,11 @@ import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as ViewsStore from '@/features/search/model/results/view-state';
-import { registerSearchFormCustomization, type SearchFormCustomizationCallback } from '@/features/search/model/search-form-customization';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
-import { corpusCustomizations } from '@/utils/customization';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
-import { normalizeAnnotationUIType } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 import { debugLog } from '@/shared/debug/debug';
 
 type CustomView = {
@@ -863,14 +860,9 @@ const actions = {
  * If we didnt't do this, and someone made a typo in their setup javascript and sets a nonexistant annotation somewhere the page would probably crash.
  *
  *
- * Store initialization happens in 3 steps:
- * - initial construction:
- *   this happens immediately when the script is evaluated.
- *   This is when the initialState objects are created. (hence the workaround in this module's getState())
- * - customization:
- *   CustomJs scripts load and can interact with the UI module
- * - init() function: CustomJs should now have done all its edits,
- *   This is where we are now.
+ * Synchronize this legacy singleton with the incoming corpus before the new
+ * CorpusContext generation is published. Custom scripts mount after publication
+ * and may then use the store's validated setters.
  *
  */
 const init = (state: CorpusContext) => {
@@ -882,22 +874,7 @@ const init = (state: CorpusContext) => {
 	}
 	const corpus = state.index;
 
-	// Call the customize function(s) defined in custom.js (if any)
-	corpusCustomizations._corpus = corpus;
-	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
-	// Update uiTypes for annotations where necessary
-	corpus.allAnnotatedFields.forEach(field => {
-		Object.values(field.annotations).forEach(annotation => {
-			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
-			if (uiType) {
-				annotation.uiType = uiType;
-				annotation.uiType = normalizeAnnotationUIType(annotation);
-			}
-		});
-	});
-
-	// At this point we stored the customizations in our state
-	// Now validate it all and correct it if necessary
+	// Validate the retained legacy state against the incoming corpus.
 	const customizedState = cloneDeep(getState());
 
 	// XXX: hack!
@@ -1383,27 +1360,6 @@ function printCustomizations() {
 		`,
 	);
 }
-
-/** This lets custom JS files call frontend.customize((corpus) => { ... });
- * to customize any of the above "hooks". Doing this via a function instead of
- * direct access to a global object gives us more flexibility to change things
- * in the future.
- *
- * Example of a simple custom.js file using this:
- * <code>
- * frontend.customize((corpus) => {
- *   corpus.search.within.includeSpan = (elementName) => elementName === 'p';
- * });
- * </code>
- */
-(window as any).frontend = {
-	customize(callback: (corpus: any) => void) {
-		corpusCustomizations.customizeFunctions.push(callback);
-	},
-	customizeSearchForm(callback: SearchFormCustomizationCallback) {
-		return registerSearchFormCustomization(callback);
-	},
-};
 
 (window as any).printCustomJs = printCustomizations;
 

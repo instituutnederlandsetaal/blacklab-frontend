@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { searchFormIds as ids } from '@/features/search/model/search-form-ids';
+import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 
 describe('standard search-form IDs', () => {
 	test('emits stable namespaced paths for every standard node ID helper', () => {

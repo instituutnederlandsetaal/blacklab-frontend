@@ -1,3 +1,5 @@
+import type { RangeMode } from '@/features/form/model/types/form-primitives';
+
 import type { Translate } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
@@ -5,7 +7,7 @@ import type { Option } from '@/shared/utils/options';
  * Whether the true value must fall wholly within, or only partially within,
  * the specified range.
  */
-export type RangeMode = 'strict' | 'permissive';
+export type { RangeMode } from '@/features/form/model/types/form-primitives';
 export type RangeModeOption = Option<RangeMode>;
 
 /** Value-only fallback for direct component mounts without graph-provided labels. */

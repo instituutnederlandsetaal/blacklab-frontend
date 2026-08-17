@@ -1,37 +1,17 @@
+import type { SearchResultHighlightSection, SearchResultHighlightStyle } from '@/customization-api/external/external-api';
 import type { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
 import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryV5 } from '@/types/blacklabtypes';
 import type { UnionHelpers } from '@/types/helpers';
-import { corpusCustomizations } from '@/utils/customization';
 
 // #region docsmatchinfohighlightstyle
 /** Part of a hit/context to highlight, with a label, display and boolean whether it's a relation or a section of the query/result labelled by the user. */
-export type HighlightSection = {
-	/** -1 for root */
-	sourceStart: number;
-	/** -1 for root */
-	sourceEnd: number;
-	targetStart: number;
-	targetEnd: number;
-	targetField?: string;
-
-	/** True if this is a relation, false if this is a capture group */
-	isRelation: boolean;
-
+export type HighlightSection = SearchResultHighlightSection & {
 	/** Should this be permanently higlighted? (if not, may still be hoverable if this is a parallel corpus) */
 	showHighlight: boolean;
-
-	/**
-	 * Key of this info as reported by BlackLab.
-	 * E.g. for a query "_ -obj-> _" this would be "obj".
-	 * For an anonymous relation e.g. _ --> _ this would be something like "dep1" or "rel1"
-	 * For a capture group, e.g. "a:[] b:[]" this would be the name of the capture group, "a" or "b".
-	 *
-	 * Can be used for e.g. grouping results (and we do use this, mind when refactoring.)
-	 */
-	key: string;
-
-	/** Display string, key if !isRelation, relation value + arrow if isRelation == true */
-	display: string;
+	/** Legacy aliases retained for the old callback fallback. */
+	isRelation: boolean;
+	relType?: string;
+	relClass?: string;
 };
 // #endregion docsmatchinfohighlightstyle
 
@@ -47,17 +27,20 @@ const color = (key: string, i: number): TokenHighlight => ({
 });
 
 function mapCaptureList(key: string, list: BLMatchInfoList): HighlightSection[] {
-	return list.infos.map<HighlightSection>((info: UnionHelpers.Merge<BLMatchInfoList['infos'][number]>, index) => ({
-		...info,
-		isRelation: info.type === 'relation',
-		showHighlight: true,
-		sourceEnd: info.sourceEnd ?? -1,
-		sourceStart: info.sourceStart ?? -1,
-		targetEnd: info.targetEnd ?? -1,
-		targetStart: info.targetStart ?? -1,
-		key: `${key}[${index}]`,
-		display: info.relType || info.tagName || '[unknown]',
-	}));
+	return list.infos.map<HighlightSection>((info: UnionHelpers.Merge<BLMatchInfoList['infos'][number]>, index) => {
+		const common = {
+			...info,
+			isRelation: info.type === 'relation',
+			showHighlight: true,
+			sourceEnd: info.sourceEnd ?? -1,
+			sourceStart: info.sourceStart ?? -1,
+			targetEnd: info.targetEnd ?? -1,
+			targetStart: info.targetStart ?? -1,
+			key: `${key}[${index}]`,
+			display: info.relType || info.tagName || '[unknown]',
+		};
+		return info.type === 'relation' ? { ...common, kind: 'relation', relationClass: info.relClass, relationType: info.relType } : { ...common, kind: 'capture' };
+	});
 }
 
 function mapCaptureRelation(key: string, relation: BLMatchInfoRelation): HighlightSection {
@@ -66,6 +49,9 @@ function mapCaptureRelation(key: string, relation: BLMatchInfoRelation): Highlig
 		sourceStart: relation.sourceStart ?? -1,
 		sourceEnd: relation.sourceEnd ?? -1,
 		isRelation: true,
+		kind: 'relation',
+		relationClass: relation.relClass,
+		relationType: relation.relType,
 		showHighlight: true,
 		key,
 		display: relation.relType,
@@ -79,6 +65,7 @@ function mapCaptureSpan(key: string, span: BLMatchInfoSpan): HighlightSection {
 		targetEnd: span.end,
 		targetStart: span.start,
 		isRelation: false,
+		kind: 'capture',
 		showHighlight: true,
 		key,
 		display: key,
@@ -95,7 +82,7 @@ function mapCaptureSpan(key: string, span: BLMatchInfoSpan): HighlightSection {
  * @param matchInfos The matchInfos object from a single hit.
  * @returns
  */
-export function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']>): HighlightSection[] {
+export function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']>, resolveHighlightStyle: (section: HighlightSection) => SearchResultHighlightStyle | null): HighlightSection[] {
 	let interestingCaptures = Object.entries(matchInfos)
 		.flatMap<HighlightSection>(([key, info]) => {
 			// captured_rels happens when we ask BlackLab to explicitly return all relations in the hit,
@@ -131,7 +118,7 @@ export function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']
 			// Even if this is false, the highlight will appear up if the user hovers over the hit.
 			// This only controls whether it's always shown.
 			const shouldHighlightByDefault = !mi.isRelation || !hasExplicitCaptures;
-			const shouldHighlightByCustomizations = corpusCustomizations.results.matchInfoHighlightStyle(mi);
+			const shouldHighlightByCustomizations = resolveHighlightStyle(mi);
 
 			if (shouldHighlightByCustomizations === 'none') {
 				// this capture/relation should never be highlighed.

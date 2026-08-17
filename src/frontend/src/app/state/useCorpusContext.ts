@@ -1,17 +1,7 @@
 import { computed, hasInjectionContext, toValue, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
-import type {
-	CFPageConfig,
-	NormalizedAnnotatedField,
-	NormalizedAnnotatedFieldParallel,
-	NormalizedAnnotation,
-	NormalizedAnnotationGroup,
-	NormalizedIndex,
-	NormalizedMetadataField,
-	NormalizedMetadataGroup,
-	Tagset,
-} from '@/types/apptypes';
+import type { CFPageConfig, Corpus, NormalizedAnnotatedFieldParallel, NormalizedIndex, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/lib/api-types';
 import { resolvedRequest } from '@/shared/api/lib/api-utils';
@@ -21,42 +11,10 @@ import { loadableFromComputedRequest, type LoadableFromRequest } from '@/shared/
 import { tapLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
-// Utils we add for convenience on top of the base index.
-type Corpus = NormalizedIndex & {
-	allAnnotatedFields: NormalizedAnnotatedField[];
-	allAnnotatedFieldsMap: Record<string, NormalizedAnnotatedField>;
-	mainAnnotatedField: string;
-	isParallelCorpus: boolean;
-	parallelAnnotatedFields: NormalizedAnnotatedFieldParallel[];
-	parallelAnnotatedFieldsMap: Record<string, NormalizedAnnotatedFieldParallel>;
-	parallelFieldPrefix: string;
-	allAnnotations: NormalizedAnnotation[];
-	allAnnotationsMap: Record<string, NormalizedAnnotation>;
-	allMetadataFields: NormalizedMetadataField[];
-	allMetadataFieldsMap: Record<string, NormalizedMetadataField>;
-	firstMainAnnotation: NormalizedAnnotation;
-	metadataGroups: Array<NormalizedMetadataGroup & { fields: NormalizedMetadataField[] }>;
-	annotationGroups: Array<NormalizedAnnotationGroup & { fields: NormalizedAnnotation[] }>;
-	textDirection: 'ltr' | 'rtl';
-	hasRelations: boolean;
-};
 type CorpusContext = {
 	index: Corpus | undefined;
 	config: CFPageConfig;
 	tagset: Tagset | undefined;
-};
-
-type CorpusContextOptions = {
-	/**
-	 * Synchronous initialization that must finish before a newly loaded context is
-	 * visible through any of the public context refs.
-	 *
-	 * This is the interop checkpoint for state derived from the context but kept
-	 * outside it, such as the legacy stores. Keeping the raw loadables private
-	 * prevents consumers from observing a context generation before that state has
-	 * caught up.
-	 */
-	beforePublish?: (context: CorpusContext) => void;
 };
 
 const defaultConfig = {
@@ -158,7 +116,9 @@ function createCorpusValue(index: NormalizedIndex): Corpus {
 	};
 }
 
-function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>, options: CorpusContextOptions = {}) {
+function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>) {
+	const onBeforePublishCallbacks: Array<(context: CorpusContext) => void> = [];
+
 	const getCorpus = (id: string | undefined | null): CancelableRequest<NormalizedIndex | undefined> => (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined));
 	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> =>
 		frontend.getConfig(id ?? null, {
@@ -181,7 +141,7 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 			const mainAnnotation = Object.values(annotations).find(annotation => annotation.uiType === 'pos');
 			if (mainAnnotation) context.tagset = normalizeTagset(mainAnnotation, annotations, context.tagset);
 		}
-		options.beforePublish?.(context);
+		onBeforePublishCallbacks.forEach(callback => callback(context));
 	});
 
 	// pretend the value is always there (except for tagset, since that's actually optional)
@@ -200,6 +160,9 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 		corpus: corpusValue,
 		config: configValue,
 		tagset: tagsetValue,
+		beforePublish: (callback: (context: CorpusContext) => void) => {
+			onBeforePublishCallbacks.push(callback);
+		},
 		install: (app => {
 			provideCorpusContextLoader(app, publishedContext);
 			provideCorpusContext(app, combinedValue);
@@ -218,6 +181,5 @@ export {
 	useCfPageConfig,
 	useCorpus,
 	createCorpusContext,
-	type Corpus,
 	type CorpusContext,
 };

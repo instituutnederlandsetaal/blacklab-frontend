@@ -1,5 +1,13 @@
 import type * as BLTypes from '@/types/blacklabtypes';
 
+export type DeepReadonly<T> = T extends (...args: any[]) => unknown
+	? T
+	: T extends readonly (infer Item)[]
+		? readonly DeepReadonly<Item>[]
+		: T extends object
+			? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+			: T;
+
 // -----------
 // State types
 // -----------
@@ -177,6 +185,24 @@ export type NormalizedIndex = NormalizedIndexBase & {
 	 * See store/search/corpus.ts::init and blacklabutils::NormalizeIndex
 	 * */
 	relations: BLTypes.BLRelationInfo;
+};
+
+/** Normalized corpus information plus conveniences derived once when the corpus is loaded. */
+export type Corpus = NormalizedIndex & {
+	allAnnotatedFields: NormalizedAnnotatedField[];
+	allAnnotatedFieldsMap: Record<string, NormalizedAnnotatedField>;
+	isParallelCorpus: boolean;
+	parallelAnnotatedFields: NormalizedAnnotatedFieldParallel[];
+	parallelAnnotatedFieldsMap: Record<string, NormalizedAnnotatedFieldParallel>;
+	parallelFieldPrefix: string;
+	allAnnotations: NormalizedAnnotation[];
+	allAnnotationsMap: Record<string, NormalizedAnnotation>;
+	allMetadataFields: NormalizedMetadataField[];
+	allMetadataFieldsMap: Record<string, NormalizedMetadataField>;
+	firstMainAnnotation: NormalizedAnnotation;
+	metadataGroups: Array<NormalizedMetadataGroup & { fields: NormalizedMetadataField[] }>;
+	annotationGroups: Array<NormalizedAnnotationGroup & { fields: NormalizedAnnotation[] }>;
+	hasRelations: boolean;
 };
 
 // Helper - get all props in A not in B

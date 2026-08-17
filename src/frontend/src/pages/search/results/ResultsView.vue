@@ -120,6 +120,7 @@ import type { TranslateResult } from 'vue-i18n';
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
@@ -127,7 +128,6 @@ import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, Disp
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
-import { corpusCustomizations } from '@/utils/customization';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -167,6 +167,7 @@ export default defineComponent({
 		store: { type: Object as PropType<ResultsStore.ViewModule>, required: true },
 	},
 	data: () => ({
+		customizations: useCustomizations(),
 		isDirty: true, // since we don't have any results yet
 		request: null as null | CancelableRequest<BLTypes.BLSearchResult>,
 		results: null as null | BLTypes.BLSearchResult,
@@ -636,7 +637,8 @@ export default defineComponent({
 				indexId: this.corpus.id!,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				sourceField: this.corpus.allAnnotatedFieldsMap[QueryStore.get.sourceField()], // if no field, there would be no results...
-				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
+				getCustomHitInfo: (hit, field, document) => this.customizations.hitInfoColumnContent(hit, field, document, this),
+				getMatchInfoHighlightStyle: this.customizations.matchInfoHighlightStyle,
 			};
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
@@ -662,8 +664,8 @@ export default defineComponent({
 				otherAnnotations: annotationIdsToShow.map(id => this.corpus.allAnnotationsMap[id]),
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => this.corpus.allAnnotationsMap[id]),
 				annotationGroups: this.corpus.annotationGroups,
-				hasCustomHitInfoColumn: (results, isParallelCoprus) =>
-					BLTypes.isHitResults(results) || BLTypes.isHitGroups(results) ? corpusCustomizations.results.hasCustomHitInfoColumn(results, isParallelCoprus) : false,
+				hasCustomHitInfoColumn: (results, isParallelCorpus) =>
+					BLTypes.isHitResults(results) || BLTypes.isHitGroups(results) ? this.customizations.hitInfoColumnVisible(results, isParallelCorpus) : false,
 			};
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {

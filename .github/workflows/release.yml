@@ -47,6 +47,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: target/release-artifacts/*.war
+          files: |
+            target/release-artifacts/*.war
+            target/release-artifacts/*.d.ts
+            target/release-artifacts/*.tgz
           body_path: target/release-artifacts/RELEASE_NOTES.md
           fail_on_unmatched_files: true

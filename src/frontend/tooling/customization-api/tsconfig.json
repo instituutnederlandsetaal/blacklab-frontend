@@ -1,0 +1,12 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"lib": ["DOM", "ES2023"],
+		"noEmit": true,
+		"skipLibCheck": false,
+		"strict": true,
+		"types": []
+	},
+	"files": ["consumer.js", "edges-results-consumer.js"]
+}

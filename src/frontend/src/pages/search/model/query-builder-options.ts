@@ -1,5 +1,5 @@
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import { type CqlQueryBuilderOptions, OPERATORS, COMPARATORS } from '@/features/cql-query-builder/model';
-import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -11,14 +11,18 @@ function getMainAnnotationGroups(index: NormalizedIndex): NormalizedAnnotationGr
 	return index.annotationGroups.filter(group => group.annotatedFieldId === index.mainAnnotatedField);
 }
 
-export function createQueryBuilderOptions(input: { blacklabApi: BlackLabApi; configuration: SearchFormConfiguration; corpus: NormalizedIndex; translate: Translate }): CqlQueryBuilderOptions {
-	const { corpus, configuration, blacklabApi, translate } = input;
+export function createQueryBuilderOptions(input: {
+	blacklabApi: BlackLabApi;
+	corpus: NormalizedIndex;
+	customizations: Pick<Customizations, 'searchFormAdvancedAnnotationIds' | 'searchFormAdvancedDefaultAnnotationId'>;
+	translate: Translate;
+}): CqlQueryBuilderOptions {
+	const { corpus, customizations, blacklabApi, translate } = input;
 	const mainField = corpus.annotatedFields[corpus.mainAnnotatedField];
 	const allAnnotationsMap = mainField.annotations;
-	const annotationGroups = getAnnotationSubset(configuration.queryBuilder.annotationIds, getMainAnnotationGroups(corpus), allAnnotationsMap, 'Search', translate, false, false);
+	const annotationGroups = getAnnotationSubset(customizations.searchFormAdvancedAnnotationIds(), getMainAnnotationGroups(corpus), allAnnotationsMap, 'Search', translate, false, false);
 	const annotationOptions = annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(group => group.options);
-	const availableAnnotationIds = optionValues(annotationOptions);
-	const defaultAnnotationId = availableAnnotationIds.includes(configuration.queryBuilder.defaultAnnotationId) ? configuration.queryBuilder.defaultAnnotationId : (availableAnnotationIds[0] ?? '');
+	const defaultAnnotationId = customizations.searchFormAdvancedDefaultAnnotationId(optionValues(annotationOptions)) ?? '';
 
 	return {
 		indexId: corpus.id,

@@ -149,7 +149,7 @@ frontend.customize(corpus => {
   };
 })
 ```
-<<< @/../../src/frontend/src/utils/customization.ts#docscustomhitinfocolumn [Type definitions]
+<<< @/../../src/frontend/src/customization-api/legacy.ts#docscustomhitinfocolumn [Type definitions]
 :::
 
 ## Expanded Hit Details

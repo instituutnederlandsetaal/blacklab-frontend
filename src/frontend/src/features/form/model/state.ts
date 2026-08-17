@@ -4,6 +4,7 @@ import { isContainerNode, walkFormNodes } from '@/features/form/model/form-utils
 import type { FormNode } from '@/features/form/model/types';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import type { DeepReadonly } from '@/types/apptypes';
 
 export type NewFormState = {
 	state: Record<string, unknown>;
@@ -16,14 +17,6 @@ export type FormStateInput = {
 	readonly uiState: Readonly<Record<string, string | null>>;
 	readonly rawOverrides: Readonly<BlackLabParameters>;
 };
-
-export type DeepReadonly<T> = T extends (...args: any[]) => unknown
-	? T
-	: T extends readonly (infer Item)[]
-		? readonly DeepReadonly<Item>[]
-		: T extends object
-			? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
-			: T;
 
 function freezeDeep<T>(value: T, seen = new WeakSet<object>()): DeepReadonly<T> {
 	if (value === null || typeof value !== 'object' || seen.has(value)) return value as DeepReadonly<T>;

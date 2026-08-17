@@ -99,6 +99,7 @@ import { defineComponent } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
 import * as HistoryStore from '@/features/history/model/query-history-state';
@@ -150,6 +151,7 @@ export default defineComponent({
 
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
+		customizations: useCustomizations(),
 	}),
 	computed: {
 		activePattern: {
@@ -291,6 +293,7 @@ export default defineComponent({
 					createUrlStateParserSearchDependencies({
 						blacklabApi: this.blacklab,
 						corpus: this.corpus,
+						customizations: this.customizations,
 					}),
 				)
 				.then(async r => {

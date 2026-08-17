@@ -5,7 +5,13 @@ import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
 const cssElementMarker = 'data-page-customization-css';
 const jsElementMarker = 'data-page-customization-js';
 export const customCssChangedEvent = 'page-customization-css-changed';
+export const customJsDisposeEvent = 'page-customization-js-dispose';
 const pendingCssLoadHandlers = new WeakMap<HTMLLinkElement, () => void>();
+
+function disposeCustomJs(script: HTMLScriptElement): void {
+	script.dispatchEvent(new Event(customJsDisposeEvent));
+	script.remove();
+}
 
 /** Publish the single compatibility event used after customized styles settle or disappear. */
 function notifyCustomCssChanged() {
@@ -90,7 +96,7 @@ export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>, options?: {
 				document?.body?.appendChild(script);
 			});
 		},
-		remove: () => document?.body?.querySelectorAll?.(`script[${jsElementMarker}]`)?.forEach(e => e.remove()),
+		remove: () => document?.body?.querySelectorAll?.<HTMLScriptElement>(`script[${jsElementMarker}]`)?.forEach(disposeCustomJs),
 	});
 };
 

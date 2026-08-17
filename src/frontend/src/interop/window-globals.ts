@@ -3,6 +3,9 @@ import { type App } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import * as UIModule from '@/app/state/ui-state';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
+import { createExternalCustomizationApi } from '@/customization-api/external/browser-api';
+import type { BlackLabFrontendCustomizationApi } from '@/customization-api/external/external-api';
+import { type CustomizationRegistry } from '@/customization-api/registry';
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
@@ -21,6 +24,7 @@ type InteropWindow = Window & {
 	vueApp?: App;
 	vueRoot?: unknown;
 	INDEX_ID?: string;
+	frontend?: BlackLabFrontendCustomizationApi;
 };
 
 type InteropGlobal = typeof globalThis & {
@@ -28,16 +32,8 @@ type InteropGlobal = typeof globalThis & {
 	vuexModules?: unknown;
 };
 
-function createResultsInterop() {
-	return {
-		...ViewModule,
-		get hits() {
-			return ViewModule.getOrCreateModule('hits');
-		},
-		get docs() {
-			return ViewModule.getOrCreateModule('docs');
-		},
-	};
+export function installCustomizationApiGlobals(registry: CustomizationRegistry) {
+	(window as InteropWindow).frontend = createExternalCustomizationApi(registry);
 }
 
 export function installLegacyStoreGlobals(app: App) {
@@ -68,23 +64,31 @@ export function installLegacyStoreGlobals(app: App) {
 		patterns: PatternModule,
 		gap: GapModule,
 		article: ArticleModule,
-		results: createResultsInterop(),
 		views: ViewModule,
+		results: {
+			...ViewModule,
+			get hits() {
+				return ViewModule.getOrCreateModule('hits');
+			},
+			get docs() {
+				return ViewModule.getOrCreateModule('docs');
+			},
+		},
 		global: GlobalResultsModule,
 	};
 
 	(globalThis as InteropGlobal).vuexModules = vuexModules;
 }
 
-export function setMountedVueGlobals(app: App, root: unknown) {
+export function installVueGlobals(app: App, root: unknown) {
 	(window as InteropWindow).vueApp = app;
 	(window as InteropWindow).vueRoot = root;
 }
 
-export function setCurrentCorpusDataGlobal(value: CorpusContext) {
+export function installCorpusGlobal(value: CorpusContext) {
 	(globalThis as InteropGlobal).corpus = value;
 }
 
-export function setLegacyIndexIdGlobal(value: string) {
+export function installIndexIdGlobal(value: string) {
 	(window as InteropWindow).INDEX_ID = value;
 }

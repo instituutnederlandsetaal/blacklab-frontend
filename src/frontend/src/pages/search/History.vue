@@ -98,6 +98,7 @@ import { defineComponent, nextTick } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
@@ -121,6 +122,7 @@ export default defineComponent({
 		return {
 			blacklab: useBlackLabApi(),
 			corpus: useCorpus(),
+			customizations: useCustomizations(),
 		};
 	},
 	data: () => ({
@@ -192,6 +194,7 @@ export default defineComponent({
 				createUrlStateParserSearchDependencies({
 					blacklabApi: this.blacklab,
 					corpus: this.corpus,
+					customizations: this.customizations,
 				}),
 				uri,
 			).get();

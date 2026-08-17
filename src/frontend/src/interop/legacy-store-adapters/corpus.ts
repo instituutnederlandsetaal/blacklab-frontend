@@ -1,6 +1,6 @@
 import type { Ref } from 'vue';
 
-import type { Corpus } from '@/app/state/useCorpusContext';
+import type { Corpus } from '@/types/apptypes';
 import type { NormalizedIndex, NormalizedAnnotatedField, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
 /**

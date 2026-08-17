@@ -18,8 +18,8 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { NormalizedIndex } from '@/types/apptypes';
-import { corpusCustomizations } from '@/utils/customization';
 
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
@@ -46,6 +46,7 @@ export default defineComponent({
 		metadataGroupLabels: Boolean,
 		disabled: Boolean,
 	},
+	data: () => ({ customizations: useCustomizations() }),
 	computed: {
 		model: {
 			get(): string | null {
@@ -60,11 +61,7 @@ export default defineComponent({
 
 			/** Customize and add one or more groups */
 			const addGroups = (...optGroups: OptGroup[]) => {
-				options.push(
-					...optGroups.map(optGroup => {
-						return corpusCustomizations.sort.customize(optGroup) ?? optGroup;
-					}),
-				);
+				options.push(...optGroups.map(this.customizations.sortOptionGroup));
 			};
 
 			if (this.groups) {
@@ -138,15 +135,8 @@ export default defineComponent({
 
 			if (!this.groups) {
 				addGroups(
-					...getMetadataSubset(
-						this.metadata,
-						this.corpus.metadataFieldGroups,
-						this.corpus.metadataFields,
-						'Sort',
-						this,
-						debug.value,
-						this.metadataGroupLabels,
-						corpusCustomizations.search.metadata.showField,
+					...getMetadataSubset(this.metadata, this.corpus.metadataFieldGroups, this.corpus.metadataFields, 'Sort', this, debug.value, this.metadataGroupLabels, id =>
+						this.customizations.resultMetadataField(this.corpus.metadataFields[id]),
 					),
 				);
 			}

@@ -7,15 +7,18 @@ import '@/global.scss';
 import FloatingVue from 'floating-vue';
 import { createApp } from 'vue';
 
+import * as RootStore from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import Filters from '@/components/filters';
+import { createCustomizations } from '@/customization-api/internal/internal-api';
+import { createCustomizationRegistry } from '@/customization-api/registry';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
-import startGlobalCorpusDependentEffects, { initializeCorpusContextInterop } from '@/features/corpus/effects';
+import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import { createSearchFormSystem } from '@/features/search/model/search-form-builder';
-import { createLegacySearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import { createSearchFormSystem } from '@/features/search/model/form/search-form-system';
 import { installHooksGlobal } from '@/interop/hooks';
-import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
+import { installCorpusGlobal, installCustomizationApiGlobals, installLegacyStoreGlobals, installVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
 import startUrlSync from '@/url/url-state-sync';
@@ -71,14 +74,25 @@ async function start() {
 	// Which would be wasteful and cause a brief flash of the wrong data.
 	app.use(router);
 	await router.router.isReady();
-	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId, {
-		beforePublish: initializeCorpusContextInterop,
+	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
+	const customizationRegistry = createCustomizationRegistry(corpusState.corpus);
+	const customizations = createCustomizations(customizationRegistry, corpusState.corpus, UIStore.getState);
+	RootStore.setCustomizations(customizations);
+	corpusState.beforePublish(corpus => {
+		/**
+		 * Bring legacy singleton stores to the incoming generation before publishing
+		 * the context. This prevents consumers from observing new context data with
+		 * old store state; custom scripts mount only after publication.
+		 */
+		installCorpusGlobal(corpus);
+		RootStore.init(corpus);
 	});
 	const i18n = createI18n(router.corpusId);
+
 	const searchFormSystem = createSearchFormSystem({
 		blacklabApi: api.blacklabApi,
-		configuration: createLegacySearchFormConfiguration(),
 		corpus: corpusState.corpus,
+		customizations,
 		tagset: corpusState.tagset,
 		translate: i18n.translate,
 	});
@@ -92,7 +106,8 @@ async function start() {
 	app.use(FloatingVue);
 	app.use(corpusState);
 	app.use(searchFormSystem);
-
+	app.use(customizationRegistry);
+	app.use(customizations);
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
 
@@ -100,6 +115,7 @@ async function start() {
 
 	installStoreInspectorDevtools(app);
 	installLegacyStoreGlobals(app);
+	installCustomizationApiGlobals(customizationRegistry);
 
 	startUrlSync(router.router, {
 		blacklabApi: api.blacklabApi,
@@ -107,12 +123,13 @@ async function start() {
 		indexId: router.corpusId,
 		pageMeta: router.pageMeta,
 		searchForms: searchFormSystem.runtime,
+		customizations,
 	});
 
 	app.runWithContext(() => startCustomizationInterop());
 
 	const instance = app.mount('#vue-root'); // mount early, so that the app is available for interop code (e.g. customjs) to use.
-	setMountedVueGlobals(app, instance);
+	installVueGlobals(app, instance);
 }
 
 if (document.readyState === 'loading') {

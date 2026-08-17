@@ -4,7 +4,6 @@ import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { describe, expect, test, vi } from 'vitest';
 
-import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
@@ -91,32 +90,10 @@ function createIndex(): NormalizedIndex {
 	};
 }
 
-function createSearchFormConfiguration(): SearchFormConfiguration {
+function createSearchFormCustomizations(defaultAnnotationId = 'lemma') {
 	return {
-		simpleAnnotationId: 'word',
-		extendedAnnotationIds: ['word'],
-		queryBuilder: {
-			enabled: true,
-			annotationIds: ['lemma'],
-			defaultAnnotationId: 'lemma',
-		},
-		metadataFieldIds: ['title'],
-		customization: { withinAttributes: [], within: {} },
-		within: { enabled: true, elements: [] },
-		alignBy: { enabled: true, elements: [], defaultValue: '' },
-		explore: {
-			searchAnnotationIds: [],
-			defaultSearchAnnotationId: null,
-			groupAnnotationIds: [],
-			defaultGroupAnnotationId: null,
-			annotationGroupLabelsVisible: false,
-			corpora: {
-				groupMetadataIds: [],
-				defaultGroupMetadataId: null,
-				metadataGroupLabelsVisible: false,
-			},
-		},
-		lexiconDatabase: '',
+		searchFormAdvancedAnnotationIds: () => ['lemma'],
+		searchFormAdvancedDefaultAnnotationId: (availableValues: readonly string[]) => (availableValues.includes(defaultAnnotationId) ? defaultAnnotationId : (availableValues[0] ?? null)),
 	};
 }
 
@@ -162,11 +139,11 @@ describe('search form data dependencies', () => {
 
 	test('creates querybuilder options outside Vue app context', () => {
 		const index = createIndex();
-		const configuration = createSearchFormConfiguration();
+		const customizations = createSearchFormCustomizations();
 
 		const options = createQueryBuilderOptions({
 			corpus: index,
-			configuration,
+			customizations,
 			blacklabApi: createMockApi().blacklabApi,
 			translate: createMockTranslate(),
 		});
@@ -177,7 +154,7 @@ describe('search form data dependencies', () => {
 	test('builds querybuilder annotation options from the configured corpus subset', () => {
 		const options = createQueryBuilderOptions({
 			corpus: createIndex(),
-			configuration: createSearchFormConfiguration(),
+			customizations: createSearchFormCustomizations(),
 			blacklabApi: createMockApi().blacklabApi,
 			translate: createMockTranslate(),
 		});
@@ -195,7 +172,7 @@ describe('search form data dependencies', () => {
 		const getTermAutocomplete = vi.fn(() => resolvedRequest(['water']));
 		const options = createQueryBuilderOptions({
 			corpus: index,
-			configuration: createSearchFormConfiguration(),
+			customizations: createSearchFormCustomizations(),
 			blacklabApi: createMockApi({ blacklab: { getTermAutocomplete } }).blacklabApi,
 			translate: createMockTranslate(),
 		});
@@ -206,12 +183,11 @@ describe('search form data dependencies', () => {
 
 	test('uses an allowed querybuilder annotation when the configured default is stale', () => {
 		const index = createIndex();
-		const configuration = createSearchFormConfiguration();
-		configuration.queryBuilder.defaultAnnotationId = 'word';
+		const customizations = createSearchFormCustomizations('word');
 
 		const options = createQueryBuilderOptions({
 			corpus: index,
-			configuration,
+			customizations,
 			blacklabApi: createMockApi().blacklabApi,
 			translate: createMockTranslate(),
 		});

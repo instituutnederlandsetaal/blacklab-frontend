@@ -21,7 +21,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 					tsconfigPath: 'tsconfig.app.json', // relative to root prop above
 				},
 				oxlint: {
-					lintCommand: 'oxlint --config oxlint.config.mts ./src/',
+					lintCommand: 'oxlint --config tooling/oxlint.config.mts ./src/',
 				},
 			}),
 		);

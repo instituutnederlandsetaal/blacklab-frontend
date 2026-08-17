@@ -182,6 +182,7 @@ import * as SearchModule from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
@@ -191,7 +192,6 @@ import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
-import { corpusCustomizations } from '@/utils/customization';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
@@ -241,6 +241,7 @@ export default defineComponent({
 		},
 	},
 	data: () => ({
+		customizations: useCustomizations(),
 		/** The criteria the user has added to group on */
 		addedCriteria: [] as GroupBy[],
 		/** which of the addedCriteria is currently selected (to be edited on the right side) */
@@ -296,11 +297,11 @@ export default defineComponent({
 					this,
 					debug.value, // is debug enabled - i.e. show debug labels in dropdown
 					UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
-					corpusCustomizations.search.metadata.showField,
+					id => this.customizations.resultMetadataField(this.corpus.allMetadataFieldsMap[id]),
 				) as OptGroup[]
 			)
 				.concat(this.tagAttributes)
-				.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
+				.map(optGroup => this.customizations.groupOptionGroup(optGroup, this))
 				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
 		},
 		annotationDropdownOptions(): Options {
@@ -313,7 +314,7 @@ export default defineComponent({
 				debug.value, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
 			)
-				.flatMap(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
+				.flatMap(optGroup => this.customizations.groupOptionGroup(optGroup, this))
 				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
 		},
 
@@ -394,21 +395,25 @@ export default defineComponent({
 			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
 				// Check custom method to see if we should include this attribute
 				// (or if that returns null, we will fall back to default behaviour)
-				let shouldInclude = corpusCustomizations.group.includeSpanAttribute(tagName, attributeName);
+				let shouldInclude = this.customizations.groupingSpanAttribute({
+					elementName: tagName,
+					attributeName,
+				});
 				const filterId = spanFilterId(tagName, attributeName);
 				const filter = FilterModule.getState().filters[filterId];
 				if (shouldInclude === null) {
 					// By default, you may group on any span attribute for which a
 					// span filter exists, or which occurs in the within widget.
 					const isSpanFilter = filter ? (getValueFunctions(filter)?.isSpanFilter ?? null) : false;
-					const customWithin = corpusCustomizations.search.within;
-					const isWithinAttr = customWithin.includeSpan(tagName) && customWithin.includeAttribute(tagName, attributeName);
+					const isWithinAttr = this.customizations.legacyShouldIncludeWithinSpan(tagName) && this.customizations.legacyShouldIncludeWithinAttribute(tagName, attributeName);
 					shouldInclude = isSpanFilter || isWithinAttr;
 				}
 				if (shouldInclude) {
 					const value = spanAttributeOptionValue(tagName, attributeName, listName);
 					options.push({
-						label: `${this.$t('results.table.groupBy', { field: filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName) })}`,
+						label: `${this.$t('results.table.groupBy', {
+							field: filter ? this.$tMetaDisplayName(filter) : this.$tWithinAttributeDisplayName(tagName, attributeName),
+						})}`,
 						value,
 					});
 				}
@@ -550,7 +555,7 @@ export default defineComponent({
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
 			const { annotation, context } = this.selectedCriterium;
 
-			const snippet = snippetParts(hitInField, this.colors);
+			const snippet = snippetParts(hitInField, this.colors, this.customizations.matchInfoHighlightStyle);
 
 			// Don't highlight the list of relations matchInfo; it doesn't make sense to group on those
 			const removeListMatchInfo = (t: HitToken) => (t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0));
@@ -825,7 +830,6 @@ export default defineComponent({
 	},
 	methods: {
 		groupLabelTag(tagName: string): string {
-			if (this.$te(`results.groupBy.groupLabel.tag ${tagName}`)) return this.$t(`results.groupBy.groupLabel.tag ${tagName}`).toString();
 			return this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
 		},
 		apply() {

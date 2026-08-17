@@ -129,12 +129,11 @@ describe('corpus context publication', () => {
 		const initializedCorpusIds: string[] = [];
 		let initializedCorpusId: string | undefined;
 		const interopRevision = ref(0);
-		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: () => corpusRequest.request }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus', {
-			beforePublish: context => {
-				initializedCorpusId = context.index?.id;
-				initializedCorpusIds.push(initializedCorpusId ?? '');
-				interopRevision.value += 1;
-			},
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: () => corpusRequest.request }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus');
+		state.beforePublish(context => {
+			initializedCorpusId = context.index?.id;
+			initializedCorpusIds.push(initializedCorpusId ?? '');
+			interopRevision.value += 1;
 		});
 		const observations: Array<{ contextId: string; initializedCorpusId: string | undefined }> = [];
 		watch(
@@ -171,9 +170,8 @@ describe('corpus context publication', () => {
 
 	test('normalizes POS data exactly once before publishing the context', async () => {
 		const beforePublish = vi.fn();
-		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: createPosIndex() }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus', {
-			beforePublish,
-		});
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: createPosIndex() }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus');
+		state.beforePublish(beforePublish);
 
 		await settleReactivity();
 		await settleReactivity();
@@ -190,9 +188,8 @@ describe('corpus context publication', () => {
 		const getCorpus = vi.fn((id: string) => resolvedRequest(createIndex(id)));
 		const getConfig = vi.fn(() => resolvedRequest(createConfig()));
 		const getTagset = vi.fn(() => resolvedRequest(undefined));
-		const state = createCorpusContext(createMockBlackLabApi({ getCorpus }), createMockFrontendApi({ getConfig, getTagset }), corpusId, {
-			beforePublish: context => publishedIds.push(context.index!.id),
-		});
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus }), createMockFrontendApi({ getConfig, getTagset }), corpusId);
+		state.beforePublish(context => publishedIds.push(context.index!.id));
 
 		await settleReactivity();
 		expect(state.corpus.value?.id).toBe('first');

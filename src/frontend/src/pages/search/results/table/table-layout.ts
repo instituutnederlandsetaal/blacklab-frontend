@@ -297,14 +297,14 @@ function flatten(part: BLHitSnippetPart | undefined, punctuationSettings: { punc
  *
  * @returns the hit split into before, match, and after parts, with capture and relation info added to the tokens. The punct is to be shown after the word.
  */
-export function snippetParts(hit: BLHitInContext, colors?: Record<string, TokenHighlight>): HitContext {
+export function snippetParts(hit: BLHitInContext, colors: Record<string, TokenHighlight> | undefined, resolveHighlightStyle: Parameters<typeof Highlights.getHighlightSections>[1]): HitContext {
 	const before = flatten(hit.before, { punctAfterLastWord: hit.match.punct?.[0] ?? '' });
 	const match = flatten(hit.match, {});
 	const after = flatten(hit.after, { firstPunct: true });
 
 	// Only extract captures if have the necessary info to do so.
 	if (!hit.matchInfos || hit.start == null || hit.end == null || !colors) return { before, match, after };
-	const highlights = Highlights.getHighlightSections(hit.matchInfos);
+	const highlights = Highlights.getHighlightSections(hit.matchInfos, resolveHighlightStyle);
 	if (highlights.length) {
 		before.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start! - before.length, colors)));
 		match.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start!, colors)));
@@ -378,7 +378,8 @@ export type DisplaySettingsForRendering = {
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
 	hasCustomHitInfoColumn: (results: BLSearchResult, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
-	getCustomHitInfo: (hit: BLHitInContext, annotatedFieldDisplayName: string, doc: BLDoc) => string | null;
+	getCustomHitInfo: (hit: BLHitInContext, annotatedField: NormalizedAnnotatedField, doc: BLDoc) => string | null;
+	getMatchInfoHighlightStyle: Parameters<typeof Highlights.getHighlightSections>[1];
 
 	/** User's configured page size (global store) */
 	pageSize: number;
@@ -391,7 +392,7 @@ export type DisplaySettingsForRendering = {
 };
 
 export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir' | 'i18n' | 'specialFields' | 'targetFields' | 'pageSize' | 'first' | 'number' | 'requestedRange'>;
-export type DisplaySettingsForRows = DisplaySettingsCommon & Pick<DisplaySettingsForRendering, 'sourceField' | 'getSummary' | 'getCustomHitInfo' | 'indexId'>;
+export type DisplaySettingsForRows = DisplaySettingsCommon & Pick<DisplaySettingsForRendering, 'sourceField' | 'getSummary' | 'getCustomHitInfo' | 'getMatchInfoHighlightStyle' | 'indexId'>;
 export type DisplaySettingsForColumns = DisplaySettingsCommon &
 	Pick<DisplaySettingsForRendering, 'mainAnnotation' | 'otherAnnotations' | 'sortableAnnotations' | 'annotationGroups' | 'metadata' | 'groupDisplayMode' | 'hasCustomHitInfoColumn'>;
 
@@ -498,7 +499,7 @@ function makeHitRow(
 		first_of_hit: p.first_of_hit,
 		last_of_hit: p.last_of_hit,
 
-		context: snippetParts(p.hit, highlightColors),
+		context: snippetParts(p.hit, highlightColors, info.getMatchInfoHighlightStyle),
 		href: frontendPaths.documentPage({
 			indexId: info.indexId,
 			pid: p.doc.docPid,
@@ -512,7 +513,7 @@ function makeHitRow(
 		annotatedField: field,
 		dir: docDir(p.doc, info.dir),
 
-		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? '',
+		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, field, p.doc) : undefined) ?? '',
 		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first),
 	};
 }

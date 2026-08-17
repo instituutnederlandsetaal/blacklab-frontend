@@ -77,12 +77,12 @@ import { defineComponent } from 'vue';
 import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormStateWithSummaries, FormRuntime } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import { useSearchFormSystem } from '@/features/search/model/form/search-form-system';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { useSearchFormSystem } from '@/features/search/model/search-form-builder';
-import { searchFormIds } from '@/features/search/model/search-form-ids';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';

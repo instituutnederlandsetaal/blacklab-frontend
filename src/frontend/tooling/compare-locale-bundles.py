@@ -3,8 +3,8 @@ import os
 import sys
 from pathlib import Path
 
-LOCALES_DIR = Path(__file__).resolve().parent
-FRONTEND_DIR = LOCALES_DIR.parent.parent
+FRONTEND_DIR = Path(__file__).resolve().parent.parent
+LOCALES_DIR = FRONTEND_DIR / 'assets' / 'locales'
 SOURCE_DIR = FRONTEND_DIR / 'src'
 
 SOURCE_FILE_EXTENSIONS = {'.ts', '.tsx', '.js', '.jsx', '.vue', '.html', '.mts', '.cts'}

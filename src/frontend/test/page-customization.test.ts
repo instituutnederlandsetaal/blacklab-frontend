@@ -3,8 +3,11 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
 
+import { createCustomizationRegistry } from '@/customization-api/registry';
 import { customCssChangedEvent, useCustomCss, useCustomJs } from '@/interop/page-customization';
-import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
+import type { CFCustomCssEntry, CFCustomJsEntry, Corpus } from '@/types/apptypes';
+
+const customizations = createCustomizationRegistry({ relations: { spans: {} } } as Corpus);
 
 describe('page customization', () => {
 	beforeEach(() => {
@@ -102,6 +105,108 @@ describe('page customization', () => {
 
 			expect(script).toBeInstanceOf(HTMLScriptElement);
 			expect(script?.getAttribute('async')).toBe('true');
+		} finally {
+			scope.stop();
+		}
+	});
+
+	test('replaces registrations when a custom script is reloaded', async () => {
+		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/customization.js' } }]);
+		const scope = effectScope();
+		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		const first = vi.fn();
+		const second = vi.fn();
+		const replacement = vi.fn();
+		let unregisterFirst = () => {};
+		let unregisterSecond = () => {};
+		let unregisterReplacement = () => {};
+
+		try {
+			customJs.enable();
+			await nextTick();
+			const oldScript = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			const currentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(oldScript);
+			try {
+				unregisterFirst = customizations.registerForm(first);
+				unregisterSecond = customizations.registerForm(second);
+			} finally {
+				currentScript.mockRestore();
+			}
+
+			entries.value = [{ index: 0, attributes: { src: '/customization.js' } }];
+			await nextTick();
+			const newScript = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			const replacementCurrentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(newScript);
+			try {
+				unregisterReplacement = customizations.registerForm(replacement);
+			} finally {
+				replacementCurrentScript.mockRestore();
+			}
+
+			expect(customizations.formConfigurators.value).toContain(replacement);
+			expect(customizations.formConfigurators.value).not.toContain(first);
+			expect(customizations.formConfigurators.value).not.toContain(second);
+		} finally {
+			unregisterFirst();
+			unregisterSecond();
+			unregisterReplacement();
+			scope.stop();
+		}
+	});
+
+	test('disposes search-form registrations with their owning custom script', async () => {
+		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/search-form.js' } }]);
+		const scope = effectScope();
+		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		const initialCount = customizations.formConfigurators.value.length;
+		let unregister = () => {};
+
+		try {
+			customJs.enable();
+			await nextTick();
+			const script = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			const currentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(script);
+			try {
+				unregister = customizations.registerForm(() => {});
+			} finally {
+				currentScript.mockRestore();
+			}
+
+			expect(customizations.formConfigurators.value).toHaveLength(initialCount + 1);
+			customJs.disable();
+			await nextTick();
+			expect(customizations.formConfigurators.value).toHaveLength(initialCount);
+
+			const afterDispose = customizations.formConfigurators.value;
+			unregister();
+			expect(customizations.formConfigurators.value).toBe(afterDispose);
+		} finally {
+			unregister();
+			scope.stop();
+		}
+	});
+
+	test('ignores a late registration from an async script that was already removed', async () => {
+		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/late.js', async: true } }]);
+		const scope = effectScope();
+		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		const initialRegistrations = customizations.formConfigurators.value;
+
+		try {
+			customJs.enable();
+			await nextTick();
+			const script = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			customJs.disable();
+			await nextTick();
+
+			const currentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(script);
+			try {
+				customizations.registerForm(() => {});
+			} finally {
+				currentScript.mockRestore();
+			}
+
+			expect(customizations.formConfigurators.value).toBe(initialRegistrations);
 		} finally {
 			scope.stop();
 		}

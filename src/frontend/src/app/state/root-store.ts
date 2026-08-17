@@ -3,6 +3,7 @@ import cloneDeep from 'clone-deep';
 import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 // Results
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
@@ -21,7 +22,6 @@ import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { corpusCustomizations } from '@/utils/customization';
 
 import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 import debug, { debugLog } from '@/shared/debug/debug';
@@ -29,7 +29,7 @@ import debug, { debugLog } from '@/shared/debug/debug';
 let localSearchIntentRevision = 0;
 
 let context: CorpusContext | null = null;
-const useCorpus = () => context?.index;
+let customizations: Customizations | undefined;
 
 const get = {
 	viewedResultsSettings: () => {
@@ -97,7 +97,7 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
-			withspans: patt ? (corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (queryNeedsSpans || !!useCorpus()?.hasRelations || undefined)) : undefined,
+			withspans: patt ? ((customizations ? customizations.searchWithSpans(patt) : null) ?? (queryNeedsSpans || !!context?.index?.hasRelations || undefined)) : undefined,
 		};
 	}),
 	localSearchIntentRevision: () => localSearchIntentRevision,
@@ -316,6 +316,10 @@ const actions = {
 	},
 };
 
+const setCustomizations = (value: Customizations) => {
+	customizations = value;
+};
+
 const init = (state: CorpusContext) => {
 	debugLog('store', 'Initializing store with new corpus data', state);
 	context = state;
@@ -333,4 +337,4 @@ const init = (state: CorpusContext) => {
 	ArticleModule.init(state);
 };
 
-export { actions, get, init };
+export { actions, get, init, setCustomizations };

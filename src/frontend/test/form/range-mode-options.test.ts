@@ -6,10 +6,9 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { nextTick, ref } from 'vue';
 
-import type { Corpus } from '@/app/state/useCorpusContext';
+import { createSearchFormNodeConstructors } from '@/customization-api/shared/form/node-constructors';
 import { createRangeModeOptions, DateField, RangeField, type FormFieldNode, type RangeModeOption } from '@/features/form';
-import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
-import { createSearchFormNodeConstructors } from '@/features/search/model/search-form-node-factory';
+import type { Corpus } from '@/types/apptypes';
 import type { NormalizedMetadataField } from '@/types/apptypes';
 
 import type { Translate } from '@/shared/i18n';
@@ -43,13 +42,16 @@ describe('range mode options', () => {
 		};
 		const factory = createSearchFormNodeConstructors({
 			blacklabApi: createMockApi().blacklabApi,
-			configuration: {} as SearchFormConfiguration,
 			corpus: { textDirection: 'ltr' } as Corpus,
+			customizations: {
+				searchFormAnnotationControl: () => null,
+				searchFormLexiconDatabase: () => '',
+			},
 			tagset: undefined,
 			translate,
 		});
-		const dateOptions = getModeOptions(factory.nodes.metadataDate(metadataField('published', 'date'), { id: 'published' }));
-		const rangeOptions = getModeOptions(factory.nodes.metadataRange(metadataField('year', 'range'), { id: 'year' }));
+		const dateOptions = getModeOptions(factory.metadataDate(metadataField('published', 'date'), { id: 'published' }));
+		const rangeOptions = getModeOptions(factory.metadataRange(metadataField('year', 'range'), { id: 'year' }));
 
 		expect(translationCalls).toBe(0);
 		expect(optionLabel(dateOptions[0])).toBe('en:filter.range.permissive');

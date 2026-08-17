@@ -2,7 +2,7 @@ import { computed, watchEffect } from 'vue';
 
 import { useCorpusContextLoader } from '@/app/state/useCorpusContext';
 import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/interop/page-customization';
-import { setLegacyIndexIdGlobal } from '@/interop/window-globals';
+import { installIndexIdGlobal } from '@/interop/window-globals';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { useCorpusId } from '@/navigation/router';
 import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
@@ -28,7 +28,7 @@ export function startCustomizationInterop() {
 	});
 
 	// Set this one up first, so the variable is guaranteed to be set before dependent custom js is executed.
-	watchEffect(() => setLegacyIndexIdGlobal(indexId.value || ''));
+	watchEffect(() => installIndexIdGlobal(indexId.value || ''));
 
 	useTitle(computed(() => pageBootstrap.page.value?.getTitle?.(displayName.value) ?? displayName.value));
 

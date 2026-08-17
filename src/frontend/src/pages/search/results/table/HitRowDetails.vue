@@ -22,7 +22,7 @@
 						 -->
 						<DepTree
 							v-if="typeof row.hit.start === 'number'"
-							:context="sentenceShown && sentence ? snippetParts(sentence) : row.context"
+							:context="sentenceShown && sentence ? snippetParts(sentence, undefined, info.getMatchInfoHighlightStyle) : row.context"
 							:hit-start="row.hit.start"
 							:match-infos="sentenceShown && sentence ? sentence.matchInfos : row.hit.matchInfos"
 							:primary-annotation="info.mainAnnotation"
@@ -235,6 +235,7 @@ function loadSnippet() {
 				// @ts-ignore matchinfos not included in snippets. copy from the original hit.
 				{ matchInfos: props.row.hit.matchInfos, ...s },
 				highlightColors,
+				props.info.getMatchInfoHighlightStyle,
 			);
 
 			// Run plugins defined for this corpus (e.g. a copy to clipboard button, or an audio player/text to speech button)

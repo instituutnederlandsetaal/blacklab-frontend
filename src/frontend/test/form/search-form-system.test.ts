@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { createCustomizations } from '@/customization-api/internal/internal-api';
+import { createCustomizationRegistry } from '@/customization-api/registry';
+import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import {
@@ -21,13 +24,8 @@ import {
 	type ParallelFieldState,
 	type TokenSequenceFieldState,
 } from '@/features/form';
-import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
-import { createSearchFormSystem } from '@/features/search/model/search-form-builder';
-import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
-import { registerSearchFormCustomization, resolveSearchFormCustomizations } from '@/features/search/model/search-form-customization';
-import { searchFormIds as ids } from '@/features/search/model/search-form-ids';
-import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-import { corpusCustomizations } from '@/utils/customization';
+import { createSearchFormSystem } from '@/features/search/model/form/search-form-system';
+import type { Corpus, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
 import debug from '@/shared/debug/debug';
 import { findOption, optionLabel, optionText, optionTitle, optionValues, type Options, type OptionText } from '@/shared/utils/options';
@@ -185,15 +183,20 @@ function createParallelCorpus(): Corpus {
 }
 
 let testScope: EffectScope;
+const customizationRegistry = createCustomizationRegistry(createCorpus());
 
-function createScopedSearchFormSystem(options: Parameters<typeof createSearchFormSystem>[0]) {
-	return testScope.run(() => createSearchFormSystem(options))!;
+function createScopedSearchFormSystem(options: Omit<Parameters<typeof createSearchFormSystem>[0], 'customizations'>) {
+	return testScope.run(() =>
+		createSearchFormSystem({
+			...options,
+			customizations: createCustomizations(customizationRegistry, options.corpus, UIStore.getState),
+		}),
+	)!;
 }
 
 function createDefinition(corpus = createCorpus()) {
 	return createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		configuration: createLegacySearchFormConfiguration(),
 		corpus: ref(corpus),
 		tagset: ref(undefined),
 		translate: createMockTranslate(),
@@ -217,7 +220,6 @@ function createLocalizedSearchSystem() {
 	};
 	const system = createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		configuration: createLegacySearchFormConfiguration(),
 		corpus: ref(createCorpus()),
 		tagset: ref(undefined),
 		translate: translated,
@@ -261,7 +263,6 @@ function createLocalizedPosSystem() {
 	const translate = createMockTranslate();
 	const system = createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		configuration: createLegacySearchFormConfiguration(),
 		corpus: ref(corpus),
 		tagset: ref(normalizedTagset),
 		translate: {
@@ -281,51 +282,29 @@ function createLocalizedPosSystem() {
 }
 
 function createCustomizedWithinRuntime() {
-	const customization = resolveSearchFormCustomizations([
-		form => {
-			form.addWithinAttribute({
-				groupId: 'Bibliographic',
-				insertBefore: 'author',
-				id: 'span:speech:person',
-				elementName: 'speech',
-				attributeName: 'person',
-				control: 'text',
-				defaultDisplayName: 'Speaker',
-			});
-			form.addWithinAttribute({
-				groupId: 'Span filters',
-				id: 'span:speech:role',
-				elementName: 'speech',
-				attributeName: 'role',
-				control: { type: 'select', options: [{ value: 'host', label: 'Host' }] },
-				defaultDisplayName: 'Role',
-			});
-			form.addWithinAttribute({
-				groupId: 'Span filters',
-				id: 'span:p:n',
-				elementName: 'p',
-				attributeName: 'n',
-				control: 'range',
-				defaultDisplayName: 'Paragraph',
-			});
-		},
-	]);
-	const configuration = snapshotSearchFormConfiguration(UIStore.getState(), customization);
-	const runtime = createScopedSearchFormSystem({
-		blacklabApi: createMockApi().blacklabApi,
-		configuration: ref(configuration),
-		corpus: ref(createCorpus()),
-		tagset: ref(undefined),
-		translate: createMockTranslate(),
-	}).runtime.value!;
-
+	const corpus = createCorpus();
+	const registry = createCustomizationRegistry(corpus);
+	registry.registerForm(form => {
+		form.addSpanFilter({ elementName: 'speech', attributeName: 'person', control: 'text', groupId: 'Bibliographic', insertBefore: 'author', defaultDisplayName: 'Speaker' });
+		form.addSpanFilter({ elementName: 'speech', attributeName: 'role', control: 'select', options: [{ value: 'host', label: 'Host' }], groupId: 'Span filters', defaultDisplayName: 'Role' });
+		form.addSpanFilter({ elementName: 'p', attributeName: 'n', control: 'range', groupId: 'Span filters', defaultDisplayName: 'Paragraph' });
+	});
+	const runtime = testScope.run(
+		() =>
+			createSearchFormSystem({
+				blacklabApi: createMockApi().blacklabApi,
+				corpus: ref(corpus),
+				customizations: createCustomizations(registry, corpus, UIStore.getState),
+				tagset: ref(undefined),
+				translate: createMockTranslate(),
+			}).runtime.value!,
+	)!;
 	return { personFieldId: ids.withinFilter('speech', 'person'), runtime };
 }
 
 function createLegacyBackedSearchSystem() {
 	return createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		configuration: createLegacySearchFormConfiguration(),
 		corpus: ref(createCorpus()),
 		tagset: ref(undefined),
 		translate: createMockTranslate(),
@@ -514,10 +493,11 @@ describe('search form system', () => {
 	});
 
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
-		vi.spyOn(corpusCustomizations.search.metadata, 'showField').mockImplementation(id => id !== 'author');
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.metadata, 'showField').mockImplementation(id => id !== 'author');
 		const runtime = createDefinition();
 		const field = runtime.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options };
 
+		expect(runtime.definition.getField(ids.metadataFilter('author'))).toBeNull();
 		expect(optionValues(field.options)).toEqual(['field:genre']);
 		expect(runtime.state.state.value[ids.exploreCorporaGroupBy()]).toBe('field:genre');
 	});
@@ -800,28 +780,24 @@ describe('search form system', () => {
 		expect(compiled.summaries).toContainEqual({ label: 'Speaker', value: 'Alice*', group: 'Bibliographic', summaryType: ['filter'] });
 	});
 
-	test('adapts old span-filter definitions through the new customization API', () => {
-		const customization = resolveSearchFormCustomizations([
-			adaptLegacySearchFormCustomizations(
-				[
-					{
-						name: 'Span filters',
-						fields: [
-							{
-								id: 'span:speech:role',
-								componentName: 'filter-select',
-								behaviourName: 'span-select',
-								defaultDisplayName: 'Role',
-								metadata: { options: ['host', 'guest'] },
-							},
-						],
-					},
-				],
-				corpusCustomizations.search.within,
-			),
-		]);
+	test('adapts old span-filter definitions through the internal customization API', () => {
+		const corpus = createCorpus();
+		const registry = createCustomizationRegistry(corpus);
+		registry.legacyApi.value!.search.metadata._customTabs.push({
+			name: 'Span filters',
+			fields: [
+				{
+					id: 'span:speech:role',
+					componentName: 'filter-select',
+					behaviourName: 'span-select',
+					defaultDisplayName: 'Role',
+					metadata: { options: ['host', 'guest'] },
+				},
+			],
+		});
+		const customizations = createCustomizations(registry, corpus, UIStore.getState);
 
-		expect(customization.withinAttributes).toMatchObject([
+		expect(customizations.searchFormSpanFilters()).toMatchObject([
 			{
 				id: 'span:speech:role',
 				elementName: 'speech',
@@ -919,14 +895,16 @@ describe('search form system', () => {
 		const customContainerId = 'custom/search-form/fields';
 		const customFieldId = 'custom/search-form/lemma';
 		let registered = true;
-		const unregister = registerSearchFormCustomization(form => {
-			const id = form.ids.queryField('simple');
-			observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
-			expect(form).not.toHaveProperty('setAnnotationUiType');
-			form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
-			const fields = form.newContainer(customContainerId, { variant: 'list' }).addChildren(form.annotationText('lemma', { id: customFieldId }));
-			const customForm = form.newForm(customFormId, { title: () => form.translate.$t('search.simple.heading') }).addChildren(fields);
-			form.graph.getContainer(form.ids.searchFormsContainer())!.addChildren(customForm);
+		const unregister = customizationRegistry.registerForm({
+			customize(form) {
+				const id = form.ids.queryField('simple');
+				observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
+				expect(form).not.toHaveProperty('setAnnotationUiType');
+				form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
+				const fields = form.newContainer(customContainerId, { variant: 'list' }).addChildren(form.annotationText('lemma', { id: customFieldId }));
+				const customForm = form.newForm(customFormId, { title: () => form.translate.$t('search.simple.heading') }).addChildren(fields);
+				form.graph.getContainer(form.ids.searchFormsContainer())!.addChildren(customForm);
+			},
 		});
 
 		try {
@@ -947,15 +925,175 @@ describe('search form system', () => {
 		}
 	});
 
+	test('treats callback shorthand as semantic configuration', () => {
+		const unregister = customizationRegistry.registerForm(form => form.setSimpleAnnotation('lemma'));
+
+		try {
+			const definition = createLegacyBackedSearchSystem().runtime.value!.definition;
+			expect((definition.getField(ids.queryField('simple')) as unknown as { annotationId: string }).annotationId).toBe('lemma');
+		} finally {
+			unregister();
+		}
+	});
+
+	test('continues each customization phase after a callback error', () => {
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		let graphCustomizations = 0;
+		const unregisterFailing = customizationRegistry.registerForm({
+			configure() {
+				throw new Error('configuration failed');
+			},
+			customize() {
+				throw new Error('graph customization failed');
+			},
+		});
+		const unregisterFollowing = customizationRegistry.registerForm({
+			configure(form) {
+				form.setSimpleAnnotation('lemma');
+			},
+			customize() {
+				graphCustomizations += 1;
+			},
+		});
+
+		try {
+			const definition = createLegacyBackedSearchSystem().runtime.value!.definition;
+			expect((definition.getField(ids.queryField('simple')) as unknown as { annotationId: string }).annotationId).toBe('lemma');
+			expect(graphCustomizations).toBe(1);
+			expect(error).toHaveBeenCalledTimes(2);
+			expect(error.mock.calls.map(([message]) => message)).toEqual(['Error in search form configuration callback:', 'Error in search form graph customization callback:']);
+		} finally {
+			unregisterFailing();
+			unregisterFollowing();
+		}
+	});
+
+	test('uses returned span-filter IDs for ordering and replaces filters in place', () => {
+		const unregister = customizationRegistry.registerForm(form => {
+			const roleId = form.addSpanFilter({ elementName: 'speech', attributeName: 'role', control: 'text', groupId: 'Classification' });
+			form.addSpanFilter({ elementName: 'speech', attributeName: 'speaker', control: 'text', groupId: 'Classification', insertBefore: roleId });
+			form.addSpanFilter({ elementName: 'speech', attributeName: 'role', control: 'range', groupId: 'Classification' });
+		});
+
+		try {
+			const definition = createLegacyBackedSearchSystem().runtime.value!.definition;
+			expect(definition.getContainer(ids.filterTab('Classification'))?.children.map(node => node.id)).toEqual([
+				ids.metadataFilter('genre'),
+				ids.withinFilter('speech', 'speaker'),
+				ids.withinFilter('speech', 'role'),
+			]);
+			expect(definition.getField(ids.withinFilter('speech', 'role'))?.component).toBe(RangeField);
+		} finally {
+			unregister();
+		}
+	});
+
+	test('evaluates metadata visibility once per corpus field and rebuilds after unregistering', () => {
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.metadata, 'showField').mockImplementation(id => id !== 'genre');
+		const visited: string[] = [];
+		const unregister = customizationRegistry.registerForm(form => {
+			form.filterMetadataFields(field => {
+				visited.push(field.id);
+				return field.id !== 'author';
+			});
+		});
+
+		try {
+			const system = createLegacyBackedSearchSystem();
+			const exploreGroupBy = system.runtime.value!.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options };
+			expect(visited).toEqual(['author', 'genre']);
+			expect(system.runtime.value!.definition.getField(ids.metadataFilter('author'))).toBeNull();
+			expect(system.runtime.value!.definition.getField(ids.metadataFilter('genre'))).not.toBeNull();
+			expect(optionValues(exploreGroupBy.options)).toEqual(['field:genre']);
+
+			unregister();
+			const rebuilt = system.runtime.value!.definition;
+			expect(rebuilt.getField(ids.metadataFilter('author'))).not.toBeNull();
+			expect(rebuilt.getField(ids.metadataFilter('genre'))).toBeNull();
+			expect(optionValues((rebuilt.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options }).options)).toEqual(['field:author']);
+		} finally {
+			unregister();
+		}
+	});
+
+	test('applies modern semantic configuration before constructing built-in and custom fields', () => {
+		const corpus = createCorpus();
+		corpus.allAnnotationsMap.lemma.hasForwardIndex = false;
+		corpus.relations.spans = {
+			speech: {
+				count: 2,
+				attributes: {
+					role: { valueListComplete: true, values: { guest: 1, host: 1 } },
+				},
+			},
+		};
+		let spanFilterNodeId = '';
+		const unregister = customizationRegistry.registerForm({
+			configure(form) {
+				form.setSimpleAnnotation('lemma');
+				form.setExtendedAnnotations(['pos']);
+				form.setAnnotationControl('lemma', 'autocomplete');
+				form.configureAdvanced({ annotationIds: ['lemma'], defaultAnnotationId: 'lemma' });
+				form.filterMetadataFields(field => field.id !== 'author');
+				form.setMetadataFilters(['author', 'genre']);
+				form.configureWithin({ enabled: false });
+				form.configureExplore({
+					searchAnnotationIds: ['lemma'],
+					defaultSearchAnnotationId: 'lemma',
+					groupAnnotationIds: ['lemma', 'pos'],
+					defaultGroupAnnotationId: 'lemma',
+					corpora: { groupMetadataIds: ['author', 'genre'], defaultGroupMetadataId: 'genre' },
+				});
+				spanFilterNodeId = form.addSpanFilter({ elementName: 'speech', attributeName: 'role', groupId: 'Classification' });
+			},
+			customize(form) {
+				const range = form.metadataMultiFieldRange({ id: 'year-range', defaultDisplayName: 'Year' }, { id: 'year-range', fromField: 'year_from', toField: 'year_to', inputType: 'number' });
+				form.graph.getContainer(form.ids.filterTab('Classification'))!.insertBefore(range, form.ids.metadataFilter('genre'));
+			},
+		});
+
+		try {
+			const system = createScopedSearchFormSystem({
+				blacklabApi: createMockApi().blacklabApi,
+				corpus: ref(corpus),
+				tagset: ref(undefined),
+				translate: createMockTranslate(),
+			});
+			const runtime = system.runtime.value!;
+			const definition = runtime.definition;
+			const queryBuilderState = runtime.state.state.value[ids.queryField('advanced')] as CqlQueryBuilderData;
+			const queryBuilderAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
+
+			expect((definition.getField(ids.queryField('simple')) as unknown as { annotationId: string }).annotationId).toBe('lemma');
+			expect((definition.getField(ids.queryField('simple')) as unknown as { autocomplete?: unknown }).autocomplete).toBeTypeOf('function');
+			expect(definition.getField(ids.annotationField('extended', 'contents', 'word'))).toBeNull();
+			expect(definition.getField(ids.annotationField('extended', 'contents', 'pos'))).not.toBeNull();
+			expect('annotationId' in queryBuilderAttribute ? queryBuilderAttribute.annotationId : null).toBe('lemma');
+			expect(definition.getField(ids.metadataFilter('author'))).toBeNull();
+			expect(definition.getField(ids.metadataFilter('genre'))).not.toBeNull();
+			expect(definition.getField(ids.withinField())).toBeNull();
+			expect(definition.getField(ids.withinFilter('speech', 'role'))?.component).toBe(SelectField);
+			expect(spanFilterNodeId).toBe(ids.withinFilter('speech', 'role'));
+			expect(definition.getField('year-range')?.component).toBe(RangeField);
+			expect(definition.getContainer(ids.filterTab('Classification'))?.children.map(node => node.id)).toEqual(['year-range', ids.metadataFilter('genre'), ids.withinFilter('speech', 'role')]);
+			expect((definition.getField(ids.exploreNgramTokens()) as unknown as { defaultFieldId: string }).defaultFieldId).toBe('lemma');
+			expect((definition.getField(ids.exploreNgramGroupBy()) as unknown as { defaultAnnotationId: string }).defaultAnnotationId).toBe('pos');
+			expect((definition.getField(ids.exploreCorporaGroupBy()) as unknown as { defaultValue: string }).defaultValue).toBe('field:genre');
+		} finally {
+			unregister();
+		}
+	});
+
 	test('normalizes legacy annotation widget overrides before building the form', () => {
 		const corpus = createCorpus();
 		corpus.allAnnotationsMap.lemma.values = [{ value: 'run', label: 'Run', title: null }];
-		vi.spyOn(corpusCustomizations.search.pattern, 'uiType').mockImplementation((_field, annotationId) => (annotationId === 'lemma' ? ('dropdown' as 'select') : null));
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'uiType').mockImplementation((_field, annotationId) => (annotationId === 'lemma' ? ('dropdown' as 'select') : null));
 
 		UIStore.init({ index: corpus } as CorpusContext);
 
-		expect(corpus.allAnnotationsMap.lemma.uiType).toBe('select');
+		expect(corpus.allAnnotationsMap.lemma.uiType).toBe('text');
 		expect(createDefinition(corpus).definition.getField(ids.annotationField('extended', 'contents', 'lemma'))?.component).toBe(SelectField);
+		expect(corpus.allAnnotationsMap.lemma.uiType).toBe('select');
 	});
 
 	test('builds replacement search fields from the latest legacy configuration', () => {
@@ -1011,23 +1149,15 @@ describe('search form system', () => {
 	});
 
 	test('creates parallel querybuilder defaults from the replacement definition', () => {
-		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			configuration,
 			corpus: ref(createParallelCorpus()),
 			tagset: ref(undefined),
 			translate: createMockTranslate(),
 		});
 
-		configuration.value = {
-			...configuration.value,
-			queryBuilder: {
-				enabled: true,
-				annotationIds: ['lemma'],
-				defaultAnnotationId: 'lemma',
-			},
-		};
+		UIStore.getState().search.advanced.searchAnnotationIds = ['lemma'];
+		UIStore.getState().search.advanced.defaultSearchAnnotationId = 'lemma';
 
 		const replacementState = system.runtime.value!.state.state.value[ids.queryField('advanced')] as ParallelFieldState;
 		const replacementSourceState = replacementState.childStates.contents__en as CqlQueryBuilderData;
@@ -1037,10 +1167,8 @@ describe('search form system', () => {
 	});
 
 	test('discards draft state and restores the URL against the replacement definition', () => {
-		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			configuration,
 			corpus: ref(createCorpus()),
 			tagset: ref(undefined),
 			translate: createMockTranslate(),
@@ -1057,14 +1185,8 @@ describe('search form system', () => {
 		initialRuntime.state.state.value[ids.metadataFilter('author')] = { value: 'Bronte', caseSensitive: false };
 		initialRuntime.state.state.value[ids.queryField('simple')] = { value: 'draft', caseSensitive: false };
 
-		configuration.value = {
-			...configuration.value,
-			queryBuilder: {
-				enabled: true,
-				annotationIds: ['lemma'],
-				defaultAnnotationId: 'word',
-			},
-		};
+		UIStore.getState().search.advanced.searchAnnotationIds = ['lemma'];
+		UIStore.getState().search.advanced.defaultSearchAnnotationId = 'word';
 
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
@@ -1082,29 +1204,6 @@ describe('search form system', () => {
 		expect(replacementRuntime.compile(ids.searchForm('advanced'))).toMatchObject({
 			patt: committedUrlState.patt,
 			filter: committedUrlState.filter,
-		});
-	});
-
-	test('takes an isolated copy of mutable legacy configuration values', () => {
-		const state = UIStore.getState();
-		state.search.shared.within.elements = [{ value: 's', label: 'Sentence', title: 'sentence title' }];
-		const snapshot = snapshotSearchFormConfiguration(state);
-
-		state.search.extended.searchAnnotationIds.push('word_or_lemma');
-		state.search.advanced.searchAnnotationIds.push('word_or_lemma');
-		state.explore.searchAnnotationIds.push('word_or_lemma');
-		state.results.shared.groupAnnotationIds.push('word_or_lemma');
-		state.search.shared.within.elements[0].label = 'Changed';
-
-		expect(snapshot.extendedAnnotationIds).toEqual(['word', 'lemma', 'pos']);
-		expect(snapshot.queryBuilder).toEqual({ enabled: true, annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' });
-		expect(snapshot.explore.searchAnnotationIds).toEqual(['word', 'lemma', 'pos']);
-		expect(snapshot.explore.groupAnnotationIds).toEqual(['word', 'lemma', 'pos']);
-		expect(snapshot.within.elements).toEqual([{ value: 's', label: 'Sentence', title: 'sentence title' }]);
-		expect(snapshot.explore.corpora).toEqual({
-			groupMetadataIds: ['author', 'genre'],
-			defaultGroupMetadataId: 'author',
-			metadataGroupLabelsVisible: false,
 		});
 	});
 
@@ -1149,8 +1248,8 @@ describe('search form system', () => {
 			},
 		};
 		UIStore.getState().search.shared.within.enabled = true;
-		vi.spyOn(corpusCustomizations.search.within, 'includeSpan').mockImplementation(element => (element === 'p' ? false : null));
-		vi.spyOn(corpusCustomizations.search.within, 'includeAttribute').mockImplementation((_element, attribute) => (attribute === 'speaker' ? true : null));
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.within, 'includeSpan').mockImplementation(element => (element === 'p' ? false : null));
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.within, 'includeAttribute').mockImplementation((_element, attribute) => (attribute === 'speaker' ? true : null));
 
 		const within = createDefinition(corpus).definition.getField(ids.withinField()) as unknown as {
 			options: Array<{ value: string; attributes: Array<{ value: string; label?: OptionText }> }>;
