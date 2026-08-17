@@ -30,16 +30,14 @@ export const withinController = defineFieldController<'within', WithinFieldDefin
 		if (!state.element) return null;
 		const selectedOption = findOption(config.options, state.element);
 		const option = typeof selectedOption === 'string' ? { value: selectedOption } : (selectedOption ?? { value: state.element });
+		const attributes = Object.fromEntries(
+			Object.entries(state.attributes)
+				.filter(([, value]) => value.trim())
+				.map(([name, value]) => [name, textPredicate('wildcard', value)]),
+		);
 		return queryFragment({
-			wrappers: within(
-				state.element,
-				Object.fromEntries(
-					Object.entries(state.attributes)
-						.filter(([, value]) => value.trim())
-						.map(([name, value]) => [name, textPredicate('wildcard', value)]),
-				),
-			),
-			resultPreset: { withSpans: true },
+			wrappers: within(state.element, attributes),
+			resultPreset: Object.keys(attributes).length ? { withSpans: true } : undefined,
 			summaries: {
 				label: runtime.translate.$t(`search.extended.within`),
 				value: optionLabel(option),

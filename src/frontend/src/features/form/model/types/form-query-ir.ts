@@ -259,7 +259,7 @@ export type ResultPreset = {
 	sort?: string | null;
 	groupDisplayMode?: string | null;
 	/** Value for BlackLab's `withspans` query parameter. */
-	withSpans?: boolean;
+	withSpans?: true;
 };
 export const resultPreset = (parts?: null | Partial<ResultPreset>): ResultPreset => ({
 	...(parts?.viewedResults !== undefined ? { viewedResults: parts.viewedResults } : {}),

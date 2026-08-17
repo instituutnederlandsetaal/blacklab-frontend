@@ -80,11 +80,12 @@ export const withinAttributeRangeController = defineFieldController<'within-attr
 	persistence: { key: withinAttributePersistKey, codec: rangePersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state: RangeFieldState) {
-		if (!state.low && !state.high) return null;
+		const normalizedState = { ...state, low: state.low.trim(), high: state.high.trim() };
+		if (!normalizedState.low && !normalizedState.high) return null;
 		return queryFragment({
-			wrappers: within(config.elementName, withinAttributeRange(config.attributeName, state)),
+			wrappers: within(config.elementName, withinAttributeRange(config.attributeName, normalizedState)),
 			resultPreset: { withSpans: true },
-			summaries: summary(toValue(config.displayName), state, ['filter'], config.groupId),
+			summaries: summary(toValue(config.displayName), normalizedState, ['filter'], config.groupId),
 		});
 	},
 });

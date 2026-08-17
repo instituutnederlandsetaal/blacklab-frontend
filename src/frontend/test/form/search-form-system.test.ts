@@ -738,11 +738,12 @@ describe('search form system', () => {
 		runtime.state.state.value[ids.withinField()] = { element: 's', attributes: {} };
 		runtime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
 
-		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
+		const compiled = runtime.compile(ids.searchForm('expert'));
+		expect(compiled).toMatchObject({
 			patt: '([lemma="water"]) within <s/>',
 			filter: 'author:(Austen)',
-			resultPreset: { withSpans: true },
 		});
+		expect(compiled.resultPreset?.withSpans).toBeUndefined();
 	});
 
 	test('configures the expert heading and raw CQL field presentation', () => {
@@ -769,8 +770,17 @@ describe('search form system', () => {
 
 	test('customized within attributes request span results only when populated', () => {
 		const { personFieldId, runtime } = createCustomizedWithinRuntime();
+		const rangeFieldId = ids.withinFilter('p', 'n');
 		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
 		expect(runtime.compile(ids.searchForm('expert')).resultPreset?.withSpans).toBeUndefined();
+		runtime.state.state.value[rangeFieldId] = { low: '  ', high: '\t', mode: 'strict' };
+		expect(runtime.compile(ids.searchForm('expert')).resultPreset?.withSpans).toBeUndefined();
+		runtime.state.state.value[rangeFieldId] = { low: ' 1 ', high: '', mode: 'strict' };
+		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
+			patt: '([lemma="water"]) within <p n=in[1,]/>',
+			resultPreset: { withSpans: true },
+		});
+		runtime.state.state.value[rangeFieldId] = { low: '', high: '', mode: 'strict' };
 		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };
 		expect(runtime.compile(ids.searchForm('expert')).resultPreset).toMatchObject({ withSpans: true });
 	});

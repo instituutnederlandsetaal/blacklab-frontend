@@ -462,9 +462,10 @@ describe('builtin controller hosts', () => {
 		expect(encodeFieldState(harness.field, fieldExpectations.within.state, context)).toBe(
 			'e=within-state.element.selected;a={shouldEndUpInState.within.attribute:shouldEndUpInState.within.attribute.value}',
 		);
-		expect(compileQueryIR(getFieldQueryContribution(harness.field, context, fieldExpectations.within.state)).patt).toBe(
-			'<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
-		);
+		expect(compileQueryIR(getFieldQueryContribution(harness.field, context, fieldExpectations.within.state))).toMatchObject({
+			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
+			resultPreset: { withSpans: true },
+		});
 	});
 });
 
