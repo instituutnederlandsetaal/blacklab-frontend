@@ -31,7 +31,7 @@ vi.mock('@/url/url-state-parser-search', async importOriginal => {
 	};
 });
 
-function startTestUrlSync(searchForms: Ref<FormRuntime | null>) {
+function startTestUrlSync(searchForms: Ref<FormRuntime | null>, beforeStateLoaded = () => Promise.resolve()) {
 	vi.stubGlobal('CONTEXT_URL', '');
 	const currentRoute = ref({
 		name: 'search',
@@ -58,6 +58,7 @@ function startTestUrlSync(searchForms: Ref<FormRuntime | null>) {
 		pageMeta: ref({ name: 'search' } as PageMeta),
 		searchForms,
 		customizations: createCustomizations(customizationRegistry, corpus, {} as never, () => {}),
+		beforeStateLoaded,
 	});
 }
 
@@ -77,6 +78,25 @@ afterEach(() => {
 });
 
 describe('URL state sync', () => {
+	test('runs hooks before parsing URL state', async () => {
+		const calls: string[] = [];
+		const beforeStateLoaded = vi.fn(() => {
+			calls.push('hook');
+			return Promise.resolve();
+		});
+		parserGet.mockImplementation(() => {
+			calls.push('parser');
+			return Promise.resolve({ interface: { viewedResults: null }, newForm: null });
+		});
+		const stop = startTestUrlSync(shallowRef(null), beforeStateLoaded);
+
+		await nextTick();
+		await Promise.resolve();
+
+		expect(calls).toEqual(['hook', 'parser']);
+		stop();
+	});
+
 	test('does not restart an in-flight initial URL read when the form definition changes', async () => {
 		parserGet.mockReturnValue(new Promise(() => undefined));
 		const searchForms = shallowRef<FormRuntime | null>({ definition: {} } as FormRuntime);

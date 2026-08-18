@@ -17,7 +17,7 @@ import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
 import { createSearchFormSystem } from '@/features/search/model/form/search-form-system';
-import { installHooksGlobal } from '@/interop/hooks';
+import { installHooksGlobal, runHooks } from '@/interop/hooks';
 import { installCorpusGlobal, installCustomizationApiGlobals, installLegacyStoreGlobals, installVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
@@ -74,6 +74,7 @@ async function start() {
 	// Which would be wasteful and cause a brief flash of the wrong data.
 	app.use(router);
 	await router.router.isReady();
+	await runHooks('beforeStoreInit');
 	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
 	const customizationRegistry = createCustomizationRegistry(corpusState.corpus);
 	const customizations = createCustomizations(customizationRegistry, corpusState.corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);

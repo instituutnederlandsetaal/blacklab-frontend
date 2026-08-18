@@ -41,6 +41,7 @@ type UrlStateSyncDependencies = {
 	pageMeta: Ref<PageMeta | null>;
 	searchForms: Ref<FormRuntime | null>;
 	customizations: Customizations;
+	beforeStateLoaded: () => Promise<unknown>;
 };
 
 /** Key under which we store the state snapshot in the browser history API's state object */
@@ -323,6 +324,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 		const localSearchIntentRevision = RootStore.get.localSearchIntentRevision();
 
 		try {
+			await dependencies.beforeStateLoaded();
 			const restoredFromHistory = history.state?.[HISTORY_STATE_KEY] as HistoryStore.HistoryEntry | undefined;
 			const restored =
 				restoredFromHistory ??
