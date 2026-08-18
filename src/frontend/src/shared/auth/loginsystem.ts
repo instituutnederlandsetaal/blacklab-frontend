@@ -26,7 +26,8 @@ type LoginSystem = {
 	userManager: UserManager | null;
 	user: User | null;
 	username: string | null;
-	apiVersion: string | null;
+	/** The BlackLab implementation version, if we've contacted the server during user negotiation */
+	blacklabVersion: string | null;
 	login(): void;
 	logout(): void;
 };
@@ -89,16 +90,16 @@ async function completeOidcLogin(userManager: UserManager): Promise<User | null>
 	return user ?? null;
 }
 
-async function getBlackLabLoginData(blacklabBaseUrl: string): Promise<{ username: string | null; apiVersion: string | null }> {
+async function getBlackLabLoginData(blacklabBaseUrl: string): Promise<{ username: string | null; blacklabVersion: string | null }> {
 	try {
 		const response = await axios.get<BLServer>(blacklabBaseUrl, { headers: { Accept: 'application/json' } });
 		return {
 			username: response.data.user.id ?? null,
-			apiVersion: response.data.apiVersion ?? null,
+			blacklabVersion: response.data.blacklabVersion ?? null,
 		};
 	} catch (e) {
 		console.error('Failed to get username from BlackLab', e);
-		return { username: null, apiVersion: null };
+		return { username: null, blacklabVersion: null };
 	}
 }
 
@@ -107,14 +108,14 @@ export async function createLoginSystem(config: LoginSystemConfig) {
 
 	const userManager = config.mode === 'oidc' ? createUserManager(config) : null;
 	const user = userManager ? await completeOidcLogin(userManager) : null;
-	const blacklabLoginData = config.mode === 'blacklab' ? await getBlackLabLoginData(config.blacklabBaseUrl) : { username: null, apiVersion: null };
+	const blacklabLoginData = config.mode === 'blacklab' ? await getBlackLabLoginData(config.blacklabBaseUrl) : { username: null, blacklabVersion: null };
 	const username = userManager ? getOidcUsername(user) : blacklabLoginData.username;
 
 	const context: LoginSystem = {
 		userManager,
 		user,
 		username,
-		apiVersion: blacklabLoginData.apiVersion,
+		blacklabVersion: blacklabLoginData.blacklabVersion,
 		login() {
 			void userManager?.signinRedirect({ redirect_uri: window.location.href });
 		},

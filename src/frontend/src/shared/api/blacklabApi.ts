@@ -118,31 +118,31 @@ const blacklabPathsV5: BlackLabPaths = {
 };
 
 type BlackLabApiSettings = EndpointSettings & {
-	apiVersion?: string | null;
+	/** BlackLab implementation version, if it has already been fetched during login. */
+	blacklabVersion?: string | null;
 };
 
-function getMajorBlackLabVersion(apiVersion: string): '4' | '5' {
-	if (apiVersion.startsWith('4')) return '4';
-	if (apiVersion.startsWith('5')) return '5';
-	console.warn('Unsupported BlackLab version: ' + apiVersion);
+function getMajorBlackLabVersion(version: string): '4' | '5' {
+	if (version.startsWith('4')) return '4';
+	if (version.startsWith('5')) return '5';
+	console.warn('Unsupported BlackLab version: ' + version);
 	// best effort? Just to prevent a potential compatible version bump in the future from
 	// retroactively breaking all old frontends
 	return '5';
 }
 
-async function getBlackLabVersion(endpoint: string, apiVersion?: string | null): Promise<'4' | '5'> {
-	if (apiVersion) return getMajorBlackLabVersion(apiVersion);
+async function getBlackLabApiVersion(settings: BlackLabApiSettings): Promise<'4' | '5'> {
+	if (settings.blacklabVersion) return getMajorBlackLabVersion(settings.blacklabVersion);
 
-	const { origin, pathname, searchParams } = new URL(endpoint, window.location.origin);
+	const { origin, pathname, searchParams } = new URL(settings.baseUrl, window.location.origin);
 	searchParams.set('outputformat', 'json');
 	const url = `${origin}${pathname}?${searchParams.toString()}`;
-
 	const response = await fetch(url, { method: 'GET' }).then<BLServer | BLServerV4>(r => r.json());
 
-	if (!response.apiVersion) {
-		throw new Error('Invalid response from BlackLab server: missing apiVersion');
+	if (!response.blacklabVersion) {
+		throw new Error('Invalid response from BlackLab server: missing blacklabVersion');
 	}
-	return getMajorBlackLabVersion(response.apiVersion);
+	return getMajorBlackLabVersion(response.blacklabVersion);
 }
 
 /** Map some renamed query params from V5 to V4 */
@@ -157,11 +157,16 @@ const mapV5ParamsToV4: QueryParamsMapper<BLSearchParameters> = v => {
  * Blacklab api
  */
 export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'mapQueryParams'>): Promise<{ api: BlackLabApi; paths: BlackLabPaths }> => {
-	const version = await getBlackLabVersion(settings.baseUrl, settings.apiVersion);
+	const version = await getBlackLabApiVersion(settings);
 	const paths = version === '4' ? blacklabPathsV4 : blacklabPathsV5;
 
 	const endpoint = createEndpoint({
 		...settings,
+		axiosOptions: {
+			...settings.axiosOptions,
+			// BlackLab's default response API is transitional; always request the detected version explicitly.
+			params: { ...settings.axiosOptions?.params, api: version },
+		},
 		mapQueryParams: version === '4' ? mapV5ParamsToV4 : undefined,
 	});
 	const api: BlackLabApi = {
@@ -183,8 +188,8 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			endpoint.getCancelable<BLIndex | BLIndexV4>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
-			let indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true, listValues: '*' } : undefined, requestParameters);
-			// append listvalues, as bl4 doesn't support wildcard
+			let indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true, listvalues: '*' } : undefined, requestParameters);
+			// BlackLab 4 does not support a wildcard, so enumerate the forward-index annotations.
 			if (version === '4') {
 				indexRequest = (indexRequest as CancelableRequest<BLIndexMetadataV4>).then(i => {
 					const annots = Object.entries(i.annotatedFields[i.mainAnnotatedField].annotations)

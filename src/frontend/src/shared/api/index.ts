@@ -11,7 +11,7 @@ import { createApiPlugin, type ApiPlugin, useBlackLabApi, useFrontendApi } from 
  */
 const createApi = async (options: {
 	frontend: { baseUrl: string; user: MaybeRef<User | null> };
-	blacklab: { baseUrl: string; user: MaybeRef<User | null>; apiVersion?: string | null };
+	blacklab: { baseUrl: string; user: MaybeRef<User | null>; blacklabVersion?: string | null };
 }): Promise<ApiPlugin> => {
 	const frontendApi = createFrontendApi(options.frontend);
 

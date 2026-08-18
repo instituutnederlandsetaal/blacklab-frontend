@@ -56,7 +56,7 @@ async function start() {
 		visible: DEBUG_INFO_VISIBLE,
 	});
 	const api = await createApi({
-		blacklab: { baseUrl: BLS_URL, user: loginSystem.user, apiVersion: loginSystem.apiVersion },
+		blacklab: { baseUrl: BLS_URL, user: loginSystem.user, blacklabVersion: loginSystem.blacklabVersion },
 		frontend: { baseUrl: CONTEXT_URL, user: loginSystem.user },
 	});
 
@@ -125,6 +125,7 @@ async function start() {
 		pageMeta: router.pageMeta,
 		searchForms: searchFormSystem.runtime,
 		customizations,
+		beforeStateLoaded: () => runHooks('beforeStateLoaded'),
 	});
 
 	app.runWithContext(() => startCustomizationInterop());

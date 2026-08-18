@@ -112,7 +112,7 @@ export type BLServerV4 = BLServerBase & {
 export type BLServer = BLServerBase & {
 	corpora: Record<string, BLIndex>;
 };
-export const isServerV5 = (v: BLServer | BLServerV4): v is BLServer => (v as BLServer).corpora != null && !v.apiVersion?.startsWith('4');
+export const isServerV5 = (v: BLServer | BLServerV4): v is BLServer => (v as BLServer).corpora != null;
 
 // #endregion
 
