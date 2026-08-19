@@ -159,18 +159,28 @@
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
-      <artifactId>commons-configuration2</artifactId>
-      <version>2.12.0</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-beanutils</groupId>
-      <artifactId>commons-beanutils</artifactId>
-      <version>1.11.0</version>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.17.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.velocity.tools</groupId>
       <artifactId>velocity-tools-generic</artifactId>
       <version>3.1</version>
+      <!-- We instantiate DateTool and EscapeTool directly; toolbox configuration is unused. -->
+      <exclusions>
+        <exclusion>
+          <groupId>commons-beanutils</groupId>
+          <artifactId>commons-beanutils</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-digester3</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.github.cliftonlabs</groupId>
+          <artifactId>json-simple</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>net.sf.saxon</groupId>
