@@ -1,7 +1,6 @@
 import '@/utils/jquery-globals';
 import 'bootstrap';
 
-import '@/bootstrap.less';
 import '@/global.scss';
 
 import FloatingVue from 'floating-vue';

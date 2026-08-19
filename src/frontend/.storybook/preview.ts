@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import '@/bootstrap.less';
+import 'bootstrap/dist/css/bootstrap.css'; // Keep source maps in Vite/Storybook; production loads the copied stylesheet directly.
 import '@/global.scss';
 import 'floating-vue/dist/style.css';
 

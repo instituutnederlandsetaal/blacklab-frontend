@@ -9,6 +9,13 @@
         ## This establishes TCP/TLS connection early, speeding up both OPTIONS preflight and actual requests
         <link rel="preconnect" href="$BLS_URL_ON_CLIENT" crossorigin>
 
+        ## Keep Bootstrap separate so browser devtools can map rules to its original Less modules.
+        #if($VITE)
+        <link rel="stylesheet" href="$VITE/node_modules/bootstrap/dist/css/bootstrap.css">
+        #else
+        <link rel="stylesheet" href="$CF_URL_ON_CLIENT/js/bootstrap/css/bootstrap.css?_$cache">
+        #end
+
         <script>
             var WITH_CREDENTIALS = $esc.javascript($FRONTEND_WITH_CREDENTIALS);
 
