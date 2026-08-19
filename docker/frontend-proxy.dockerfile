@@ -6,12 +6,7 @@ ARG BLACKLAB_IMAGE_VERSION=dev
 
 # Stage "builder": build the WAR file
 #--------------------------------------
-FROM maven:3.9-eclipse-temurin-17 AS builder
-RUN --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    apt-get update \
-    && apt-get install -y --no-install-recommends libatomic1 \
-    && rm -rf /var/lib/apt/lists/*
+FROM maven:3.9-eclipse-temurin-21 AS builder
 
 # Copy source
 WORKDIR /app

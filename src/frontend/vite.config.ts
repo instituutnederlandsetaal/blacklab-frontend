@@ -1,10 +1,13 @@
-/// <reference types="vitest/config" />
 import path from 'path';
 
+import type { storybookTest as StorybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import vue from '@vitejs/plugin-vue';
+import type { playwright as Playwright } from '@vitest/browser-playwright';
 import { defineConfig, type UserConfigFnPromise, type PluginOption } from 'vite';
+import type checkerPlugin from 'vite-plugin-checker';
 import type { TestProjectConfiguration } from 'vitest/config';
 const dirname = import.meta.dirname;
+const importDevelopmentDependency = <T>(name: string) => import(name) as Promise<T>;
 
 const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 	const vitePort = Number(process.env.BLF_VITE_PORT || process.env.PORT || 5173);
@@ -12,7 +15,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 	const blacklabProxyTarget = process.env.BLF_BLACKLAB_PROXY_TARGET || 'http://localhost:8080';
 	const plugins: PluginOption[] = [vue()];
 	if (command === 'serve' && !process.env.VITEST) {
-		const { default: checker } = await import('vite-plugin-checker');
+		const { default: checker } = await importDevelopmentDependency<{ default: typeof checkerPlugin }>('vite-plugin-checker');
 		plugins.unshift(
 			checker({
 				vueTsc: {
@@ -38,7 +41,10 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 	];
 
 	if (process.env.VITEST) {
-		const [{ storybookTest }, { playwright }] = await Promise.all([import('@storybook/addon-vitest/vitest-plugin'), import('@vitest/browser-playwright')]);
+		const [{ storybookTest }, { playwright }] = await Promise.all([
+			importDevelopmentDependency<{ storybookTest: typeof StorybookTest }>('@storybook/addon-vitest/vitest-plugin'),
+			importDevelopmentDependency<{ playwright: typeof Playwright }>('@vitest/browser-playwright'),
+		]);
 		testProjects.push({
 			extends: true,
 			plugins: [

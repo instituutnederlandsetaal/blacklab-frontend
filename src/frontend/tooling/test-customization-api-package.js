@@ -46,7 +46,9 @@ try {
 	await writeFile(join(tempRoot, 'package.json'), '{"private":true,"type":"module"}\n');
 	const packedOutput = runNpm(['pack', packagePath, '--pack-destination', tempRoot, '--ignore-scripts', '--json'], tempRoot);
 	const packed = JSON.parse(packedOutput);
-	const tarballPath = join(tempRoot, packed[0].filename);
+	const packageInfo = Array.isArray(packed) ? packed[0] : Object.values(packed)[0];
+	if (!packageInfo) throw new Error('npm pack produced no package');
+	const tarballPath = join(tempRoot, packageInfo.filename);
 
 	runNpm(['install', tarballPath, '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'], tempRoot);
 
