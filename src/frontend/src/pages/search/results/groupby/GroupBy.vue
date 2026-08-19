@@ -172,8 +172,6 @@
 </template>
 
 <script lang="ts">
-// @ts-ignore
-import jsonStableStringify from 'json-stable-stringify';
 import type { PropType } from 'vue';
 import { defineComponent, nextTick } from 'vue';
 import Slider from 'vue-3-slider-component';
@@ -199,6 +197,7 @@ import { getMetadataSubset, getAnnotationSubset } from '@/shared/blacklab-helper
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import debug from '@/shared/debug/debug';
 import { findOption, optionText, type OptGroup, type Option, type Options } from '@/shared/utils/options';
+import { stableStringify } from '@/shared/utils/stable-stringify';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 import Tabs from '@/shared/ui/Tabs.vue';
@@ -346,7 +345,7 @@ export default defineComponent({
 			return params;
 		},
 		firstHitPreviewQueryHash(): string {
-			return this.active ? jsonStableStringify(this.firstHitPreviewQuery) : '';
+			return this.active ? stableStringify(this.firstHitPreviewQuery) : '';
 		},
 		contextsize(): number {
 			let params = SearchModule.get.blacklabParameters();

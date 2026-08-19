@@ -1,5 +1,4 @@
 import cloneDeep from 'clone-deep';
-import jsonStableStringify from 'json-stable-stringify';
 import { computed, watch, type Ref } from 'vue';
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
@@ -25,6 +24,7 @@ import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { cleanQueryParams } from '@/shared/api/lib/api-utils';
 import { debugLog } from '@/shared/debug/debug';
 import type { LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { stableStringify } from '@/shared/utils/stable-stringify';
 
 type QueryState = {
 	query: QueryStore.ModuleRootState;
@@ -252,7 +252,7 @@ function createUrlForComparison(path: string, query: Record<string, any>, ignore
 			})
 			.filter((entry): entry is [string, string | string[]] => entry != null),
 	);
-	return jsonStableStringify({ path, query: normalizedQuery });
+	return stableStringify({ path, query: normalizedQuery });
 }
 
 // The legacy interface param contains draft tab/form state; it is sampled on push, but must not arbitrate direction.

@@ -111,7 +111,6 @@
 </template>
 
 <script lang="ts">
-import jsonStableStringify from 'json-stable-stringify';
 import { markRaw } from 'vue';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
@@ -134,6 +133,7 @@ import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { getTotalAvailableResults, getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import debug, { debugLog } from '@/shared/debug/debug';
 import { localStorageSynced } from '@/shared/utils/localstore';
+import { stableStringify } from '@/shared/utils/stable-stringify';
 
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
@@ -406,7 +406,7 @@ export default defineComponent({
 			// Refresh only when the request sent to BlackLab changes. The submitted
 			// form snapshot also contains presentation data (localized summaries and
 			// encoded form state), none of which changes the result set.
-			return jsonStableStringify(RootStore.get.blacklabParameters());
+			return stableStringify(RootStore.get.blacklabParameters());
 		},
 
 		/** When these change, the form has been resubmitted, so we need to initiate a scroll event */

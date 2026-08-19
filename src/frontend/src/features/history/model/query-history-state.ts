@@ -5,7 +5,6 @@
  */
 
 import { stripIndent } from 'common-tags';
-import jsonStableStringify from 'json-stable-stringify';
 import URI from 'urijs';
 import { markRaw, shallowRef } from 'vue';
 
@@ -25,6 +24,7 @@ import UrlStateParserSearch, { type UrlStateParserSearchDependencies } from '@/u
 
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
 import { debugLog } from '@/shared/debug/debug';
+import { stableStringify } from '@/shared/utils/stable-stringify';
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
@@ -194,7 +194,7 @@ const actions = {
 		const fullEntry: FullHistoryEntry = Object.freeze(
 			markRaw({
 				...entry,
-				hash: hashJavaDJB2(jsonStableStringify(hashBase)),
+				hash: hashJavaDJB2(stableStringify(hashBase)),
 				url,
 				timestamp: new Date().getTime(),
 				displayValues: {

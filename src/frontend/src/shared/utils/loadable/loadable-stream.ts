@@ -23,7 +23,6 @@
 
 import { tryOnScopeDispose } from '@vueuse/core';
 import type { Canceler } from 'axios';
-import jsonStableStringify from 'json-stable-stringify';
 import type { ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
 import { combineLatest, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
 import { markRaw, ref, shallowRef, type Ref } from 'vue';
@@ -36,6 +35,7 @@ import { getLoadableStateValue, isEmpty, isError, isLoaded, isLoading, Loadable,
 import { loadableReactive } from './loadable-reactive';
 
 import { ApiError } from '@/shared/api/lib/api-types';
+import { stableStringify } from '@/shared/utils/stable-stringify';
 
 /**
  * Like map, but only call the mapper for Loadables of state S. The value the mapper returned is wrapped in a Loaded.
@@ -169,7 +169,7 @@ export const toObservable = <T>({ cancel, request }: { cancel: Canceler; request
  */
 type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = ValEmpty<T extends ArrayLike<any> ? T : T extends ObservableInput<any> ? ObservedValueOf<T> : T>;
 
-export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
+export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => stableStringify(a) === stableStringify(b);
 
 /**
  * Combine the values of a bunch of Loadables or other values into a single Loadable.
