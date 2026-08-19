@@ -17,6 +17,7 @@ export function applyLegacySearchFormConfiguration(api: SearchFormConfigurationA
 	});
 	for (const tab of legacy.search.metadata._customTabs) {
 		for (const filter of tab.fields ?? tab.subtabs?.flatMap(subtab => subtab.fields) ?? []) {
+			if (typeof filter === 'string') continue;
 			const type = filter.behaviourName;
 			if (type !== 'span-text' && type !== 'span-select' && type !== 'span-range') continue;
 			try {
@@ -26,7 +27,7 @@ export function applyLegacySearchFormConfiguration(api: SearchFormConfigurationA
 					attributeName,
 					control: type === 'span-select' ? 'select' : type === 'span-range' ? 'range' : 'text',
 					options: type === 'span-select' ? legacyOptions(filter.metadata) : undefined,
-					groupId: filter.groupId ?? tab.name,
+					groupId: filter.groupId ?? tab.name ?? tab.tabname,
 					defaultDisplayName: filter.defaultDisplayName,
 					defaultDescription: filter.defaultDescription,
 				});

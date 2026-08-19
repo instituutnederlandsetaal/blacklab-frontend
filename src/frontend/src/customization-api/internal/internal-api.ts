@@ -457,12 +457,18 @@ function createCustomizationApi(
 			}));
 
 			for (const tab of legacy.search.metadata._customTabs) {
-				const fieldIds = (tab.fields ?? tab.subtabs?.flatMap(subtab => subtab.fields) ?? []).flatMap(field => (field.id ? [field.id] : []));
-				const existingGroup = filterGroups.find(group => group.tabname === tab.name);
+				const tabname = tab.name ?? tab.tabname ?? '';
+				const subtabs = tab.subtabs
+					? tab.subtabs.map(subtab => ({
+							tabname: subtab.tabname,
+							fields: subtab.fields.flatMap(field => (typeof field === 'string' ? [field] : field.id ? [field.id] : [])),
+						}))
+					: [{ fields: (tab.fields ?? []).flatMap(field => (typeof field === 'string' ? [field] : field.id ? [field.id] : [])) }];
+				const existingGroup = filterGroups.find(group => group.tabname === tabname);
 				if (existingGroup) {
-					(existingGroup.subtabs[0] ??= { fields: [] }).fields.push(...fieldIds);
+					(existingGroup.subtabs[0] ??= { fields: [] }).fields.push(...subtabs.flatMap(subtab => subtab.fields));
 				} else {
-					filterGroups.push({ tabname: tab.name, subtabs: [{ fields: fieldIds }], query: tab.query });
+					filterGroups.push({ tabname, subtabs, query: tab.query });
 				}
 			}
 

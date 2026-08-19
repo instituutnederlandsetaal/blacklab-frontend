@@ -115,7 +115,7 @@ async function start() {
 	startGlobalCorpusDependentEffects(corpusState.contextLoader, api.blacklabApi);
 
 	installStoreInspectorDevtools(app);
-	installLegacyStoreGlobals(app);
+	installLegacyStoreGlobals(app, customizationRegistry);
 	installCustomizationApiGlobals(customizationRegistry);
 
 	startUrlSync(router.router, {

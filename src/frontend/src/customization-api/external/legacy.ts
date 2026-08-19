@@ -10,9 +10,10 @@ import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
 
 type LegacySearchFilterTab = {
-	name: string;
-	fields?: AppTypes.FilterDefinition<unknown>[];
-	subtabs?: Array<{ fields: AppTypes.FilterDefinition<unknown>[] }>;
+	name?: string;
+	tabname?: string;
+	fields?: Array<AppTypes.FilterDefinition<unknown> | string>;
+	subtabs?: Array<{ tabname?: string; fields: Array<AppTypes.FilterDefinition<unknown> | string> }>;
 	query?: Record<string, string[]>;
 };
 

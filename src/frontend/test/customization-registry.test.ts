@@ -7,6 +7,7 @@ import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations, useCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry, useCustomizationRegistry } from '@/customization-api/registry';
 import * as FilterStore from '@/features/search/model/form/filter-state';
+import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
 import type { Corpus } from '@/types/apptypes';
 
 import type { Translate } from '@/shared/i18n';
@@ -82,6 +83,25 @@ describe('customization registry corpus lifecycle', () => {
 				subtabs: [{ tabname: undefined, fields: ['title', 'forced', 'custom'] }],
 				query: undefined,
 			},
+		]);
+	});
+
+	test('adapts legacy filter registration and filter groups', () => {
+		const corpus = { ...createCorpus('first'), allMetadataFieldsMap: {}, metadataGroups: [] } as unknown as Corpus;
+		const registry = createCustomizationRegistry(corpus);
+		const filters = createFilterStoreAdapter(registry);
+
+		filters.actions.registerFilterGroup({ id: 'Custom tab', filterIds: [] });
+		filters.actions.registerFilter({
+			filter: { id: 'custom', groupId: 'Custom tab', componentName: 'filter-text', defaultDisplayName: 'Custom', metadata: undefined },
+		});
+		filters.getState().filterGroups[0].subtabs![0].tabname = 'Details';
+
+		expect(filters.getState().filters.custom).toBeDefined();
+		expect(filters.get.hasSpanFilters()).toBe(false);
+		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
+		expect(customizations.searchFilterTabs(filters.getState().filters, [], { $tMetaGroupName: (name => name) as Translate['$tMetaGroupName'] })).toEqual([
+			{ tabname: 'Custom tab', subtabs: [{ tabname: 'Details', fields: ['custom'] }], query: undefined },
 		]);
 	});
 

@@ -14,7 +14,7 @@ import type { FilterDefinition } from '@/types/apptypes';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 
-export type FilterState = {
+type FilterState = {
 	value: unknown;
 };
 

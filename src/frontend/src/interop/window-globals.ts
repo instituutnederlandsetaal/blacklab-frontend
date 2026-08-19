@@ -10,7 +10,6 @@ import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
-import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
@@ -19,6 +18,7 @@ import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import { createCorpusStoreAdapter } from '@/interop/legacy-store-adapters/corpus';
+import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
 
 type InteropWindow = Window & {
 	vueApp?: App;
@@ -36,7 +36,7 @@ export function installCustomizationApiGlobals(registry: CustomizationRegistry) 
 	(window as InteropWindow).frontend = createExternalCustomizationApi(registry);
 }
 
-export function installLegacyStoreGlobals(app: App) {
+export function installLegacyStoreGlobals(app: App, registry: CustomizationRegistry) {
 	const corpus = app.runWithContext(() => createCorpusStoreAdapter(useCorpus()));
 
 	const vuexModules = {
@@ -59,7 +59,7 @@ export function installLegacyStoreGlobals(app: App) {
 		ui: UIModule,
 		explore: ExploreModule,
 		form: FormManager,
-		filters: FilterModule,
+		filters: createFilterStoreAdapter(registry),
 		interface: InterfaceModule,
 		patterns: PatternModule,
 		gap: GapModule,
