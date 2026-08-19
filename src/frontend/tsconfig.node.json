@@ -25,5 +25,5 @@
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["vite.config.ts", "tooling/oxlint.config.mts", "tooling/oxfmt.config.mts"]
+	"include": ["vite.config.ts", "tooling/oxlint.config.ts", "tooling/oxfmt.config.ts"]
 }

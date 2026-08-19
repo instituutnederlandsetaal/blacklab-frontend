@@ -1,11 +1,10 @@
-import { fileURLToPath } from 'node:url';
 /// <reference types="vitest/config" />
 import path from 'path';
 
 import vue from '@vitejs/plugin-vue';
 import { defineConfig, type UserConfigFnPromise, type PluginOption } from 'vite';
 import type { TestProjectConfiguration } from 'vitest/config';
-const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+const dirname = import.meta.dirname;
 
 const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 	const vitePort = Number(process.env.BLF_VITE_PORT || process.env.PORT || 5173);
@@ -21,7 +20,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 					tsconfigPath: 'tsconfig.app.json', // relative to root prop above
 				},
 				oxlint: {
-					lintCommand: 'oxlint --config tooling/oxlint.config.mts ./src/',
+					lintCommand: 'oxlint --config tooling/oxlint.config.ts ./src/',
 				},
 			}),
 		);

@@ -1,9 +1,9 @@
-const fs = require('node:fs');
-const path = require('node:path');
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
-const tsj = require('ts-json-schema-generator');
+import { createGenerator } from 'ts-json-schema-generator';
 
-const toolingRoot = __dirname;
+const toolingRoot = import.meta.dirname;
 const assetsRoot = path.join(toolingRoot, '..', 'assets');
 const config = {
 	path: path.join(assetsRoot, 'blf-schema.ts'),
@@ -11,8 +11,5 @@ const config = {
 	type: 'BLFSchema',
 };
 
-const schema = tsj.createGenerator(config).createSchema(config.type);
-const outputPath = path.join(assetsRoot, 'blf-schema.json');
-fs.writeFile(outputPath, JSON.stringify(schema, null, 2), error => {
-	if (error) throw error;
-});
+const schema = createGenerator(config).createSchema(config.type);
+await writeFile(path.join(assetsRoot, 'blf-schema.json'), JSON.stringify(schema, null, 2));

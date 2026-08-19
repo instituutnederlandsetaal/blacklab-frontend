@@ -45,7 +45,7 @@ const config: OxlintConfig = {
 	// They're generally grouped by type of check they perform, e.g. 'typescript' for rules that involve typescript-specific things, 'vue' for rules specific to Vue files, etc.
 	// the 'oxc' plugin is sort of the standard library of rules.
 	plugins: ['typescript', 'oxc', 'vue', 'vitest'],
-	jsPlugins: [fileURLToPath(new URL('./lint-rules/no-use-in-computed.mjs', import.meta.url))],
+	jsPlugins: [fileURLToPath(new URL('./lint-rules/no-use-in-computed.js', import.meta.url))],
 	categories: {
 		// enables all rules in the "correctness" category.
 		correctness: 'error',
@@ -59,7 +59,7 @@ const config: OxlintConfig = {
 	},
 	overrides: [
 		{
-			files: ['*.mjs', '*.js', 'lint-rules/**/*', 'customization-api/**/*'],
+			files: ['*.js', 'lint-rules/**/*', 'customization-api/**/*'],
 			rules: {
 				'eslint/no-console': 'off',
 			},
