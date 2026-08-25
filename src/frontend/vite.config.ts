@@ -3,7 +3,7 @@ import path from 'path';
 import type { storybookTest as StorybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import vue from '@vitejs/plugin-vue';
 import type { playwright as Playwright } from '@vitest/browser-playwright';
-import { defineConfig, type UserConfigFnPromise, type PluginOption } from 'vite';
+import { defineConfig, type PluginOption, type UserConfigFnPromise } from 'vite';
 import type checkerPlugin from 'vite-plugin-checker';
 import type { TestProjectConfiguration } from 'vitest/config';
 const dirname = import.meta.dirname;
@@ -72,6 +72,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 	}
 
 	return {
+		base: './',
 		plugins,
 		resolve: {
 			alias: {
@@ -127,7 +128,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 				output: {
 					entryFileNames: '[name].js',
 					chunkFileNames: 'assets/[name]-[hash].js',
-					assetFileNames: 'assets/[name]-[hash][extname]',
+					assetFileNames: asset => (asset.names.includes('main.css') ? '[name][extname]' : 'assets/[name]-[hash][extname]'),
 				},
 			},
 		},
