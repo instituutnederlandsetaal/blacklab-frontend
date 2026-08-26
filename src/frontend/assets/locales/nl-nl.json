@@ -143,8 +143,35 @@
 	"queryForm": {
 		"search": "Zoeken",
 		"explore": "Verkennen",
+		"collocations": "Collocaties",
 		"reset": "Wissen",
 		"history": "Geschiedenis"
+	},
+	"collocations": {
+		"heading": "Collocaties zoeken",
+		"keywordPattern": "Trefwoordpatroon (BCQL)",
+		"keywordPatternPlaceholder": "bijv. [lemma=\"hond\"]",
+		"keywordPatternHelp": "Het woord of patroon waarvoor collocaties worden gezocht.",
+		"collocatePattern": "Collocatiefilter (BCQL)",
+		"collocatePatternPlaceholder": "Optioneel, bijv. [pos=\"N.*\"]",
+		"type": "Collocatietype",
+		"types": {
+			"proximity": "Nabijheid",
+			"relsources": "Relatiebronnen",
+			"reltargets": "Relatiedoelen"
+		},
+		"context": "Contextvenster",
+		"relationType": "Relatietype",
+		"relationTypePlaceholder": "Optioneel relatietype of reguliere expressie",
+		"within": "Binnen element",
+		"withinPlaceholder": "Optioneel, bijv. s",
+		"annotation": "Collocatieannotatie",
+		"scorer": "Score",
+		"scorers": {
+			"dice": "Dicecoëfficiënt",
+			"salience": "Salience"
+		},
+		"sensitive": "Hoofdletter- en accentgevoelig groeperen"
 	},
 	"partOfSpeech": {
 		"noOptions": "Geen opties",

@@ -4,6 +4,7 @@ import { stripIndent } from 'common-tags';
 import {
 	isHitParams,
 	type BLAnnotatedField,
+	type BLCollocationsParameters,
 	type BLDocGroupResultsV4,
 	type BLDocGroupResults,
 	type BLDocResultsV4,
@@ -65,6 +66,7 @@ const blacklabPathsV4: BlackLabPaths = {
 
 	docInfo: (indexId: string, docId: string) => `${indexId}/docs/${encodeURIComponent(docId)}/`,
 	hits: (indexId: string) => `${indexId}/hits/`,
+	collocations: (indexId: string) => `${indexId}/collocations/`,
 	hitsCsv: (indexId: string) => `${indexId}/hits-csv/`,
 	docs: (indexId: string) => `${indexId}/docs/`,
 	docsCsv: (indexId: string) => `${indexId}/docs-csv/`,
@@ -103,6 +105,7 @@ const blacklabPathsV5: BlackLabPaths = {
 
 	docInfo: (indexId: string, docId: string) => `corpora/${indexId}/docs/${encodeURIComponent(docId)}/`,
 	hits: (indexId: string) => `corpora/${indexId}/hits/`,
+	collocations: (indexId: string) => `corpora/${indexId}/collocations/`,
 	hitsCsv: (indexId: string) => `corpora/${indexId}/hits-csv/`,
 	docs: (indexId: string) => `corpora/${indexId}/docs/`,
 	docsCsv: (indexId: string) => `corpora/${indexId}/docs-csv/`,
@@ -349,6 +352,16 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			} else {
 				return endpoint.getOrPostCancelable<BLParsePatternResponse>(paths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
 			}
+		},
+
+		getCollocations: (indexId: string, params: BLCollocationsParameters, requestParameters?: AxiosRequestConfig) => {
+			if (!params.patt) return rejectedRequest(new ApiError('Info', 'Cannot get collocations without a pattern.', 'No results', undefined));
+			const searchParams = { ...params };
+			// The endpoint derives the grouping property from annotation/sensitivity.
+			delete searchParams.group;
+			return endpoint
+				.getOrPostCancelable<BLHitGroupResultsV4 | BLHitGroupResults>(paths.collocations(indexId), searchParams, requestParameters)
+				.then(r => normalizeHitResponse(r) as BLHitGroupResults);
 		},
 
 		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {

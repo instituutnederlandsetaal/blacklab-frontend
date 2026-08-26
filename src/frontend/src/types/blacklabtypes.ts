@@ -1,3 +1,31 @@
+/** @public */
+export type BLCollocationType = 'proximity' | 'relsources' | 'reltargets';
+/** @public */
+export type BLCollocationScorer = (string & {}) | 'coll-dice' | 'coll-salience';
+
+/**
+ * Parameters specific to BlackLab's collocations endpoint.
+ * @public
+ */
+export type BLCollocationOptions = {
+	/** Optional BCQL pattern restricting which collocates are considered. */
+	collpatt?: string;
+	/** Proximity-based or relation-based collocations. */
+	colltype?: BLCollocationType;
+	/** Symmetric window size or `before:after` window (proximity only). */
+	context?: number | string;
+	/** Name of an XML element that must contain the keyword and collocate (proximity only). */
+	within?: string;
+	/** Relation type or regular expression (relation-based only). */
+	reltype?: string;
+	/** Annotation used to identify and group collocates. */
+	annotation?: string;
+	/** Whether collocate grouping is case- and accent-sensitive. */
+	sensitive?: boolean;
+	/** Hit-group scorer id. */
+	scorertype?: BLCollocationScorer;
+};
+
 /** BlackLab query parameters. Is a stricter subset of query parameters blacklab accepts. */
 export type BLSearchParameters = {
 	/** Limit results to just this document */
@@ -58,6 +86,9 @@ export type BLSearchParameters = {
 	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
 	withspans?: boolean;
 };
+
+/** A collocations request. Only `patt` is required by the endpoint. */
+export type BLCollocationsParameters = Omit<BLSearchParameters, 'number' | 'patt'> & BLCollocationOptions & { patt: string; number?: number };
 
 // #region Base responses
 
@@ -622,6 +653,8 @@ type BLGroupV4 = {
 	identity: string;
 	identityDisplay: string;
 	size: number;
+	/** Group score, present when a hit-group scorer was requested. */
+	score?: number;
 	/** Individual property values that identify this group. Whereas identity and identityDisplay are encoded cq. preformatted, these are the raw values. */
 	properties: Array<{
 		name: string;

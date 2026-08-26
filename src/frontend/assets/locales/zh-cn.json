@@ -143,8 +143,35 @@
 	"queryForm": {
 		"search": "查询",
 		"explore": "探索",
+		"collocations": "搭配词",
 		"reset": "重置",
 		"history": "历史"
+	},
+	"collocations": {
+		"heading": "搭配词搜索",
+		"keywordPattern": "关键词模式 (BCQL)",
+		"keywordPatternPlaceholder": "例如 [lemma=\"dog\"]",
+		"keywordPatternHelp": "要查找搭配词的词或模式。",
+		"collocatePattern": "搭配词筛选 (BCQL)",
+		"collocatePatternPlaceholder": "可选，例如 [pos=\"N.*\"]",
+		"type": "搭配类型",
+		"types": {
+			"proximity": "邻近",
+			"relsources": "关系来源",
+			"reltargets": "关系目标"
+		},
+		"context": "上下文窗口",
+		"relationType": "关系类型",
+		"relationTypePlaceholder": "可选的关系类型或正则表达式",
+		"within": "元素范围",
+		"withinPlaceholder": "可选，例如 s",
+		"annotation": "搭配词标注",
+		"scorer": "评分",
+		"scorers": {
+			"dice": "Dice 系数",
+			"salience": "显著性"
+		},
+		"sensitive": "区分大小写和重音分组"
 	},
 	"partOfSpeech": {
 		"noOptions": "没有选项",

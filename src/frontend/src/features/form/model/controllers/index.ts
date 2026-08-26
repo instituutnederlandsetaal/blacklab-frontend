@@ -1,5 +1,7 @@
 export { annotationSelectController, annotationTextController } from './annotation-controller';
 export { annotationPosController } from './annotation-pos-controller';
+/** @public */
+export { collocationController } from './collocation-controller';
 export { frequencyAnnotationController } from './explore-frequency-controller';
 export { ngramGroupAnnotationController } from './explore-ngram-group-controller';
 export { filterCheckboxController, filterDateController, filterRadioController, filterRangeController, filterSelectController, filterTextController } from './metadata-filter-controller';

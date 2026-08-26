@@ -1,3 +1,8 @@
+/** @public */
+export type * from './collocation-field';
+/** @public */
+export { default as CollocationField } from './CollocationField.vue';
+
 export type * from './parallel-field';
 export { default as ParallelField } from './ParallelField.vue';
 export type * from './query-builder-field';

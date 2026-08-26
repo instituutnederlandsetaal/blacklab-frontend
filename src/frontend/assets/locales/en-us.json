@@ -143,8 +143,35 @@
 	"queryForm": {
 		"search": "Search",
 		"explore": "Explore",
+		"collocations": "Collocations",
 		"reset": "Reset",
 		"history": "History"
+	},
+	"collocations": {
+		"heading": "Collocation search",
+		"keywordPattern": "Keyword pattern (BCQL)",
+		"keywordPatternPlaceholder": "e.g. [lemma=\"dog\"]",
+		"keywordPatternHelp": "The word or pattern for which to find collocates.",
+		"collocatePattern": "Collocate filter (BCQL)",
+		"collocatePatternPlaceholder": "Optional, e.g. [pos=\"N.*\"]",
+		"type": "Collocation type",
+		"types": {
+			"proximity": "Proximity",
+			"relsources": "Relation sources",
+			"reltargets": "Relation targets"
+		},
+		"context": "Context window",
+		"relationType": "Relation type",
+		"relationTypePlaceholder": "Optional relation type or regular expression",
+		"within": "Within element",
+		"withinPlaceholder": "Optional, e.g. s",
+		"annotation": "Collocate annotation",
+		"scorer": "Score",
+		"scorers": {
+			"dice": "Dice coefficient",
+			"salience": "Salience"
+		},
+		"sensitive": "Case- and accent-sensitive grouping"
 	},
 	"partOfSpeech": {
 		"noOptions": "No options",

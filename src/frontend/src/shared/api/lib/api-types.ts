@@ -4,6 +4,7 @@ import type { InteropObservable, Observable } from 'rxjs';
 import type { CFPageConfig, NormalizedBlacklabServer, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import type {
 	BLAnnotatedField,
+	BLCollocationsParameters,
 	BLDocGroupResults,
 	BLDocResults,
 	BLDocument,
@@ -70,6 +71,7 @@ export interface BlackLabApi {
 	getDocumentInfo: ApiEndpoint<BLDocument, [indexId: string, documentId: string, params?: { query?: string }]>;
 	getRelations: ApiEndpoint<BLRelationInfo, [indexId: string]>;
 	getParsePattern: ApiEndpoint<BLParsePatternResponse, [indexId: string, pattern: string]>;
+	getCollocations: ApiEndpoint<BLHitGroupResults, [indexId: string, params: BLCollocationsParameters]>;
 	getHits<T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T>;
 	getHitsCsv: ApiEndpoint<Blob, [indexId: string, params: BLSearchParameters]>;
 	getDocsCsv: ApiEndpoint<Blob, [indexId: string, params: BLSearchParameters]>;
@@ -93,6 +95,7 @@ export interface BlackLabPaths {
 	formatXslt: (id: string) => string;
 	docInfo: (indexId: string, docId: string) => string;
 	hits: (indexId: string) => string;
+	collocations: (indexId: string) => string;
 	hitsCsv: (indexId: string) => string;
 	docs: (indexId: string) => string;
 	docsCsv: (indexId: string) => string;
