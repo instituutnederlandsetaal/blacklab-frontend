@@ -32,15 +32,15 @@ import { computed, reactive, ref, watchEffect } from 'vue';
 
 import { getAllNodes } from '@/features/form/model/form-utils';
 
-import { FormSystem, type CompiledFormStateWithSummaries, type FieldPresentation, type FormRuntime } from '../index';
+import { FormSystem, type CompiledFormResult, type FieldPresentation, type FormRuntime } from '../index';
 
 const props = defineProps<{
 	runtime: FormRuntime;
-	initialSubmitted?: CompiledFormStateWithSummaries | null;
+	initialSubmitted?: CompiledFormResult | null;
 	variant?: FieldPresentation | FieldPresentation[];
 }>();
 
-const submittedState = ref<CompiledFormStateWithSummaries | null>(props.initialSubmitted ?? null);
+const submittedState = ref<CompiledFormResult | null>(props.initialSubmitted ?? null);
 const outputs = reactive([
 	{ key: 'live-state', label: 'Live state', visible: true },
 	{ key: 'compiled', label: 'Compiled', visible: true },
@@ -64,7 +64,7 @@ watchEffect(() => {
 	allFields.value.forEach(field => (field.variant = props.variant));
 });
 
-function handleSubmit(snapshot: CompiledFormStateWithSummaries) {
+function handleSubmit(snapshot: CompiledFormResult) {
 	submittedState.value = snapshot;
 }
 

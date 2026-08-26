@@ -1,6 +1,7 @@
+import type { AnyFormTarget } from '@/features/form/model/targets';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
+import type { FormOutputProducer } from '@/features/form/model/types/form-output';
 import type { ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, QueryCombineMode } from '@/features/form/model/types/form-primitives';
-import type { QueryIR } from '@/features/form/model/types/form-query-ir';
 import type { AnyVueComponent } from '@/types/helpers';
 
 export type { FieldPresentation, FormNodeKind, FormValue, QueryCombineMode } from '@/features/form/model/types/form-primitives';
@@ -28,7 +29,7 @@ export type BaseContainerNode = BaseNode & {
 	 * adding an implicit filter without attaching parent-specific behavior to the
 	 * child node itself.
 	 */
-	readonly activeChildQueryContributions?: Readonly<Record<string, QueryIR>>;
+	readonly activeChildOutputProducers?: Readonly<Record<string, FormOutputProducer>>;
 };
 export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { readonly component: C };
 
@@ -37,6 +38,7 @@ export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerN
 
 export type BaseFormNode = Omit<BaseContainerNode, 'kind' | 'combine'> & {
 	readonly kind: 'form';
+	readonly target: AnyFormTarget;
 };
 export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extra & { readonly component: C };
 

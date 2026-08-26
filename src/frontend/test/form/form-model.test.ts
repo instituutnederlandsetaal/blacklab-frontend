@@ -1,9 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { buildQueryIR, createDefaultFormState, createFormFieldNode, type QueryCombineMode } from '@/features/form';
-import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
-import { annotation, filter, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { createDefaultFormState, createFormFieldNode, searchTarget, type QueryCombineMode } from '@/features/form';
+import { annotation, filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode, FormBoundaryNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
@@ -110,7 +109,7 @@ function createNonReactiveBoundaryFixture() {
 		component: ContainerRenderer,
 		children: [adoptedField, adoptedView],
 	} satisfies ContainerNode;
-	const adoptedForm = { id: 'adopted.form', kind: 'form', component: ContainerRenderer, children: [] } satisfies FormBoundaryNode;
+	const adoptedForm = { id: 'adopted.form', kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
 	root.addChildren(adoptedContainer, adoptedForm);
 
 	return builder;
@@ -312,24 +311,22 @@ describe('form model state', () => {
 	});
 
 	test.each(compositionExpectations)('$name', ({ combine, expectedPatt }) => {
-		const fixture = createCompositionFixture(combine);
-		const query = buildQueryIR(fixture.definition.getRoot(), fixture.state.getRawState(), fixture.definition.context);
-		const compiled = compileQueryIR(query);
+		const runtime = createCompositionFixture(combine);
 
-		expect(compiled.patt).toBe(expectedPatt);
+		expect(runtime.compile('search.form').params.patt).toBe(expectedPatt);
 	});
 
 	test('evaluates and includes a reused field query once per graph occurrence', () => {
-		const getQueryContribution = vi.fn(testTextController.getQueryContribution);
-		const { builder, form, sharedField } = createReusedFieldFixture({ ...testTextController, getQueryContribution });
+		const collect = vi.fn(testTextController.collect);
+		const { builder, form, sharedField } = createReusedFieldFixture({ ...testTextController, collect });
 		const runtime = createTestRuntime(builder);
 		runtime.state.state.value[sharedField.id] = { value: 'water' };
-		getQueryContribution.mockClear();
+		collect.mockClear();
 
 		const compiled = runtime.compile(form.id);
 
-		expect(getQueryContribution).toHaveBeenCalledTimes(2);
-		expect(compiled.patt).toBe('[word="water"] [word="water"]');
+		expect(collect).toHaveBeenCalledTimes(2);
+		expect(compiled.params.patt).toBe('[word="water"] [word="water"]');
 	});
 
 	test('emits one summary for a reused field reached through multiple graph paths', () => {
@@ -349,19 +346,19 @@ describe('form model state', () => {
 		const secondAlternative = builder.newContainer('second.alternative', ContainerRenderer, { title: 'Second alternative' });
 		const first = builder
 			.newContainer('first.tabs', ContainerRenderer, {})
-			.addChild(shared, { queryWhenActive: queryFragment(filter('category', 'literal', 'newspaper'))! })
+			.addChild(shared, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) })
 			.addChildren(firstAlternative);
 		const second = builder
 			.newContainer('second.tabs', ContainerRenderer, {})
-			.addChild(shared, { queryWhenActive: queryFragment(filter('category', 'literal', 'book'))! })
+			.addChild(shared, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'book')!) })
 			.addChildren(secondAlternative);
 		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(first, second);
-		const state = createDefaultFormState(builder.context, builder.getRoot());
+		const runtime = createTestRuntime(builder);
 
-		expect(compileQueryIR(buildQueryIR(form, state, builder.context)).filter).toBe('(category:(newspaper) AND category:(book))');
+		expect(runtime.compile(form.id).params.filter).toBe('(category:(newspaper) AND category:(book))');
 
-		state.uiState[first.id] = firstAlternative.id;
-		expect(compileQueryIR(buildQueryIR(form, state, builder.context)).filter).toBe('category:(book)');
+		runtime.state.uiState.value[first.id] = firstAlternative.id;
+		expect(runtime.compile(form.id).params.filter).toBe('category:(book)');
 	});
 
 	test('active-child contributions preserve nested parent combine modes', () => {
@@ -380,7 +377,7 @@ describe('form model state', () => {
 				combine: 'or',
 			})
 			.addChildren(lemma)
-			.addChild(semanticTab, { queryWhenActive: queryFragment(annotation('pos', 'wildcard', 'N'))! });
+			.addChild(semanticTab, { outputWhenActive: emit => emit('patt', annotation('pos', 'wildcard', 'N')!) });
 		const sequence = builder.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' }).addChildren(word, alternatives);
 		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(sequence);
 		const state = createDefaultFormState(builder.context, builder.getRoot());
@@ -388,9 +385,10 @@ describe('form model state', () => {
 		state.state[lemma.id] = { value: 'lopen' };
 		state.uiState[alternatives.id] = semanticTab.id;
 
-		const compiled = compileQueryIR(buildQueryIR(form, state, builder.context));
+		const compiled = createTestRuntime(builder);
+		compiled.state.replaceState(state);
 
-		expect(compiled.patt).toBe('[word="water"] [lemma="lopen" | pos="N"]');
+		expect(compiled.compile(form.id).params.patt).toBe('[word="water"] [lemma="lopen" | pos="N"]');
 	});
 
 	test('default runtime UI state selects the first child of each nested container', () => {

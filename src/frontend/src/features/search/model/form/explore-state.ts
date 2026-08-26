@@ -8,6 +8,7 @@ import { reactive, ref } from 'vue';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import { memoize } from '@/features/search/model/form/reactive-store';
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 
 import { escapeRegex } from '@/shared/utils/string-utils';
 
@@ -33,7 +34,7 @@ type ModuleRootState = {
 	/** When the form is submitted this is copied to the DocsStore */
 	corpora: {
 		groupBy: string;
-		groupDisplayMode: string;
+		groupDisplayMode: GroupDisplayMode;
 	};
 };
 
@@ -160,7 +161,7 @@ const actions = {
 
 	corpora: {
 		groupBy: (payload: string) => (state.corpora.groupBy = payload),
-		groupDisplayMode: (payload: string) => (state.corpora.groupDisplayMode = payload),
+		groupDisplayMode: (payload: GroupDisplayMode) => (state.corpora.groupDisplayMode = payload),
 
 		reset: () => Object.assign(state.corpora, structuredClone(defaults.corpora)),
 		replace: (payload: ModuleRootState['corpora']) => Object.assign(state.corpora, payload),

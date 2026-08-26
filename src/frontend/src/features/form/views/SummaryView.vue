@@ -18,9 +18,9 @@
 
 			<dl v-if="showRaw" class="raw">
 				<dt>CQL</dt>
-				<dd>{{ compiled.patt || $t(`form.summary.none`) }}</dd>
+				<dd>{{ compiled.params.patt || $t(`form.summary.none`) }}</dd>
 				<dt>Lucene</dt>
-				<dd>{{ compiled.filter || $t(`form.summary.none`) }}</dd>
+				<dd>{{ compiled.params.filter || $t(`form.summary.none`) }}</dd>
 			</dl>
 		</template>
 	</section>
@@ -45,8 +45,8 @@ const totalsController = props.createTotals?.();
 const totals = totalsController ? computed(() => toValue(totalsController.state)) : null;
 
 if (totalsController) {
-	const filter = computed(() => compiled.value.filter);
-	const searchfield = computed(() => compiled.value.searchfield);
+	const filter = computed(() => compiled.value.params.filter);
+	const searchfield = computed(() => compiled.value.params.searchfield);
 	watch([filter, searchfield], ([nextFilter, nextSearchfield]) => totalsController.update({ filter: nextFilter, searchfield: nextSearchfield }), { immediate: true });
 	if (totalsController.dispose) onScopeDispose(() => totalsController.dispose?.());
 }

@@ -4,9 +4,9 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, shallowRef } from 'vue';
 
-import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
+import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormResult, type FormRuntime } from '@/features/form';
 import { provideFormSystemRuntime } from '@/features/form/model/runtime';
-import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { annotation } from '@/features/form/model/types/form-query-ir';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { tabId } from '@/features/form/ui/tab-utils';
 
@@ -23,9 +23,10 @@ const queryOnlyTextController = defineFieldController<'query-only-text', TestTex
 	kind: 'query-only-text',
 	createDefaultState: () => ({ value: '' }),
 	persistence: { key: config => config.annotationId, codec: object({ value: scalar().default('').atRoot() }).default({ value: '' }) },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
-		return queryFragment(annotation(config.annotationId, 'wildcard', state.value));
+	outputs: ['patt'],
+	collect(config, _runtime, state, emit) {
+		const pattern = annotation(config.annotationId, 'wildcard', state.value);
+		if (pattern) emit('patt', pattern);
 	},
 });
 
@@ -282,12 +283,12 @@ describe('form system integration', () => {
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		await wrapper.get('form').trigger('submit');
 
-		const emitted = wrapper.emitted('submit') as Array<[CompiledFormStateWithSummaries]> | undefined;
+		const emitted = wrapper.emitted('submit') as Array<[CompiledFormResult]> | undefined;
 		expect(emitted).toHaveLength(1);
 		const [snapshot] = emitted![0];
 
 		expect(snapshot.formId).toBe('search.simple');
-		expect(snapshot.patt).toBe('[word="water"]');
+		expect(snapshot.params.patt).toBe('[word="water"]');
 		expect(snapshot.encoded).toEqual({
 			'f.form': 'search.simple',
 			'f.word': 'water',
@@ -497,7 +498,7 @@ describe('form system integration', () => {
 		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
 	});
 
-	test('tab badges count query contributions that have no summary', async () => {
+	test('tab badges ignore emissions without a summary', async () => {
 		const builder = createTestBuilder();
 		builder.newForm('search.query-only', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
 			builder.newContainer('search.query-only.tab', ContainerRenderer, { title: 'Query only' }).addChildren(
@@ -515,7 +516,7 @@ describe('form system integration', () => {
 		await wrapper.get('input[aria-label="Query only field"]').setValue('water');
 		await nextTick();
 
-		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
+		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
 		expect(runtime.compile('search.query-only').summaries).toEqual([]);
 	});
 });

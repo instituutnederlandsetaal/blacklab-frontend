@@ -78,7 +78,7 @@ import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
-import type { CompiledFormStateWithSummaries, FormRuntime } from '@/features/form';
+import type { CompiledFormResult, FormRuntime } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { useSearchFormSystem } from '@/features/search/model/form/search-form-system';
@@ -169,7 +169,7 @@ export default defineComponent({
 			RootStore.actions.searchFromSubmit();
 		},
 
-		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
+		submitNewForm(snapshot: CompiledFormResult) {
 			if (!this.confirmLargeExploreSearch(searchFormIds.formKind(snapshot.formId) ?? undefined)) return;
 			this.blurActiveElement();
 			RootStore.actions.searchFromSubmit(snapshot);

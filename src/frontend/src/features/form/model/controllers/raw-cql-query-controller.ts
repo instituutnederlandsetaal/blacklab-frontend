@@ -1,7 +1,7 @@
 import type { RawCqlQueryFieldDefinition } from '@/features/form/fields/raw-cql-field';
 import { scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { queryFragment, rawCql } from '@/features/form/model/types/form-query-ir';
+import { rawCql } from '@/features/form/model/types/form-query-ir';
 
 export const expertQueryController = defineFieldController<'raw-cql-query', RawCqlQueryFieldDefinition>({
 	kind: 'raw-cql-query',
@@ -12,13 +12,12 @@ export const expertQueryController = defineFieldController<'raw-cql-query', RawC
 			.default('')
 			.omitWhen(value => !value.trim()),
 	},
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(_config, runtime, state) {
+	outputs: ['patt'],
+	collect(_config, _runtime, state, emit) {
 		const cql = state.trim();
-		if (!cql) return null;
-		return queryFragment(rawCql(cql), {
-			label: runtime.translate.$t(`search.expert.corpusQueryLanguage`),
-			value: state,
-		});
+		if (cql) emit('patt', rawCql(cql));
+	},
+	summarize(_config, runtime, state, emit) {
+		if (state.trim()) emit({ label: runtime.translate.$t(`search.expert.corpusQueryLanguage`), value: state });
 	},
 });

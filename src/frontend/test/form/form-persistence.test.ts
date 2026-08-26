@@ -23,7 +23,6 @@ import {
 	resultGroupByController,
 	resultGroupDisplayModeController,
 	resultSortController,
-	resultViewedResultsController,
 	restoreControllerState,
 	restoreFormState,
 	array,
@@ -33,9 +32,11 @@ import {
 	scalar,
 	withinController,
 	type FieldController,
+	type Emit,
 	type FieldControllerProps,
+	type FormEmission,
 } from '@/features/form';
-import { filter, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { filter } from '@/features/form/model/types/form-query-ir';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -94,20 +95,12 @@ function isDeeplyFrozen(value: unknown, seen = new WeakSet<object>()): boolean {
 }
 
 describe('scoped form persistence', () => {
-	test('includes a field-provided result preset in compiled output', () => {
+	test('includes a field-provided table-mode preset in compiled output', () => {
 		const builder = createTestBuilder();
 		const resultPresetController: FieldController<'result-preset-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'result-preset-text',
-			getQueryContribution: (_config, _runtime, state) =>
-				queryFragment({
-					resultPreset: {
-						viewedResults: 'docs',
-						groupBy: [state.value],
-						groupDisplayMode: 'table',
-						sort: null,
-					},
-				}),
+			getResultPreset: () => ({ groupDisplayMode: 'table' }),
 		};
 		const field = builder.newField('explore.corpora.options', resultPresetController, TestTextField, {
 			annotationId: 'word',
@@ -119,40 +112,32 @@ describe('scoped form persistence', () => {
 
 		const compiled = compileFormNode(form, state, builder.context);
 
-		expect(compiled.resultPreset).toEqual({
-			viewedResults: 'docs',
-			groupBy: ['field:date'],
-			groupDisplayMode: 'table',
-			sort: null,
-		});
+		expect(compiled.resultPreset).toEqual({ groupDisplayMode: 'table' });
 	});
 
-	test('viewed-results controller contributes only viewedResults', () => {
-		const contribution = resultViewedResultsController.getQueryContribution({ kind: 'field', id: 'view', displayName: 'View', options: [], persistKey: 'view' }, createTestContext(), 'docs');
+	function collectController(controller: typeof resultGroupByController | typeof resultSortController, state: string): FormEmission[] {
+		const emissions: FormEmission[] = [];
+		controller.collect({ kind: 'field', id: 'field', displayName: 'Field', options: [], persistKey: 'field' }, createTestContext(), state, ((name, value) =>
+			emissions.push({ name, value } as FormEmission)) as Emit);
+		return emissions;
+	}
 
-		expect(contribution?.resultPreset).toEqual({ viewedResults: 'docs' });
-	});
-
-	test('group-by controller contributes a one-item groupBy list', () => {
-		const contribution = resultGroupByController.getQueryContribution({ kind: 'field', id: 'group', displayName: 'Group', options: [], persistKey: 'group' }, createTestContext(), 'field:date');
-
-		expect(contribution?.resultPreset).toEqual({ groupBy: ['field:date'] });
+	test('group-by controller emits a one-item group output', () => {
+		expect(collectController(resultGroupByController, 'field:date')).toEqual([{ name: 'group', value: ['field:date'] }]);
 	});
 
 	test('group-display-mode controller contributes only groupDisplayMode', () => {
-		const contribution = resultGroupDisplayModeController.getQueryContribution(
+		const contribution = resultGroupDisplayModeController.getResultPreset?.(
 			{ kind: 'field', id: 'display', displayName: 'Display', options: [], persistKey: 'display' },
 			createTestContext(),
 			'tokens',
 		);
 
-		expect(contribution?.resultPreset).toEqual({ groupDisplayMode: 'tokens' });
+		expect(contribution).toEqual({ groupDisplayMode: 'tokens' });
 	});
 
-	test('sort controller contributes only sort', () => {
-		const contribution = resultSortController.getQueryContribution({ kind: 'field', id: 'sort', displayName: 'Sort', options: [], persistKey: 'sort' }, createTestContext(), 'field:title');
-
-		expect(contribution?.resultPreset).toEqual({ sort: 'field:title' });
+	test('sort controller emits a one-item sort output', () => {
+		expect(collectController(resultSortController, 'field:title')).toEqual([{ name: 'sort', value: ['field:title'] }]);
 	});
 
 	test('uses properties when object prototype is null', () => {
@@ -283,6 +268,27 @@ describe('scoped form persistence', () => {
 		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).disabled).toBe(false);
 	});
 
+	test('suspends fields whose non-search output has a raw override', async () => {
+		const collpattController: FieldController<'collpatt-text', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'collpatt-text',
+			outputs: ['collpatt'],
+			collect(config, _runtime, state, emit) {
+				if (state.value) emit('collpatt', { type: 'cql-raw', cql: `[${config.annotationId}="${state.value}"]` });
+			},
+		};
+		const builder = createTestBuilder();
+		const field = builder.newField('collocation.pattern', collpattController, TestTextField, { annotationId: 'word', displayName: 'Collocate' });
+		builder.newForm('collocation.form', ContainerRenderer, {}).addChildren(field);
+		const runtime = createTestRuntime(builder);
+		runtime.state.rawOverrides.value.collpatt = '[word="fixed"]';
+
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		await wrapper.vm.$nextTick();
+
+		expect((wrapper.get('input[aria-label="Collocate"]').element as HTMLInputElement).disabled).toBe(true);
+	});
+
 	test('continues restoring other fields after one controller rejects its payload', () => {
 		const rejectingController: FieldController<'rejecting-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
@@ -310,7 +316,7 @@ describe('scoped form persistence', () => {
 			'f.author': 'Austen',
 		});
 
-		expect(restored.issues).toEqual([{ key: 'word', nodeId: word.id, message: 'Invalid word state.' }]);
+		expect(restored.issues).toEqual([{ stage: 'restore', code: 'invalid-restored-state', key: 'word', nodeId: word.id, message: 'Invalid word state.' }]);
 		expect(restored.state[author.id]).toEqual({ value: 'Austen', caseSensitive: false });
 	});
 
@@ -447,6 +453,38 @@ describe('scoped form persistence', () => {
 		expect(restored.rawOverrides).toEqual({});
 	});
 
+	test('retains every externally immutable form parameter as a raw override', () => {
+		const fixture = createCanonicalFallbackFixture(true);
+		const restored = restoreFormState(fixture.definition, {
+			collpatt: '[lemma="ship"]',
+			filter: 'author:Austen',
+			searchfield: 'contents__nl',
+			withspans: 'true',
+			colltype: 'proximity',
+			within: 's',
+			reltype: 'aligns',
+			annotation: 'lemma',
+			sensitive: 'false',
+			scorertype: 'coll-dice',
+			group: 'field:author',
+			sort: 'field:title',
+			context: '9',
+		});
+
+		expect(restored.rawOverrides).toEqual({
+			collpatt: '[lemma="ship"]',
+			filter: 'author:Austen',
+			searchfield: 'contents__nl',
+			withspans: true,
+			colltype: 'proximity',
+			within: 's',
+			reltype: 'aligns',
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+	});
+
 	test('persists and restores query-affecting tabs with implicit filter contributions', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
@@ -463,7 +501,7 @@ describe('scoped form persistence', () => {
 					title: 'Shared',
 				}),
 			)
-			.addChild(newspapers, { queryWhenActive: queryFragment(filter('category', 'literal', 'newspaper'))! });
+			.addChild(newspapers, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) });
 		form.addChildren(filters);
 		const definition = builder;
 		const context = createTestContext();
@@ -479,7 +517,7 @@ describe('scoped form persistence', () => {
 		expect(restored.uiState[filters.id]).toBe(newspapers.id);
 		expect(restored.rawOverrides).toEqual({});
 		expect(compileFormNode(form, restored, context)).toMatchObject({
-			filter: 'category:(newspaper)',
+			params: { filter: 'category:(newspaper)' },
 			encoded: {
 				'f.tab': ['search.extended.filters:search.extended.filters.newspapers'],
 			},
@@ -594,6 +632,8 @@ describe('scoped form persistence', () => {
 
 		expect(compileFormNode(duplicateForm, duplicateState, duplicateContext).issues).toEqual([
 			{
+				stage: 'collect',
+				code: 'malformed-output',
 				key: 'word',
 				nodeId: secondDuplicateField.id,
 				message: `Duplicate form persistence key 'word' for '${secondDuplicateField.id}' and '${firstDuplicateField.id}'.`,
@@ -620,6 +660,8 @@ describe('scoped form persistence', () => {
 
 		expect(compileFormNode(form, createDefaultFormState(reservedContext, reservedDefinition.getRoot()), reservedContext).issues).toEqual([
 			{
+				stage: 'collect',
+				code: 'malformed-output',
 				key: 'form',
 				nodeId: 'search.reserved.word',
 				message: "Field 'search.reserved.word' uses reserved form persistence key 'form'.",

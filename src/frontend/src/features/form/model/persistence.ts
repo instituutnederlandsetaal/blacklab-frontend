@@ -1,13 +1,14 @@
 import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field';
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { buildQueryIR } from '@/features/form/model/compile';
-import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { acceptTargetEmissions, collectFormValues } from '@/features/form/model/compile';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { createDefaultFormState, createFormStateSnapshot, type FormStateInput, type NewFormState } from '@/features/form/model/state';
-import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
+import { searchTarget } from '@/features/form/model/targets';
+import { RESTORABLE_FORM_PARAMETERS, type FormParams, type RawFormOverrides, type RestorableFormParams } from '@/features/form/model/types/blacklab-params';
 import { encodeFieldState, getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query-ir';
+import type { FormIssue } from '@/features/form/model/types/form-output';
+import type { CompiledFormResult, ScopedFormQuery } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 import type { DeepReadonly } from '@/types/apptypes';
 
@@ -18,14 +19,15 @@ const SCOPED_FORM_KEYS = {
 } as const;
 const RESERVED_SCOPED_FORM_KEYS: ReadonlySet<string> = new Set(Object.values(SCOPED_FORM_KEYS));
 
-export type RestoreIssue = {
+type RestoreDiagnostic = {
 	key?: string;
 	nodeId?: string;
 	message: string;
+	code?: FormIssue['code'];
 };
 
 type MutableRestoredFormState = NewFormState & {
-	issues: RestoreIssue[];
+	issues: FormIssue[];
 	/** Scoped form that can be compiled as the submitted query; canonical-only fallback stays null. */
 	submittedFormId: string | null;
 };
@@ -67,10 +69,10 @@ function findExpertFallback(definition: FormBuilder, canonicalPattern: string, c
 	return null;
 }
 
-function buildFieldCodec(form: FormNode, context: FormRuntimeContext): { entries: FieldCodecEntry[]; issues: RestoreIssue[] } {
+function buildFieldCodec(form: FormNode, context: FormRuntimeContext): { entries: FieldCodecEntry[]; issues: RestoreDiagnostic[] } {
 	const seen = new Map<string, FormFieldNode>();
 	const entries: FieldCodecEntry[] = [];
-	const issues: RestoreIssue[] = [];
+	const issues: RestoreDiagnostic[] = [];
 
 	for (const field of getAllNodes(form, 'field')) {
 		const key = getFieldPersistKey(field, context);
@@ -171,17 +173,38 @@ function getFirstNonEmptyQueryValue(query: Record<string, unknown>, ...keys: str
 	return null;
 }
 
-function decodeCanonicalFormParams(query: Record<string, unknown>, context: FormRuntimeContext): BlackLabParameters {
+function decodeCanonicalFormParams(query: Record<string, unknown>, context: FormRuntimeContext): RawFormOverrides {
+	const patt = getFirstNonEmptyQueryValue(query, 'patt', 'query');
+	const collpatt = getFirstNonEmptyQueryValue(query, 'collpatt');
+	const filter = getFirstNonEmptyQueryValue(query, 'filter');
+	const searchfield = context.corpus.isParallelCorpus === false ? null : getFirstNonEmptyQueryValue(query, 'searchfield', 'searchField', 'field');
+	const withspans = getFirstNonEmptyQueryValue(query, 'withspans');
+	const rawColltype = getFirstNonEmptyQueryValue(query, 'colltype');
+	const colltype = rawColltype === 'proximity' || rawColltype === 'relsources' || rawColltype === 'reltargets' ? rawColltype : null;
+	const within = getFirstNonEmptyQueryValue(query, 'within');
+	const reltype = getFirstNonEmptyQueryValue(query, 'reltype');
+	const annotation = getFirstNonEmptyQueryValue(query, 'annotation');
+	const rawSensitive = getFirstNonEmptyQueryValue(query, 'sensitive');
+	const sensitive = rawSensitive === 'true' ? true : rawSensitive === 'false' ? false : undefined;
+	const scorertype = getFirstNonEmptyQueryValue(query, 'scorertype');
 	return {
-		patt: getFirstNonEmptyQueryValue(query, 'patt', 'query'),
-		filter: getFirstNonEmptyQueryValue(query, 'filter'),
-		searchfield: context.corpus.isParallelCorpus === false ? null : getFirstNonEmptyQueryValue(query, 'searchfield', 'searchField', 'field'),
+		...(patt ? { patt } : {}),
+		...(collpatt ? { collpatt } : {}),
+		...(filter ? { filter } : {}),
+		...(searchfield ? { searchfield } : {}),
+		...(withspans === 'true' ? { withspans: true as const } : {}),
+		...(colltype ? { colltype } : {}),
+		...(within ? { within } : {}),
+		...(reltype ? { reltype } : {}),
+		...(annotation ? { annotation } : {}),
+		...(sensitive !== undefined ? { sensitive } : {}),
+		...(scorertype ? { scorertype } : {}),
 	};
 }
 
 function restorePersistedFields(entries: FieldCodecEntry[], persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
 	const state: Record<string, unknown> = {};
-	const issues: RestoreIssue[] = [];
+	const issues: RestoreDiagnostic[] = [];
 	const knownKeys = new Set(entries.map(entry => entry.key));
 
 	for (const entry of entries) {
@@ -209,7 +232,7 @@ function restorePersistedFields(entries: FieldCodecEntry[], persistedFields: Rea
 
 function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: DecodedScopedParameter) {
 	const uiState: Record<string, string> = {};
-	const issues: RestoreIssue[] = [];
+	const issues: RestoreDiagnostic[] = [];
 	if (!persistedTabs.present) return { uiState, issues };
 	if (persistedTabs.value == null) {
 		return { uiState, issues: [{ key: SCOPED_FORM_KEYS.tabSelections, message: 'Persisted tab selection has no value.' }] };
@@ -236,11 +259,12 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 	return { uiState, issues };
 }
 
-function findUnrepresentableCanonicalParams(compiledParams: BlackLabParameters, canonicalParams: BlackLabParameters): BlackLabParameters {
-	const overrides: BlackLabParameters = {};
-	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
+function findUnrepresentableCanonicalParams(compiledParams: FormParams, canonicalParams: RawFormOverrides): RawFormOverrides {
+	const overrides: RawFormOverrides = {};
+	const compiled = compiledParams as Partial<RestorableFormParams>;
+	for (const parameter of RESTORABLE_FORM_PARAMETERS) {
 		const canonicalValue = canonicalParams[parameter];
-		if (isNonEmpty(canonicalValue) && compiledParams[parameter] !== canonicalValue) overrides[parameter] = canonicalValue;
+		if (canonicalValue !== undefined && compiled[parameter] !== canonicalValue) (overrides as Record<string, unknown>)[parameter] = canonicalValue;
 	}
 	return overrides;
 }
@@ -250,42 +274,61 @@ function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[
 	for (const container of getAllNodes(form, 'container', 'form')) {
 		const activeChildId = state.uiState[container.id];
 		const activeChild = container.children.find(child => child.id === activeChildId);
-		if (!activeChild || !container.activeChildQueryContributions?.[activeChild.id]) continue;
+		if (!activeChild || !container.activeChildOutputProducers?.[activeChild.id]) continue;
 		tabs.push(`${container.id}:${activeChild.id}`);
 	}
 	return tabs;
 }
 
-function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: FormStateInput): { encoded: ScopedFormQuery; issues?: RestoreIssue[] } {
+function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: FormStateInput): { encoded: ScopedFormQuery; issues: RestoreDiagnostic[] } {
 	const codec = buildFieldCodec(form, context);
-	const values = codec.entries.map(({ field, key }) => ({ key, state: encodeFieldState(field, state.state[field.id], context) })).filter(({ state }) => state != null && state !== '');
+	const issues = [...codec.issues];
 	const r: ScopedFormQuery = {
 		[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: form.id,
 	};
-	for (const { key, state } of values) r[`${FORM_QUERY_PREFIX}${key}`] = state!;
+	for (const { field, key } of codec.entries) {
+		try {
+			const value = encodeFieldState(field, state.state[field.id], context);
+			if (value != null && value !== '') r[`${FORM_QUERY_PREFIX}${key}`] = value;
+		} catch (error) {
+			issues.push({
+				key,
+				nodeId: field.id,
+				code: 'controller-error',
+				message: error instanceof Error ? error.message : `Could not encode field '${field.id}'.`,
+			});
+		}
+	}
 	const tabs = queryAffectingTabParams(form, state);
 	if (tabs.length) r[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = tabs;
-	return { encoded: r, issues: codec.issues.length ? codec.issues : undefined };
+	return { encoded: r, issues };
 }
 
-export function compileFormNode(node: FormNode, state: FormStateInput, context: FormRuntimeContext): CompiledFormStateWithSummaries {
+export function compileFormNode(node: FormNode, state: FormStateInput, context: FormRuntimeContext): CompiledFormResult {
 	if (node.kind !== 'form') console.warn(`Compiling state non-form node '${node.id}'.`);
-
-	// Compile what's in the form
-	const { encoded, issues } = encodeScopedFormState(node, context, state);
-	const query = buildQueryIR(node, state, context);
-	const compiled = compileQueryIR(query);
-	// overwrite with raw overrides
-	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
-		if (state.rawOverrides?.[parameter]) compiled[parameter] = state.rawOverrides[parameter];
+	const target = node.kind === 'form' ? node.target : searchTarget;
+	const encodedState = encodeScopedFormState(node, context, state);
+	const collected = collectFormValues(node, state, context);
+	const issues: FormIssue[] = [
+		...((state as FormStateInput & { issues?: readonly FormIssue[] }).issues ?? []),
+		...encodedState.issues.map(issue => ({ ...issue, stage: 'collect' as const, code: issue.code ?? ('malformed-output' as const) })),
+		...collected.issues,
+	];
+	const accepted = acceptTargetEmissions(collected.emissions, target.acceptedOutputs, issues);
+	const params = target.compile(accepted as never, issues);
+	for (const parameter of RESTORABLE_FORM_PARAMETERS) {
+		const override = state.rawOverrides?.[parameter];
+		if (override !== undefined) (params as Record<string, unknown>)[parameter] = override;
 	}
 
 	return {
-		...compiled,
 		formId: node.id,
-		encoded,
+		params,
+		encoded: encodedState.encoded,
 		issues,
-		summaries: query.summaries,
+		summaries: collected.summaries.map(summary => ({ ...summary, summaryType: summary.summaryType ? [...summary.summaryType] : undefined })),
+		...(target.targetView ? { targetView: target.targetView } : {}),
+		...(collected.resultPreset ? { resultPreset: { ...collected.resultPreset } } : {}),
 	};
 }
 
@@ -298,7 +341,7 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 	const scopedForm = definition.formsMap[requestedFormId ?? ''] ?? definition.formsList[0];
 
 	let submittedFormId: string | null = null;
-	const formSelectorIssues: RestoreIssue[] = [];
+	const formSelectorIssues: RestoreDiagnostic[] = [];
 	if (scopedParams.formSelector.present) {
 		if (requestedFormId === scopedForm.id) submittedFormId = requestedFormId;
 		else {
@@ -313,7 +356,11 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 	const codec = buildFieldCodec(scopedForm, definition.context);
 	const restoredFields = restorePersistedFields(codec.entries, scopedParams.fields, definition.context);
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
-	const issues = [...formSelectorIssues, ...codec.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
+	const issues: FormIssue[] = [...formSelectorIssues, ...codec.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues].map(issue => ({
+		...issue,
+		stage: 'restore',
+		code: 'invalid-restored-state',
+	}));
 
 	const finishRestore = (activeForm: FormBoundaryNode, finalSubmittedFormId: string | null, expertFallback: ReturnType<typeof findExpertFallback> = null): RestoredFormState => {
 		const restoredState: NewFormState = {
@@ -330,7 +377,7 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 			},
 			rawOverrides: {},
 		};
-		const compiledParams = compileQueryIR(buildQueryIR(activeForm, restoredState, definition.context));
+		const compiledParams = compileFormNode(activeForm, restoredState, definition.context).params;
 
 		return createFormStateSnapshot({
 			...restoredState,

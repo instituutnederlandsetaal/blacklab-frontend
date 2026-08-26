@@ -7,16 +7,29 @@ import {
 	type ParallelFieldDefinition,
 } from '@/features/form/fields/parallel-field';
 import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
-import { getFieldQueryContribution } from '@/features/form/model/compile';
 import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import { parallelQuery, parallelQueryTarget, queryFragment, type SummaryEntry } from '@/features/form/model/types/form-query-ir';
+import type { Emit, SummaryEntry } from '@/features/form/model/types/form-output';
+import { parallelQuery, parallelQueryTarget, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 
-/** Apply the child template's default state before compiling a parallel branch. */
-function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
-	return getFieldQueryContribution(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime));
+/** Apply the child template's default state before collecting a parallel branch. */
+function getParallelChildPattern(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown): CqlPatternNode | null {
+	let pattern: CqlPatternNode | null = null;
+	config.childFieldTemplate.controller.collect(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime), ((name, value) => {
+		if (name === 'patt' && !pattern) pattern = value as CqlPatternNode;
+	}) as Emit);
+	return pattern;
+}
+
+function summarizeParallelChild(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown, summaries: SummaryEntry[]): void {
+	config.childFieldTemplate.controller.summarize?.(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime), summary =>
+		summaries.push({
+			...summary,
+			summaryType: summary.summaryType ?? [...config.childFieldTemplate.controller.outputs],
+		}),
+	);
 }
 
 export function restoreCanonicalPatternInParallelField(
@@ -97,13 +110,23 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 	kind: 'parallel',
 	createDefaultState: createDefaultParallelFieldState,
 	persistence: { key: () => 'parallel', codec: parallelPersistenceCodec },
-	affectsBlackLabParameters: ['searchfield', 'patt'],
-	getQueryContribution(config, runtime, state) {
-		const sourceContribution = state.source != null ? getParallelChildContribution(config, runtime, state.childStates[state.source]) : null;
-		const targetContributions = state.targets.map(fieldId => ({
-			fieldId,
-			contribution: getParallelChildContribution(config, runtime, state.childStates[fieldId]),
-		}));
+	outputs: ['searchfield', 'patt'],
+	collect(config, runtime, state, emit) {
+		if (state.source) emit('searchfield', state.source);
+		if (!state.source) return;
+		const sourcePattern = getParallelChildPattern(config, runtime, state.childStates[state.source]);
+		const targets = state.targets.map(fieldId => ({ fieldId, pattern: getParallelChildPattern(config, runtime, state.childStates[fieldId]) }));
+		if (targets.length) {
+			emit(
+				'patt',
+				parallelQuery(
+					sourcePattern,
+					targets.map(({ fieldId, pattern }) => parallelQueryTarget(fieldId, state.alignBy, pattern)),
+				),
+			);
+		} else if (sourcePattern) emit('patt', sourcePattern);
+	},
+	summarize(config, runtime, state, emit) {
 		const summaries: SummaryEntry[] = [];
 		if (state.source)
 			summaries.push({
@@ -126,19 +149,8 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 			});
 		}
 
-		if (sourceContribution) summaries.push(...sourceContribution.summaries);
-		for (const { contribution } of targetContributions) summaries.push(...contribution.summaries);
-
-		return queryFragment({
-			searchfield: state.source,
-			pattern:
-				sourceContribution && targetContributions.length
-					? parallelQuery(
-							sourceContribution.pattern,
-							targetContributions.map(({ fieldId, contribution }) => parallelQueryTarget(fieldId, state.alignBy, contribution.pattern)),
-						)
-					: (sourceContribution?.pattern ?? null),
-			summaries,
-		});
+		if (state.source) summarizeParallelChild(config, runtime, state.childStates[state.source], summaries);
+		for (const fieldId of state.targets) summarizeParallelChild(config, runtime, state.childStates[fieldId], summaries);
+		for (const summary of summaries) emit(summary);
 	},
 });

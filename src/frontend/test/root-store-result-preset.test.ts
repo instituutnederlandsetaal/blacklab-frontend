@@ -7,7 +7,7 @@ import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
-import type { CompiledFormStateWithSummaries } from '@/features/form';
+import type { CompiledFormResult, FormParams } from '@/features/form';
 import type { HistoryEntry } from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
@@ -42,30 +42,36 @@ function resetStores() {
 	ViewStore.init({} as CorpusContext);
 }
 
+function snapshot(params: FormParams, extra: Partial<CompiledFormResult> = {}): CompiledFormResult {
+	return {
+		formId: 'search.form',
+		encoded: { 'f.form': 'search.form' },
+		issues: [],
+		params,
+		summaries: [],
+		...extra,
+	};
+}
+
 afterEach(() => {
 	vi.restoreAllMocks();
 	resetStores();
 });
 
-describe('root-store result presets', () => {
-	test('applies a compiled preset to the selected view on fresh submit', () => {
+describe('compiled-form result handoff', () => {
+	test('applies compiled grouping, sorting, table mode, and preferred view on fresh submit', () => {
 		resetStores();
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'explore.corpora',
-			encoded: { 'f.form': 'explore.corpora' },
-			patt: null,
-			searchfield: null,
-			summaries: [],
-			resultPreset: {
-				viewedResults: 'docs',
-				groupBy: ['field:date'],
-				groupDisplayMode: 'tokens',
-				sort: 'field:author',
+		const submitted = snapshot(
+			{ group: 'field:date', sort: 'field:author' },
+			{
+				formId: 'explore.corpora',
+				encoded: { 'f.form': 'explore.corpora' },
+				resultPreset: { groupDisplayMode: 'tokens' },
+				targetView: 'docs',
 			},
-		};
+		);
 
-		RootStore.actions.searchFromSubmit(snapshot);
+		RootStore.actions.searchFromSubmit(submitted);
 
 		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({
@@ -73,7 +79,53 @@ describe('root-store result presets', () => {
 			groupDisplayMode: 'tokens',
 			sort: 'field:author',
 		});
-		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: snapshot });
+		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
+	});
+
+	test('honors a preferred docs view even when patt is present', () => {
+		resetStores();
+
+		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }, { targetView: 'docs' }));
+
+		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+	});
+
+	test('falls back to patt-based view selection when no target preference exists', () => {
+		resetStores();
+		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }));
+		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+
+		RootStore.actions.searchFromSubmit(snapshot({}));
+		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+	});
+
+	test('does not reapply form-owned settings when compiled params are unchanged', () => {
+		resetStores();
+		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } }));
+		const view = ViewStore.getOrCreateModule('docs');
+		view.actions.groupBy(['field:changed-later']);
+		view.actions.sort('field:changed-later');
+		view.actions.groupDisplayMode('docs');
+
+		RootStore.actions.searchFromSubmit(
+			snapshot(
+				{ group: 'field:submitted', sort: 'field:submitted' },
+				{ encoded: { 'f.form': 'search.form', 'f.changed': 'presentation-only' }, targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } },
+			),
+		);
+
+		expect(view.getState()).toMatchObject({ groupBy: ['field:changed-later'], sort: 'field:changed-later', groupDisplayMode: 'docs' });
+	});
+
+	test('applies form-owned settings again when compiled params change', () => {
+		resetStores();
+		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:first' }, { targetView: 'docs' }));
+		const view = ViewStore.getOrCreateModule('docs');
+		view.actions.groupBy(['field:live']);
+
+		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:second' }, { targetView: 'docs' }));
+
+		expect(view.getState().groupBy).toEqual(['field:second']);
 	});
 
 	test('ignores stale legacy split-batch state for a new-form submit', () => {
@@ -81,54 +133,30 @@ describe('root-store result presets', () => {
 		InterfaceStore.actions.form('search');
 		InterfaceStore.actions.patternMode('extended');
 		PatternStore.actions.extended.splitBatch(true);
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'search.simple',
-			encoded: { 'f.form': 'search.simple' },
-			patt: '[word="water"]',
-			searchfield: null,
-			summaries: [],
-		};
+		const submitted = snapshot({ patt: '[word="water"]' });
 
-		RootStore.actions.searchFromSubmit(snapshot);
+		RootStore.actions.searchFromSubmit(submitted);
 
-		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: snapshot });
+		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
 	});
 
-	test('requests spans for a new-form submission that contains within-attribute controls', () => {
+	test('requests spans from the compiled withspans parameter', () => {
 		resetStores();
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'search.expert',
-			encoded: { 'f.form': 'search.expert' },
-			patt: '[word="water"]',
-			resultPreset: { withSpans: true },
-			searchfield: null,
-			summaries: [],
-		};
 
-		RootStore.actions.searchFromSubmit(snapshot);
+		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]', withspans: true }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
 	});
 
-	test('does not request spans when a new-form submission has no withSpans preset', () => {
+	test('does not request spans when compiled params omit withspans', () => {
 		resetStores();
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'search.expert',
-			encoded: { 'f.form': 'search.expert' },
-			patt: '[word="water"]',
-			searchfield: null,
-			summaries: [],
-		};
 
-		RootStore.actions.searchFromSubmit(snapshot);
+		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
 	});
 
-	test('derives legacy withspans from the submitted active filters, not registered controls', () => {
+	test('derives legacy withspans from submitted active filters, not registered controls', () => {
 		resetStores();
 		InterfaceStore.actions.form('search');
 		InterfaceStore.actions.patternMode('expert');
@@ -152,42 +180,25 @@ describe('root-store result presets', () => {
 		});
 	});
 
-	test('lets an explicit legacy withspans customization override the new-form preset', () => {
+	test('lets an explicit legacy withspans customization override compiled withspans', () => {
 		resetStores();
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(false);
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'search.expert',
-			encoded: { 'f.form': 'search.expert' },
-			patt: '[word="water"]',
-			resultPreset: { withSpans: true },
-			searchfield: null,
-			summaries: [],
-		};
 
-		RootStore.actions.searchFromSubmit(snapshot);
+		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]', withspans: true }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(false);
 	});
 
-	test('lets an explicit legacy withspans customization enable spans without a form preset', () => {
+	test('lets an explicit legacy withspans customization enable spans without a compiled value', () => {
 		resetStores();
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(true);
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'search.expert',
-			encoded: { 'f.form': 'search.expert' },
-			patt: '[word="water"]',
-			searchfield: null,
-			summaries: [],
-		};
 
-		RootStore.actions.searchFromSubmit(snapshot);
+		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
 	});
 
-	test('keeps legacy Documents result handling separate from new-form presets', () => {
+	test('keeps legacy Documents result handling separate from compiled-form handoff', () => {
 		resetStores();
 		InterfaceStore.actions.form('explore');
 		InterfaceStore.actions.exploreMode('corpora');
@@ -204,25 +215,21 @@ describe('root-store result presets', () => {
 		});
 	});
 
-	test('keeps persisted view changes when restoring history instead of reapplying the submit preset', () => {
+	test('keeps restored live view state instead of reapplying the submit preset', () => {
 		resetStores();
-		const snapshot: CompiledFormStateWithSummaries = {
-			filter: null,
-			formId: 'explore.corpora',
-			encoded: { 'f.form': 'explore.corpora' },
-			patt: null,
-			searchfield: null,
-			summaries: [],
-			resultPreset: {
-				viewedResults: 'docs',
-				groupBy: ['field:submitted'],
-				groupDisplayMode: 'table',
+		const submitted = snapshot(
+			{ group: 'field:submitted' },
+			{
+				formId: 'explore.corpora',
+				encoded: { 'f.form': 'explore.corpora' },
+				resultPreset: { groupDisplayMode: 'table' },
+				targetView: 'docs',
 			},
-		};
+		);
 		const persistedView = {
 			...ViewStore.initialViewState,
 			groupBy: ['field:changed-later'],
-			groupDisplayMode: 'docs',
+			groupDisplayMode: 'docs' as const,
 			sort: 'field:title',
 		};
 		const historyEntry = {
@@ -231,7 +238,7 @@ describe('root-store result presets', () => {
 			gap: GapStore.defaults,
 			global: { context: null, sampleMode: 'percentage', sampleSeed: null, sampleSize: null },
 			interface: { ...InterfaceStore.defaults, form: 'explore', exploreMode: 'corpora', viewedResults: 'docs' },
-			newForm: snapshot,
+			newForm: submitted,
 			patterns: PatternStore.defaults,
 			view: persistedView,
 		} satisfies HistoryEntry;

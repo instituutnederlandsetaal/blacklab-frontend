@@ -3,10 +3,10 @@ import { toValue } from 'vue';
 import { createDefaultCqlQueryBuilderData, isCqlAttributeData } from '@/features/cql-query-builder/model';
 import type { CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
 import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
-import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { compileCql } from '@/features/form/model/compile/query-artifact';
 import { array, bool, lazy, number, object, scalar, variant, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { annotation, anyToken, booleanNode, queryFragment, queryIR, repeat, sequence, xmlTag, type CqlAnnotationNode } from '@/features/form/model/types/form-query-ir';
+import { annotation, anyToken, booleanNode, repeat, sequence, xmlTag, type CqlAnnotationNode } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 
@@ -180,11 +180,14 @@ export const queryBuilderController = defineFieldController<'cql-query-builder',
 	kind: 'cql-query-builder',
 	createDefaultState: config => createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId),
 	persistence: { key: () => 'query', codec: queryBuilderPersistenceCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, runtime, state) {
+	outputs: ['patt'],
+	collect(_config, _runtime, state, emit) {
 		const pattern = stateToPattern(state);
-		const query = queryIR({ pattern });
-		const cql = compileQueryIR(query).patt;
-		return queryFragment(query, cql ? { label: toValue(config.displayName) ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql } : null);
+		if (pattern) emit('patt', pattern);
+	},
+	summarize(config, runtime, state, emit) {
+		const pattern = stateToPattern(state);
+		const cql = pattern && compileCql(pattern);
+		if (cql) emit({ label: toValue(config.displayName) ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql });
 	},
 });

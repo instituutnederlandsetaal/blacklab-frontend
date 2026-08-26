@@ -1,12 +1,11 @@
 import cloneDeep from 'clone-deep';
 import { computed, watch, type Ref } from 'vue';
-import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
+import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import { compileFormNode, restoreFormState, type FormRuntime } from '@/features/form';
-import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -63,9 +62,10 @@ type FrontendSearchPageExtraQueryParamsDecoded = {
 };
 type FrontendSearchPageExtraQueryParamsEncoded = Partial<Record<keyof FrontendSearchPageExtraQueryParamsDecoded, string>>;
 
+type NavigationQueryValue = string | number | boolean | null | undefined | readonly (string | number | boolean | null | undefined)[];
 type NavigationInput = {
 	/** The query params that represent submitted query/results state. Draft interface params are sampled only while pushing. */
-	query: Partial<BlackLabParameters & FrontendSearchPageExtraQueryParamsEncoded>;
+	query: Record<string, NavigationQueryValue> & FrontendSearchPageExtraQueryParamsEncoded;
 	/** Path in the url, starts with a / */
 	path: string;
 	/** Vue Router route path, without the history base. Used only for store/router equality checks. */
@@ -181,12 +181,15 @@ function pushStoreStateToRouter(router: Router, next: NavigationInput) {
 			if (item != null) searchParams.append(key, String(item));
 		}
 	}
+	const routeQuery: LocationQueryRaw = Object.fromEntries(
+		Object.entries(query).map(([key, value]) => [key, Array.isArray(value) ? value.map(item => (item == null ? null : String(item))) : value == null ? value : String(value)]),
+	);
 	const queryString = searchParams.toString();
 	const url = queryString ? `${path}?${queryString}` : path;
 	if (entry) {
 		HistoryStore.actions.addEntry({
 			entry,
-			pattern: query.patt || undefined,
+			pattern: typeof query.patt === 'string' ? query.patt || undefined : undefined,
 			url,
 		});
 	}
@@ -198,7 +201,7 @@ function pushStoreStateToRouter(router: Router, next: NavigationInput) {
 
 	router
 		.push({
-			query: query,
+			query: routeQuery,
 			name: 'search',
 			params: {
 				corpus: indexId,

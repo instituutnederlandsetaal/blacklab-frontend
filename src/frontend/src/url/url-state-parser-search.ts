@@ -16,6 +16,7 @@ import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
 // Results
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { Corpus } from '@/types/apptypes';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
@@ -769,7 +770,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			groupBy: this.groupBy,
 			sort: this.getString('sort', null, v => (v ? v : null)),
 			viewGroup: this.getString('viewgroup', undefined, v => (v && this.groupBy.length > 0 ? v : null)),
-			groupDisplayMode: this.getString('groupDisplayMode', null, v => (v ? v : null)),
+			groupDisplayMode: this.getString('groupDisplayMode', null, v => (['table', 'docs', 'hits', 'relative docs', 'relative hits', 'tokens'].includes(v ?? '') ? v : null)) as GroupDisplayMode | null,
 			first: this.getNumber('first', null, v => (v != null && v >= 0 ? v : null)) ?? 0,
 			number: this.getNumber('number', this.dependencies.globalResultsState.pageSize, v => (v != null && v > 0 ? v : null)) ?? 20,
 			requestedRange: null,

@@ -4,10 +4,10 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { nextTick, ref } from 'vue';
 
-import { FormSystem } from '@/features/form';
-import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { FormSystem, type FieldController } from '@/features/form';
+import { annotation } from '@/features/form/model/types/form-query-ir';
 
-import { TestTextField, createTestBuilder, createTestRuntime, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -26,20 +26,29 @@ describe('form runtime', () => {
 	test('compile detaches nested summaries, encoded tabs, and result presets from later runtime edits', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
-		const snapshotController = {
+		type SnapshotState = TestTextFieldState & { groupBy: string[]; groupDisplayMode: 'table' | 'tokens'; summaryTypes: Array<'filter' | 'patt'> };
+		const snapshotController: FieldController<'snapshot-text', SnapshotState, TestTextFieldConfig> = {
 			...testTextController,
-			getQueryContribution(config, _context, state) {
-				const snapshotState = state as typeof state & { groupBy: string[]; summaryTypes: Array<'filter' | 'patt'> };
-				if (!snapshotState.value) return null;
-				return queryFragment(
-					{
-						pattern: annotation(config.annotationId, 'wildcard', snapshotState.value),
-						resultPreset: { groupBy: snapshotState.groupBy },
-					},
-					{ label: 'Word', value: snapshotState.value, summaryType: snapshotState.summaryTypes },
-				);
+			kind: 'snapshot-text',
+			createDefaultState: () => ({ value: '', groupBy: [], groupDisplayMode: 'table', summaryTypes: [] }),
+			persistence: {
+				...testTextController.persistence,
+				codec: testTextController.persistence.codec.transform<SnapshotState>({
+					encode: state => ({ value: state.value }),
+					decode: state => ({ ...state, groupBy: [], groupDisplayMode: 'table', summaryTypes: [] }),
+				}),
 			},
-		} satisfies typeof testTextController;
+			outputs: ['patt', 'group'],
+			collect(config, _context, state, emit) {
+				const pattern = annotation(config.annotationId, 'wildcard', state.value);
+				if (pattern) emit('patt', pattern);
+				emit('group', state.groupBy);
+			},
+			summarize(_config, _context, state, emit) {
+				if (state.value) emit({ label: 'Word', value: state.value, summaryType: state.summaryTypes });
+			},
+			getResultPreset: (_config, _context, state) => ({ groupDisplayMode: state.groupDisplayMode }),
+		};
 		const field = builder.newField('search.simple.word', snapshotController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
@@ -47,33 +56,35 @@ describe('form runtime', () => {
 		const alternative = builder.newContainer('search.simple.alternative', ContainerRenderer, {});
 		const tabs = builder
 			.newContainer('search.simple.tabs', ContainerRenderer, {})
-			.addChild(field, { queryWhenActive: queryFragment({ searchfield: 'contents' })! })
-			.addChild(alternative, { queryWhenActive: queryFragment({ searchfield: 'alternative' })! });
+			.addChild(field, { outputWhenActive: emit => emit('searchfield', 'contents') })
+			.addChild(alternative, { outputWhenActive: emit => emit('searchfield', 'alternative') });
 		form.addChildren(tabs);
 
 		const runtime = createTestRuntime(builder);
-		const callerOwnedState = { value: 'water', groupBy: ['water'], summaryTypes: ['patt'] as Array<'filter' | 'patt'> };
+		const callerOwnedState: SnapshotState = { value: 'water', groupBy: ['water'], groupDisplayMode: 'table', summaryTypes: ['patt'] };
 		runtime.state.state.value[field.id] = callerOwnedState;
 
 		const submitted = runtime.compile(form.id);
 		callerOwnedState.value = 'fire';
 		callerOwnedState.groupBy[0] = 'fire';
+		callerOwnedState.groupDisplayMode = 'tokens';
 		callerOwnedState.summaryTypes[0] = 'filter';
 		runtime.state.uiState.value[tabs.id] = alternative.id;
 
 		expect(runtime.compile(form.id)).toMatchObject({
+			params: { group: 'fire', searchfield: 'alternative' },
 			encoded: { 'f.tab': [`${tabs.id}:${alternative.id}`] },
-			resultPreset: { groupBy: ['fire'] },
+			resultPreset: { groupDisplayMode: 'tokens' },
 			summaries: [{ label: 'Word', value: 'fire', summaryType: ['filter'] }],
 		});
 		expect(submitted).toMatchObject({
-			patt: '[word="water"]',
+			params: { group: 'water', patt: '[word="water"]', searchfield: 'contents' },
 			encoded: {
 				'f.form': form.id,
 				'f.tab': [`${tabs.id}:${field.id}`],
 				'f.word': 'water',
 			},
-			resultPreset: { groupBy: ['water'] },
+			resultPreset: { groupDisplayMode: 'table' },
 			summaries: [{ label: 'Word', value: 'water', summaryType: ['patt'] }],
 		});
 	});

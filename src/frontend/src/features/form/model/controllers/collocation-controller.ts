@@ -1,7 +1,7 @@
 import type { CollocationFieldDefinition, CollocationFieldState } from '@/features/form/fields/collocation-field';
 import { bool, object, scalar, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
-import { queryFragment, rawCql, summary } from '@/features/form/model/types/form-query-ir';
+import { rawCql, summary } from '@/features/form/model/types/form-query-ir';
 
 /** @public */
 export type CollocationControllerConfig = {
@@ -49,19 +49,21 @@ export const collocationController = defineFieldController<'collocation', Colloc
 		key: () => 'collocations',
 		codec: persistenceCodec,
 	},
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(_config, runtime, state) {
+	outputs: ['patt'],
+	collect(_config, _runtime, state, emit) {
 		const patt = state.patt.trim();
-		if (!patt) return null;
-
-		return queryFragment({
-			pattern: rawCql(patt),
-			summaries: [
-				summary(runtime.translate.$t('collocations.keywordPattern').toString(), patt),
-				summary(runtime.translate.$t('collocations.collocatePattern').toString(), state.collpatt),
-				summary(runtime.translate.$t('collocations.type').toString(), runtime.translate.$t(`collocations.types.${state.colltype}`).toString()),
-				summary(runtime.translate.$t('collocations.annotation').toString(), state.annotation),
-			],
-		});
+		if (patt) emit('patt', rawCql(patt));
+	},
+	summarize(_config, runtime, state, emit) {
+		const patt = state.patt.trim();
+		if (!patt) return;
+		for (const entry of [
+			summary(runtime.translate.$t('collocations.keywordPattern').toString(), patt),
+			summary(runtime.translate.$t('collocations.collocatePattern').toString(), state.collpatt),
+			summary(runtime.translate.$t('collocations.type').toString(), runtime.translate.$t(`collocations.types.${state.colltype}`).toString()),
+			summary(runtime.translate.$t('collocations.annotation').toString(), state.annotation),
+		]) {
+			if (entry) emit(entry);
+		}
 	},
 });

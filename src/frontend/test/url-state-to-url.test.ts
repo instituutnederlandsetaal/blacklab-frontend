@@ -62,14 +62,13 @@ describe('state-to-url helpers', () => {
 		const query = {
 			form: 'new',
 			state: {
-				filter: null,
 				formId: 'search.extended',
 				encoded: {
 					'f.form': 'search.extended',
 					'f.word': 'water',
 				},
-				patt: '[word="water"]',
-				searchfield: 'contents',
+				issues: [],
+				params: { patt: '[word="water"]', searchfield: 'contents' },
 				summaries: [],
 			},
 		} satisfies Extract<QueryStore.ModuleRootState, { form: 'new' }>;
@@ -93,11 +92,10 @@ describe('state-to-url helpers', () => {
 			query: {
 				form: 'new',
 				state: {
-					filter: null,
 					formId: 'explore.corpora',
 					encoded: { 'f.form': 'explore.corpora' },
-					patt: null,
-					searchfield: null,
+					issues: [],
+					params: {},
 					summaries: [],
 				},
 			},

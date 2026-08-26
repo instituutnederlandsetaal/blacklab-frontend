@@ -8,7 +8,7 @@ import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, ob
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
-import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { annotation } from '@/features/form/model/types/form-query-ir';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import { createTestBuilder } from './helpers';
@@ -43,10 +43,11 @@ const childController = defineFieldController<'token-sequence-test-child', TextF
 				.at('c'),
 		}).default(createDefaultTextFieldState()),
 	},
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
-		if (!state.value) return null;
-		return queryFragment(annotation(config.annotationId, 'wildcard', state.value, state.caseSensitive ? { caseSensitive: true } : undefined));
+	outputs: ['patt'],
+	collect(config, _runtime, state, emit) {
+		if (!state.value) return;
+		const pattern = annotation(config.annotationId, 'wildcard', state.value, state.caseSensitive ? { caseSensitive: true } : undefined);
+		if (pattern) emit('patt', pattern);
 	},
 });
 
@@ -85,10 +86,11 @@ const lemmaChildController = defineFieldController<'token-sequence-test-lemma', 
 				.at('e'),
 		}).default({ exact: true, lemma: '' }),
 	},
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
-		if (!state.lemma) return null;
-		return queryFragment(annotation(config.annotationId, state.exact ? 'literal' : 'wildcard', state.lemma));
+	outputs: ['patt'],
+	collect(config, _runtime, state, emit) {
+		if (!state.lemma) return;
+		const pattern = annotation(config.annotationId, state.exact ? 'literal' : 'wildcard', state.lemma);
+		if (pattern) emit('patt', pattern);
 	},
 });
 
@@ -144,7 +146,7 @@ describe('token sequence composite field', () => {
 		const state = sequenceState(runtime);
 		state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
 		state[1] = { fieldId: 'lemma', fieldState: { exact: true, lemma: '' } satisfies LemmaFieldState };
-		expect(runtime.compile('explore.ngram').patt).toBe('[word="water"] []');
+		expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] []');
 	});
 
 	test('compiles populated children through their selected controllers', () => {
@@ -152,7 +154,7 @@ describe('token sequence composite field', () => {
 		const state = sequenceState(runtime);
 		state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
 		state[1] = { fieldId: 'lemma', fieldState: { exact: false, lemma: 'run*' } satisfies LemmaFieldState };
-		expect(runtime.compile('explore.ngram').patt).toBe('[word="water"] [lemma="run.*"]');
+		expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] [lemma="run.*"]');
 	});
 
 	test('lays out only the length control horizontally', () => {

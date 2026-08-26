@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import { createFormFieldNode } from '@/features/form';
-import { filter, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { createFormFieldNode, type FormOutputProducer } from '@/features/form';
+import { filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode } from '@/features/form/model/types/form-shape';
 
 import { TestTextField, createTestBuilder, createTestRuntime, testTextController } from './helpers';
@@ -156,16 +156,16 @@ describe('form graph builder editing', () => {
 		const left = builder.newContainer('left', ContainerRenderer, {});
 		const right = builder.newContainer('right', ContainerRenderer, {});
 		const shared = newTextField(builder, 'shared');
-		const leftContribution = queryFragment(filter('type', 'literal', 'left-selected'))!;
-		const rightContribution = queryFragment(filter('type', 'literal', 'right-selected'))!;
-		left.addChild(shared, { queryWhenActive: leftContribution });
-		right.addChild(shared, { queryWhenActive: rightContribution });
+		const leftContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'left-selected')!);
+		const rightContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'right-selected')!);
+		left.addChild(shared, { outputWhenActive: leftContribution });
+		right.addChild(shared, { outputWhenActive: rightContribution });
 		root.addChildren(left, right);
 
 		builder.replaceNode(shared.id, replacementTextField(shared.id));
 
-		expect(left.activeChildQueryContributions?.[shared.id]).toBe(leftContribution);
-		expect(right.activeChildQueryContributions?.[shared.id]).toBe(rightContribution);
+		expect(left.activeChildOutputProducers?.[shared.id]).toBe(leftContribution);
+		expect(right.activeChildOutputProducers?.[shared.id]).toBe(rightContribution);
 	});
 
 	test('replaceNode rejects a replacement with a different id', () => {
@@ -181,20 +181,20 @@ describe('form graph builder editing', () => {
 		const left = builder.newContainer('left', ContainerRenderer, {});
 		const right = builder.newContainer('right', ContainerRenderer, {});
 		const shared = newTextField(builder, 'shared');
-		const contribution = queryFragment(filter('type', 'literal', 'selected'))!;
-		left.addChild(shared, { queryWhenActive: contribution });
-		right.addChild(shared, { queryWhenActive: contribution });
+		const contribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'selected')!);
+		left.addChild(shared, { outputWhenActive: contribution });
+		right.addChild(shared, { outputWhenActive: contribution });
 		root.addChildren(left, right);
 
 		expect(left.removeChild(shared)).toBe(shared);
 		expect(builder.getField(shared.id)).toBe(shared);
 		expect(builder.getParents(shared)).toEqual([right]);
-		expect(left.activeChildQueryContributions).toBeUndefined();
+		expect(left.activeChildOutputProducers).toBeUndefined();
 
 		expect(builder.removeNode(shared.id)).toBe(shared);
 		expect(builder.getElementById(shared.id)).toBeNull();
 		expect(right.children).toEqual([]);
-		expect(right.activeChildQueryContributions).toBeUndefined();
+		expect(right.activeChildOutputProducers).toBeUndefined();
 	});
 
 	test('prunes detached subgraphs but retains reachable shared DAG nodes', () => {

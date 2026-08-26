@@ -42,13 +42,13 @@
 <script setup lang="ts">
 import { computed, toRef, toValue } from 'vue';
 
-import { hasQueryContributions } from '@/features/form/model/compile/query-artifact';
-import { decodeVariants, getAllNodes } from '@/features/form/model/form-utils';
+import { countSummarizedFields } from '@/features/form/model/compile';
+import { decodeVariants } from '@/features/form/model/form-utils';
 import { provideParentForm } from '@/features/form/model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { createTabs, tabId } from '@/features/form/ui/tab-utils';
 
-import type { CompiledFormStateWithSummaries, ImplicitContainerComponentProps } from '../model/types';
+import type { CompiledFormResult, ImplicitContainerComponentProps } from '../model/types';
 
 import Tabs from '@/shared/ui/Tabs.vue';
 
@@ -59,7 +59,7 @@ defineOptions({ name: 'ContainerRenderer', inheritAttrs: false });
 
 const props = defineProps<ImplicitContainerComponentProps>();
 const emit = defineEmits<{
-	submit: [snapshot: CompiledFormStateWithSummaries];
+	submit: [snapshot: CompiledFormResult];
 	reset: [];
 }>();
 const { runtime, presentation, activeChildId, activeChild } = containerRendererSetup(props);
@@ -74,13 +74,7 @@ const activeQueryContributionCounts = computed<Record<string, number>>(() => {
 	return Object.fromEntries(
 		props.children.map(child => {
 			const node = runtime.value.definition.getNode(child.props.id);
-			const count = node
-				? getAllNodes(node, 'field').filter(field => {
-						const contribution = field.controller.getQueryContribution(field, runtime.value.definition.context, runtime.value.state.state.value[field.id]);
-						return contribution ? hasQueryContributions(contribution) : false;
-					}).length
-				: 0;
-			return [child.props.id, count];
+			return [child.props.id, node ? countSummarizedFields(node, runtime.value.state.getReactiveState(), runtime.value.definition.context) : 0];
 		}),
 	);
 });
@@ -111,7 +105,7 @@ function reset() {
 	emit('reset');
 }
 
-function forwardSubmit(snapshot: CompiledFormStateWithSummaries) {
+function forwardSubmit(snapshot: CompiledFormResult) {
 	emit('submit', snapshot);
 }
 

@@ -9,6 +9,7 @@ import { markRaw, reactive, shallowReactive } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 
 type ModuleRootState = Record<string, ViewRootState>;
 type RequestedRange = {
@@ -26,7 +27,7 @@ type ViewRootState = {
 	requestedRange: RequestedRange | null;
 	sort: string | null;
 	viewGroup: string | null;
-	groupDisplayMode: string | null;
+	groupDisplayMode: GroupDisplayMode | null;
 };
 
 const initialState: ModuleRootState = {};
@@ -95,7 +96,7 @@ const createActions = (state: ViewRootState) => ({
 		state.first = 0;
 		state.requestedRange = null;
 	},
-	groupDisplayMode: (payload: string | null) => (state.groupDisplayMode = payload),
+	groupDisplayMode: (payload: GroupDisplayMode | null) => (state.groupDisplayMode = payload),
 
 	reset: (payload: { resetGroupBy: boolean }) => {
 		// This may case an error if the current group settings are invalid for the new view.

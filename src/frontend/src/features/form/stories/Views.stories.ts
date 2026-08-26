@@ -7,7 +7,7 @@ import {
 	filterCheckboxController,
 	FormBuilder,
 	FormRuntime,
-	type CompiledFormStateWithSummaries,
+	type CompiledFormResult,
 	type SummaryTotalsInput,
 	type TotalsViewState,
 } from '@/features/form';
@@ -23,7 +23,7 @@ import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type ViewStoryModel = {
 	runtime: FormRuntime;
-	initialSubmitted: CompiledFormStateWithSummaries;
+	initialSubmitted: CompiledFormResult;
 };
 
 const meta = {

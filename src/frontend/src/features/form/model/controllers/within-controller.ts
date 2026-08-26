@@ -1,7 +1,7 @@
 import type { WithinFieldDefinition, WithinFieldOption } from '@/features/form/fields/within-field';
 import { object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { queryFragment, textPredicate, within } from '@/features/form/model/types/form-query-ir';
+import { textPredicate, within } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 
@@ -25,24 +25,21 @@ export const withinController = defineFieldController<'within', WithinFieldDefin
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
 	persistence: { key: () => 'within', codec: persistenceCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, runtime, state) {
-		if (!state.element) return null;
-		const selectedOption = findOption(config.options, state.element);
-		const option = typeof selectedOption === 'string' ? { value: selectedOption } : (selectedOption ?? { value: state.element });
+	outputs: ['patt', 'withspans'],
+	collect(_config, _runtime, state, emit) {
+		if (!state.element) return;
 		const attributes = Object.fromEntries(
 			Object.entries(state.attributes)
 				.filter(([, value]) => value.trim())
 				.map(([name, value]) => [name, textPredicate('wildcard', value)]),
 		);
-		return queryFragment({
-			wrappers: within(state.element, attributes),
-			resultPreset: Object.keys(attributes).length ? { withSpans: true } : undefined,
-			summaries: {
-				label: runtime.translate.$t(`search.extended.within`),
-				value: optionLabel(option),
-				summaryType: this.affectsBlackLabParameters,
-			},
-		});
+		emit('patt', within(state.element, attributes));
+		if (Object.keys(attributes).length) emit('withspans', true);
+	},
+	summarize(config, runtime, state, emit) {
+		if (!state.element) return;
+		const selectedOption = findOption(config.options, state.element);
+		const option = typeof selectedOption === 'string' ? { value: selectedOption } : (selectedOption ?? { value: state.element });
+		emit({ label: runtime.translate.$t(`search.extended.within`), value: optionLabel(option), summaryType: ['patt'] });
 	},
 });

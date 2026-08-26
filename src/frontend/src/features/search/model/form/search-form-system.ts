@@ -25,6 +25,9 @@ import {
 	queryBuilderController,
 	resultGroupByController,
 	resultGroupDisplayModeController,
+	docsSearchTarget,
+	hitsSearchTarget,
+	searchTarget,
 	tokenSequenceController,
 	withinController,
 	type BaseFieldNode,
@@ -202,6 +205,7 @@ function createExploreCorporaForm({ builder, corpus, customizations, translate }
 	});
 	const resultPresetFields = builder.newContainer(ids.exploreCorporaResultPreset(), ContainerRenderer, { variant: 'list' }).addChildren(groupByField, groupDisplayModeField);
 	const form = builder.newForm(ids.exploreForm('corpora'), ContainerRenderer, {
+		target: docsSearchTarget,
 		title: () => translate.$t('explore.corpora.heading'),
 		variant: sharedFilters ? 'columns' : undefined,
 	});
@@ -279,7 +283,7 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 	});
 	const controls = builder.newContainer(ids.exploreControls('ngram'), ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSource(context, 'ngram'), groupBy, tokens);
 	// Keep the five-token row full-width; the shared filters follow underneath.
-	const form = builder.newForm(ids.exploreForm('ngram'), ContainerRenderer, { title: () => translate.$t('explore.ngram.heading') });
+	const form = builder.newForm(ids.exploreForm('ngram'), ContainerRenderer, { target: hitsSearchTarget, title: () => translate.$t('explore.ngram.heading') });
 	form.addChildren(controls, sharedFilters);
 	return form;
 }
@@ -300,6 +304,7 @@ function createExploreFrequencyForm(context: BuildContext, sharedFilters: FormNo
 	});
 	const controls = builder.newContainer(ids.exploreControls('frequency'), ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSource(context, 'frequency'), annotation);
 	const form = builder.newForm(ids.exploreForm('frequency'), ContainerRenderer, {
+		target: hitsSearchTarget,
 		title: () => translate.$t('explore.frequency.heading'),
 		variant: sharedFilters ? 'columns' : undefined,
 	});
@@ -491,6 +496,7 @@ function createExpertPatternForm(context: BuildContext, sharedWithin: FormFieldN
 		}),
 	);
 	const expertForm = builder.newForm(ids.searchForm('expert'), ContainerRenderer, {
+		target: searchTarget,
 		title: () => translate.$t('search.expert.heading'),
 		variant: sharedFilters ? 'columns' : undefined,
 	});
@@ -514,6 +520,7 @@ function createExpertPatternForm(context: BuildContext, sharedWithin: FormFieldN
 
 function createAdvancedPatternForm(context: BuildContext, sharedWithin: FormFieldNode | null, sharedFilters: FormNode | null) {
 	const advancedForm = context.builder.newForm(ids.searchForm('advanced'), ContainerRenderer, {
+		target: searchTarget,
 		title: () => context.translate.$t('search.advanced.heading'),
 		variant: 'list',
 	});
@@ -530,6 +537,7 @@ function createAdvancedPatternForm(context: BuildContext, sharedWithin: FormFiel
 
 function createExtendedPatternForm(context: BuildContext, sharedWithin: FormFieldNode | null, sharedFilters: FormNode | null) {
 	const extendedForm = context.builder.newForm(ids.searchForm('extended'), ContainerRenderer, {
+		target: searchTarget,
 		title: () => context.translate.$t('search.extended.heading'),
 		variant: 'columns',
 	});
@@ -542,6 +550,7 @@ function createExtendedPatternForm(context: BuildContext, sharedWithin: FormFiel
 
 function createSimplePatternForm(context: BuildContext, annotation: NormalizedAnnotation) {
 	const simpleForm = context.builder.newForm(ids.searchForm('simple'), ContainerRenderer, {
+		target: searchTarget,
 		title: () => context.translate.$t('search.simple.heading'),
 	});
 	const simpleQuery = wrapParallel(

@@ -1,7 +1,6 @@
 import {
 	booleanNode,
 	type BooleanType,
-	type CompiledQuery,
 	type CqlAnnotationNode,
 	type CqlPatternNode,
 	type CqlWrapperNode,
@@ -9,10 +8,8 @@ import {
 	type LuceneNode,
 	type PredicateTextNode,
 	type PredicateValueNode,
-	type QueryIR,
-	queryIR,
 	rawCql,
-	resultPreset as createResultPreset,
+	sequence,
 	simplifyBooleanNode,
 	textPredicate,
 } from '@/features/form/model/types/form-query-ir';
@@ -31,44 +28,57 @@ type WrapperAttribute = CqlWithinWrapper['attributes'][string];
 // Pipeline
 // =========================================================================================================================
 
-export function compileQueryIR(artifact: QueryIR): CompiledQuery {
-	const normalized = simplifyQueryIR(artifact);
-	return {
-		patt: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
-		filter: normalized.filter ? emitRequiredFilter(normalized.filter) : null,
-		searchfield: normalized.searchfield,
-		...(normalized.resultPreset ? { resultPreset: createResultPreset(normalized.resultPreset) } : {}),
-	};
+export function compileCql(pattern: CqlPatternNode): string | null {
+	const extracted = extractWrappers(pattern);
+	return emitCqlWithWrappers(simplifyCql(extracted.pattern), simplifyWrappers(extracted.wrappers));
 }
 
-export function combineQueries(artifacts: QueryIR[], combine: QueryCombineMode = 'and'): QueryIR {
-	const nonEmpty = artifacts.filter(artifact => hasQueryContributions(artifact) || artifact.summaries.length);
-	const patterns = nonEmpty.map(artifact => artifact.pattern).filter(isNonNull);
-	const filters = nonEmpty.map(artifact => artifact.filter).filter(isNonNull);
-	const combinedPreset = nonEmpty.reduce((result, artifact) => ({ ...result, ...artifact.resultPreset }), {});
+/** Lower semantic Lucene IR to BlackLab's filter parameter syntax. */
+export function compileFilter(filter: LuceneNode): string | null {
+	const simplified = simplifyFilter(filter);
+	return simplified ? emitRequiredFilter(simplified) : null;
+}
 
-	const pattern = combine === 'sequence' ? sequencePatterns(patterns) : (booleanNode(combine, patterns) as CqlPatternNode | null);
-
-	return queryIR({
-		pattern,
-		filter: booleanNode(combine === 'or' ? 'or' : 'and', filters) as LuceneNode | null,
-		wrappers: nonEmpty.flatMap(artifact => artifact.wrappers),
-		searchfield: nonEmpty.find(artifact => artifact.searchfield)?.searchfield ?? null,
-		resultPreset: Object.keys(combinedPreset).length ? combinedPreset : undefined,
-		summaries: nonEmpty.flatMap(artifact => artifact.summaries),
-	});
+export function combineCqlPatterns(patterns: CqlPatternNode[], combine: QueryCombineMode = 'and'): CqlPatternNode | null {
+	if (combine === 'sequence') return sequence(patterns);
+	return booleanNode(combine, patterns) as CqlPatternNode | null;
 }
 
 // Simplify
 // =========================================================================================================================
 
-export function simplifyQueryIR(artifact: QueryIR): QueryIR {
-	return queryIR({
-		...artifact,
-		pattern: simplifyCql(artifact.pattern),
-		filter: simplifyFilter(artifact.filter),
-		wrappers: simplifyWrappers(artifact.wrappers),
-	});
+type ExtractedCql = { pattern: CqlPatternNode | null; wrappers: CqlWrapperNode[] };
+
+function extractWrappers(pattern: CqlPatternNode | null): ExtractedCql {
+	if (!pattern) return { pattern: null, wrappers: [] };
+	if (pattern.type === 'cql-within' || pattern.type === 'cql-containing') return { pattern: null, wrappers: [pattern] };
+	if (isBooleanNode<CqlPatternNode>(pattern)) {
+		const children = pattern.children.map(extractWrappers);
+		return {
+			pattern: booleanNode(pattern.type, children.map(child => child.pattern).filter(isNonNull)) as CqlPatternNode | null,
+			wrappers: children.flatMap(child => child.wrappers),
+		};
+	}
+	if (pattern.type === 'cql-sequence') {
+		const children = pattern.children.map(extractWrappers);
+		return {
+			pattern: sequence(children.map(child => child.pattern).filter(isNonNull)),
+			wrappers: children.flatMap(child => child.wrappers),
+		};
+	}
+	if (pattern.type === 'cql-parallel') {
+		const source = extractWrappers(pattern.source);
+		const targets = pattern.targets.map(target => ({ target, extracted: extractWrappers(target.pattern) }));
+		return {
+			pattern: {
+				...pattern,
+				source: source.pattern,
+				targets: targets.map(({ target, extracted }) => ({ ...target, pattern: extracted.pattern })),
+			},
+			wrappers: [...source.wrappers, ...targets.flatMap(({ extracted }) => extracted.wrappers)],
+		};
+	}
+	return { pattern, wrappers: [] };
 }
 
 /**
@@ -87,9 +97,10 @@ function simplifyWrappers(wrappers: CqlWrapperNode[]): CqlWrapperNode[] {
 		});
 	}
 
-	return [...wrappers.filter(wrapper => wrapper.type === 'cql-containing' && wrapper.element), wrappers.find(wrapper => wrapper.type === 'cql-with-spans'), ...within.values()]
-		.filter(isNonNull)
-		.map(wrapper => (wrapper.type === 'cql-with-spans' ? wrapper : { ...wrapper, attributes: simplifyWrapperAttributes(wrapper.attributes) }));
+	return [...wrappers.filter(wrapper => wrapper.type === 'cql-containing' && wrapper.element), ...within.values()].map(wrapper => ({
+		...wrapper,
+		attributes: simplifyWrapperAttributes(wrapper.attributes),
+	}));
 }
 
 function simplifyWrapperAttributes(attributes: CqlWrapperWithAttributes['attributes']): CqlWrapperWithAttributes['attributes'] {
@@ -159,6 +170,9 @@ function simplifyCql(pattern: CqlPatternNode | null): CqlPatternNode | null {
 			if (children.length === 1) return children[0];
 			return { type: 'cql-sequence', children };
 		}
+		case 'cql-within':
+		case 'cql-containing':
+			return null;
 	}
 }
 
@@ -194,13 +208,6 @@ function mergeTextValues<TLeaf extends PredicateTextNode>(leaves: TLeaf[]): TLea
 		...leaves[0],
 		...textPredicate('regex', leaves.map(predicateValueToRegex).join('|')),
 	};
-}
-
-function sequencePatterns(patterns: CqlPatternNode[]): CqlPatternNode | null {
-	const children = patterns.flatMap(pattern => (pattern.type === 'cql-sequence' ? pattern.children : [pattern]));
-	if (!children.length) return null;
-	if (children.length === 1) return children[0];
-	return { type: 'cql-sequence', children };
 }
 
 function foldTokenSequences(patterns: CqlPatternNode[], operator: BooleanType): CqlPatternNode | null {
@@ -240,8 +247,6 @@ function emitCqlWithWrappers(pattern: CqlPatternNode | null, wrappers: CqlWrappe
 		if (wrapper.type === 'cql-containing') {
 			const containingClause = emitElementClause(wrapper);
 			if (containingClause) cql = cql ? `${containingClause} containing (${cql})` : containingClause;
-		} else if (wrapper.type === 'cql-with-spans' && cql) {
-			cql = `with-spans(${cql})`;
 		}
 	}
 
@@ -314,6 +319,9 @@ function emitRequiredCql(pattern: CqlPatternNode): string {
 			const targetRelations = pattern.targets.map(target => `=${target.relationType ?? ''}=>${getParallelFieldParts(target.fieldId).version}? ${emitParallelPart(target.pattern!)}`);
 			return `${source} ${targetRelations.join(' ; ')}`;
 		}
+		case 'cql-within':
+		case 'cql-containing':
+			return '';
 	}
 }
 
@@ -361,17 +369,6 @@ function annotationSensitivityFlag(predicate: Pick<CqlAnnotationLeaf, 'caseSensi
 	if (predicate.caseSensitive === false || predicate.diacriticsSensitive === false) return '(?i)';
 	if (predicate.diacriticsSensitive === true) return '(?d)';
 	return '';
-}
-
-/** Whether an IR node contributes submitted query or result state. */
-export function hasQueryContributions(artifact: QueryIR): boolean {
-	return !!(
-		artifact.pattern ||
-		artifact.filter ||
-		artifact.wrappers.length ||
-		artifact.searchfield ||
-		(artifact.resultPreset && Object.values(artifact.resultPreset).some(value => value !== undefined))
-	);
 }
 
 function emitLucenePredicateValue(value: PredicateTextNode): string {

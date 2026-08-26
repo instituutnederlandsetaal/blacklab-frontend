@@ -11,7 +11,7 @@ import { markRaw, shallowRef } from 'vue';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import type { CompiledFormStateWithSummaries } from '@/features/form';
+import type { CompiledFormResult } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -52,7 +52,7 @@ type HistoryEntry = {
 	explore: ExploreModule.ModuleRootState;
 
 	/** Compiled state for queries submitted through the new form system. */
-	newForm?: CompiledFormStateWithSummaries | null;
+	newForm?: CompiledFormResult | null;
 };
 
 /** Intermediate type between HistoryEntry and FullHistoryEntry used in a few places */

@@ -26,7 +26,7 @@ import { reactive } from 'vue';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form';
+import type { CompiledFormResult, ScopedFormQuery } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -53,7 +53,7 @@ type ModuleRootStateSearch<K extends PatternMode> = {
 
 type ModuleRootStateNewForm = {
 	form: 'new';
-	state: CompiledFormStateWithSummaries;
+	state: CompiledFormResult;
 };
 
 type ModuleRootStateExplore<K extends keyof ExploreModule.ModuleRootState> = K extends keyof ExploreModule.ModuleRootState
@@ -102,14 +102,14 @@ const get = {
 		const corpus = useCorpus();
 		const defaultField = corpus.mainAnnotatedField;
 
-		if (state.form === 'new') return state.state.searchfield ?? corpus.mainAnnotatedField;
+		if (state.form === 'new') return state.state.params.searchfield ?? corpus.mainAnnotatedField;
 		else if (state.form === 'explore') return state.shared.source ?? corpus.mainAnnotatedField;
 		else if (state.form === 'search') return state.shared.source ?? corpus.mainAnnotatedField;
 		else return defaultField;
 	},
 
 	patternString: (): string | undefined => {
-		if (state.form === 'new') return state.state.patt || undefined;
+		if (state.form === 'new') return state.state.params.patt || undefined;
 
 		if (!state.subForm) return undefined;
 
@@ -157,7 +157,7 @@ const get = {
 	},
 	filterString: (): string | undefined => {
 		if (!state.form) return undefined;
-		else if (state.form === 'new') return state.state.filter || undefined;
+		else if (state.form === 'new') return state.state.params.filter || undefined;
 		else return getFilterString(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
 	},
 	scopedFormQuery: (): ScopedFormQuery | undefined => {

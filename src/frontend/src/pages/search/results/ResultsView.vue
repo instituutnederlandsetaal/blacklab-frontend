@@ -121,6 +121,7 @@ import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
@@ -357,10 +358,10 @@ export default defineComponent({
 			},
 		},
 		groupDisplayMode: {
-			get(): string | null {
+			get(): GroupDisplayMode | null {
 				return this.store.getState().groupDisplayMode;
 			},
-			set(v: string | null) {
+			set(v: GroupDisplayMode | null) {
 				this.store.actions.groupDisplayMode(v);
 			},
 		},

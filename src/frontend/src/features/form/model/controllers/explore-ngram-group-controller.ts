@@ -3,7 +3,6 @@ import { toValue } from 'vue';
 import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
-import { queryFragment } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel, optionText, optionValues, type OptionText } from '@/shared/utils/options';
 
@@ -30,23 +29,17 @@ export const ngramGroupAnnotationController = defineFieldController<'explore-ngr
 	kind: 'explore-ngram-group-annotation',
 	createDefaultState: defaultState,
 	persistence: { key: config => config.persistKey, codec: persistenceCodec },
-	affectsBlackLabParameters: [],
-	getQueryContribution(config, _runtime, state) {
-		const annotationId = state;
-		if (!annotationId) return null;
-		const option = findOption(config.options, annotationId);
-		return queryFragment(
-			{
-				resultPreset: {
-					viewedResults: 'hits',
-					groupBy: [`hit:${annotationId}`],
-				},
-			},
-			{
-				label: toValue(config.displayName),
-				summaryType: ['patt'],
-				value: optionText(config.annotationLabels[annotationId]) ?? optionLabel(option ?? annotationId),
-			},
-		);
+	outputs: ['group'],
+	collect(_config, _runtime, state, emit) {
+		if (state) emit('group', [`hit:${state}`]);
+	},
+	summarize(config, _runtime, state, emit) {
+		if (!state) return;
+		const option = findOption(config.options, state);
+		emit({
+			label: toValue(config.displayName),
+			summaryType: ['patt'],
+			value: optionText(config.annotationLabels[state]) ?? optionLabel(option ?? state),
+		});
 	},
 });

@@ -10,11 +10,11 @@ import {
 	type TokenSequenceFieldState,
 	type TokenSequenceTokenState,
 } from '@/features/form/fields/token-sequence-field';
-import { getFieldQueryContribution } from '@/features/form/model/compile';
-import { combineQueries } from '@/features/form/model/compile/query-artifact';
+import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { array, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import { anyToken, queryFragment, sequence, summary } from '@/features/form/model/types/form-query-ir';
+import type { Emit } from '@/features/form/model/types/form-output';
+import { anyToken, sequence, summary, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 
 type PersistedToken = { fieldId: string; payload: string };
 
@@ -66,20 +66,25 @@ export const tokenSequenceController = defineFieldController<'token-sequence', T
 		return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
 	},
 	persistence: { key: config => config.persistKey, codec: tokenSequencePersistenceCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, runtime, state) {
-		const contributions = state.map((token, index) => {
+	outputs: ['patt'],
+	collect(config, runtime, state, emit) {
+		const patterns = state.map((token, index) => {
 			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
-			return getFieldQueryContribution(field, runtime, token.fieldState);
+			const childPatterns: CqlPatternNode[] = [];
+			field.controller.collect(field, runtime, token.fieldState, ((name, value) => {
+				if (name === 'patt') childPatterns.push(value as CqlPatternNode);
+			}) as Emit);
+			return combineCqlPatterns(childPatterns, 'and') ?? anyToken();
 		});
-		const combined = combineQueries(contributions, 'and');
-		return queryFragment({
-			...combined,
-			pattern: sequence(contributions.map(contribution => contribution.pattern ?? anyToken())),
-			summaries: [
-				summary(toValue(config.lengthDisplayName), state.length.toLocaleString(), this.affectsBlackLabParameters, config.groupId),
-				...contributions.flatMap(contribution => contribution.summaries),
-			],
+		const pattern = sequence(patterns);
+		if (pattern) emit('patt', pattern);
+	},
+	summarize(config, runtime, state, emit) {
+		const length = summary(toValue(config.lengthDisplayName), state.length.toLocaleString(), undefined, config.groupId);
+		if (length) emit(length);
+		state.forEach((token, index) => {
+			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
+			field.controller.summarize?.(field, runtime, token.fieldState, emit);
 		});
 	},
 });

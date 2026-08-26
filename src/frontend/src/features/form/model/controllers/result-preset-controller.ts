@@ -1,47 +1,44 @@
 import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldControllerFor, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
-import { queryFragment, type ResultPreset } from '@/features/form/model/types/form-query-ir';
+import type { FormOutputName } from '@/features/form/model/types/form-output';
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 
 export type ResultPresetControllerConfig = {
 	defaultValue?: string | null;
 	persistKey: string;
-	resultPreset?: ResultPreset;
 };
 type ResultPresetFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ResultPresetControllerConfig>;
 
-function createResultPresetController<Kind extends string>(
+function createOutputController<Kind extends string>(
 	kind: Kind,
-	property: Exclude<keyof ResultPreset, 'withSpans'>,
+	output: Extract<FormOutputName, 'group' | 'sort'>,
 ): FieldControllerFor<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig> {
 	const codec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultPresetFieldConfig>) => config.defaultValue ?? '');
 	return defineFieldController<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig>({
 		kind,
-		affectsBlackLabParameters: [],
+		outputs: [output],
 		createDefaultState: config => config.defaultValue ?? '',
 		persistence: { key: config => config.persistKey, codec },
-		getQueryContribution: (config, _runtime, state) => {
-			let statePreset: ResultPreset;
-			switch (property) {
-				case 'viewedResults':
-					statePreset = state ? { viewedResults: state } : {};
-					break;
-				case 'groupBy':
-					statePreset = { groupBy: state ? [state] : [] };
-					break;
-				case 'sort':
-					statePreset = { sort: state || null };
-					break;
-				case 'groupDisplayMode':
-					statePreset = { groupDisplayMode: state || null };
-					break;
-			}
-			return queryFragment({ resultPreset: { ...config.resultPreset, ...statePreset } });
-		},
+		collect: (_config, _runtime, state, emit) => emit(output, state ? [state] : null),
 	});
 }
 
-export const resultViewedResultsController = createResultPresetController('result-viewed-results', 'viewedResults');
-export const resultGroupByController = createResultPresetController('result-group-by', 'groupBy');
-export const resultSortController = createResultPresetController('result-sort', 'sort');
-export const resultGroupDisplayModeController = createResultPresetController('result-group-display-mode', 'groupDisplayMode');
+export const resultGroupByController = createOutputController('result-group-by', 'group');
+export const resultSortController = createOutputController('result-sort', 'sort');
+
+const groupDisplayModes = new Set<GroupDisplayMode>(['table', 'docs', 'hits', 'relative docs', 'relative hits', 'tokens']);
+
+export const resultGroupDisplayModeController = defineFieldController<'result-group-display-mode', SingleSelectFieldDefinition, ResultPresetControllerConfig>({
+	kind: 'result-group-display-mode',
+	outputs: [],
+	createDefaultState: config => config.defaultValue ?? '',
+	persistence: {
+		key: config => config.persistKey,
+		codec: stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultPresetFieldConfig>) => config.defaultValue ?? ''),
+	},
+	collect() {},
+	getResultPreset(_config, _runtime, state) {
+		return { groupDisplayMode: groupDisplayModes.has(state as GroupDisplayMode) ? (state as GroupDisplayMode) : null };
+	},
+});

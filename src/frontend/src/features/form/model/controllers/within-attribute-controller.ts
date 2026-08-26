@@ -5,7 +5,7 @@ import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/fea
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { queryFragment, summary, within, withinAttribute, withinAttributeRange } from '@/features/form/model/types/form-query-ir';
+import { summary, within, withinAttribute, withinAttributeRange } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 import { tokenizedStringValues } from '@/shared/utils/string-utils';
@@ -46,15 +46,16 @@ export const withinAttributeTextController = defineFieldController<'within-attri
 	kind: 'within-attribute-text',
 	createDefaultState: createDefaultTextFieldState,
 	persistence: { key: withinAttributePersistKey, codec: textPersistenceCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state: TextFieldState) {
+	outputs: ['patt', 'withspans'],
+	collect(config, _runtime, state: TextFieldState, emit) {
 		const value = tokenizedStringValues(state.value, true);
-		if (!value.length) return null;
-		return queryFragment({
-			wrappers: within(config.elementName, withinAttribute(config.attributeName, 'wildcard', value)),
-			resultPreset: { withSpans: true },
-			summaries: summary(toValue(config.displayName), value, ['filter'], config.groupId),
-		});
+		if (!value.length) return;
+		emit('patt', within(config.elementName, withinAttribute(config.attributeName, 'wildcard', value)));
+		emit('withspans', true);
+	},
+	summarize(config, _runtime, state: TextFieldState, emit) {
+		const entry = summary(toValue(config.displayName), tokenizedStringValues(state.value, true), ['filter'], config.groupId);
+		if (entry) emit(entry);
 	},
 });
 
@@ -62,15 +63,22 @@ export const withinAttributeSelectController = defineFieldController<'within-att
 	kind: 'within-attribute-select',
 	createDefaultState: createDefaultSelectFieldState,
 	persistence: { key: withinAttributePersistKey, codec: selectionPersistenceCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
+	outputs: ['patt', 'withspans'],
+	collect(config, _runtime, state, emit) {
 		const value = state.filter(value => value.trim());
-		if (!value.length) return null;
-		return queryFragment({
-			wrappers: within(config.elementName, withinAttribute(config.attributeName, 'literal', value)),
-			resultPreset: { withSpans: true },
-			summaries: summary(toValue(config.displayName), value, ['filter'], config.groupId, config.options),
-		});
+		if (!value.length) return;
+		emit('patt', within(config.elementName, withinAttribute(config.attributeName, 'literal', value)));
+		emit('withspans', true);
+	},
+	summarize(config, _runtime, state, emit) {
+		const entry = summary(
+			toValue(config.displayName),
+			state.filter(value => value.trim()),
+			['filter'],
+			config.groupId,
+			config.options,
+		);
+		if (entry) emit(entry);
 	},
 });
 
@@ -78,14 +86,16 @@ export const withinAttributeRangeController = defineFieldController<'within-attr
 	kind: 'within-attribute-range',
 	createDefaultState: createDefaultRangeFieldState,
 	persistence: { key: withinAttributePersistKey, codec: rangePersistenceCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state: RangeFieldState) {
+	outputs: ['patt', 'withspans'],
+	collect(config, _runtime, state: RangeFieldState, emit) {
 		const normalizedState = { ...state, low: state.low.trim(), high: state.high.trim() };
-		if (!normalizedState.low && !normalizedState.high) return null;
-		return queryFragment({
-			wrappers: within(config.elementName, withinAttributeRange(config.attributeName, normalizedState)),
-			resultPreset: { withSpans: true },
-			summaries: summary(toValue(config.displayName), normalizedState, ['filter'], config.groupId),
-		});
+		if (!normalizedState.low && !normalizedState.high) return;
+		emit('patt', within(config.elementName, withinAttributeRange(config.attributeName, normalizedState)));
+		emit('withspans', true);
+	},
+	summarize(config, _runtime, state: RangeFieldState, emit) {
+		const normalizedState = { ...state, low: state.low.trim(), high: state.high.trim() };
+		const entry = summary(toValue(config.displayName), normalizedState, ['filter'], config.groupId);
+		if (entry) emit(entry);
 	},
 });

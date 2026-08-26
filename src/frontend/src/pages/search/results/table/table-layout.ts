@@ -1,5 +1,6 @@
 import type { StyleValue } from 'vue';
 
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import type {
 	HitContext,
 	HitToken,
@@ -373,7 +374,7 @@ export type DisplaySettingsForRendering = {
 
 	i18n: Translate;
 
-	groupDisplayMode: 'table' | 'docs' | 'hits' | 'relative docs' | 'relative hits' | 'tokens';
+	groupDisplayMode: GroupDisplayMode;
 
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
 	hasCustomHitInfoColumn: (results: BLSearchResult, isParallelCoprus: boolean) => boolean;

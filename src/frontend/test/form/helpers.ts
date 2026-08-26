@@ -2,7 +2,7 @@ import { createMockI18n } from '@test/mocks/i18n';
 import { defineComponent, h, toValue, type PropType } from 'vue';
 
 import { FormBuilder, FormRuntime, defineFieldController, object, scalar, useFormSystemRuntime, useParentForm, type FormRuntimeContext, type NamedFieldDefinition } from '@/features/form';
-import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
+import { annotation } from '@/features/form/model/types/form-query-ir';
 
 export type TestTextFieldState = {
 	value: string;
@@ -63,17 +63,13 @@ export const testTextController = defineFieldController<'test-text', TestTextFie
 		key: config => config.annotationId,
 		codec: object({ value: scalar().default('').atRoot() }).default({ value: '' }),
 	},
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
-		return queryFragment(
-			annotation(config.annotationId, 'wildcard', state.value),
-			state.value
-				? {
-						label: toValue(config.displayName),
-						value: state.value,
-					}
-				: null,
-		);
+	outputs: ['patt'],
+	collect(config, _runtime, state, emit) {
+		const pattern = annotation(config.annotationId, 'wildcard', state.value);
+		if (pattern) emit('patt', pattern);
+	},
+	summarize(config, _runtime, state, emit) {
+		if (state.value) emit({ label: toValue(config.displayName), value: state.value });
 	},
 });
 
@@ -85,7 +81,7 @@ const ParentFormProbe = defineComponent({
 		return () =>
 			h('section', { 'data-testid': 'parent-form-probe' }, [
 				h('span', { class: 'form-id' }, parentForm.value),
-				h('span', { class: 'cql' }, runtime.value.compile(parentForm.value).patt ?? ''),
+				h('span', { class: 'cql' }, runtime.value.compile(parentForm.value).params.patt ?? ''),
 				h(
 					'span',
 					{ class: 'summaries' },

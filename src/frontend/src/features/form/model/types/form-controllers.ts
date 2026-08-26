@@ -1,7 +1,6 @@
 import type { PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/form/model/field-component-props';
-import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import type { QueryIR } from '@/features/form/model/types/form-query-ir';
+import type { Emit, FormOutputName, ResultPreset, SummaryEntry } from '@/features/form/model/types/form-output';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
@@ -35,14 +34,12 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 	/** Unique key for this controller. */
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
-	getQueryContribution: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryIR | null;
+	collect: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, emit: Emit) => void;
+	summarize?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, emit: (summary: SummaryEntry) => void) => void;
+	getResultPreset?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => Readonly<Pick<ResultPreset, 'groupDisplayMode'>> | undefined;
 	persistence: FieldPersistence<State, Extra>;
-	/**
-	 * BlackLab query parameters this field may affect.
-	 * Used to make UI readonly/disabled while the parameter is in an overridden state (I.e. could not be parsed into the form successfully and has been preserved in its raw state).
-	 * Also used as a category catalog for the query summary entries.
-	 */
-	affectsBlackLabParameters: BlackLabParameter[];
+	/** Semantic outputs this field may emit. */
+	outputs: readonly FormOutputName[];
 };
 
 export type AnyFieldController = FieldController<string, any, any>;

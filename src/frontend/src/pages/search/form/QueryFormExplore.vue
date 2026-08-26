@@ -141,6 +141,7 @@ import { defineComponent, watch } from 'vue';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import ParallelFields from './parallel/ParallelFields';
@@ -300,7 +301,7 @@ export default defineComponent({
 		},
 	},
 	created() {
-		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value;
+		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value as GroupDisplayMode;
 
 		this.subscriptions.push(
 			watch(ExploreStore.resetSignal, () => {

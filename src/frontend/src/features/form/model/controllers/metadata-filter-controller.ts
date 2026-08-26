@@ -7,7 +7,7 @@ import { createDefaultRangeFieldState, type RangeFieldDefinition } from '@/featu
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
 import { array, bool, object, scalar, stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
-import { booleanNode, filter, filterRange, queryFragment, summary, type LuceneNode } from '@/features/form/model/types';
+import { booleanNode, filter, filterRange, summary, type LuceneNode } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
 import { findOption } from '@/shared/utils/options';
@@ -89,21 +89,22 @@ export const filterTextController = defineFieldController<'metadata-filter-text'
 	kind: 'metadata-filter-text',
 	createDefaultState: createDefaultTextFieldState,
 	persistence: { key: metadataPersistKey, codec: textPersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
-		const terms = tokenizeString(state.value, true);
-		return queryFragment<LuceneNode>(
-			booleanNode(
-				'or',
-				terms.map(term => filter(config.metadataFieldId, term.isQuoted ? 'literal' : 'wildcard', term.value)!),
-			),
-			summary(
-				toValue(config.displayName),
-				terms.map(term => term.value),
-				this.affectsBlackLabParameters,
-				config.groupId,
-			),
+	outputs: ['filter'],
+	collect(config, _runtime, state, emit) {
+		const node = booleanNode(
+			'or',
+			tokenizeString(state.value, true).map(term => filter(config.metadataFieldId, term.isQuoted ? 'literal' : 'wildcard', term.value)!),
+		) as LuceneNode | null;
+		if (node) emit('filter', node);
+	},
+	summarize(config, _runtime, state, emit) {
+		const entry = summary(
+			toValue(config.displayName),
+			tokenizeString(state.value, true).map(term => term.value),
+			undefined,
+			config.groupId,
 		);
+		if (entry) emit(entry);
 	},
 });
 
@@ -111,9 +112,14 @@ export const filterCheckboxController = defineFieldController<'metadata-filter-c
 	kind: 'metadata-filter-checkbox',
 	createDefaultState: createDefaultCheckboxFieldState,
 	persistence: { key: metadataPersistKey, codec: selectionPersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
-		return queryFragment<LuceneNode>(filter(config.metadataFieldId, 'literal', state), summary(toValue(config.displayName), state, this.affectsBlackLabParameters, config.groupId, config.options));
+	outputs: ['filter'],
+	collect(config, _runtime, state, emit) {
+		const node = filter(config.metadataFieldId, 'literal', state);
+		if (node) emit('filter', node);
+	},
+	summarize(config, _runtime, state, emit) {
+		const entry = summary(toValue(config.displayName), state, undefined, config.groupId, config.options);
+		if (entry) emit(entry);
 	},
 });
 
@@ -121,11 +127,11 @@ export const filterDateController = defineFieldController<'metadata-filter-date'
 	kind: 'metadata-filter-date',
 	createDefaultState: createDefaultDateFieldState,
 	persistence: { key: metadataPersistKey, codec: datePersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
+	outputs: ['filter'],
+	collect(config, _runtime, state, emit) {
 		const enteredStart = DateUtils.dateValueToString(state.startDate, 'start');
 		const enteredEnd = DateUtils.dateValueToString(config.range ? state.endDate : state.startDate, 'end');
-		if (!enteredStart && !enteredEnd) return null;
+		if (!enteredStart && !enteredEnd) return;
 
 		const start = enteredStart || DateUtils.dateValueToString({ d: '1', m: '1', y: '0' }, 'start');
 		const end = enteredEnd || DateUtils.dateValueToString({ d: '31', m: '12', y: '9999' }, 'end');
@@ -138,19 +144,13 @@ export const filterDateController = defineFieldController<'metadata-filter-date'
 			: start === end
 				? filter(config.metadataFieldId, 'literal', start)
 				: filterRange(config.metadataFieldId, start, end);
-		const summaryValue =
-			[enteredStart && DateUtils.dateValueToDisplayString(state.startDate), config.range && enteredEnd && DateUtils.dateValueToDisplayString(state.endDate)].filter(Boolean).join(' - ') || null;
-		return queryFragment<LuceneNode>(
-			filterNode,
-			summaryValue
-				? {
-						label: toValue(config.displayName),
-						value: summaryValue,
-						summaryType: this.affectsBlackLabParameters,
-						group: config.groupId,
-					}
-				: null,
-		);
+		if (filterNode) emit('filter', filterNode);
+	},
+	summarize(config, _runtime, state, emit) {
+		const enteredStart = DateUtils.dateValueToString(state.startDate, 'start');
+		const enteredEnd = DateUtils.dateValueToString(config.range ? state.endDate : state.startDate, 'end');
+		const value = [enteredStart && DateUtils.dateValueToDisplayString(state.startDate), config.range && enteredEnd && DateUtils.dateValueToDisplayString(state.endDate)].filter(Boolean).join(' - ');
+		if (value) emit({ label: toValue(config.displayName), value, group: config.groupId });
 	},
 });
 
@@ -158,10 +158,14 @@ export const filterRadioController = defineFieldController<'metadata-filter-radi
 	kind: 'metadata-filter-radio',
 	createDefaultState: createDefaultRadioFieldState,
 	persistence: { key: metadataPersistKey, codec: radioPersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
-		if (!state) return null;
-		return queryFragment<LuceneNode>(filter(config.metadataFieldId, 'literal', state), summary(toValue(config.displayName), state, this.affectsBlackLabParameters, config.groupId, config.options));
+	outputs: ['filter'],
+	collect(config, _runtime, state, emit) {
+		const node = filter(config.metadataFieldId, 'literal', state);
+		if (node) emit('filter', node);
+	},
+	summarize(config, _runtime, state, emit) {
+		const entry = summary(toValue(config.displayName), state, undefined, config.groupId, config.options);
+		if (entry) emit(entry);
 	},
 });
 
@@ -169,13 +173,12 @@ export const filterRangeController = defineFieldController<'metadata-filter-rang
 	kind: 'metadata-filter-range',
 	createDefaultState: createDefaultRangeFieldState,
 	persistence: { key: metadataPersistKey, codec: rangePersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
-		if (!state.low && !state.high) return null;
+	outputs: ['filter'],
+	collect(config, _runtime, state, emit) {
+		if (!state.low && !state.high) return;
 
 		const lowPadded = state.low ? state.low.padStart(4, '0') : '0';
 		const highPadded = state.high ? state.high.padStart(4, '0') : '9999';
-		const summaryValue = `${state.low || '0'} - ${state.high || '9999'}`;
 
 		if (isBiFieldConfig(config)) {
 			const filterNode = booleanNode(
@@ -183,20 +186,16 @@ export const filterRangeController = defineFieldController<'metadata-filter-rang
 				filterRange(config.fromField, lowPadded, highPadded)!,
 				filterRange(config.toField, lowPadded, highPadded)!,
 			);
-			return queryFragment<LuceneNode>(filterNode, {
-				label: toValue(config.displayName),
-				value: summaryValue,
-				summaryType: this.affectsBlackLabParameters,
-				group: config.groupId,
-			});
+			emit('filter', filterNode as LuceneNode);
+			return;
 		}
 
-		return queryFragment<LuceneNode>(filterRange(config.metadataFieldId, state.low || '0', state.high || '9999'), {
-			label: toValue(config.displayName),
-			value: summaryValue,
-			summaryType: this.affectsBlackLabParameters,
-			group: config.groupId,
-		});
+		const node = filterRange(config.metadataFieldId, state.low || '0', state.high || '9999');
+		if (node) emit('filter', node);
+	},
+	summarize(config, _runtime, state, emit) {
+		if (!state.low && !state.high) return;
+		emit({ label: toValue(config.displayName), value: `${state.low || '0'} - ${state.high || '9999'}`, group: config.groupId });
 	},
 });
 
@@ -204,10 +203,18 @@ export const filterSelectController = defineFieldController<'metadata-filter-sel
 	kind: 'metadata-filter-select',
 	createDefaultState: createDefaultSelectFieldState,
 	persistence: { key: metadataPersistKey, codec: selectionPersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
+	outputs: ['filter'],
+	collect(config, _runtime, state, emit) {
+		const node = filter(
+			config.metadataFieldId,
+			'literal',
+			state.filter(value => value.trim()),
+		);
+		if (node) emit('filter', node);
+	},
+	summarize(config, _runtime, state, emit) {
 		const values = state.filter(value => value.trim());
-		if (!values.length) return null;
-		return queryFragment<LuceneNode>(filter(config.metadataFieldId, 'literal', values), summary(toValue(config.displayName), values, this.affectsBlackLabParameters, config.groupId, config.options));
+		const entry = summary(toValue(config.displayName), values, undefined, config.groupId, config.options);
+		if (entry) emit(entry);
 	},
 });

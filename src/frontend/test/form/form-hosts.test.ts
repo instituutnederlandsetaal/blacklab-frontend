@@ -12,7 +12,7 @@ import {
 	encodeFieldState,
 	expertQueryController,
 	filterTextController,
-	getFieldQueryContribution,
+	collectFieldValues,
 	parallelController,
 	withinController,
 	type FormBoundaryNode,
@@ -22,9 +22,7 @@ import {
 	type TotalsViewState,
 } from '@/features/form';
 import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
-import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/runtime';
-import { queryFragment } from '@/features/form/model/types/form-query-ir';
 
 import { createTestBuilder, createTestRuntime } from './helpers';
 
@@ -301,8 +299,8 @@ function mountTotalsSummaryHarness() {
 		const dutch = builder.newContainer('harness.summary.searchfield.dutch', ContainerRenderer, { title: 'Dutch' });
 		const searchfield = builder
 			.newContainer('harness.summary.searchfield', ContainerRenderer, { variant: 'tabs' })
-			.addChild(english, { queryWhenActive: queryFragment({ searchfield: 'contents__en' })! })
-			.addChild(dutch, { queryWhenActive: queryFragment({ searchfield: 'contents__nl' })! });
+			.addChild(english, { outputWhenActive: emit => emit('searchfield', 'contents__en') })
+			.addChild(dutch, { outputWhenActive: emit => emit('searchfield', 'contents__nl') });
 		const field = builder.newField('harness.summary.filter', filterTextController, TextField, {
 			displayName: 'Author',
 			groupId: 'Bibliographic',
@@ -415,7 +413,7 @@ describe('builtin controller hosts', () => {
 
 	test('resolves graph-owned parallel summary labels when compiling the field', () => {
 		const { graphState, harness, locale } = mountLocalizedParallelHarness();
-		const summaryValues = () => getFieldQueryContribution(harness.field, harness.runtime.definition.context, graphState).summaries.map(summary => summary.value);
+		const summaryValues = () => collectFieldValues(harness.field, graphState, harness.runtime.definition.context, []).summaries.map((summary: SummaryEntry) => summary.value);
 
 		expect(summaryValues()).toEqual(expect.arrayContaining(['Raw field', 'en:graph-field', 'en:graph-align']));
 
@@ -462,9 +460,10 @@ describe('builtin controller hosts', () => {
 		expect(encodeFieldState(harness.field, fieldExpectations.within.state, context)).toBe(
 			'e=within-state.element.selected;a={shouldEndUpInState.within.attribute:shouldEndUpInState.within.attribute.value}',
 		);
-		expect(compileQueryIR(getFieldQueryContribution(harness.field, context, fieldExpectations.within.state))).toMatchObject({
+		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.within.state;
+		expect(harness.runtime.compile(harness.form.id).params).toMatchObject({
 			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
-			resultPreset: { withSpans: true },
+			withspans: true,
 		});
 	});
 });
@@ -619,7 +618,7 @@ describe('builtin view hosts', () => {
 
 	test('updates live subcorpus totals from the compiled filter state', async () => {
 		const { harness, update } = mountTotalsSummaryHarness();
-		expect(update).toHaveBeenLastCalledWith({ filter: null, searchfield: 'contents__en' });
+		expect(update).toHaveBeenLastCalledWith({ filter: undefined, searchfield: 'contents__en' });
 
 		harness.runtime.state.state.value[harness.extra.fieldId] = {
 			value: 'Austen',
@@ -636,7 +635,7 @@ describe('builtin view hosts', () => {
 		harness.runtime.state.uiState.value[harness.extra.searchfieldId] = harness.extra.dutchId;
 		await nextTick();
 
-		expect(update).toHaveBeenLastCalledWith({ filter: null, searchfield: 'contents__nl' });
+		expect(update).toHaveBeenLastCalledWith({ filter: undefined, searchfield: 'contents__nl' });
 	});
 
 	test('renders the loading state for live subcorpus totals', () => {

@@ -24,10 +24,6 @@ export function* lenientIter<T>(value: LenientArray<T>): Iterable<T> {
 		yield value;
 	}
 }
-export function unwrapLenientArray<T>(value: LenientArray<T>): T[] {
-	return Array.from(lenientIter(value));
-}
-
 /**
  * Find a the index of a value in the array using binary search.
  * @param a the array to search in

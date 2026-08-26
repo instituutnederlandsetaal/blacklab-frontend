@@ -14,11 +14,11 @@ import {
 	SelectField,
 	TextField,
 	getFieldPersistKey,
-	getFieldQueryContribution,
+	collectFieldValues,
 	type FormFieldNode,
 	type FormRuntimeContext,
 } from '@/features/form';
-import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { compileCql } from '@/features/form/model/compile/query-artifact';
 import type { Corpus } from '@/types/apptypes';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
@@ -261,8 +261,9 @@ describe('search form semantic node factory', () => {
 			options: [{ value: 'host', label: 'Host' }],
 		});
 
-		const contribution = getFieldQueryContribution(select, runtimeContext, ['host']);
-		expect(compileQueryIR(contribution).patt).toBe('<speech role="host"/>');
+		const contribution = collectFieldValues(select, ['host'], runtimeContext, []);
+		const pattern = contribution.emissions.find(emission => emission.name === 'patt')?.value;
+		expect(pattern && compileCql(pattern as never)).toBe('<speech role="host"/>');
 		expect(contribution.summaries).toEqual([{ group: 'Spans', label: 'Role', summaryType: ['filter'], value: 'Host' }]);
 	});
 

@@ -4,7 +4,7 @@ import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/fea
 import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
 import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
-import { annotation, queryFragment, sequence, summary } from '@/features/form/model/types/form-query-ir';
+import { annotation, sequence, summary } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
@@ -44,14 +44,14 @@ export const annotationTextController = defineFieldController<'annotation-text',
 	kind: 'annotation-text',
 	createDefaultState: createDefaultTextFieldState,
 	persistence: { key: config => config.annotationId, codec: annotationTextCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
-		if (!state.value.trim()) return null;
-		return queryFragment(sequence(tokenizeString(state.value, true).map(term => annotation(config.annotationId, 'wildcard', term.value, state.caseSensitive ? { caseSensitive: true } : undefined))), {
-			label: toValue(config.displayName),
-			value: state.value,
-			group: config.groupId,
-		});
+	outputs: ['patt'],
+	collect(config, _runtime, state, emit) {
+		if (!state.value.trim()) return;
+		const pattern = sequence(tokenizeString(state.value, true).map(term => annotation(config.annotationId, 'wildcard', term.value, state.caseSensitive ? { caseSensitive: true } : undefined)));
+		if (pattern) emit('patt', pattern);
+	},
+	summarize(config, _runtime, state, emit) {
+		if (state.value.trim()) emit({ label: toValue(config.displayName), value: state.value, group: config.groupId });
 	},
 });
 
@@ -59,9 +59,13 @@ export const annotationSelectController = defineFieldController<'annotation-sele
 	kind: 'annotation-select',
 	createDefaultState: createDefaultSelectFieldState,
 	persistence: { key: config => config.annotationId, codec: annotationSelectionCodec },
-	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, _runtime, state) {
-		if (!state.length) return null;
-		return queryFragment(annotation(config.annotationId, 'literal', state), summary(toValue(config.displayName), state, this.affectsBlackLabParameters, config.groupId, config.options));
+	outputs: ['patt'],
+	collect(config, _runtime, state, emit) {
+		const pattern = annotation(config.annotationId, 'literal', state);
+		if (pattern) emit('patt', pattern);
+	},
+	summarize(config, _runtime, state, emit) {
+		const entry = summary(toValue(config.displayName), state, undefined, config.groupId, config.options);
+		if (entry) emit(entry);
 	},
 });

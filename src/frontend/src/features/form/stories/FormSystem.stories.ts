@@ -3,7 +3,7 @@ import { watchEffect } from 'vue';
 
 import { annotationTextController, createFormFieldNode, expertQueryController, filterTextController, FormBuilder, FormRuntime, parallelController, type FormRuntimeContext } from '@/features/form';
 import { createDefaultFormState } from '@/features/form/model/state';
-import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
+import type { RawFormOverrides } from '@/features/form/model/types/blacklab-params';
 
 import { useI18n, type Translate } from '@/shared/i18n';
 
@@ -29,7 +29,7 @@ const overrideValues = {
 	patt: '[lemma="fixed-raw-cql"]',
 	filter: 'author:(Austen)',
 	searchfield: 'contents__nl',
-} satisfies Record<keyof BlackLabParameters, string>;
+} satisfies Record<'patt' | 'filter' | 'searchfield', string>;
 
 const meta = {
 	title: 'Features/Form/Form System',
@@ -130,7 +130,7 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 }
 
 function applyRawOverrides(runtime: FormRuntime, args: OverrideStoryArgs) {
-	const rawOverrides: BlackLabParameters = {};
+	const rawOverrides: RawFormOverrides = {};
 	if (args.pattOverride) rawOverrides.patt = overrideValues.patt;
 	if (args.filterOverride) rawOverrides.filter = overrideValues.filter;
 	if (args.searchfieldOverride) rawOverrides.searchfield = overrideValues.searchfield;

@@ -8,11 +8,12 @@ import type { Customizations } from '@/customization-api/internal/internal-api';
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import type { CompiledFormStateWithSummaries, ResultPreset } from '@/features/form';
+import type { CompiledFormResult } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
+import { handoffCompiledForm } from '@/features/search/model/form/form-result-handoff';
 import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
@@ -70,7 +71,7 @@ const get = {
 		const queryState = QueryModule.getState();
 		const queryNeedsSpans =
 			queryState.form === 'new'
-				? queryState.state.resultPreset?.withSpans
+				? queryState.state.params.withspans
 				: queryState.form === 'search'
 					? Object.values(queryState.filters).some(filter => getValueFunctions(filter).isSpanFilter)
 					: undefined;
@@ -105,7 +106,7 @@ const get = {
 
 /** Get the query that would be submitted if the user were to press submit right now.
  * Requires the new form system's compiled state as argument because the store can't access it directly (the new form's state is outside the store singleton) */
-function getNextQueryState(newFormState?: CompiledFormStateWithSummaries | null): QueryModule.ModuleRootState {
+function getNextQueryState(newFormState?: CompiledFormResult | null): QueryModule.ModuleRootState {
 	if (newFormState)
 		return {
 			form: 'new',
@@ -172,15 +173,6 @@ function getNextQueryState(newFormState?: CompiledFormStateWithSummaries | null)
 	} else throw new Error(`Unhandled form ${activeForm as any} while restoring submitted query`);
 }
 
-function applyResultPreset(viewedResults: string, preset?: ResultPreset): void {
-	if (!preset) return;
-	const view = ViewModule.getOrCreateModule(viewedResults);
-	if (preset.groupBy !== undefined) view.actions.groupBy(preset.groupBy);
-	if (preset.groupDisplayMode !== undefined) view.actions.groupDisplayMode(preset.groupDisplayMode);
-	// groupBy clears the sort, so an explicit preset sort must be applied last.
-	if (preset.sort !== undefined) view.actions.sort(preset.sort);
-}
-
 function applyLegacyExploreResultSettings(): boolean {
 	if (InterfaceModule.get.form() !== 'explore') return false;
 	switch (InterfaceModule.get.exploreMode()) {
@@ -206,14 +198,18 @@ function applyLegacyExploreResultSettings(): boolean {
 }
 
 const actions = {
-	searchFromSubmit: (snapshot?: CompiledFormStateWithSummaries | null) => {
+	searchFromSubmit: (snapshot?: CompiledFormResult | null) => {
 		localSearchIntentRevision += 1;
-		if (!snapshot && InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
+		if (snapshot) {
+			handoffCompiledForm(snapshot);
+			return;
+		}
+		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();
 			return;
 		}
 
-		const newQueryState = getNextQueryState(snapshot);
+		const newQueryState = getNextQueryState();
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
 
 		QueryModule.actions.search(newQueryState);
@@ -221,9 +217,8 @@ const actions = {
 
 		const newPattern = QueryModule.get.patternString();
 		const currentView = InterfaceModule.get.viewedResults();
-		const viewedResults = snapshot?.resultPreset?.viewedResults ?? (!newPattern ? 'docs' : (currentView ?? 'hits'));
+		const viewedResults = !newPattern ? 'docs' : (currentView ?? 'hits');
 		InterfaceModule.actions.viewedResults(viewedResults);
-		applyResultPreset(viewedResults, snapshot?.resultPreset);
 	},
 
 	searchSplitBatches: () => {

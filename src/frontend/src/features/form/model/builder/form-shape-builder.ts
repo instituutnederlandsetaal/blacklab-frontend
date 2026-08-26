@@ -1,8 +1,8 @@
 import type { FieldComponentProps, FieldRuntimeComponentProps } from '@/features/form/model/field-component-props';
 import { createFormFieldNode, type ConstrainedFieldComponent, type CreatedFormField, type FormFieldConfig } from '@/features/form/model/form-field-node';
 import { checkNoLoops, getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
-import type { AnyFieldController, FormRuntimeContext } from '@/features/form/model/types';
-import type { QueryIR } from '@/features/form/model/types/form-query-ir';
+import { searchTarget } from '@/features/form/model/targets';
+import type { AnyFieldController, FormOutputProducer, FormRuntimeContext } from '@/features/form/model/types';
 import type {
 	AnyBaseFormNode,
 	AnyRealFormNode,
@@ -26,12 +26,12 @@ import type { AnyVueComponent, ConstrainComponentToProvidedProps, NoExtraPropert
 // Helpers
 // ==========================================================================================================================
 
-type ForbiddenConfigKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'activeChildQueryContributions' | keyof FieldRuntimeComponentProps<unknown>;
+type ForbiddenConfigKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'activeChildOutputProducers' | keyof FieldRuntimeComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
 
 type MutableContainerGraphFields = {
 	children: AnyRealFormNode[];
-	activeChildQueryContributions?: Record<string, QueryIR>;
+	activeChildOutputProducers?: Record<string, FormOutputProducer>;
 };
 
 /**
@@ -66,7 +66,9 @@ type NewContainerNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraProp
 // Form
 // ==========================================================================================================================
 
-type NewFormNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, ImplicitContainerComponentPropKeys> & BaseFormNode, ForbiddenConfigKeys>;
+type NewFormNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, ImplicitContainerComponentPropKeys> & BaseFormNode, ForbiddenConfigKeys | 'target'> & {
+	target?: BaseFormNode['target'];
+};
 
 // Field
 // ==========================================================================================================================
@@ -80,7 +82,7 @@ type NewViewNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFrom
 // ==========================================================================================================================
 
 export type AddChildOptions = {
-	queryWhenActive?: QueryIR;
+	outputWhenActive?: FormOutputProducer;
 };
 
 export type FormNodeReference = FormNode | string;
@@ -213,16 +215,16 @@ export class FormBuilder {
 		}
 	}
 
-	private setActiveChildContribution(node: BaseContainerNode | BaseFormNode, childId: string, contribution?: QueryIR): void {
+	private setActiveChildOutputProducer(node: BaseContainerNode | BaseFormNode, childId: string, producer?: FormOutputProducer): void {
 		const graph = mutableGraphFields(node);
-		if (contribution) {
-			graph.activeChildQueryContributions ??= {};
-			graph.activeChildQueryContributions[childId] = contribution;
+		if (producer) {
+			graph.activeChildOutputProducers ??= {};
+			graph.activeChildOutputProducers[childId] = producer;
 			return;
 		}
-		if (!graph.activeChildQueryContributions) return;
-		delete graph.activeChildQueryContributions[childId];
-		if (!Object.keys(graph.activeChildQueryContributions).length) delete graph.activeChildQueryContributions;
+		if (!graph.activeChildOutputProducers) return;
+		delete graph.activeChildOutputProducers[childId];
+		if (!Object.keys(graph.activeChildOutputProducers).length) delete graph.activeChildOutputProducers;
 	}
 
 	private prepareChild<Child extends AnyRealFormNode>(node: BaseContainerNode | BaseFormNode, child: Child): Child {
@@ -237,7 +239,7 @@ export class FormBuilder {
 	}
 
 	private linkChild(node: BaseContainerNode | BaseFormNode, child: AnyRealFormNode, options?: AddChildOptions): void {
-		this.setActiveChildContribution(node, child.id, options?.queryWhenActive);
+		this.setActiveChildOutputProducer(node, child.id, options?.outputWhenActive);
 		if (this.root === child) this.root = node;
 	}
 
@@ -260,14 +262,14 @@ export class FormBuilder {
 		const removed = node.children[index] as FormNode;
 		if (removed.id === newChild.id) throw new Error(`Parent '${node.id}' already contains child '${newChild.id}'`);
 		mutableGraphFields(node).children.splice(index, 1, this.prepareChild(node, newChild));
-		this.setActiveChildContribution(node, removed.id);
+		this.setActiveChildOutputProducer(node, removed.id);
 		this.linkChild(node, newChild, options);
 		return removed;
 	}
 
 	private detachChildAt(node: BaseContainerNode | BaseFormNode, index: number): FormNode {
 		const [removed] = mutableGraphFields(node).children.splice(index, 1) as FormNode[];
-		this.setActiveChildContribution(node, removed.id);
+		this.setActiveChildOutputProducer(node, removed.id);
 		return removed;
 	}
 
@@ -315,6 +317,7 @@ export class FormBuilder {
 	): AddChildNodes & RealFormNode<ExtractExtraPropsFromConfig<Config>, C> => {
 		const node = this.attachGraphFunctions({
 			...config,
+			target: config.target ?? searchTarget,
 			kind: 'form',
 			id,
 			children: [],

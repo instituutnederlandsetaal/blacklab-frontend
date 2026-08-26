@@ -432,12 +432,9 @@ describe('search form system', () => {
 				'f.form': ids.exploreForm('corpora'),
 				'f.explore-corpora-group-display-mode': 'tokens',
 			},
-			filter: 'genre:(fiction)',
-			patt: null,
-			resultPreset: {
-				groupBy: ['field:author'],
-				groupDisplayMode: 'tokens',
-			},
+			params: { filter: 'genre:(fiction)', group: 'field:author' },
+			resultPreset: { groupDisplayMode: 'tokens' },
+			targetView: 'docs',
 		});
 	});
 
@@ -516,11 +513,9 @@ describe('search form system', () => {
 		expect(runtime.state.state.value[ids.exploreCorporaGroupBy()]).toBe('field:genre');
 		expect(runtime.state.state.value[ids.exploreCorporaGroupDisplayMode()]).toBe('docs');
 		expect(runtime.compile(ids.exploreForm('corpora'))).toMatchObject({
-			filter: 'author:Austen',
-			resultPreset: {
-				groupBy: ['field:genre'],
-				groupDisplayMode: 'docs',
-			},
+			params: { filter: 'author:Austen', group: 'field:genre' },
+			resultPreset: { groupDisplayMode: 'docs' },
+			targetView: 'docs',
 		});
 	});
 
@@ -538,12 +533,8 @@ describe('search form system', () => {
 				'f.form': ids.exploreForm('frequency'),
 				'f.explore-frequency-annotation': 'lemma',
 			},
-			filter: 'genre:(fiction)',
-			patt: '[]',
-			resultPreset: {
-				groupBy: ['hit:lemma'],
-				viewedResults: 'hits',
-			},
+			params: { filter: 'genre:(fiction)', group: 'hit:lemma', patt: '[]' },
+			targetView: 'hits',
 		});
 	});
 
@@ -581,12 +572,8 @@ describe('search form system', () => {
 				'f.form': ids.exploreForm('ngram'),
 				'f.explore-ngram-group-by': 'lemma',
 			},
-			filter: 'author:(Austen)',
-			patt: '[word="wat.*"] [pos="NOU|VRB"] []',
-			resultPreset: {
-				groupBy: ['hit:lemma'],
-				viewedResults: 'hits',
-			},
+			params: { filter: 'author:(Austen)', group: 'hit:lemma', patt: '[word="wat.*"] [pos="NOU|VRB"] []' },
+			targetView: 'hits',
 		});
 		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toEqual(
 			expect.arrayContaining([expect.objectContaining({ summaryType: ['patt'], value: 'lemma' }), expect.objectContaining({ summaryType: ['patt'], value: '3' })]),
@@ -624,7 +611,7 @@ describe('search form system', () => {
 		const runtime = createDefinition(corpus);
 		runtime.state.state.value[ids.exploreNgramTokens()] = [{ fieldId: 'pos', fieldState: { value: 'NOU|VRB?', caseSensitive: false } }] satisfies TokenSequenceFieldState;
 
-		expect(runtime.compile(ids.exploreForm('ngram')).patt).toBe('[pos="NOU|VRB."]');
+		expect(runtime.compile(ids.exploreForm('ngram')).params.patt).toBe('[pos="NOU|VRB."]');
 	});
 
 	test.each(['ngram', 'frequency'] as const)('adds a source-only searchfield selector to parallel Explore %s', mode => {
@@ -637,8 +624,8 @@ describe('search form system', () => {
 		runtime.state.state.value[sourceFieldId] = 'contents__nl';
 
 		const compiled = runtime.compile(ids.exploreForm(mode));
-		expect(compiled.searchfield).toBe('contents__nl');
-		expect(compiled.patt).not.toContain('=>');
+		expect(compiled.params.searchfield).toBe('contents__nl');
+		expect(compiled.params.patt).not.toContain('=>');
 	});
 
 	test('restores a scoped N-gram URL including active anonymous token state', () => {
@@ -657,8 +644,8 @@ describe('search form system', () => {
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		]);
 		expect(runtime.compile(ids.exploreForm('ngram'))).toMatchObject({
-			patt: '[lemma="run."] []',
-			resultPreset: { groupBy: ['hit:pos'], viewedResults: 'hits' },
+			params: { group: 'hit:pos', patt: '[lemma="run."] []' },
+			targetView: 'hits',
 		});
 	});
 
@@ -699,8 +686,7 @@ describe('search form system', () => {
 		expect(runtime.definition.getField(ids.queryField('advanced'))).not.toBeNull();
 		expect(runtime.definition.getField(ids.queryFieldTemplate('advanced'))).toBeNull();
 		expect(runtime.compile(ids.searchForm('advanced'))).toMatchObject({
-			patt: '[word="water"]',
-			searchfield: 'contents__en',
+			params: { patt: '[word="water"]', searchfield: 'contents__en' },
 		});
 	});
 
@@ -720,10 +706,9 @@ describe('search form system', () => {
 
 		const compiled = runtime.compile(ids.searchForm('expert'));
 		expect(compiled).toMatchObject({
-			patt: '([lemma="water"]) within <s/>',
-			filter: 'author:(Austen)',
+			params: { filter: 'author:(Austen)', patt: '([lemma="water"]) within <s/>' },
 		});
-		expect(compiled.resultPreset?.withSpans).toBeUndefined();
+		expect(compiled.params.withspans).toBeUndefined();
 	});
 
 	test('configures the expert heading and raw CQL field presentation', () => {
@@ -752,17 +737,16 @@ describe('search form system', () => {
 		const { personFieldId, runtime } = createCustomizedWithinRuntime();
 		const rangeFieldId = ids.withinFilter('p', 'n');
 		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
-		expect(runtime.compile(ids.searchForm('expert')).resultPreset?.withSpans).toBeUndefined();
+		expect(runtime.compile(ids.searchForm('expert')).params.withspans).toBeUndefined();
 		runtime.state.state.value[rangeFieldId] = { low: '  ', high: '\t', mode: 'strict' };
-		expect(runtime.compile(ids.searchForm('expert')).resultPreset?.withSpans).toBeUndefined();
+		expect(runtime.compile(ids.searchForm('expert')).params.withspans).toBeUndefined();
 		runtime.state.state.value[rangeFieldId] = { low: ' 1 ', high: '', mode: 'strict' };
 		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
-			patt: '([lemma="water"]) within <p n=in[1,]/>',
-			resultPreset: { withSpans: true },
+			params: { patt: '([lemma="water"]) within <p n=in[1,]/>', withspans: true },
 		});
 		runtime.state.state.value[rangeFieldId] = { low: '', high: '', mode: 'strict' };
 		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };
-		expect(runtime.compile(ids.searchForm('expert')).resultPreset).toMatchObject({ withSpans: true });
+		expect(runtime.compile(ids.searchForm('expert')).params).toMatchObject({ withspans: true });
 	});
 
 	test('compiles, persists, and summarizes a customized within attribute', () => {
@@ -772,7 +756,7 @@ describe('search form system', () => {
 		const compiled = runtime.compile(ids.searchForm('expert'));
 
 		expect(compiled).toMatchObject({
-			patt: '([lemma="water"]) within <speech person="Alice.*"/>',
+			params: { patt: '([lemma="water"]) within <speech person="Alice.*"/>' },
 			encoded: {
 				'f.within:speech:person': 'Alice*',
 			},
@@ -816,7 +800,7 @@ describe('search form system', () => {
 
 		expect(restored.issues).toEqual([]);
 		expect(runtime.state.state.value[ids.queryField('expert')]).toBe('[lemma="water"]');
-		expect(runtime.compile(ids.searchForm('expert')).patt).toBe('[lemma="water"]');
+		expect(runtime.compile(ids.searchForm('expert')).params.patt).toBe('[lemma="water"]');
 	});
 
 	test('wraps the expert query for a parallel corpus', () => {
@@ -829,8 +813,7 @@ describe('search form system', () => {
 		state.targets = ['contents__nl'];
 		state.childStates.contents__nl = '[lemma="water"]';
 		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
-			patt: '[lemma="water"] ==>nl? [lemma="water"]',
-			searchfield: 'contents__en',
+			params: { patt: '[lemma="water"] ==>nl? [lemma="water"]', searchfield: 'contents__en' },
 		});
 	});
 
@@ -849,8 +832,8 @@ describe('search form system', () => {
 
 		const compiled = definition.compile(ids.searchForm('extended'));
 
-		expect(compiled.patt).toBe('[word="water"]');
-		expect(compiled.filter).toBe('(author:(Austen) AND genre:(fiction))');
+		expect(compiled.params.patt).toBe('[word="water"]');
+		expect(compiled.params.filter).toBe('(author:(Austen) AND genre:(fiction))');
 		expect(compiled.summaries).toEqual([
 			{ group: 'Basics', label: 'word', value: 'water', summaryType: ['patt'] },
 			{ group: 'Bibliographic', label: 'author', value: 'Austen', summaryType: ['filter'] },
@@ -870,10 +853,7 @@ describe('search form system', () => {
 			caseSensitive: false,
 		};
 
-		expect(definition.compile(ids.searchForm('simple'))).toMatchObject({
-			filter: null,
-			patt: '[word="water"]',
-		});
+		expect(definition.compile(ids.searchForm('simple')).params).toEqual({ patt: '[word="water"]' });
 	});
 
 	test('replaces the runtime and definition when legacy configuration changes', () => {
@@ -1126,7 +1106,7 @@ describe('search form system', () => {
 		const queryBuilderState = configuredRuntime.state.state.value[ids.queryField('advanced')] as CqlQueryBuilderData;
 		const defaultAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
 		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
-		expect(configuredRuntime.compile(ids.searchForm('advanced')).patt).toBeNull();
+		expect(configuredRuntime.compile(ids.searchForm('advanced')).params.patt).toBeUndefined();
 	});
 
 	test('replacement runtimes do not inherit or write through to prior draft state', () => {
@@ -1163,7 +1143,7 @@ describe('search form system', () => {
 		const replacementSourceState = replacementState.childStates.contents__en as CqlQueryBuilderData;
 		const defaultAttribute = replacementSourceState.tokens[0].rootAttributeGroup.entries[0];
 		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
-		expect(system.runtime.value!.compile(ids.searchForm('advanced')).patt).toBeNull();
+		expect(system.runtime.value!.compile(ids.searchForm('advanced')).params.patt).toBeUndefined();
 	});
 
 	test('discards draft state and restores the URL against the replacement definition', () => {
@@ -1193,17 +1173,17 @@ describe('search form system', () => {
 
 		const restored = restoreFormState(replacementRuntime.definition, {
 			...committedUrlState.encoded,
-			patt: committedUrlState.patt,
-			filter: committedUrlState.filter,
+			patt: committedUrlState.params.patt,
+			filter: committedUrlState.params.filter,
 		});
 		replacementRuntime.state.replaceState(restored);
 
 		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'query', nodeId: ids.queryField('advanced') })]));
-		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.patt });
+		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.params.patt });
 		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: 'Austen', caseSensitive: false });
-		expect(replacementRuntime.compile(ids.searchForm('advanced'))).toMatchObject({
-			patt: committedUrlState.patt,
-			filter: committedUrlState.filter,
+		expect(replacementRuntime.compile(ids.searchForm('advanced')).params).toMatchObject({
+			patt: committedUrlState.params.patt,
+			filter: committedUrlState.params.filter,
 		});
 	});
 
@@ -1348,8 +1328,7 @@ describe('search form system', () => {
 				'f.form': ids.searchForm('extended'),
 				'f.word_or_lemma': 'schip',
 			},
-			patt: '[word_or_lemma="(?i)schip"]',
-			searchfield: null,
+			params: { patt: '[word_or_lemma="(?i)schip"]' },
 		});
 	});
 
