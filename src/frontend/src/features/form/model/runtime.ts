@@ -1,25 +1,12 @@
-import { inject, provide, toRef, type InjectionKey, type Ref } from 'vue';
+import { type Ref } from 'vue';
 
 import type { FormRuntime } from '@/features/form/model/form-runtime';
 
-export type FormRuntimeRef = Readonly<Ref<FormRuntime>>;
+import { useScopedInjectable } from '@/shared/utils/useInjectable';
 
-const formSystemRuntimeKey: InjectionKey<FormRuntimeRef> = Symbol('formSystemRuntime');
-const parentFormRuntimeKey: InjectionKey<Ref<string>> = Symbol('parentFormRuntime');
-export function provideFormSystemRuntime(runtime: FormRuntime | FormRuntimeRef) {
-	provide(formSystemRuntimeKey, toRef(runtime) as FormRuntimeRef);
-}
-export function useFormSystemRuntime(): FormRuntimeRef {
-	const runtime = inject(formSystemRuntimeKey);
-	if (!runtime) throw new Error('No form system runtime has been provided.');
-	return runtime;
-}
+type FormRuntimeRef = Readonly<Ref<FormRuntime>>;
 
-export function provideParentForm(runtime: Ref<string>) {
-	provide(parentFormRuntimeKey, runtime);
-}
-export function useParentForm(): Ref<string> {
-	const runtime = inject(parentFormRuntimeKey);
-	if (!runtime) throw new Error('No parent form runtime has been provided.');
-	return runtime;
-}
+const [_formSystemRuntimeKey, provideFormSystemRuntime, useFormSystemRuntime] = useScopedInjectable<FormRuntimeRef>('formSystemRuntime');
+const [_parentFormRuntimeKey, provideParentForm, useParentForm] = useScopedInjectable<Ref<string>>('parentFormRuntime');
+
+export { provideFormSystemRuntime, useFormSystemRuntime, provideParentForm, useParentForm };

@@ -119,21 +119,29 @@ function createCorpusValue(index: NormalizedIndex): Corpus {
 function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>) {
 	const onBeforePublishCallbacks: Array<(context: CorpusContext) => void> = [];
 
-	const getCorpus = (id: string | undefined | null): CancelableRequest<NormalizedIndex | undefined> => (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined));
 	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> =>
 		frontend.getConfig(id ?? null, {
 			// The backend supplies ETags. Revalidate on each application load so a
 			// changed search.xml is not hidden by max-age/stale-while-revalidate.
 			headers: { 'Cache-Control': 'no-cache' },
 		});
-	const getTagset = (id: string | undefined | null): CancelableRequest<Tagset | undefined> => (id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined));
 
 	// These loadables retain their identity for the lifetime of the context. A corpus
 	// id change replaces only their request, so downstream combiners never have to
 	// subscribe to computed factories that create and discard reactive loadables.
-	const corpusLoadable = loadableFromComputedRequest(computed(() => getCorpus(toValue(corpusId)).then(index => (index ? createCorpusValue(index) : undefined))));
+	const corpusLoadable = loadableFromComputedRequest(
+		computed(() => {
+			const id = toValue(corpusId);
+			return (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined)).then(index => (index ? createCorpusValue(index) : undefined));
+		}),
+	);
 	const configLoadable = loadableFromComputedRequest(computed(() => getConfig(toValue(corpusId))));
-	const tagsetLoadable = loadableFromComputedRequest(computed(() => getTagset(toValue(corpusId))));
+	const tagsetLoadable = loadableFromComputedRequest(
+		computed(() => {
+			const id = toValue(corpusId);
+			return id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined);
+		}),
+	);
 	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable });
 	const publishedContext = tapLoadedReactive(loadedContext, context => {
 		if (context.index) {

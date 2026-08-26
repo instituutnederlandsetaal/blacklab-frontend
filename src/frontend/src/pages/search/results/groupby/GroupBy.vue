@@ -205,10 +205,6 @@ import Tabs from '@/shared/ui/Tabs.vue';
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
 
-function isSpanAttributeOptionValue(value: string): boolean {
-	return value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE);
-}
-
 /** Encode span-attribute grouping as the stable value format shared by options and URL state. */
 function spanAttributeOptionValue(name: string, attrName: string, listName?: string): string {
 	const groupByName = listName ? `${listName}[${name}]` : name;
@@ -769,7 +765,7 @@ export default defineComponent({
 			},
 			set(v: string) {
 				if (v && this.selectedCriterium?.type === 'metadata') {
-					const isSpanAttr = isSpanAttributeOptionValue(v);
+					const isSpanAttr = v.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE);
 					if (!isSpanAttr) {
 						this.selectedCriterium.metadata = {
 							type: 'document',

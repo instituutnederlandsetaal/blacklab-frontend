@@ -248,7 +248,7 @@ const tableHeaders: {
 		},
 	},
 };
-class MaxCounter<T, K extends T extends string ? T : KeysOfType<T, number> = T extends string ? T : KeysOfType<T, number>> {
+class MaxCounter<T, K extends (T extends string ? T : KeysOfType<T, number>) = T extends string ? T : KeysOfType<T, number>> {
 	public values: Record<K, number> = {} as any;
 
 	public add(key: K, v?: number) {

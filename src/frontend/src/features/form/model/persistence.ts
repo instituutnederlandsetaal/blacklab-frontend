@@ -2,7 +2,7 @@ import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field'
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { buildQueryIR } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
-import { expertQueryController, parallelController, restoreCanonicalPatternInExpertField, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
+import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { createDefaultFormState, createFormStateSnapshot, type FormStateInput, type NewFormState } from '@/features/form/model/state';
 import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
@@ -50,7 +50,7 @@ function asArray(value: unknown): string[] {
 function findExpertFallback(definition: FormBuilder, canonicalPattern: string, canonicalSearchfield: string | null | undefined): { form: FormBoundaryNode; fieldId: string; state: unknown } | null {
 	for (const form of definition.formsList) {
 		for (const f of walkFormNodes(form, 'field')) {
-			if (f.controller.kind === expertQueryController.kind) return { form, fieldId: f.id, state: restoreCanonicalPatternInExpertField(canonicalPattern) };
+			if (f.controller.kind === expertQueryController.kind) return { form, fieldId: f.id, state: canonicalPattern };
 			if (f.controller.kind !== parallelController.kind) continue;
 
 			const parallelField = f as FormFieldNode & ParallelFieldConfig;

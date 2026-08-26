@@ -59,11 +59,6 @@ export function tokenSequenceLengthBounds(config: Pick<TokenSequenceFieldExtraPr
 	};
 }
 
-export function clampTokenSequenceLength(value: number, bounds: TokenSequenceLengthBounds): number {
-	const normalized = finiteInteger(value, bounds.defaultValue);
-	return Math.min(bounds.max, Math.max(bounds.min, normalized));
-}
-
 export function resolveTokenSequenceFieldId(config: Pick<TokenSequenceFieldExtraProps, 'selectorOptions' | 'defaultFieldId'>, requestedFieldId?: string | null): string {
 	const available = optionValues(config.selectorOptions);
 	const fieldId = (requestedFieldId && available.includes(requestedFieldId) ? requestedFieldId : null) ?? (available.includes(config.defaultFieldId) ? config.defaultFieldId : available[0]);

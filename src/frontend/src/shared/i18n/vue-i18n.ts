@@ -49,6 +49,7 @@ export function createVueI18nParts(options: VueI18nPartsOptions = {}): VueI18nPa
 	};
 }
 
+/** Install Vue I18n and the application translation facade together. */
 export function installVueI18nParts(app: App, parts: VueI18nParts) {
 	app.use(parts.vueI18nPlugin);
 	parts.translatePlugin.install(app);

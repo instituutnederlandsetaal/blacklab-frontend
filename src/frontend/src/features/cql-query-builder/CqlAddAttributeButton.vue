@@ -5,7 +5,7 @@
 		</button>
 		<ul class="dropdown-menu">
 			<li v-for="op in options.operatorOptions" :key="op.value">
-				<a href="#" @click.prevent="emitClick(op.value as CqlAnnotationCombinator)">
+				<a href="#" @click.prevent="disabled ? undefined : emit('click', op.value as CqlAnnotationCombinator)">
 					<span class="glyphicon glyphicon-plus-sign text-success"></span>
 					{{ optionLabel(op) }}
 				</a>
@@ -18,7 +18,7 @@
 import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
 
 import { optionLabel } from '@/shared/utils/options';
-const props = withDefaults(
+withDefaults(
 	defineProps<{
 		options: CqlQueryBuilderOptions;
 		disabled?: boolean;
@@ -30,11 +30,6 @@ const props = withDefaults(
 const emit = defineEmits<{
 	click: [operator: CqlAnnotationCombinator];
 }>();
-
-function emitClick(operator: CqlAnnotationCombinator) {
-	if (props.disabled) return;
-	emit('click', operator);
-}
 </script>
 
 <style lang="scss">

@@ -987,11 +987,14 @@ export type BLSearchResult = BLHitResults | BLDocResults | BLHitGroupResults | B
 export const isHitResults = (d: BLSearchResult | null | undefined): d is BLHitResults => (d as Partial<BLHitResults> | null | undefined)?.hits != null;
 export const isDocResults = (d: BLSearchResult | null | undefined): d is BLDocResults => (d as Partial<BLDocResults> | null | undefined)?.docs != null;
 export const isHitGroups = (d: BLSearchResult | null | undefined): d is BLHitGroupResults => (d as Partial<BLHitGroupResults> | null | undefined)?.hitGroups != null;
+/** Narrow a search result to document groups. */
 export const isDocGroups = (d: BLSearchResult | null | undefined): d is BLDocGroupResults => (d as Partial<BLDocGroupResults> | null | undefined)?.docGroups != null;
 export const isGroups = (d: BLSearchResult | null | undefined): d is BLHitGroupResults | BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
 
+/** Narrow a summary whose optional pattern details are present. */
 export const hasPatternInfo = (summary: BLSearchSummaryV5 | null | undefined): summary is BLSearchSummaryV5 & { pattern: BLSearchSummaryPatternInfo } => summary?.pattern != null;
 
+/** Recognize the nested error shape returned by BlackLab. */
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
 
 /** Are these valid parameters with a pattern that will yield results with hits? */

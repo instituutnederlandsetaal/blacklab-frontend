@@ -2,7 +2,7 @@
 
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
-import { defineComponent, h, nextTick, ref } from 'vue';
+import { defineComponent, h, nextTick, ref, shallowRef } from 'vue';
 
 import {
 	type FormBuilder,
@@ -182,7 +182,7 @@ const summaryViewExpectation = {
 function createHostHarness(node: FormFieldNode | FormViewNode, form: FormBoundaryNode, runtime: FormSystemRuntime, _host: 'field' | 'view') {
 	return defineComponent({
 		setup() {
-			provideFormSystemRuntime(runtime);
+			provideFormSystemRuntime(shallowRef(runtime));
 			provideParentForm(ref(form.id));
 			const renderable = runtime.renderableGraph(node.id)!;
 

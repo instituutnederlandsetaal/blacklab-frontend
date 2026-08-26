@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import { createDefaultCqlQueryBuilderData, type CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
-import { cloneAnnotationPosFieldState, findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState } from '@/features/form/fields/annotation-pos-field';
+import { findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState } from '@/features/form/fields/annotation-pos-field';
 import { createDefaultCheckboxFieldState } from '@/features/form/fields/generic/checkbox-field';
 import { createDefaultDateFieldState, DateUtils } from '@/features/form/fields/generic/date-field';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
@@ -249,11 +249,8 @@ describe('generic form field components', () => {
 });
 
 describe('part-of-speech field', () => {
-	test('covers tagset lookup, filtering, cloning, and summaries', () => {
+	test('covers tagset lookup, filtering, and summaries', () => {
 		const state = { pos: ['N'], number: ['sg', 'verb-only'] };
-		const clone = cloneAnnotationPosFieldState(state);
-		expect(clone).toEqual(state);
-		expect(clone.number).not.toBe(state.number);
 		expect(findTagsetValue(tagset, null)).toBeNull();
 		expect(findTagsetValue(tagset, 'noun')?.value).toBe('N');
 		expect(findTagsetValue(tagset, 'V')?.displayName).toBe('Verb');

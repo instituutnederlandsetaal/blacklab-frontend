@@ -17,18 +17,15 @@ function createPageBootstrapContext() {
 	const settled = ref(false);
 	const page = ref<PageMeta | null>(null);
 
-	function changePage(newPage: PageMeta) {
-		const prevPageName = page.value?.name;
-		page.value = newPage;
-		settled.value = prevPageName === newPage.name || newPage.customScriptTiming !== 'after-page-bootstrap';
-	}
-	function markSettled() {
-		settled.value = true;
-	}
-
 	const context: PageBootstrap = {
-		changePage,
-		markSettled,
+		changePage(newPage) {
+			const prevPageName = page.value?.name;
+			page.value = newPage;
+			settled.value = prevPageName === newPage.name || newPage.customScriptTiming !== 'after-page-bootstrap';
+		},
+		markSettled() {
+			settled.value = true;
+		},
 		settled: readonly(settled),
 		page: readonly(page),
 	};

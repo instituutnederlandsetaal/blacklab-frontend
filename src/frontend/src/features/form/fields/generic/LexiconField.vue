@@ -113,10 +113,6 @@ function deselectAll() {
 	renderedWords.value.forEach(word => (word.selected = false));
 }
 
-function escapeLexiconTerm(term: string) {
-	return term.replace(/([|*?])/g, '\\$1');
-}
-
 watch(
 	() => value.value,
 	nextValue => {
@@ -154,7 +150,7 @@ watch(
 		if (nextLength !== previousLength && wordOptions.value && wordOptions.value.length > 0) {
 			suppressNextValueLookup.value = true;
 			value.value = selectedWords.value
-				.map(word => escapeLexiconTerm(word.word))
+				.map(word => word.word.replace(/([|*?])/g, '\\$1'))
 				.map(word => (word.includes(' ') ? `"${word}"` : word))
 				.join('|');
 		}

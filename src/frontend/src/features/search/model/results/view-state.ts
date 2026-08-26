@@ -111,8 +111,6 @@ const createActions = (state: ViewRootState) => ({
 	},
 });
 
-const createGetters = (_state: ViewRootState) => ({});
-
 /**
  * Create a module with the given namespace and initial state.
  * @param viewName key of this module in the root store
@@ -123,7 +121,7 @@ export const createViewModule = (viewName: string, customInitialState?: Partial<
 	const state = reactive<ViewRootState>(Object.assign(cloneDeep(initialViewState), cloneDeep(customInitialState)));
 	const m = {
 		actions: markRaw(createActions(state)),
-		get: markRaw(createGetters(state)),
+		get: markRaw({}),
 		getState: () => state,
 	};
 	return m;

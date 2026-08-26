@@ -104,22 +104,18 @@ export function escapeLucene(value: string, options: LuceneEscapeOptions = {}) {
 	if (!settings.escapeRegex) return `/${escapeLuceneRegexDelimiter(value)}/`;
 	if (value.match(/\s+/)) return `"${value.replace(/([\\"])/g, '\\$1')}"`;
 
-	const escapeChar = (char: string) => {
-		if (char === '*' || char === '?') return settings.escapeWildcards ? `\\${char}` : char;
-		return luceneSpecialChars.has(char) ? `\\${char}` : char;
-	};
-	const shouldEscape = (char: string) => (char === '*' || char === '?' ? settings.escapeWildcards : luceneSpecialChars.has(char));
-
 	let result = '';
 	for (let index = 0; index < value.length; index += 1) {
 		const char = value[index];
 		const next = value[index + 1];
-		if (char === '\\' && preservedLuceneEscapes.has(next) && !shouldEscape(next)) {
+		const shouldEscapeNext = next === '*' || next === '?' ? settings.escapeWildcards : luceneSpecialChars.has(next);
+		if (char === '\\' && preservedLuceneEscapes.has(next) && !shouldEscapeNext) {
 			result += `\\${next}`;
 			index += 1;
 			continue;
 		}
-		result += escapeChar(char);
+		if (char === '*' || char === '?') result += settings.escapeWildcards ? `\\${char}` : char;
+		else result += luceneSpecialChars.has(char) ? `\\${char}` : char;
 	}
 	return result;
 }

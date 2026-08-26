@@ -74,10 +74,6 @@ type GroupByCustom = {
 type SortingOrGroupingCriterium = GroupByContext | GroupByMetadata | GroupByCustom;
 export type GroupBy = SortingOrGroupingCriterium;
 export type SortBy = (SortingOrGroupingCriterium | SortByGroupProperty) & { inverted: boolean };
-function isSortBy(s: GroupBy | SortBy): s is SortBy {
-	return 'inverted' in s && typeof s.inverted === 'boolean';
-}
-
 /**
  * We use a helper function to make sure we never forget to handle a type.
  * We always call this with whatever we're switching on after handling all cases, so if we forget one, the argument will suddenly
@@ -438,7 +434,7 @@ export function humanizeGroupByOrSortBy(i18n: Translate, g: GroupBy | SortBy, an
 	}
 
 	const humanized = baseHumanize(g);
-	if (isSortBy(g)) return humanized + (g.inverted ? ' ↑' : ' ↓');
+	if ('inverted' in g && typeof g.inverted === 'boolean') return humanized + (g.inverted ? ' ↑' : ' ↓');
 	return humanized;
 }
 

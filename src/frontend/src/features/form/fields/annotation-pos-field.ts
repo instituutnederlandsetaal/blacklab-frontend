@@ -19,10 +19,6 @@ export type AnnotationPosFieldComponentProps = FieldComponentProps<AnnotationPos
 
 const EMPTY_SUBANNOTATION_VALUES: Tagset['subAnnotations'][string]['values'] = [];
 
-export function cloneAnnotationPosFieldState(state: AnnotationPosFieldState): AnnotationPosFieldState {
-	return Object.fromEntries(Object.entries(state).map(([annotationId, values]) => [annotationId, [...values]]));
-}
-
 export function findTagsetValue(tagset: Tagset, value: string | null | undefined) {
 	if (!value) return null;
 	return tagset.values[value] ?? Object.values(tagset.values).find(entry => entry.value === value) ?? null;

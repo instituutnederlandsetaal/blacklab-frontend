@@ -56,11 +56,6 @@ type UrlSyncContext = {
 	indexId: string;
 };
 
-function getManagedRouteName(pageMeta: PageMeta | null, route: RouteLocationNormalizedLoaded): UrlManagedRouteName | null {
-	const routeName = pageMeta?.name || (typeof route.name === 'string' ? route.name : null);
-	return routeName === 'search' || routeName === 'article' ? routeName : null;
-}
-
 type FrontendSearchPageExtraQueryParamsDecoded = {
 	interface?: Partial<InterfaceStore.ModuleRootState>;
 	groupDisplayMode?: string;
@@ -265,7 +260,8 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 
 	function getUrlSyncContext(): UrlSyncContext | null {
 		const route = router.currentRoute.value;
-		const routeName = getManagedRouteName(dependencies.pageMeta.value, route);
+		const currentRouteName = dependencies.pageMeta.value?.name || (typeof route.name === 'string' ? route.name : null);
+		const routeName: UrlManagedRouteName | null = currentRouteName === 'search' || currentRouteName === 'article' ? currentRouteName : null;
 		const corpus = loadedCorpus.value;
 		const indexId = dependencies.indexId.value;
 		return routeName && corpus && indexId ? { routeName, route, corpus, indexId } : null;

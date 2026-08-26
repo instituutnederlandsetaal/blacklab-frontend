@@ -70,9 +70,6 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 	function nextExpiry(): number | null {
 		return ttlSeconds ? Date.now() + ttlSeconds * 1000 : null;
 	}
-	function isExpired(v: ExpiringValue<T>): boolean {
-		return !!v.expiry && v.expiry < Date.now();
-	}
 	/** Parse the json, check the expiry (if any) and return the value if still current, or the default value with expiry of ttl. */
 	function fromJson(json: string | null): ExpiringValue<T> {
 		let v: ExpiringValue<T> | null = null;
@@ -85,7 +82,7 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 				console.warn(`Failed to parse value for ${storageKey}`);
 			}
 		}
-		if (!v || isExpired(v)) v = { value: defaultValue, expiry: nextExpiry(), isFromStorage: false };
+		if (!v || (!!v.expiry && v.expiry < Date.now())) v = { value: defaultValue, expiry: nextExpiry(), isFromStorage: false };
 		return v;
 	}
 

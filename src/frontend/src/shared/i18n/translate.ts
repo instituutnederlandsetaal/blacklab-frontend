@@ -15,6 +15,7 @@ type TranslateRuntime = {
 
 const [_I18N_INJECTION_KEY, provideInjectedTranslate, useI18n] = useInjectable<Translate>('i18n');
 
+/** Install the translation facade on Vue globals and through injection. */
 export function provideTranslate(app: App, translate: Translate) {
 	Object.assign(app.config.globalProperties, translate);
 	provideInjectedTranslate(app, translate);

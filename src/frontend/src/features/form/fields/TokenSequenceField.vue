@@ -31,9 +31,9 @@
 				/>
 
 				<FieldRenderer
-					:field="fieldNode(token, index)"
+					:field="createTokenSequenceFieldNode({ ...props, variant: tokenVariant }, index, token.fieldId)"
 					:model-value="token.fieldState"
-					:html-id="`${htmlId}_${index}_${safeHtmlId(token.fieldId)}`"
+					:html-id="`${htmlId}_${index}_${token.fieldId.replace(/[^\w-]+/g, '_') || 'field'}`"
 					:disabled
 					@update:model-value="updateTokenState(index, $event)"
 				/>
@@ -50,14 +50,12 @@ import { useFormSystemRuntime } from '@/features/form/model/runtime';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import {
-	clampTokenSequenceLength,
 	createDefaultTokenSequenceToken,
 	createTokenSequenceFieldNode,
 	resolveTokenSequenceFieldId,
 	tokenSequenceLengthBounds,
 	type TokenSequenceFieldComponentProps,
 	type TokenSequenceFieldState,
-	type TokenSequenceTokenState,
 } from './token-sequence-field';
 
 import NumberField from '@/features/form/fields/generic/NumberField.vue';
@@ -86,7 +84,8 @@ const lengthVariant = computed<BaseFieldNode['variant']>(() => {
 });
 
 function updateLength(requestedLength: number) {
-	const length = clampTokenSequenceLength(requestedLength, lengthBounds.value);
+	const normalizedLength = Number.isFinite(requestedLength) ? Math.trunc(requestedLength) : lengthBounds.value.defaultValue;
+	const length = Math.min(lengthBounds.value.max, Math.max(lengthBounds.value.min, normalizedLength));
 	const nextTokens = props.modelValue.slice(0, length);
 	while (nextTokens.length < length) nextTokens.push(createDefaultTokenSequenceToken(props, runtime.value.definition.context, nextTokens.length));
 	emit('update:modelValue', nextTokens);
@@ -108,14 +107,6 @@ function updateTokenState(index: number, fieldState: unknown) {
 	const nextTokens = props.modelValue.slice();
 	nextTokens[index] = { ...current, fieldState };
 	emit('update:modelValue', nextTokens);
-}
-
-function fieldNode(token: TokenSequenceTokenState, index: number) {
-	return createTokenSequenceFieldNode({ ...props, variant: tokenVariant.value }, index, token.fieldId);
-}
-
-function safeHtmlId(value: string) {
-	return value.replace(/[^\w-]+/g, '_') || 'field';
 }
 </script>
 

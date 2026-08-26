@@ -16,11 +16,6 @@ import { array, object, scalar } from '@/features/form/model/controllers/persist
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { anyToken, queryFragment, sequence, summary } from '@/features/form/model/types/form-query-ir';
 
-function createDefaultState(config: FieldControllerProps<TokenSequenceFieldConfig>, runtime: FormRuntimeContext): TokenSequenceFieldState {
-	const bounds = tokenSequenceLengthBounds(config);
-	return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
-}
-
 type PersistedToken = { fieldId: string; payload: string };
 
 const persistedTokenCodec = object({
@@ -59,11 +54,17 @@ const tokenSequencePersistenceCodec = array(persistedTokenCodec)
 			return tokens.map((token, index) => restoreToken(index, token, config, runtime));
 		},
 	})
-	.default(({ config, runtime }) => createDefaultState(config, runtime));
+	.default(({ config, runtime }) => {
+		const bounds = tokenSequenceLengthBounds(config);
+		return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
+	});
 
 export const tokenSequenceController = defineFieldController<'token-sequence', TokenSequenceFieldDefinition>({
 	kind: 'token-sequence',
-	createDefaultState,
+	createDefaultState(config, runtime) {
+		const bounds = tokenSequenceLengthBounds(config);
+		return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
+	},
 	persistence: { key: config => config.persistKey, codec: tokenSequencePersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, runtime, state) {

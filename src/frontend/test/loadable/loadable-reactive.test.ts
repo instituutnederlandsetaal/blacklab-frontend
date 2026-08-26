@@ -3,7 +3,7 @@ import { nextTick, reactive, ref, shallowRef, watch, type Ref } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { combine, combineOptional, mapLoadedValue, flatMapLoadedValue } from '@/shared/utils/loadable/loadable-combine';
-import { combineOptionalReactive, combineLoadables, unwrapLoadableRefs } from '@/shared/utils/loadable/loadable-combine-reactive';
+import { combineLoadables, unwrapLoadableRefs } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromComputedRequest, loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import {
@@ -187,12 +187,12 @@ describe('combineLoadables', () => {
 		expect(combined.value).toEqual([1, undefined]);
 	});
 
-	test('combineOptionalReactive includes empty values', () => {
+	test('combineLoadables can include empty values', () => {
 		const loaded: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
 		const empty: Ref<Loadable<number>> = ref(Loadable.Empty());
 
 		const combined = combineLoadables([loaded] as const);
-		const optional = combineOptionalReactive([loaded, empty] as const);
+		const optional = combineLoadables([loaded, empty] as const, { includeEmpty: true });
 
 		expect(combined.value).toEqual([1]);
 		expect(optional.value).toEqual([1, undefined]);

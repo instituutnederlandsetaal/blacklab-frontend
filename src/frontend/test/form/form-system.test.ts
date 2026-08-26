@@ -199,7 +199,7 @@ describe('form system integration', () => {
 		});
 		const Host = defineComponent({
 			setup() {
-				provideFormSystemRuntime(runtime);
+				provideFormSystemRuntime(shallowRef(runtime));
 				return () => h(Probe, { value: containerProps });
 			},
 		});

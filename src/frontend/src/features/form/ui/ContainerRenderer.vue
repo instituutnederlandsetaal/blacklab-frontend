@@ -11,7 +11,7 @@
 		</Tabs>
 
 		<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-		<div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
+		<div v-if="activeChild" :id="tabId(props.id, activeChild.props.id, 'panel')" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
 			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset">
 				<template #actions><slot name="actions" /></template>
 			</Component>
@@ -46,7 +46,7 @@ import { hasQueryContributions } from '@/features/form/model/compile/query-artif
 import { decodeVariants, getAllNodes } from '@/features/form/model/form-utils';
 import { provideParentForm } from '@/features/form/model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
-import { createTabs, tabId, tabPanelId } from '@/features/form/ui/tab-utils';
+import { createTabs, tabId } from '@/features/form/ui/tab-utils';
 
 import type { CompiledFormStateWithSummaries, ImplicitContainerComponentProps } from '../model/types';
 

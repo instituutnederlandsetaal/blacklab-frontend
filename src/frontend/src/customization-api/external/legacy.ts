@@ -32,8 +32,9 @@ function mark(obj: any, marker: symbol) {
 	}
 	return obj;
 }
-// Check if the value is already proxied to avoid re-wrapping
-// And some things we don't want to proxy
+/** Check if the value is already proxied to avoid re-wrapping
+ * And some things we don't want to proxy
+ */
 function canAndShouldProxy(obj: any): obj is object {
 	return typeof obj === 'object' && obj !== null && !Object.isFrozen(obj) && !(isProxiedSym in obj) && !(dontProxyMe in obj);
 }

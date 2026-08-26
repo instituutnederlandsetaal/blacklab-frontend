@@ -14,7 +14,7 @@
 			<h4>{{ $t(`search.parallel.searchSourceVersion`) }}</h4>
 			<FieldRenderer
 				:field="childFieldTemplate"
-				:html-id="`${htmlId}_source_${safeHtmlId(sourceModel ?? 'none')}`"
+				:html-id="`${htmlId}_source_${sourceModel.replace(/[^\w-]+/g, '_') || 'target'}`"
 				:disabled
 				:model-value="getValueForChildState(sourceModel)"
 				@update:model-value="setValueForChildState(sourceModel, $event)"
@@ -27,11 +27,11 @@
 			<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
 		</div>
 		<section v-for="target in selectedTargetOptions" :key="target.id" class="blf-parallel-query">
-			<h4>{{ fieldOptionLabel(target) }}</h4>
+			<h4>{{ parallelAnnotatedFieldLabel(target) }}</h4>
 			<FieldRenderer
 				:field="childFieldTemplate"
 				:model-value="getValueForChildState(target.id)"
-				:html-id="`${htmlId}_target_${safeHtmlId(target.id)}`"
+				:html-id="`${htmlId}_target_${target.id.replace(/[^\w-]+/g, '_') || 'target'}`"
 				:disabled
 				@update:model-value="setValueForChildState(target.id, $event)"
 			/>
@@ -62,13 +62,7 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
-import {
-	createDefaultParallelChildState,
-	parallelAnnotatedFieldLabel,
-	type ParallelAnnotatedField,
-	type ParallelFieldComponentProps,
-	type ParallelFieldState,
-} from '@/features/form/fields/parallel-field';
+import { createDefaultParallelChildState, parallelAnnotatedFieldLabel, type ParallelFieldComponentProps, type ParallelFieldState } from '@/features/form/fields/parallel-field';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
 
 import { isSimpleOption, optionLabel, optionText, type Option } from '@/shared/utils/options';
@@ -99,10 +93,6 @@ const targetOptions = computed<Option[]>(() =>
 );
 const alignByPickerOptions = computed<Option[]>(() => (props.alignByOptions ?? []).map(option => (isSimpleOption(option) ? { value: option } : option)));
 const selectedTargetOptions = computed(() => props.modelValue.targets.map(target => props.fieldOptions.find(option => option.id === target) ?? { id: target }));
-
-function fieldOptionLabel(option: ParallelAnnotatedField): string {
-	return parallelAnnotatedFieldLabel(option);
-}
 
 /** The source selected source field, as model */
 const sourceModel = computed<string | null>({
@@ -151,11 +141,6 @@ function setValueForChildState(stateKey: string, value: unknown) {
 			[stateKey]: value,
 		},
 	});
-}
-
-/** Keep generated control IDs valid and stable for arbitrary corpus field IDs. */
-function safeHtmlId(value: string) {
-	return value.replace(/[^\w-]+/g, '_') || 'target';
 }
 </script>
 

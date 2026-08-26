@@ -23,6 +23,7 @@ type IterOptions = Iterable<SimpleOption | Option | OptGroup>;
 export function isSimpleOption(e: any): e is SimpleOption {
 	return typeof e === 'string';
 }
+/** Narrow an option entry to its object form. */
 export function isOption(e: any): e is Option {
 	return e && isSimpleOption(e.value);
 }
@@ -58,10 +59,6 @@ export function optionTitle(option: SimpleOption | Option): string {
 }
 export function optionValues(options: IterOptions): string[] {
 	return Array.from(eachOption(options), optionValue);
-}
-export function optionLabels(options: IterOptions, values: Iterable<string>): string[] {
-	const { matched, unknown } = filterOptions(options, values);
-	return Array.from(eachOption([...matched, ...unknown]), optionLabel);
 }
 
 /**

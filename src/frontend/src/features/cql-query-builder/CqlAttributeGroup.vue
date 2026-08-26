@@ -21,7 +21,7 @@
 
 			<!-- Nested Attribute Group -->
 			<CqlAttributeGroup
-				v-else-if="isCqlAttributeGroupData(entry)"
+				v-else
 				:key="`group-${entry.id}`"
 				:is-root="false"
 				:options
@@ -42,7 +42,7 @@ import { useVModel } from '@vueuse/core';
 import { computed } from 'vue';
 
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from './model';
-import { isCqlAttributeData, isCqlAttributeGroupData } from './model';
+import { isCqlAttributeData } from './model';
 
 import { optionLabel, type Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid.ts';
@@ -153,7 +153,7 @@ function updateGroupAtIndex(index: number, updatedGroup: CqlAttributeGroupData) 
 
 function deleteNestedGroup(groupId: string, replaceWith?: CqlGroupEntry) {
 	if (props.disabled) return;
-	const index = model.value.entries.findIndex((entry: CqlGroupEntry) => isCqlAttributeGroupData(entry) && entry.id === groupId);
+	const index = model.value.entries.findIndex((entry: CqlGroupEntry) => !isCqlAttributeData(entry) && entry.id === groupId);
 	if (index !== -1) {
 		if (replaceWith) {
 			model.value.entries.splice(index, 1, replaceWith);

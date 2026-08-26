@@ -106,11 +106,6 @@ function readPositivePixels(value: string) {
 	return pixels > 0 ? pixels : undefined;
 }
 
-function readBackgroundImageUrl(backgroundImage: string) {
-	const match = /url\((?:"([^"]*)"|'([^']*)'|([^)]*))\)/.exec(backgroundImage);
-	return match?.slice(1).find(Boolean)?.trim();
-}
-
 function readBackgroundDimensions(backgroundSize: string): Partial<LogoDimensions> {
 	const [width, height] = backgroundSize.split(',', 1)[0].trim().split(/\s+/, 2);
 	return {
@@ -158,8 +153,9 @@ function inferDimensions(natural: LogoDimensions, explicit: Partial<LogoDimensio
 function readLogoStyles(logo: HTMLElement): LogoStyles {
 	const styles = getComputedStyle(logo);
 	const backgroundDimensions = readBackgroundDimensions(styles.backgroundSize);
+	const backgroundImageMatch = /url\((?:"([^"]*)"|'([^']*)'|([^)]*))\)/.exec(styles.backgroundImage);
 	return {
-		imageUrl: readBackgroundImageUrl(styles.backgroundImage),
+		imageUrl: backgroundImageMatch?.slice(1).find(Boolean)?.trim(),
 		dimensions: {
 			width: readPositivePixels(styles.width) ?? backgroundDimensions.width,
 			height: readPositivePixels(styles.height) ?? backgroundDimensions.height,

@@ -3,7 +3,7 @@ import type { BlackLabParameter, BlackLabParameters } from '@/features/form/mode
 import type { BooleanType } from '@/features/form/model/types/form-primitives';
 
 import { unwrapLenientArray, type LenientArray } from '@/shared/utils/array-utils';
-import { optionLabels, type Options } from '@/shared/utils/options';
+import { filterOptions, isOptGroup, optionLabel, type Options } from '@/shared/utils/options';
 
 // #region utility types
 type Values = string | string[] | Record<string, boolean>;
@@ -166,12 +166,16 @@ export type CqlAnnotationNode = _CqlAnnotationNode | BooleanNode<_CqlAnnotationN
 export const annotation = (annotation: string, valueType: TextValueType, values: Values, p?: Partial<CqlAnnotationNodeCompare>): CqlAnnotationNode | null =>
 	booleanNode<_CqlAnnotationNode>('or', values, { type: 'cql-annotation', annotation, valueType, ...p });
 type CqlNodeAnyToken = CqlBaseNode<'any-token'>;
+/** Match one unrestricted token. */
 export const anyToken = (): CqlNodeAnyToken => ({ type: 'cql-any-token' });
 type CqlNodeRepeat = CqlBaseNode<'repeat'> & { child: CqlNodeRepeatChildren; minRepeats: number; maxRepeats: number; optional: boolean };
+/** Apply repetition settings to a token expression. */
 export const repeat = (p: Omit<CqlNodeRepeat, 'type'>): CqlNodeRepeat => ({ type: 'cql-repeat', ...p });
 type CqlNodeXmlTag = CqlBaseNode<'xml-tag'> & { name: string; closing?: boolean };
+/** Create an opening or closing XML-tag expression. */
 export const xmlTag = (name: string, closing = false): CqlNodeXmlTag => ({ type: 'cql-xml-tag', name, closing });
 type CqlNodeParallelQuery = CqlBaseNode<'parallel'> & { source: CqlPatternNode | null; targets: CqlNodeParallelQueryTarget[] };
+/** Join source and target patterns into a parallel query. */
 export const parallelQuery = (source: CqlPatternNode | null, targets: CqlNodeParallelQueryTarget[]): CqlNodeParallelQuery => ({ type: 'cql-parallel', source, targets });
 type CqlNodeParallelQueryTarget = CqlBaseNode<'target'> & { fieldId: string; relationType: string | null; pattern: CqlPatternNode | null };
 export const parallelQueryTarget = (fieldId: string, relationType: string | null, pattern: CqlPatternNode | null): CqlNodeParallelQueryTarget => ({
@@ -198,10 +202,12 @@ export const within = (element: string, attributes: Record<string, PredicateAttr
 	element,
 	attributes,
 });
+/** Build one text-valued attribute constraint for a within wrapper. */
 export const withinAttribute = (attribute: string, valueType: TextValueType, values: Values): Record<string, PredicateAttributeNode> => {
 	const value = booleanNode<PredicateValueNode>('or', values, { valueType });
 	return value ? { [attribute]: value } : {};
 };
+/** Build one range-valued attribute constraint for a within wrapper. */
 export const withinAttributeRange = (attribute: string, v: { low?: string; high?: string }): Record<string, PredicateAttributeNode> => {
 	return { [attribute]: rangePredicate(v.low, v.high) };
 };
@@ -300,6 +306,7 @@ export const queryIR = (parts?: null | Partial<QueryIRInput>): QueryIR => ({
 	resultPreset: parts?.resultPreset && resultPreset(parts.resultPreset), // keep undefined if not set, but copy the object if it is set
 	summaries: unwrapLenientArray(parts?.summaries),
 });
+/** Distinguish query-shaped input from shorthand pattern and summary arguments. */
 function isPartialQueryIR<T extends QueryIR | QueryIRInput>(v: unknown): v is Partial<T> {
 	// NOTE: check for arrays, or 'filter' would be in the object (Array.filter), but not a valid QueryIR.
 	return !Array.isArray(v) && v != null && typeof v === 'object' && ('pattern' in v || 'filter' in v || 'wrappers' in v || 'searchfield' in v || 'resultPreset' in v);
@@ -331,7 +338,10 @@ export type SummaryEntry = {
 const re_whitespace = /\s/;
 const summarize = (values: Values, options?: Options): string | null => {
 	values = valuesToArray(values);
-	if (options) values = optionLabels(options, values);
+	if (options) {
+		const { matched, unknown } = filterOptions(options, values);
+		values = [...matched, ...unknown].flatMap(option => (isOptGroup(option) ? option.options : option)).map(optionLabel);
+	}
 	if (values.length > 1) return values.map(value => `"${value}"`).join(', ');
 	if (values.length === 1) return values[0].match(re_whitespace) ? `"${values[0]}"` : values[0];
 	return null;

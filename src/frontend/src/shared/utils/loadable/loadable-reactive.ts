@@ -188,10 +188,6 @@ export function createDerivedLoadable<T>(getDependencies: () => readonly Loadabl
 		options,
 	);
 
-	const retry = () => {
-		forEachUniqueRetryableLoadable([...currentDependencies, currentResult], loadable => loadable.retry());
-	};
-
 	const stop = () => {
 		if (stopped) return;
 		stopped = true;
@@ -202,7 +198,12 @@ export function createDerivedLoadable<T>(getDependencies: () => readonly Loadabl
 
 	tryOnScopeDispose(stop);
 
-	return reactiveLoadableFromSnapshot<T, ReactiveLoadableControls>(published, { retry, stop }) as ControlledLoadable<T>;
+	return reactiveLoadableFromSnapshot<T, ReactiveLoadableControls>(published, {
+		retry() {
+			forEachUniqueRetryableLoadable([...currentDependencies, currentResult], loadable => loadable.retry());
+		},
+		stop,
+	}) as ControlledLoadable<T>;
 }
 
 /**
@@ -324,25 +325,29 @@ export function mapReactive<T, U>(loadable: MaybeRefLoadable<T>, mapper: (value:
 	return mapLoadableReactive(loadable, LoadableState.loaded, mapper, options);
 }
 
+/** Reactively replace Loaded values with the loadable returned by the mapper. */
 export function flatMapReactive<T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: T) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U> {
 	return flatMapLoadableReactive(loadable, LoadableState.loaded, mapper, options);
 }
 
+/** Reactively map Error values into Loaded values. */
 export const mapErrorReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: ApiError) => U, options?: LoadableReactiveOptions) =>
 	mapLoadableReactive(loadable, LoadableState.error, mapper, options);
-const transformErrorReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: (error: ApiError) => ApiError, options?: LoadableReactiveOptions) =>
-	flatMapLoadableReactive(loadable, LoadableState.error, error => Loadable.LoadingError<T>(mapper(error)), options);
+/** Reactively map Empty into a Loaded value. */
 export const mapEmptyReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: undefined) => U, options?: LoadableReactiveOptions) =>
 	mapLoadableReactive(loadable, LoadableState.empty, mapper, options);
+/** Reactively map Loading into a Loaded value. */
 export const mapLoadingReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: undefined) => U, options?: LoadableReactiveOptions) =>
 	mapLoadableReactive(loadable, LoadableState.loading, mapper, options);
+/** Reactively replace Error with the mapper's loadable. */
 export const flatMapErrorReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: ApiError) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions) =>
 	flatMapLoadableReactive(loadable, LoadableState.error, mapper, options);
+/** Reactively replace Empty with the mapper's loadable. */
 export const flatMapEmptyReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions) =>
 	flatMapLoadableReactive(loadable, LoadableState.empty, mapper, options);
+/** Reactively replace Loading with the mapper's loadable. */
 export const flatMapLoadingReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions) =>
 	flatMapLoadableReactive(loadable, LoadableState.loading, mapper, options);
-const recoverReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: (value: ApiError) => T, options?: LoadableReactiveOptions) => mapLoadableReactive(loadable, LoadableState.error, mapper, options);
 const orReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: () => T | null | undefined, options?: LoadableReactiveOptions) =>
 	flatMapEmptyReactive(
 		loadable,
@@ -352,8 +357,10 @@ const orReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: () => T | null | u
 		},
 		options,
 	);
+/** Reactively map Loaded and Empty values, passing `undefined` for Empty. */
 export const mapOptionalReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: T | undefined) => U, options?: LoadableReactiveOptions) =>
 	flatMapOptionalSingleLoadableReactive(loadable, value => Loadable.Loaded(mapper(value)), options);
+/** Reactively replace Loaded and Empty values with the mapper's loadable. */
 export const flatMapOptionalReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: T | undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions) =>
 	flatMapOptionalSingleLoadableReactive(loadable, mapper, options);
 
@@ -366,11 +373,11 @@ function thisMapOptionalReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (value
 }
 
 function thisMapErrorReactive<T>(this: MaybeRefLoadable<T>, mapper: (error: ApiError) => ApiError, options?: LoadableReactiveOptions): ControlledLoadable<T> {
-	return transformErrorReactive(this, mapper, options) as ControlledLoadable<T>;
+	return flatMapLoadableReactive(this, LoadableState.error, error => Loadable.LoadingError<T>(mapper(error)), options) as ControlledLoadable<T>;
 }
 
 function thisRecoverReactive<T>(this: MaybeRefLoadable<T>, mapper: (error: ApiError) => T, options?: LoadableReactiveOptions): ControlledLoadable<T> {
-	return recoverReactive(this, mapper, options);
+	return mapLoadableReactive(this, LoadableState.error, mapper, options);
 }
 
 function thisFlatMapReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (value: T) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U> {

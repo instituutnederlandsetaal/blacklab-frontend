@@ -3,7 +3,7 @@ import type { FormRuntimeContext } from '@/features/form/model/types/form-contro
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
-import { optionLabel, optionText, optionValue, type Option, type OptionText, type SimpleOption } from '@/shared/utils/options';
+import { optionText, optionValue, type Option, type OptionText, type SimpleOption } from '@/shared/utils/options';
 
 export type ParallelFieldState = {
 	source: string | null;
@@ -33,10 +33,6 @@ export type ParallelFieldComponentProps = FieldComponentProps<ParallelFieldState
 
 export function parallelAnnotatedFieldLabel(field: ParallelAnnotatedField): string {
 	return optionText(field.label) ?? (field.isParallel ? field.version || field.id : field.defaultDisplayName || field.id);
-}
-
-export function parallelAlignByLabel(option: SimpleOption | Option): string {
-	return optionLabel(option);
 }
 
 export function createDefaultParallelFieldState(config: ParallelFieldConfig, runtime: FormRuntimeContext): ParallelFieldState {

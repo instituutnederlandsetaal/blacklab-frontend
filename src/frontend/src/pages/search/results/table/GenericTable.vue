@@ -18,7 +18,7 @@
 				</TableHeader>
 			</tr>
 		</thead>
-		<tbody :class="{ 'has-foreign-hit': hasForeignHit(rows) }">
+		<tbody :class="{ 'has-foreign-hit': rows.rows.some(row => row.type === 'hit' && row.isForeign) }">
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
@@ -134,9 +134,6 @@ function isOpenable(row: HitRowData | DocRowData | GroupRowData) {
 	if (row.type === 'hit' && props.type === 'hits') return true;
 	if (row.type === 'doc' && props.type === 'docs' && row.hits) return true;
 	return false;
-}
-function hasForeignHit(rows: Rows) {
-	return rows.rows.some(row => row.type === 'hit' && row.isForeign);
 }
 function toggleRow(index: number) {
 	const row = props.rows.rows[index];

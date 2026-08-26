@@ -33,29 +33,21 @@ function firstNonLoaded<T extends LoadableShape>(loadables: T): PassthroughFrom<
 	return valuesOf(loadables).find(v => isLoadableLike(v) && !isLoaded(v)) as PassthroughFrom<T> | undefined;
 }
 
-function extractLoadedValues<T extends LoadableShape>(loadables: T): LoadedValues<T> {
-	return mapShape(loadables, v => (isLoadableLike(v) ? v.value : v)) as LoadedValues<T>;
-}
-
 /** Return the first loadable that is neither Loaded nor Empty. Empty values are considered settled. */
 function firstNonLoadedOrEmpty<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
 	return valuesOf(loadables).find(v => isLoadableLike(v) && !isLoaded(v) && !isEmpty(v)) as PassthroughFrom<T> | undefined;
 }
 
-function extractLoadedValuesIncludingEmpty<T extends LoadableShape>(loadables: T): LoadedValuesIncludingEmpty<T> {
-	return mapShape(loadables, v => (isLoadableLike(v) ? (isLoaded(v) ? v.value : undefined) : v)) as LoadedValuesIncludingEmpty<T>;
-}
-
 export function combine<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValues<T>> {
 	const nonLoaded = firstNonLoaded(loadables);
 	if (nonLoaded) return nonLoaded;
-	return Loadable.Loaded(extractLoadedValues(loadables));
+	return Loadable.Loaded(mapShape(loadables, value => (isLoadableLike(value) ? value.value : value)) as LoadedValues<T>);
 }
 
 export function combineOptional<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValuesIncludingEmpty<T>> {
 	const nonLoadedOrEmpty = firstNonLoadedOrEmpty(loadables);
 	if (nonLoadedOrEmpty) return nonLoadedOrEmpty;
-	return Loadable.Loaded(extractLoadedValuesIncludingEmpty(loadables));
+	return Loadable.Loaded(mapShape(loadables, value => (isLoadableLike(value) ? (isLoaded(value) ? value.value : undefined) : value)) as LoadedValuesIncludingEmpty<T>);
 }
 
 /**

@@ -46,10 +46,6 @@ const defaultGroupAnnotationId = () => {
 	const ids = customizations?.searchFormExploreGroupAnnotationIds() ?? [];
 	return customizations?.searchFormExploreDefaultGroupAnnotationId(ids) ?? ids[0] ?? '';
 };
-const defaultGroupMetadataId = () => {
-	const values = (customizations?.searchFormExploreGroupMetadataIds() ?? []).map(id => `field:${id}`);
-	return customizations?.searchFormExploreDefaultGroupMetadataId(values) ?? values[0] ?? '';
-};
 
 const defaults: ModuleRootState = {
 	ngram: {
@@ -80,7 +76,8 @@ const defaults: ModuleRootState = {
 
 	corpora: {
 		get groupBy() {
-			return defaultGroupMetadataId();
+			const values = (customizations?.searchFormExploreGroupMetadataIds() ?? []).map(id => `field:${id}`);
+			return customizations?.searchFormExploreDefaultGroupMetadataId(values) ?? values[0] ?? '';
 		},
 		groupDisplayMode: 'table',
 	},
@@ -89,16 +86,11 @@ const defaults: ModuleRootState = {
 const state = reactive(structuredClone(defaults));
 const getState = () => state;
 
-const createDefaultToken = (): Token => ({
-	id: defaultSearchAnnotationId(),
-	value: '',
-});
-
 const normalizeNgramState = () => {
 	state.ngram.size = Math.min(state.ngram.size, state.ngram.maxSize);
 	state.ngram.tokens = state.ngram.tokens.slice(0, state.ngram.maxSize);
 	while (state.ngram.tokens.length < state.ngram.maxSize) {
-		state.ngram.tokens.push(createDefaultToken());
+		state.ngram.tokens.push({ id: defaultSearchAnnotationId(), value: '' });
 	}
 };
 

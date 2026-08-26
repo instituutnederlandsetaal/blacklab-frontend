@@ -64,12 +64,9 @@ export function defineFieldController<Kind extends string, Definition extends An
 	return definition;
 }
 
+/** Resolve a field's persistence key with the field itself as controller configuration. */
 export function getFieldPersistKey(field: { controller: AnyFieldController } & BaseFieldNode, runtime: FormRuntimeContext): string {
 	return field.controller.persistence.key(field, runtime);
-}
-
-export function encodeControllerState<State, Extra>(controller: FieldController<string, State, Extra>, state: State, config: FieldControllerProps<Extra>, runtime: FormRuntimeContext): string | null {
-	return controller.persistence.codec.encode(state, { config, runtime });
 }
 
 export function restoreControllerState<State, Extra>(
@@ -83,9 +80,10 @@ export function restoreControllerState<State, Extra>(
 }
 
 export function encodeFieldState(field: { controller: AnyFieldController } & BaseFieldNode, state: unknown, runtime: FormRuntimeContext): string | null {
-	return encodeControllerState(field.controller, state, field, runtime);
+	return field.controller.persistence.codec.encode(state, { config: field, runtime });
 }
 
+/** Restore nested field state with the field itself as controller configuration. */
 export function restoreFieldState(field: { controller: AnyFieldController } & BaseFieldNode, payload: EncodedFieldValue, runtime: FormRuntimeContext): unknown {
 	return restoreControllerState(field.controller, payload, field, runtime);
 }

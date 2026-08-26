@@ -32,14 +32,6 @@ export function unwrapLoadableRefs<T extends MaybeRefLoadablesArrayOrObject>(loa
 	return Object.fromEntries(Object.entries(loadables).map(([k, v]) => [k, unref(v)])) as UnwrapLoadableRefs<T>;
 }
 
-function resolveMaybeRefLoadablesInput<T extends MaybeRefLoadablesArrayOrObject>(loadables: T): UnwrapLoadableRefs<T> & MaybeLoadablesArrayOrObject {
-	return unwrapLoadableRefs(loadables) as UnwrapLoadableRefs<T> & MaybeLoadablesArrayOrObject;
-}
-
-function loadableDependencies(loadables: MaybeRefLoadablesArrayOrObject): readonly MaybeRefLoadable<unknown>[] {
-	return Array.isArray(loadables) ? loadables : Object.values(loadables);
-}
-
 type CombineReactiveOptions = LoadableReactiveOptions & { includeEmpty?: boolean; debuggerOptions?: DebuggerOptions };
 
 export function combineLoadables<T extends MaybeRefLoadablesArrayOrObject>(loadables: T): ControlledLoadable<ResolvedLoadedValues<T>>;
@@ -54,15 +46,11 @@ export function combineLoadables<T extends MaybeRefLoadablesArrayOrObject>(
 ): ControlledLoadable<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>> {
 	const { includeEmpty = false, debuggerOptions, ...reactiveOptions } = options;
 	return createDerivedLoadable<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>>(
-		() => loadableDependencies(loadables),
+		() => (Array.isArray(loadables) ? loadables : Object.values(loadables)),
 		() => {
-			const resolved = resolveMaybeRefLoadablesInput(loadables);
+			const resolved = unwrapLoadableRefs(loadables) as UnwrapLoadableRefs<T> & MaybeLoadablesArrayOrObject;
 			return (includeEmpty ? combineOptional(resolved) : Loadable.wrap(combine(resolved))) as MaybeLoadable<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>>;
 		},
 		{ ...debuggerOptions, ...reactiveOptions },
 	);
-}
-
-export function combineOptionalReactive<T extends MaybeRefLoadablesArrayOrObject>(loadables: T, options?: LoadableReactiveOptions): ControlledLoadable<ResolvedLoadedValuesIncludingEmpty<T>> {
-	return combineLoadables(loadables, { includeEmpty: true, ...options });
 }

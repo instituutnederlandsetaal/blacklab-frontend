@@ -185,10 +185,6 @@ export function getPatternStringSearch(subForm: keyof ModuleRootStatePatterns, s
 	}
 }
 
-export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>(subForm: K, state: ModuleRootStatePatterns, defaultAlignBy: string, filterState: ModuleRootStateFilters) {
-	return getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
-}
-
 /** Derive within clauses from filters and the within widget (on the left), if any */
 export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters, patternState: ModuleRootStatePatterns) {
 	const withinClauses: Record<string, Record<string, any>> = {};

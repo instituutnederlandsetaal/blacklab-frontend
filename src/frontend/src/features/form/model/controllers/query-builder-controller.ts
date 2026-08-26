@@ -1,6 +1,6 @@
 import { toValue } from 'vue';
 
-import { createDefaultCqlQueryBuilderData, isCqlAttributeData, isCqlAttributeGroupData } from '@/features/cql-query-builder/model';
+import { createDefaultCqlQueryBuilderData, isCqlAttributeData } from '@/features/cql-query-builder/model';
 import type { CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
 import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
@@ -11,10 +11,6 @@ import { annotation, anyToken, booleanNode, queryFragment, queryIR, repeat, sequ
 import { findOption } from '@/shared/utils/options';
 
 const CODEC_VERSION = '2';
-
-function createDefaultState(config: QueryBuilderFieldConfig): QueryBuilderFieldState {
-	return createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId);
-}
 
 function findUnavailableAnnotation(group: CqlAttributeGroupData, config: QueryBuilderFieldConfig): string | null {
 	for (const entry of group.entries) {
@@ -52,9 +48,7 @@ function attributeToPredicate(attribute: CqlAttributeData): CqlAnnotationNode | 
 }
 
 function groupEntryToPredicate(entry: CqlGroupEntry): CqlAnnotationNode | null {
-	if (isCqlAttributeData(entry)) return attributeToPredicate(entry);
-	if (isCqlAttributeGroupData(entry)) return groupToPredicate(entry);
-	return null;
+	return isCqlAttributeData(entry) ? attributeToPredicate(entry) : groupToPredicate(entry);
 }
 
 function groupToPredicate(group: CqlAttributeGroupData): CqlAnnotationNode | null {
@@ -171,7 +165,7 @@ const queryBuilderPersistenceCodec = object({
 		encode: state => ({ version: CODEC_VERSION, tokens: state.tokens }),
 		decode: state => ({ tokens: state.tokens }),
 	})
-	.default(({ config }) => createDefaultState(config))
+	.default(({ config }) => createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId))
 	.omitWhen(state => !stateToPattern(state))
 	.refine((state, { config }) => {
 		for (const token of state.tokens) {
@@ -184,7 +178,7 @@ const queryBuilderPersistenceCodec = object({
 
 export const queryBuilderController = defineFieldController<'cql-query-builder', QueryBuilderFieldDefinition>({
 	kind: 'cql-query-builder',
-	createDefaultState,
+	createDefaultState: config => createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId),
 	persistence: { key: () => 'query', codec: queryBuilderPersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, runtime, state) {

@@ -1,7 +1,15 @@
 <template>
 	<div class="multi-value-picker">
 		<div class="selected" v-if="selected.length">
-			<button v-for="v in selected" type="button" class="btn option" :key="optionValue(v)" :title="$t('widgets.clickToRemove')" :disabled @click="remove(optionValue(v))">
+			<button
+				v-for="v in selected"
+				type="button"
+				class="btn option"
+				:key="optionValue(v)"
+				:title="$t('widgets.clickToRemove')"
+				:disabled
+				@click="modelValue = modelValue?.filter(option => optionValue(option) !== optionValue(v)) ?? null"
+			>
 				{{ optionLabel(v) }}
 			</button>
 		</div>
@@ -29,9 +37,6 @@ const selected = computed(() => bisected.value.matched.flatMap(o => (isOptGroup(
 const add = (v: Option) => {
 	modelValue.value = modelValue.value ? [...modelValue.value, v.value] : [v.value];
 	return true;
-};
-const remove = (v: string) => {
-	modelValue.value = modelValue.value?.filter(o => optionValue(o) !== v) ?? null;
 };
 </script>
 

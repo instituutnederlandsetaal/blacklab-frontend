@@ -10,7 +10,7 @@ export { parallelController, restoreCanonicalPatternInParallelField } from './pa
 export * from './persistence-codec';
 export { parallelSourceController } from './parallel-source-controller';
 export { queryBuilderController } from './query-builder-controller';
-export { expertQueryController, restoreCanonicalPatternInExpertField } from './raw-cql-query-controller';
+export { expertQueryController } from './raw-cql-query-controller';
 export { resultGroupByController, resultGroupDisplayModeController, resultSortController, resultViewedResultsController } from './result-preset-controller';
 export { tokenSequenceController } from './token-sequence-controller';
 export { withinController } from './within-controller';

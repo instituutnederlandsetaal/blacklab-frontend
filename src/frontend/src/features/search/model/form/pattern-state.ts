@@ -54,12 +54,6 @@ type ModuleRootState = {
 
 type PatternMode = Exclude<keyof ModuleRootState, 'shared'>;
 
-const patternModes = ['simple', 'extended', 'advanced', 'expert'] as const satisfies readonly PatternMode[];
-
-function isPatternMode(value: unknown): value is PatternMode {
-	return typeof value === 'string' && (patternModes as readonly string[]).includes(value);
-}
-
 // There are three levels of state initialization
 // First: the basic state shape (this)
 // Then: the basic state shape with the appropriate annotation and filters created
@@ -314,5 +308,4 @@ const init = (state: CorpusContext, customizationApi: Customizations) => {
 const resetSignal = ref(0);
 
 export { actions, initialState as defaults, get, getState, init, resetSignal };
-export { isPatternMode };
 export type { ModuleRootState, PatternMode };

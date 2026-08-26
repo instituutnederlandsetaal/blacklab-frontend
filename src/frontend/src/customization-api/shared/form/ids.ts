@@ -5,10 +5,6 @@ export type SemanticId = string | { id: string };
 
 const NAMESPACE = 'standard-search-form';
 
-function semanticId(value: SemanticId): string {
-	return typeof value === 'string' ? value : value.id;
-}
-
 /**
  * NOTE: the form ids work through concatenation; a child's Id is typicall <parent_id><separator><child_id>.
  * However, the ids can be user-supplied, so we need to make sure the concatenation is injective (i.e. output is unique for every unique input).
@@ -16,7 +12,7 @@ function semanticId(value: SemanticId): string {
  * To do this, we escape the segments so that the separator character ("/") cannot appear in any segment.
  */
 function segment(value: SemanticId): string {
-	return encodeURIComponent(semanticId(value));
+	return encodeURIComponent(typeof value === 'string' ? value : value.id);
 }
 
 function id(family: string, ...parts: SemanticId[]): string {

@@ -40,10 +40,6 @@ export function isCqlAttributeData(entry: CqlGroupEntry): entry is CqlAttributeD
 	return 'annotationId' in entry;
 }
 
-export function isCqlAttributeGroupData(entry: CqlGroupEntry): entry is CqlAttributeGroupData {
-	return 'entries' in entry;
-}
-
 export interface CqlTokenData {
 	id: string;
 	properties: CqlTokenProperties;
@@ -173,7 +169,7 @@ function groupCql(group: CqlAttributeGroupData): string {
 			if (attrCql) {
 				parts.push(attrCql);
 			}
-		} else if (isCqlAttributeGroupData(entry)) {
+		} else {
 			// Handle nested group entry
 			const groupCqlStr = groupCql(entry);
 			if (groupCqlStr) {

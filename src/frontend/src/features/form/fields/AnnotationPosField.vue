@@ -38,7 +38,7 @@
 							'list-group-item': true,
 							active: draftState[annotationId]?.[0] === value.value,
 						}"
-						@click="toggleAnnotationValue(value.value)"
+						@click="draftState = draftState[annotationId]?.[0] === value.value ? {} : { [annotationId]: [value.value] }"
 						:disabled
 					>
 						{{ value.displayName }}
@@ -48,11 +48,11 @@
 				<div v-if="currentAnnotationValue" class="category-container">
 					<ul v-for="subId in currentAnnotationValue.subAnnotationIds" :key="subId" class="list-group category">
 						<li class="list-group-item active category-name">
-							{{ subAnnotationLabel(subId) }}
+							{{ optionText(subAnnotationLabels?.[subId]) ?? tagset.subAnnotations[subId]?.displayName ?? subId }}
 						</li>
-						<li class="list-group-item category-value" v-for="subValue in visibleSubAnnotationValues(subId)" :key="subValue.value">
+						<li class="list-group-item category-value" v-for="subValue in getVisibleSubAnnotationValues(tagset, draftState[annotationId]?.[0], subId)" :key="subValue.value">
 							<label>
-								<input type="checkbox" :checked="isDraftSelectionChecked(subId, subValue.value)" @change="handleSelectionChange(subId, subValue.value, $event)" />
+								<input type="checkbox" :checked="draftState[subId]?.includes(subValue.value) ?? false" @change="handleSelectionChange(subId, subValue.value, $event)" />
 								{{ subValue.displayName }}
 							</label>
 						</li>
@@ -74,18 +74,12 @@
 </template>
 
 <script setup lang="ts">
+import cloneDeep from 'clone-deep';
 import { computed, ref, watch } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 
-import {
-	cloneAnnotationPosFieldState,
-	findTagsetValue,
-	getVisibleSubAnnotationValues,
-	summarizeAnnotationPosState,
-	type AnnotationPosFieldComponentProps,
-	type AnnotationPosFieldState,
-} from './annotation-pos-field';
+import { findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState, type AnnotationPosFieldComponentProps, type AnnotationPosFieldState } from './annotation-pos-field';
 
 import { optionText } from '@/shared/utils/options';
 
@@ -105,13 +99,13 @@ const emit = defineEmits<{
 }>();
 
 const editorOpen = ref(false);
-const draftState = ref(cloneAnnotationPosFieldState(props.modelValue));
+const draftState = ref(cloneDeep(props.modelValue));
 
 watch(
 	() => props.modelValue,
 	value => {
 		if (!editorOpen.value) {
-			draftState.value = cloneAnnotationPosFieldState(value);
+			draftState.value = cloneDeep(value);
 		}
 	},
 	{ deep: true },
@@ -127,17 +121,17 @@ const selectionSummary = computed(() => summarizeAnnotationPosState(props, draft
 const hasSelection = computed(() => !!props.modelValue[props.annotationId]?.[0]);
 
 function openEditor() {
-	draftState.value = cloneAnnotationPosFieldState(props.modelValue);
+	draftState.value = cloneDeep(props.modelValue);
 	editorOpen.value = true;
 }
 
 function closeEditor() {
 	editorOpen.value = false;
-	draftState.value = cloneAnnotationPosFieldState(props.modelValue);
+	draftState.value = cloneDeep(props.modelValue);
 }
 
 function commitDraft() {
-	emit('update:modelValue', cloneAnnotationPosFieldState(draftState.value));
+	emit('update:modelValue', cloneDeep(draftState.value));
 	editorOpen.value = false;
 }
 
@@ -150,22 +144,6 @@ function clearSelection() {
 
 function resetDraft() {
 	draftState.value = {};
-}
-
-function toggleAnnotationValue(value: string) {
-	draftState.value = draftState.value[props.annotationId]?.[0] === value ? {} : { [props.annotationId]: [value] };
-}
-
-function visibleSubAnnotationValues(subAnnotationId: string) {
-	return getVisibleSubAnnotationValues(props.tagset, draftState.value[props.annotationId]?.[0], subAnnotationId);
-}
-
-function subAnnotationLabel(subAnnotationId: string): string {
-	return optionText(props.subAnnotationLabels?.[subAnnotationId]) ?? props.tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId;
-}
-
-function isDraftSelectionChecked(subAnnotationId: string, subAnnotationValue: string): boolean {
-	return draftState.value[subAnnotationId]?.includes(subAnnotationValue) ?? false;
 }
 
 function handleSelectionChange(subAnnotationId: string, subAnnotationValue: string, event: Event) {

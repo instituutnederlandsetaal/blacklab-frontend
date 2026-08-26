@@ -1,7 +1,6 @@
 import {
 	createDefaultParallelChildState,
 	createDefaultParallelFieldState,
-	parallelAlignByLabel,
 	parallelAnnotatedFieldLabel,
 	type ParallelAnnotatedField,
 	type ParallelFieldConfig,
@@ -13,7 +12,7 @@ import { array, object, record, scalar } from '@/features/form/model/controllers
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { parallelQuery, parallelQueryTarget, queryFragment, type SummaryEntry } from '@/features/form/model/types/form-query-ir';
 
-import { findOption } from '@/shared/utils/options';
+import { findOption, optionLabel } from '@/shared/utils/options';
 
 /** Apply the child template's default state before compiling a parallel branch. */
 function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
@@ -122,7 +121,7 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 			const alignBy = findOption(config.alignByOptions ?? [], state.alignBy) ?? state.alignBy;
 			summaries.push({
 				label: runtime.translate.$t(`search.parallel.alignBy`),
-				value: parallelAlignByLabel(alignBy),
+				value: optionLabel(alignBy),
 				summaryType: ['searchfield', 'patt'],
 			});
 		}

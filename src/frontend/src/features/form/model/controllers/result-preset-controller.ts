@@ -10,19 +10,15 @@ export type ResultPresetControllerConfig = {
 };
 type ResultPresetFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ResultPresetControllerConfig>;
 
-function createDefaultState(config: ResultPresetFieldConfig): string {
-	return config.defaultValue ?? '';
-}
-
 function createResultPresetController<Kind extends string>(
 	kind: Kind,
 	property: Exclude<keyof ResultPreset, 'withSpans'>,
 ): FieldControllerFor<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig> {
-	const codec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultPresetFieldConfig>) => createDefaultState(config));
+	const codec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultPresetFieldConfig>) => config.defaultValue ?? '');
 	return defineFieldController<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig>({
 		kind,
 		affectsBlackLabParameters: [],
-		createDefaultState,
+		createDefaultState: config => config.defaultValue ?? '',
 		persistence: { key: config => config.persistKey, codec },
 		getQueryContribution: (config, _runtime, state) => {
 			let statePreset: ResultPreset;

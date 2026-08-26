@@ -34,10 +34,6 @@ type LoginSystem = {
 
 const [_loginSystemInjectionKey, provideLoginSystem, useLoginSystem] = useInjectable<LoginSystem>('loginSystem');
 
-function getOidcUsername(user: User | null): string | null {
-	return user?.profile.preferred_username || user?.profile.email || user?.profile.sub || null;
-}
-
 function createUserManager(config: OidcLoginSystemConfig): UserManager {
 	return new UserManager({
 		checkSessionIntervalInSeconds: 10,
@@ -109,7 +105,7 @@ export async function createLoginSystem(config: LoginSystemConfig) {
 	const userManager = config.mode === 'oidc' ? createUserManager(config) : null;
 	const user = userManager ? await completeOidcLogin(userManager) : null;
 	const blacklabLoginData = config.mode === 'blacklab' ? await getBlackLabLoginData(config.blacklabBaseUrl) : { username: null, blacklabVersion: null };
-	const username = userManager ? getOidcUsername(user) : blacklabLoginData.username;
+	const username = userManager ? user?.profile.preferred_username || user?.profile.email || user?.profile.sub || null : blacklabLoginData.username;
 
 	const context: LoginSystem = {
 		userManager,

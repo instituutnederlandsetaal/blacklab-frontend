@@ -13,7 +13,7 @@
 						:id="`${field.inputId}_${index}`"
 						:checked="modelValue.includes(option.value)"
 						:disabled
-						@change="toggleCheckbox(option.value, ($event.target as HTMLInputElement).checked)"
+						@change="emit('update:modelValue', ($event.target as HTMLInputElement).checked ? [...modelValue, option.value] : modelValue.filter(selected => selected !== option.value))"
 					/>
 					{{ optionLabel(option) }}
 				</label>
@@ -39,8 +39,4 @@ const emit = defineEmits<{
 }>();
 
 const field = useFieldPresentation(props);
-
-function toggleCheckbox(value: string, checked: boolean) {
-	emit('update:modelValue', checked ? [...props.modelValue, value] : props.modelValue.filter(selected => selected !== value));
-}
 </script>

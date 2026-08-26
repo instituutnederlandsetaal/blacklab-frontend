@@ -22,7 +22,7 @@ import type * as ViewModule from '@/features/search/model/results/view-state';
 import type { NormalizedIndex } from '@/types/apptypes';
 import UrlStateParserSearch, { type UrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
-import { getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
+import { getPatternStringSearch, getPatternSummaryExplore } from '@/shared/blacklab-helpers/pattern-utils';
 import { debugLog } from '@/shared/debug/debug';
 import { stableStringify } from '@/shared/utils/stable-stringify';
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
@@ -31,7 +31,6 @@ import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 // That is enough to prevent loading out-of-date history.
 const version = 11;
 let customizations: Customizations | undefined;
-const defaultAlignBy = () => customizations?.searchFormAlignByDefault() ?? '';
 
 // TODO it would be better to store the submitted query here directly, then walk back to to the original form state?
 // Instead of what we do here, which is to store the form state and then reconstruct the submitted query from that during apply/restore.
@@ -165,14 +164,14 @@ const actions = {
 					.map(summary => `${summary.label}: ${summary.value}`)
 					.join(', ') || undefined
 			: getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
-		const configuredAlignBy = defaultAlignBy();
+		const configuredAlignBy = customizations?.searchFormAlignByDefault() ?? '';
 		const patternSummary: string | undefined = entry.newForm
 			? entry.newForm.summaries
 					.filter(summary => !summary.summaryType?.length || summary.summaryType.includes('patt'))
 					.map(summary => `${summary.label}: ${summary.value}`)
 					.join(', ') || undefined
 			: entry.interface.form === 'search'
-				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, configuredAlignBy, entry.filters)
+				? getPatternStringSearch(entry.interface.patternMode, entry.patterns, configuredAlignBy, entry.filters)
 				: entry.interface.form === 'explore'
 					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
 					: undefined;

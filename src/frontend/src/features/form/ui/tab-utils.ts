@@ -19,12 +19,8 @@ function childIdPart(parentId: string, childId: string): string {
 	return `a-${idPart(childId)}`;
 }
 
-export function tabId(parentId: string, childId: string): string {
-	return `form-tab-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
-}
-
-export function tabPanelId(parentId: string, childId: string): string {
-	return `form-panel-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
+export function tabId(parentId: string, childId: string, target: 'tab' | 'panel' = 'tab'): string {
+	return `form-${target}-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
 }
 
 export function createTabs(parentId: string, children: readonly { props: Pick<BaseNode, 'id' | 'title'> }[]): Tab[] {
@@ -32,6 +28,6 @@ export function createTabs(parentId: string, children: readonly { props: Pick<Ba
 		value: child.props.id,
 		label: child.props.title ? toValue(child.props.title) : child.props.id,
 		id: tabId(parentId, child.props.id),
-		controls: tabPanelId(parentId, child.props.id),
+		controls: tabId(parentId, child.props.id, 'panel'),
 	}));
 }

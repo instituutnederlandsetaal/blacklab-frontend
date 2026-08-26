@@ -72,26 +72,6 @@ export function createDebugSystem(config: DebugSystemConfig) {
 		surfacedCategoryLogCounts.set(category, entries.length);
 	}
 
-	function surfaceAllCategories() {
-		for (const category of knownCategorySet) surfaceCategory(category);
-	}
-
-	function enable() {
-		debug.value = true;
-	}
-
-	function disable() {
-		debug.value = false;
-	}
-
-	function show() {
-		debug_visible.value = true;
-	}
-
-	function hide() {
-		debug_visible.value = false;
-	}
-
 	const context: DebugSystem = {
 		debug,
 		debug_visible,
@@ -99,11 +79,13 @@ export function createDebugSystem(config: DebugSystemConfig) {
 		activeCategories,
 		debugLog,
 		surfaceCategory,
-		surfaceAllCategories,
-		enable,
-		disable,
-		show,
-		hide,
+		surfaceAllCategories() {
+			for (const category of knownCategorySet) surfaceCategory(category);
+		},
+		enable: () => (debug.value = true),
+		disable: () => (debug.value = false),
+		show: () => (debug_visible.value = true),
+		hide: () => (debug_visible.value = false),
 	};
 
 	currentDebugSystem = context;
@@ -111,12 +93,12 @@ export function createDebugSystem(config: DebugSystemConfig) {
 
 	if (typeof window !== 'undefined')
 		(window as any).debug = {
-			enable,
-			disable,
-			show,
-			hide,
-			surfaceCategory,
-			surfaceAllCategories,
+			enable: () => context.enable(),
+			disable: () => context.disable(),
+			show: () => context.show(),
+			hide: () => context.hide(),
+			surfaceCategory: (category: LogCategory) => context.surfaceCategory(category),
+			surfaceAllCategories: () => context.surfaceAllCategories(),
 		};
 
 	return {

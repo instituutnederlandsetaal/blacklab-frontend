@@ -1,4 +1,4 @@
-import type { AnyBaseFormNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
+import type { AnyBaseFormNode, FormContainerLikeNode, FormNode, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 
 import { lenientIter, type LenientArray } from '@/shared/utils/array-utils';
 
@@ -28,10 +28,6 @@ export function getAllNodes<K extends FormNodeKind>(root: FormNode, ...kind: K[]
 export function getAllNodes(root: FormNode, ...kind: FormNodeKind[]): FormNode[] {
 	return Array.from(walkFormNodes(root, ...kind));
 }
-export function getAllFields(root: FormNode): FormFieldNode[] {
-	return getAllNodes(root, 'field');
-}
-
 export function checkNoLoops(root: AnyBaseFormNode, completedSubgraphs = new Set<AnyBaseFormNode>()): void {
 	const visited = new Set<AnyBaseFormNode>();
 	const visiting = new Set<AnyBaseFormNode>();

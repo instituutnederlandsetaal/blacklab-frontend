@@ -80,10 +80,6 @@ export function createSearchFormNodeConstructors({
 		return field;
 	}
 
-	function resolveSemanticField(field: SearchFormMetadataReference) {
-		return typeof field === 'string' ? (corpus.allMetadataFieldsMap[field] ?? { id: field }) : field;
-	}
-
 	function semanticFieldId(field: SearchFormMetadataReference) {
 		return typeof field === 'string' ? field : field.id;
 	}
@@ -100,7 +96,7 @@ export function createSearchFormNodeConstructors({
 	}
 
 	function metadataCommon(field: SearchFormMetadataReference, options: SearchFormNodeOptions) {
-		const semanticField = resolveSemanticField(field);
+		const semanticField = typeof field === 'string' ? (corpus.allMetadataFieldsMap[field] ?? { id: field }) : field;
 		return {
 			description: () => translate.$tMetaDescription(semanticField),
 			displayName: () => translate.$tMetaDisplayName(semanticField),

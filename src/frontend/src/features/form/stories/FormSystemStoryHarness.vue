@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watchEffect } from 'vue';
 
-import { getAllFields } from '@/features/form/model/form-utils';
+import { getAllNodes } from '@/features/form/model/form-utils';
 
 import { FormSystem, type CompiledFormStateWithSummaries, type FieldPresentation, type FormRuntime } from '../index';
 
@@ -51,7 +51,7 @@ const showLiveState = computed(() => isOutputVisible('live-state'));
 const showCompiled = computed(() => isOutputVisible('compiled'));
 const showSubmitted = computed(() => isOutputVisible('submitted'));
 const showUrlCodec = computed(() => isOutputVisible('url-codec'));
-const allFields = computed(() => getAllFields(props.runtime.definition.getRoot()));
+const allFields = computed(() => getAllNodes(props.runtime.definition.getRoot(), 'field'));
 const serializedState = computed(() => JSON.stringify(props.runtime.state.state.value, undefined, 2));
 const serializedSubmitted = computed(() => (submittedState.value ? JSON.stringify(submittedState.value, undefined, 2) : ''));
 const serializedCompiled = computed(() => {

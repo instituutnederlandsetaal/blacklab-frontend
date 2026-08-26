@@ -109,6 +109,7 @@ function normalizeIndexBaseV5(blIndex: BLTypes.BLIndex, id: string): NormalizedI
 	};
 }
 
+/** Normalize a BlackLab v4 or v5 index summary. */
 export function normalizeIndexBase(blIndex: BLTypes.BLIndex | BLTypes.BLIndexV4, id: string): NormalizedIndexBase {
 	return BLTypes.isIndexV5(blIndex) ? normalizeIndexBaseV5(blIndex, id) : normalizeIndexBaseV4(blIndex, id);
 }
@@ -125,11 +126,6 @@ export function normalizeServerInfo(server: BLTypes.BLServer | BLTypes.BLServerV
 
 // V4 corpus metadata normalization
 
-function findParentAnnotationV4(annotatedField: BLTypes.BLAnnotatedFieldV4, annotationId: string): string | undefined {
-	const parent = Object.entries(annotatedField.annotations).find(([, annotation]) => annotation.subannotations?.includes(annotationId));
-	return parent ? parent[0] : undefined;
-}
-
 function normalizeAnnotationV4(annotatedFieldId: string, annotatedField: BLTypes.BLAnnotatedFieldV4, annotationId: string, annotation: BLTypes.BLAnnotationV4): NormalizedAnnotation {
 	const values = annotation.values;
 	return {
@@ -143,7 +139,7 @@ function normalizeAnnotationV4(annotatedFieldId: string, annotatedField: BLTypes
 		isMainAnnotation: annotationId === annotatedField.mainAnnotation,
 		offsetsAlternative: annotation.offsetsAlternative,
 		subAnnotations: annotation.subannotations,
-		parentAnnotationId: findParentAnnotationV4(annotatedField, annotationId),
+		parentAnnotationId: Object.entries(annotatedField.annotations).find(([, candidate]) => candidate.subannotations?.includes(annotationId))?.[0],
 		uiType: normalizeAnnotationUIType(annotation),
 		values: annotation.valueListComplete && values && values.length > 0 ? values.map(value => ({ label: value, value, title: null })) : undefined,
 	};
@@ -288,11 +284,6 @@ function normalizeIndexV4(blIndex: BLTypes.BLIndexMetadataV4, relations: BLTypes
 
 // V5 corpus metadata normalization
 
-function findParentAnnotationV5(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string | undefined {
-	const parent = Object.entries(annotatedField.annotations).find(([, annotation]) => annotation.subannotations?.includes(annotationId));
-	return parent ? parent[0] : undefined;
-}
-
 function normalizeAnnotationV5(annotatedFieldId: string, annotatedField: BLTypes.BLAnnotatedField, annotationId: string, annotation: BLTypes.BLAnnotation): NormalizedAnnotation {
 	const values = Object.keys(annotation.terms ?? {});
 	return {
@@ -306,7 +297,7 @@ function normalizeAnnotationV5(annotatedFieldId: string, annotatedField: BLTypes
 		isMainAnnotation: annotationId === annotatedField.mainAnnotation,
 		offsetsAlternative: annotation.offsetsAlternative,
 		subAnnotations: annotation.subannotations,
-		parentAnnotationId: findParentAnnotationV5(annotatedField, annotationId),
+		parentAnnotationId: Object.entries(annotatedField.annotations).find(([, candidate]) => candidate.subannotations?.includes(annotationId))?.[0],
 		uiType: normalizeAnnotationUIType(annotation),
 		values: annotation.valueListComplete && values.length > 0 ? values.map(value => ({ label: value, value, title: null })) : undefined,
 	};
@@ -490,6 +481,7 @@ function getRemnantAnnotations<TAnnotation extends BLTypes.BLAnnotation | BLType
 	return remnantInOrder;
 }
 
+/** Normalize complete BlackLab v4 or v5 corpus metadata. */
 export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata | BLTypes.BLIndexMetadataV4, relations: BLTypes.BLRelationInfo): NormalizedIndex {
 	return BLTypes.isBLIndexMetadataV5(blIndex) ? normalizeIndexV5(blIndex, relations) : normalizeIndexV4(blIndex, relations);
 }

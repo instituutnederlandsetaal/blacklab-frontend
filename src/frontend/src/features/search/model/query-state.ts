@@ -33,7 +33,7 @@ import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 
-import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
+import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore } from '@/shared/blacklab-helpers/pattern-utils';
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...
@@ -148,7 +148,7 @@ const get = {
 		const configuredAlignBy = customizations?.searchFormAlignByDefault() ?? '';
 		switch (state.form) {
 			case 'search':
-				return getPatternSummarySearch(state.subForm, formState, configuredAlignBy, state.filters);
+				return getPatternStringSearch(state.subForm, formState, configuredAlignBy, state.filters);
 			case 'explore':
 				return getPatternSummaryExplore(state.subForm, formState, useCorpus().allAnnotationsMap);
 			default:

@@ -717,16 +717,15 @@ const actions = {
 					return null;
 				};
 
-				function validateArray(ids: Array<string | null>, key: string): string[] {
-					return ids.map(id => validate(id, key)).filter(v => !!v) as string[];
-				}
-
 				state.results.shared.dependencies = {
 					lemma: validate(payload.lemma, 'lemma'),
 					relationClass: payload.relationClass === undefined ? state.results.shared.dependencies.relationClass : payload.relationClass,
 					upos: validate(payload.upos, 'upos'),
 					xpos: validate(payload.xpos, 'xpos'),
-					feats: validateArray([payload.feats].flat(), 'feats'),
+					feats: [payload.feats]
+						.flat()
+						.map(id => validate(id, 'feats'))
+						.filter((id): id is string => !!id),
 				};
 			},
 		},

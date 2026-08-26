@@ -35,7 +35,7 @@ export function compileQueryIR(artifact: QueryIR): CompiledQuery {
 	const normalized = simplifyQueryIR(artifact);
 	return {
 		patt: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
-		filter: emitFilter(normalized.filter),
+		filter: normalized.filter ? emitRequiredFilter(normalized.filter) : null,
 		searchfield: normalized.searchfield,
 		...(normalized.resultPreset ? { resultPreset: createResultPreset(normalized.resultPreset) } : {}),
 	};
@@ -235,7 +235,7 @@ function isCqlAnnotation(node: CqlPatternNode): node is CqlAnnotationNode {
 // =========================================================================================================================
 
 function emitCqlWithWrappers(pattern: CqlPatternNode | null, wrappers: CqlWrapperNode[]): string | null {
-	let cql = emitCql(pattern);
+	let cql = pattern ? emitRequiredCql(pattern) : null;
 	for (const wrapper of wrappers) {
 		if (wrapper.type === 'cql-containing') {
 			const containingClause = emitElementClause(wrapper);
@@ -290,10 +290,6 @@ function predicateValueToRegex(value: PredicateTextNode): string {
 	}
 }
 
-function emitCql(pattern: CqlPatternNode | null): string | null {
-	return pattern ? emitRequiredCql(pattern) : null;
-}
-
 function emitRequiredCql(pattern: CqlPatternNode): string {
 	if (isCqlAnnotation(pattern)) return `[${emitAnnotationExpression(pattern)}]`;
 	if (isBooleanNode<CqlPatternNode>(pattern)) {
@@ -324,10 +320,6 @@ function emitRequiredCql(pattern: CqlPatternNode): string {
 /** Group one emitted parallel branch as required by BlackLab's relation syntax. */
 function emitParallelPart(pattern: CqlPatternNode): string {
 	return parenQueryPartParallel(emitRequiredCql(pattern));
-}
-
-function emitFilter(filter: LuceneNode | null): string | null {
-	return filter ? emitRequiredFilter(filter) : null;
 }
 
 function emitRequiredFilter(filter: LuceneNode): string {

@@ -62,10 +62,8 @@ export interface Loadable<T> extends LoadableLike<T>, LoadableBase<T> {}
 
 export const isLoadableLike = <T>(v: any): v is LoadableLike<T> => v != null && typeof v === 'object' && 'state' in v && v.state in LoadableState && 'value' in v && 'error' in v;
 
-const isLoadableBase = <T>(v: any): v is LoadableBase<T> => v != null && typeof v === 'object' && Object.keys(loadableMethods).every(name => typeof v[name] === 'function');
-
 // Allow plain objects with the right shape to be considered loadables for convenience.
-export const isLoadable = <T>(v: any): v is Loadable<T> => isLoadableBase<T>(v) && isLoadableLike<T>(v);
+export const isLoadable = <T>(v: any): v is Loadable<T> => v != null && typeof v === 'object' && Object.keys(loadableMethods).every(name => typeof v[name] === 'function') && isLoadableLike<T>(v);
 
 export function isLoading<T>(v: Loadable<T>): v is Loading<T>;
 export function isLoading<T>(v: LoadableLike<T>): v is LoadingLike<T>;
@@ -127,6 +125,7 @@ const passthrough = <T, U = T>(v: LoadableLike<T>): LoadableLike<U> => v as unkn
 
 function map<T, U>(v: Loadable<T>, mapper: (value: T) => U): Loadable<U>;
 function map<T, U>(v: LoadableLike<T>, mapper: (value: T) => U): LoadableLike<U>;
+/** Map Loaded values and preserve every other state by identity. */
 function map<T, U>(v: LoadableLike<T>, mapper: (value: T) => U): LoadableLike<U> {
 	if (isLoaded(v)) return Loaded(mapper(v.value));
 	return passthrough<T, U>(v);
@@ -142,18 +141,21 @@ function mapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) =>
 
 function mapError<T>(v: Loadable<T>, mapper: (error: ApiError) => ApiError): Loadable<T>;
 function mapError<T>(v: LoadableLike<T>, mapper: (error: ApiError) => ApiError): LoadableLike<T>;
+/** Transform Error values and preserve every other state by identity. */
 function mapError<T>(v: LoadableLike<T>, mapper: (error: ApiError) => ApiError): LoadableLike<T> {
 	return isError(v) ? LoadingError(mapper(v.error)) : passthrough(v);
 }
 
 function recover<T>(v: Loadable<T>, mapper: (error: ApiError) => T): Loadable<T>;
 function recover<T>(v: LoadableLike<T>, mapper: (error: ApiError) => T): LoadableLike<T>;
+/** Recover Error values as Loaded values and preserve every other state. */
 function recover<T>(v: LoadableLike<T>, mapper: (error: ApiError) => T): LoadableLike<T> {
 	return isError(v) ? Loaded(mapper(v.error)) : passthrough(v);
 }
 
 function flatMap<T, U>(v: Loadable<T>, mapper: (value: T) => Loadable<U>): Loadable<U>;
 function flatMap<T, U>(v: LoadableLike<T>, mapper: (value: T) => Loadable<U>): LoadableLike<U>;
+/** Replace Loaded values with the loadable returned by the mapper. */
 function flatMap<T, U>(v: LoadableLike<T>, mapper: (value: T) => Loadable<U>): LoadableLike<U> {
 	if (isLoaded(v)) return mapper(v.value);
 	return passthrough<T, U>(v);
@@ -169,6 +171,7 @@ function flatMapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined
 
 function flatMapError<T, U>(v: Loadable<T>, mapper: (error: ApiError) => Loadable<U>): Loadable<T | U>;
 function flatMapError<T, U>(v: LoadableLike<T>, mapper: (error: ApiError) => Loadable<U>): LoadableLike<T | U>;
+/** Replace Error values with the loadable returned by the mapper. */
 function flatMapError<T, U>(v: LoadableLike<T>, mapper: (error: ApiError) => Loadable<U>): LoadableLike<T | U> {
 	return isError(v) ? mapper(v.error) : passthrough(v);
 }
@@ -228,6 +231,7 @@ const loadableMethods = {
 	or: thisOr,
 } satisfies LoadableBase<any>;
 
+/** Attach the shared fluent loadable operations to a state object. */
 export const withLoadableMethods = <T, E extends object>(object: E): E & LoadableBase<T> => Object.assign(object, loadableMethods) as E & LoadableBase<T>;
 
 const loadable = <T, E extends object = never>(state: LoadableState, value?: T, error?: ApiError, extra?: E): Loadable<T> & E =>
@@ -238,6 +242,7 @@ const loadable = <T, E extends object = never>(state: LoadableState, value?: T, 
 		error,
 	});
 
+/** Normalize a loadable, loadable-like object, plain value, or empty value. */
 const wrap = <T, VT extends ValueTypeFromLoadableOrObservable<T> = ValueTypeFromLoadableOrObservable<T>>(value: T): Loadable<VT> =>
 	isLoadable(value) ? (value as Loadable<VT>) : isLoadableLike<VT>(value) ? loadable<VT>(value.state, value.value, value.error) : value != null ? Loaded<VT>(value as VT) : Empty<VT>();
 

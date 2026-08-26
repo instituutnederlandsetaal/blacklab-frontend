@@ -32,6 +32,7 @@ type InteropGlobal = typeof globalThis & {
 	vuexModules?: unknown;
 };
 
+/** Expose the browser customization API used by corpus scripts. */
 export function installCustomizationApiGlobals(registry: CustomizationRegistry) {
 	(window as InteropWindow).frontend = createExternalCustomizationApi(registry);
 }
@@ -80,15 +81,18 @@ export function installLegacyStoreGlobals(app: App, registry: CustomizationRegis
 	(globalThis as InteropGlobal).vuexModules = vuexModules;
 }
 
+/** Expose the Vue application handles retained for legacy scripts. */
 export function installVueGlobals(app: App, root: unknown) {
 	(window as InteropWindow).vueApp = app;
 	(window as InteropWindow).vueRoot = root;
 }
 
+/** Expose the current corpus context retained for legacy scripts. */
 export function installCorpusGlobal(value: CorpusContext) {
 	(globalThis as InteropGlobal).corpus = value;
 }
 
+/** Expose the current index ID retained for legacy scripts. */
 export function installIndexIdGlobal(value: string) {
 	(window as InteropWindow).INDEX_ID = value;
 }

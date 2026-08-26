@@ -10,7 +10,6 @@ import {
 	createDefaultFormState,
 	createFormFieldNode,
 	compileFormNode,
-	encodeControllerState,
 	expertQueryController,
 	filterCheckboxController,
 	filterDateController,
@@ -750,7 +749,7 @@ describe('controller persistence codecs', () => {
 	}
 
 	const encode = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, state: State, config: FieldControllerProps<Extra>) =>
-		encodeControllerState(controller, state, config, context);
+		controller.persistence.codec.encode(state, { config, runtime: context });
 	const restore = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, payload: string | string[], config: FieldControllerProps<Extra>) =>
 		restoreControllerState(controller, payload, config, context);
 

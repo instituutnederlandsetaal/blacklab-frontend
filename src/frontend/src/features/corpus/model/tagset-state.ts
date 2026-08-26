@@ -25,10 +25,6 @@ type TagsetAnnotation = { displayName?: string; values: Array<{ value: string; d
 
 const usefulName = (name: string | undefined, raw: string) => (name && name !== raw ? name : undefined);
 
-function sameCorpusValues(left: NormalizedAnnotation['values'], right: NonNullable<NormalizedAnnotation['values']>) {
-	return left?.length === right.length && left.every((value, index) => value.value === right[index].value && value.label === right[index].label && value.title === right[index].title);
-}
-
 function tagsetFromCorpus(main: NormalizedAnnotation, annotations: Record<string, NormalizedAnnotation>): Tagset {
 	const subAnnotationIds = [
 		...new Set([
@@ -121,7 +117,10 @@ export function normalizeTagset(main: NormalizedAnnotation, annotations: Record<
 			if (!merged.has(value.value)) merged.set(value.value, { value: value.value, label: value.displayName, title: null });
 		}
 		const mergedValues = [...merged.values()];
-		if (!sameCorpusValues(annotation.values, mergedValues)) annotation.values = mergedValues;
+		const valuesUnchanged =
+			annotation.values?.length === mergedValues.length &&
+			annotation.values.every((value, index) => value.value === mergedValues[index].value && value.label === mergedValues[index].label && value.title === mergedValues[index].title);
+		if (!valuesUnchanged) annotation.values = mergedValues;
 		if (annotation.uiType === 'text') annotation.uiType = 'select';
 
 		const displayName = usefulName(tagAnnotation.displayName, annotation.id) ?? usefulName(annotation.defaultDisplayName, annotation.id) ?? annotation.id;

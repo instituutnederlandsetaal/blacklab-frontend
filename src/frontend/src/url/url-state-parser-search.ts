@@ -690,10 +690,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const processQueryPart = (r: Result) => {
 			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
 			const rawQuery = r.query ?? '';
-			function stripWithins(q: string) {
-				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^/]+\/>)+$/g, '');
-			}
-			const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
+			const queryWithoutWithins = hasWithinClauses ? unparenQueryPart(rawQuery)!.replace(/(?:\s*(?:within|overlap)?\s*<[^/]+\/>)+$/g, '') : rawQuery;
+			const query = unparenQueryPart(queryWithoutWithins);
 			const reapplyWithins = this.expertWithinClauses;
 			const finalQuery = Object.keys(reapplyWithins).length > 0 ? applyWithinClauses(query ?? '', reapplyWithins) : query;
 

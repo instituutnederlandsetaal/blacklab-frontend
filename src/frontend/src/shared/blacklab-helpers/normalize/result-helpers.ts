@@ -16,14 +16,17 @@ export function getCountedStats(input: BLSearchResult | BLSearchSummaryV5): BLSe
 	return summaryFrom(input).results.stats.counted;
 }
 
+/** Read the group count shared by hit-group and document-group summaries. */
 export function getNumberOfGroups(input: BLSearchResult | BLSearchSummaryV5): number | undefined {
 	return summaryFrom(input).results.stats.numberOfGroups;
 }
 
+/** Read the largest reported group size. */
 export function getLargestGroupSize(input: BLSearchResult | BLSearchSummaryV5): number | undefined {
 	return summaryFrom(input).results.stats.largestGroupSize;
 }
 
+/** Read the aggregate and per-field subcorpus sizes. */
 export function getSubcorpusSize(input: BLSearchResult | BLSearchSummaryV5): BLSubcorpusSize | undefined {
 	return summaryFrom(input).results.stats.subcorpusSize;
 }
@@ -40,6 +43,7 @@ export function getTotalAvailableResults(input: BLSearchResult): number {
 	return getProcessedStats(input).documents;
 }
 
+/** Read the counted number of matching documents. */
 export function getMatchingDocuments(input: BLSearchResult | BLSearchSummaryV5): number {
 	return getCountedStats(input).documents;
 }
@@ -48,6 +52,7 @@ export function getMatchingHits(input: BLSearchResult | BLSearchSummaryV5): numb
 	return summaryFrom(input).pattern != null ? getCountedStats(input).hits : undefined;
 }
 
+/** Prefer counted search time, falling back to processed search time. */
 export function getSearchTimeMs(input: BLSearchResult | BLSearchSummaryV5): number {
 	return getCountedStats(input).timeMs || getProcessedStats(input).timeMs || 0;
 }
@@ -59,6 +64,7 @@ export function getSearchState(input: BLSearchResult | BLSearchSummaryV5): 'coun
 	return 'finished';
 }
 
+/** Read a field's token count, falling back to the document's first token count. */
 export function getDocumentLength(docInfo: BLDocInfo, fieldName?: string): number {
 	return docInfo.tokenCounts.find(tokenCount => tokenCount.fieldName === fieldName)?.tokenCount ?? docInfo.tokenCounts[0]?.tokenCount ?? 0;
 }
