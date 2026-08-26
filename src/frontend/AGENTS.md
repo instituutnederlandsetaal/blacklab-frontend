@@ -1,22 +1,22 @@
 # Frontend agent guidance
 
-These rules describe the intended frontend architecture. Some legacy code does not comply yet. When changing such code, avoid spreading the legacy pattern and move the touched boundary toward these rules where practical.
+These rules describe the intended frontend architecture. Some legacy code does not comply yet. When changing code, use these rules where practical, rather than expanding legacy patterns.
 
 ## Dependency boundaries
 
 ### Vue code may inject; ordinary TypeScript may not
 
-- Vue components and composables called from component setup may obtain application services through `use*()`/`provide`/`inject`.
-- Framework-neutral TypeScript must receive its dependencies explicitly through function arguments, constructor arguments, or setup options. This includes stores, builders, controllers, resources, resolvers, parsers, effects, and utilities.
+- Framework-neutral TypeScript must receive dependencies through arguments. This includes stores, builders, controllers, resources, resolvers, parsers, effects, and utilities.
 - A helper being called by a component does not make hidden injection acceptable. Resolve the dependency in the component and pass it down.
-- Do not add module-level “current corpus” state or similar implicit globals.
-- Do not call `useCorpus()` or another injected accessor from ordinary TypeScript. Existing outside-injection fallbacks such as `installedCorpus` are temporary migration hacks, not patterns to reuse.
-- When a singleton system needs another system, wire them together explicitly in `src/app/entrypoint/main.ts`. An imperative `init()` or setter is acceptable for legacy singleton stores when constructor-style setup is not currently practical.
+- Vue components and composables solely meant for use in components may use `use*()`/`provide`/`inject`.
+- Never add persistent local module-level references such as “current corpus”, state or similar implicit globals.
+- Existing outside-injection fallbacks such as `installedCorpus` are temporary migration hacks, and should never be used in new code.
+- When a singleton system needs another system, wire them together explicitly in `src/app/entrypoint/main.ts`. An imperative `init()` or setter is acceptable for legacy singletons where setup is not currently practical.
 
 ### Prefer narrow dependencies
 
 - Pass only the state a system needs. For example, a customization registry that needs the corpus receives `corpusState.corpus`, not the complete corpus context.
-- Explicit reactive dependencies are allowed. APIs accepting reactive input should generally consume `MaybeRefOrGetter<T>` with `toValue()` so tests and non-reactive callers can pass plain values.
+- Explicit reactive dependencies are allowed. APIs accepting reactive input should generally consume `MaybeRefOrGetter<T>` with `toValue()` so tests and non-reactive callers can pass plain values. Always use a MaybeRefOrGetter or explicit Ref, never pass reactive objects across logical boundaries to avoid introducing implicit knowledge and non-obvious coupling through the reactivity.
 - Do not hide an explicit dependency behind a new injected getter merely to shorten call sites.
 
 ## Composition and corpus context
@@ -52,24 +52,16 @@ Do not introduce ordering that requires customization scripts to exist before th
 
 - `customization-api/registrations.ts` is a registry, not a customization resolution service.
 - It may own registration collections, script-disposal bookkeeping, and the current per-corpus legacy customization target.
-- It must not decide downstream defaults or invoke ongoing result/form behavior on behalf of consumers. Downstream systems read its exposed state and invoke callbacks explicitly.
+- It must not invoke systems on its own. Downstream systems read its exposed state and use it locally.
 - Components may obtain the registry with `useCustomizations()` and pass the relevant state to ordinary TypeScript helpers.
-- Non-component singleton systems receive the registry, or a narrower registry ref, from `main.ts`.
-- Avoid internal-facing injected “customization getters” that combine registration lookup, default resolution, and reactive global state. Prefer pure resolver functions with explicit arguments.
-
-### Corpus lifecycle
-
-- Construct the registry with the narrow corpus dependency, preferably `MaybeRefOrGetter<Corpus | undefined>` backed by `corpusState.corpus` in production.
-- On a corpus transition, synchronously clear typed registrations and discard the complete legacy customization object.
-- Create a fresh legacy customization object for the new corpus. Scripts are unmounted and reevaluated, so they will register again.
-- Registrations never intentionally span corpora, even when two corpora happen to load the same script URL.
-- A registration attempted without a loaded corpus is unsupported. Warn clearly and abort registration; do not queue it or recover through an implicit corpus global.
+- Customizations never outlive corpora, even when two corpora happen to load the same script.
+- A registration attempted while corpus context (with or without active corpus) is loading/errored is unsupported. Warn clearly and abort registration; do not queue it or recover through an implicit corpus global.
 
 ### Script ownership and disposal
 
-- Typed form/result registrations belong to the script element that created them and should be purged when that script disappears.
-- Removing or replacing a legacy script within the same corpus is unsupported. Legacy mutations may remain until the corpus changes.
-- Do not add replay, undo, or per-callback invalidation machinery for legacy root callbacks solely to support same-corpus script replacement.
+- Registrations belong to the script element that created them and should be purged when that script disappears.
+- Removing or replacing a legacy script within the same corpus is supported, but legacy mutations may remain until the corpus changes.
+- Do not add replay, undo, or per-callback invalidation machinery for legacy root callbacks
 - A corpus transition is the reliable cleanup boundary for all legacy customization state.
 
 ## Legacy callback API
@@ -78,9 +70,9 @@ The deprecated API intentionally has two stages:
 
 ```js
 frontend.customize(function configureImmediately(customizations) {
-	customizations.someHook = function invokeLater(context) {
-		// ...
-	};
+  customizations.someHook = function invokeLater(context) {
+    // ...
+  };
 });
 ```
 
@@ -95,13 +87,11 @@ frontend.customize(function configureImmediately(customizations) {
 
 ## Public globals
 
-- Keep installation and documentation-by-code of browser globals in `interop/window-globals.ts`. This is the single place developers should inspect to see what is exposed publicly.
-- The customization registry itself should not mutate `window` as a construction side effect.
-- Globals are compatibility/public interop surfaces, not valid dependency sources for internal code.
+- Globals meant for customization scripts must be kept/exposed solely in `interop/window-globals.ts`. This is the single place developers should inspect to see what is exposed publicly.
+- Globals are compatibility/public interop surfaces, never to be used for internal code.
 
 ## Callback design
 
-- Registered callbacks receive plain arguments and return plain values.
 - Callbacks must not need to know about `CorpusContext`, script loading, Vue injection, or where their input data originated.
 - Prefer pure resolver functions that accept callback collections and all runtime context explicitly.
 - Invoke ongoing customizations at the actual usage boundary. In components, inject the registry there and pass explicit arguments into helpers.
@@ -109,21 +99,17 @@ frontend.customize(function configureImmediately(customizations) {
 
 ## Legacy stores
 
-- Existing global stores may retain `init(context)` lifecycle methods for now.
 - Do not add new singleton stores when component-local or injected state is sufficient.
 - Gradually replace store reads with props and injected contexts as nearby code is refactored; a complete store migration is not required for unrelated work.
-- Never solve store/context synchronization by adding another implicit global corpus accessor.
 
 ## Testing and implementation practice
 
-- Test framework-neutral code with plain dependency values where possible; `MaybeRefOrGetter` APIs should not force tests to create Vue apps or injection contexts.
-- Add corpus-transition tests for registries and other corpus-scoped state. Verify old registrations and legacy hooks are absent before new scripts register.
-- Add a test for unsupported pre-corpus legacy registration: it should warn and leave state unchanged.
-- Preserve the hard boundaries above even if a shorter implementation using `useCorpus()`, `useCustomizations()`, or a module singleton appears convenient.
+- Preserve hard boundaries above even if a shorter implementation using `useCorpus()`, `useCustomizations()`, or a module singleton appears convenient.
 - Run relevant Vitest tests and `npm run lint` from `src/frontend` after changes.
 
 # Style
 
 - Keep code terse and "dumb"
-- Do not use tracking/version/cycle/change IDs in reactive contexts, this is an antipattern. Instead think harder about the intended reactivity and set up dependencies accordingly.
-- Use `npm run format` in the `src/frontend` folder to automatically fix style, indentation, and import order.
+- Never use explicit tracking/version/cycle/change number variables for tracking reactive changes, this is an antipattern. Instead think harder about the intended reactivity and set up regular reactive dependencies accordingly. It's almost always a smell to use `watch()`.
+- Use `npm run format` in the `src/frontend` folder to fix style, whitespace, indentation, and imports. Do not bother manually editing these.
+- When writing comments comments or editing docs, avoid llm-isms, such as short sentences, repeated full stops, "not x, but y", invented, needless or uncommon terminology, and assess whether introducing a term contributes meaningful additional information to a developer, often it does not. A good reference is wikipedia's guide on what to avoid in llm-output: https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing , particularly the "Language_and_grammar" section.

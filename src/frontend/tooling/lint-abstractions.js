@@ -8,8 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { parse as parseVueSfc } from '@vue/compiler-sfc';
 import ts from 'typescript';
 
-// An extracted branch is duplicated at every call site when the helper is inlined.
-// Estimated savings = (direct calls - 1) * (cyclomatic complexity - 1).
+// An extracted branch is duplicated at every usage when the helper is inlined.
+// Test and Storybook calls have reduced weight; a Vue import counts as one usage per SFC.
+// Estimated savings = (effective calls - 1) * (cyclomatic complexity - 1).
 // A domain concept can justify a low score; documenting the helper records that decision and exempts it.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const minimumSavings = Number(process.env.BLF_MIN_ABSTRACTION_SAVINGS ?? 2);
@@ -17,31 +18,49 @@ const maximumBodyLines = Number(process.env.BLF_MAX_ABSTRACTION_BODY_LINES ?? 4)
 const maximumCallSites = Number(process.env.BLF_MAX_ABSTRACTION_CALL_SITES ?? 3);
 const maximumReports = Number(process.env.BLF_MAX_ABSTRACTION_REPORTS ?? 25);
 const maximumWarnings = Number(process.env.BLF_MAX_ABSTRACTION_WARNINGS ?? 0);
+const testCallWeight = Number(process.env.BLF_TEST_CALL_WEIGHT ?? 1 / 3);
 const sourceRoots = ['src'].map(directory => path.join(root, directory));
+const projectRoots = ['src', 'test', '.storybook'].map(directory => path.join(root, directory));
 
 const sourceFiles = sourceRoots.flatMap(walk).filter(file => /\.(?:ts|tsx|vue)$/.test(file) && !file.endsWith('.d.ts'));
-const typescriptFiles = sourceFiles.filter(file => !file.endsWith('.vue'));
-const vueFiles = sourceFiles.filter(file => file.endsWith('.vue'));
+const projectFiles = projectRoots.flatMap(walk).filter(file => /\.(?:ts|tsx|vue)$/.test(file));
+const candidateTypescriptFiles = new Set(sourceFiles.filter(file => !file.endsWith('.vue') && !isTestOrStoryFile(file)).map(file => path.resolve(file)));
+const typescriptFiles = projectFiles.filter(file => !file.endsWith('.vue'));
+const inspectedTypescriptFiles = new Set(typescriptFiles.filter(file => !file.endsWith('.d.ts')).map(file => path.resolve(file)));
+const vueFiles = projectFiles.filter(file => file.endsWith('.vue'));
+const candidateVueFiles = new Set(sourceFiles.filter(file => file.endsWith('.vue') && !isTestOrStoryFile(file)).map(file => path.resolve(file)));
 
 const compilerOptions = readCompilerOptions();
 const program = ts.createProgram(typescriptFiles, compilerOptions);
 const checker = program.getTypeChecker();
-const findings = [...inspectTypescriptFiles(), ...vueFiles.flatMap(inspectVueFile)].sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line);
-
-for (const finding of findings.slice(0, maximumReports)) {
-	const relativeFile = path.relative(root, finding.file);
-	console.warn(
-		`${relativeFile}:${finding.line}:${finding.column}: warning: ${finding.name} has ${finding.calls} direct call sites and cyclomatic complexity ${finding.complexity}; ` +
-			`estimated duplicated-branch savings ${finding.savings} is below ${minimumSavings} (${finding.bodyLines} body line${finding.bodyLines === 1 ? '' : 's'}). Review whether it earns the indirection. ` +
-			'[blacklab/low-value-abstraction]',
-	);
-}
+const vueModuleExportsCache = new Map();
+const typescriptCandidates = inspectTypescriptFiles();
+const vueFindings = vueFiles.flatMap(file => inspectVueFile(file, typescriptCandidates, candidateVueFiles.has(path.resolve(file))));
+const findings = [...typescriptCandidates.values()]
+	.filter(isFinding)
+	.map(toFinding)
+	.concat(vueFindings)
+	.sort((left, right) => left.file.localeCompare(right.file) || left.line - right.line);
 
 if (findings.length) {
 	console.warn(
-		`\n${findings.length} low-value abstraction candidate${findings.length === 1 ? '' : 's'}${findings.length > maximumReports ? ` (${maximumReports} shown)` : ''}. ` +
-			`Threshold: ${minimumSavings}; maximum body length: ${maximumBodyLines} lines; maximum call sites: ${maximumCallSites}. ` +
-			`Warning allowance: ${maximumWarnings}. Set BLF_MAX_ABSTRACTION_WARNINGS to adjust it temporarily.`,
+		`Low-value abstractions were found. These are functions with low cyclomatic complexity and low number of call-sites. 
+		Imports in .vue componentsa are counted as 1, test/Storybook usage counted at ${testCallWeight.toFixed(3)}, other usages as 1.
+		Documenting a helper exempts it from this rule, but should be done with consideration.
+		Heuristic: e=p+v+${formatNumber(testCallWeight)}(t+tv), savings=(e-1)(complexity-1); report e=2..${maximumCallSites}, savings<${minimumSavings}, body<=${maximumBodyLines}.
+		p=production calls, v=Vue imports, t=test/Storybook calls, tv=test/Storybook Vue imports; documented helpers exempt.
+		`.replace(/\t+/g, ''),
+	);
+
+	for (const finding of findings.slice(0, maximumReports)) {
+		const relativeFile = path.relative(root, finding.file);
+		console.warn(
+			`${relativeFile}:${finding.line}:${finding.column}: ${finding.name} has low complexity of ${finding.complexity} and only ${formatNumber(finding.effectiveCalls)} effective usages. [blacklab/low-value-abstraction]`,
+		);
+	}
+
+	console.warn(
+		`\n${findings.length} candidate${findings.length === 1 ? '' : 's'}${findings.length > maximumReports ? `; ${maximumReports} shown` : ''}; allowance=${maximumWarnings} (BLF_MAX_ABSTRACTION_WARNINGS).`,
 	);
 	if (findings.length > maximumWarnings) process.exitCode = 1;
 }
@@ -56,7 +75,7 @@ function walk(directory) {
 }
 
 function readCompilerOptions() {
-	const configPath = path.join(root, 'tsconfig.app.json');
+	const configPath = path.join(root, 'tsconfig.tests.json');
 	const result = ts.readConfigFile(configPath, file => ts.sys.readFile(file));
 	if (result.error) throw new Error(ts.flattenDiagnosticMessageText(result.error.messageText, '\n'));
 
@@ -70,48 +89,39 @@ function readCompilerOptions() {
 
 function inspectTypescriptFiles() {
 	const candidatesBySymbol = new Map();
-	const requestedFiles = new Set(typescriptFiles.map(file => path.resolve(file)));
 
 	for (const sourceFile of program.getSourceFiles()) {
-		if (!requestedFiles.has(path.resolve(sourceFile.fileName))) continue;
-		const exportedSymbols = getExportedSymbols(sourceFile);
+		if (!candidateTypescriptFiles.has(path.resolve(sourceFile.fileName))) continue;
 		collectCandidates(sourceFile, candidate => {
-			const symbol = checker.getSymbolAtLocation(candidate.nameNode);
-			if (symbol && !exportedSymbols.has(symbol)) candidatesBySymbol.set(symbol, candidate);
+			const symbol = resolveAliasedSymbol(checker.getSymbolAtLocation(candidate.nameNode));
+			if (symbol) candidatesBySymbol.set(symbol, candidate);
 		});
 	}
 
 	for (const sourceFile of program.getSourceFiles()) {
-		if (!requestedFiles.has(path.resolve(sourceFile.fileName))) continue;
+		if (!inspectedTypescriptFiles.has(path.resolve(sourceFile.fileName))) continue;
 
 		visit(sourceFile, node => {
-			if (!ts.isIdentifier(node) || isDeclarationName(node)) return;
-			const candidate = candidatesBySymbol.get(checker.getSymbolAtLocation(node));
+			if (!ts.isIdentifier(node) || isDeclarationName(node) || isImportOrExportBinding(node)) return;
+			const candidate = candidatesBySymbol.get(resolveAliasedSymbol(checker.getSymbolAtLocation(node)));
 			if (!candidate) return;
-			registerReference(candidate, node);
+			registerReference(candidate, node, sourceFile.fileName);
 		});
 	}
 
-	return [...candidatesBySymbol.values()].filter(isFinding).map(toFinding);
+	return candidatesBySymbol;
 }
 
-function getExportedSymbols(sourceFile) {
-	const exportedSymbols = new Set();
-	if (!sourceFile.symbol) return exportedSymbols;
-
-	for (const symbol of checker.getExportsOfModule(sourceFile.symbol)) {
-		exportedSymbols.add(symbol);
-		if (symbol.flags & ts.SymbolFlags.Alias) exportedSymbols.add(checker.getAliasedSymbol(symbol));
-	}
-	return exportedSymbols;
-}
-
-function inspectVueFile(file) {
+function inspectVueFile(file, typescriptCandidates, inspectLocalCandidates) {
 	const source = fs.readFileSync(file, 'utf8');
 	const { descriptor, errors } = parseVueSfc(source, { filename: file });
 	if (errors.length) return [];
 
-	return [descriptor.script, descriptor.scriptSetup].filter(Boolean).flatMap(block => {
+	const blocks = [descriptor.script, descriptor.scriptSetup].filter(Boolean);
+	registerVueImportUsages(file, blocks, typescriptCandidates);
+	if (!inspectLocalCandidates) return [];
+
+	return blocks.flatMap(block => {
 		const kind = block.lang === 'tsx' || block.lang === 'jsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
 		const sourceFile = ts.createSourceFile(file, block.content, ts.ScriptTarget.Latest, true, kind);
 		const candidatesByName = new Map();
@@ -127,15 +137,60 @@ function inspectVueFile(file) {
 		visit(sourceFile, node => {
 			if (!ts.isIdentifier(node) || isDeclarationName(node)) return;
 			const candidate = candidatesByName.get(node.text);
-			if (candidate) registerReference(candidate, node);
+			if (candidate) registerReference(candidate, node, file);
 		});
 
 		if (block === descriptor.scriptSetup && descriptor.template) {
-			registerTemplateReferences(candidatesByName, descriptor.template.ast);
+			registerTemplateReferences(candidatesByName, descriptor.template.ast, file);
 		}
 
 		return [...candidatesByName.values()].filter(isFinding).map(toFinding);
 	});
+}
+
+function registerVueImportUsages(file, blocks, typescriptCandidates) {
+	const importedCandidates = new Set();
+
+	for (const block of blocks) {
+		const kind = block.lang === 'tsx' || block.lang === 'jsx' ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+		const sourceFile = ts.createSourceFile(file, block.content, ts.ScriptTarget.Latest, true, kind);
+
+		for (const statement of sourceFile.statements) {
+			if (!ts.isImportDeclaration(statement) || !statement.importClause || statement.importClause.isTypeOnly || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+			const exports = resolveVueModuleExports(file, statement.moduleSpecifier.text);
+			if (!exports) continue;
+
+			if (statement.importClause.name) registerVueImportedCandidate(exports.get('default'), typescriptCandidates, importedCandidates);
+			if (!statement.importClause.namedBindings || !ts.isNamedImports(statement.importClause.namedBindings)) continue;
+
+			for (const specifier of statement.importClause.namedBindings.elements) {
+				if (specifier.isTypeOnly) continue;
+				registerVueImportedCandidate(exports.get((specifier.propertyName ?? specifier.name).text), typescriptCandidates, importedCandidates);
+			}
+		}
+	}
+
+	for (const candidate of importedCandidates) {
+		if (isTestOrStoryFile(file)) candidate.testVueImportUsages += 1;
+		else candidate.vueImportUsages += 1;
+	}
+}
+
+function resolveVueModuleExports(containingFile, moduleName) {
+	const cacheKey = `${containingFile}\0${moduleName}`;
+	if (vueModuleExportsCache.has(cacheKey)) return vueModuleExportsCache.get(cacheKey);
+
+	const resolvedFile = ts.resolveModuleName(moduleName, containingFile, compilerOptions, ts.sys).resolvedModule?.resolvedFileName;
+	const sourceFile = resolvedFile ? program.getSourceFile(resolvedFile) : undefined;
+	const moduleSymbol = sourceFile?.symbol;
+	const exports = moduleSymbol ? new Map(checker.getExportsOfModule(moduleSymbol).map(symbol => [symbol.name, resolveAliasedSymbol(symbol)])) : undefined;
+	vueModuleExportsCache.set(cacheKey, exports);
+	return exports;
+}
+
+function registerVueImportedCandidate(symbol, typescriptCandidates, importedCandidates) {
+	const candidate = symbol && typescriptCandidates.get(symbol);
+	if (candidate) importedCandidates.add(candidate);
 }
 
 function collectCandidates(sourceFile, addCandidate, lineOffset = 0) {
@@ -145,18 +200,12 @@ function collectCandidates(sourceFile, addCandidate, lineOffset = 0) {
 		let declarationNode;
 		let topLevel;
 
-		if (ts.isFunctionDeclaration(node) && node.name && node.body && !hasExportModifier(node)) {
+		if (ts.isFunctionDeclaration(node) && node.name && node.body) {
 			nameNode = node.name;
 			functionNode = node;
 			declarationNode = node;
 			topLevel = node.parent === sourceFile;
-		} else if (
-			ts.isVariableDeclaration(node) &&
-			ts.isIdentifier(node.name) &&
-			node.initializer &&
-			(ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer)) &&
-			!hasExportModifier(node.parent.parent)
-		) {
+		} else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) {
 			nameNode = node.name;
 			functionNode = node.initializer;
 			declarationNode = node.parent.parent;
@@ -176,7 +225,10 @@ function collectCandidates(sourceFile, addCandidate, lineOffset = 0) {
 			nameNode,
 			node: functionNode,
 			topLevel,
-			calls: 0,
+			productionCalls: 0,
+			testCalls: 0,
+			vueImportUsages: 0,
+			testVueImportUsages: 0,
 			nonCallReferences: 0,
 			recursive: false,
 			complexity: calculateComplexity(body),
@@ -187,33 +239,43 @@ function collectCandidates(sourceFile, addCandidate, lineOffset = 0) {
 	});
 }
 
-function registerReference(candidate, identifier) {
+function registerReference(candidate, identifier, file) {
 	if (isDirectCall(identifier)) {
-		candidate.calls += 1;
+		registerDirectCall(candidate, file);
 		if (contains(candidate.node, identifier)) candidate.recursive = true;
 	} else {
 		candidate.nonCallReferences += 1;
 	}
 }
 
+function registerDirectCall(candidate, file) {
+	if (isTestOrStoryFile(file)) candidate.testCalls += 1;
+	else candidate.productionCalls += 1;
+}
+
+function effectiveCalls(candidate) {
+	return candidate.productionCalls + candidate.vueImportUsages + (candidate.testCalls + candidate.testVueImportUsages) * testCallWeight;
+}
+
 function isFinding(candidate) {
-	const savings = (candidate.calls - 1) * (candidate.complexity - 1);
+	const calls = effectiveCalls(candidate);
+	const savings = (calls - 1) * (candidate.complexity - 1);
 	return (
-		candidate.calls >= 2 &&
-		candidate.calls <= maximumCallSites &&
-		candidate.nonCallReferences === 0 &&
-		!candidate.recursive &&
-		!candidate.documented &&
-		candidate.bodyLines <= maximumBodyLines &&
-		savings < minimumSavings
+		calls >= 2 && calls <= maximumCallSites && candidate.nonCallReferences === 0 && !candidate.recursive && !candidate.documented && candidate.bodyLines <= maximumBodyLines && savings < minimumSavings
 	);
 }
 
 function toFinding(candidate) {
+	const calls = effectiveCalls(candidate);
 	return {
 		...candidate,
-		savings: (candidate.calls - 1) * (candidate.complexity - 1),
+		effectiveCalls: calls,
+		savings: (calls - 1) * (candidate.complexity - 1),
 	};
+}
+
+function formatNumber(value) {
+	return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : String(value);
 }
 
 function calculateComplexity(body) {
@@ -263,22 +325,39 @@ function contains(container, node) {
 	return node.pos >= container.pos && node.end <= container.end;
 }
 
-function hasExportModifier(node) {
-	return ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword || modifier.kind === ts.SyntaxKind.DefaultKeyword);
+function resolveAliasedSymbol(symbol) {
+	const seen = new Set();
+	while (symbol && symbol.flags & ts.SymbolFlags.Alias && !seen.has(symbol)) {
+		seen.add(symbol);
+		symbol = checker.getAliasedSymbol(symbol);
+	}
+	return symbol;
+}
+
+function isImportOrExportBinding(identifier) {
+	const parent = identifier.parent;
+	return (
+		ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent) || ts.isImportEqualsDeclaration(parent) || ts.isExportSpecifier(parent) || ts.isExportAssignment(parent)
+	);
+}
+
+function isTestOrStoryFile(file) {
+	const relativeFile = path.relative(root, file).split(path.sep).join('/');
+	return relativeFile.startsWith('test/') || relativeFile.startsWith('.storybook/') || /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?|vue)$/.test(relativeFile);
 }
 
 function hasDocumentation(sourceFile, node) {
 	return sourceFile.text.slice(node.getFullStart(), node.getStart(sourceFile)).includes('/**');
 }
 
-function registerTemplateReferences(candidatesByName, templateAst) {
+function registerTemplateReferences(candidatesByName, templateAst, file) {
 	for (const expression of collectTemplateExpressions(templateAst)) {
 		const sourceFile = ts.createSourceFile('template-expression.ts', `(${expression})`, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 		visit(sourceFile, node => {
 			if (!ts.isIdentifier(node) || isDeclarationName(node) || isPropertyNameOnly(node)) return;
 			const candidate = candidatesByName.get(node.text);
 			if (!candidate) return;
-			if (isDirectCall(node)) candidate.calls += 1;
+			if (isDirectCall(node)) registerDirectCall(candidate, file);
 			else candidate.nonCallReferences += 1;
 		});
 	}
