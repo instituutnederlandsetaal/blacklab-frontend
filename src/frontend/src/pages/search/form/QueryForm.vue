@@ -81,7 +81,7 @@ import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult, FormRuntime } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import { useSearchFormSystem } from '@/features/search/model/form/search-form-system';
+import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
@@ -171,8 +171,11 @@ export default defineComponent({
 
 		submitNewForm(snapshot: CompiledFormResult) {
 			if (!this.confirmLargeExploreSearch(searchFormIds.formKind(snapshot.formId) ?? undefined)) return;
+			const runtime = this.newForm;
+			const form = runtime?.definition.getForm(snapshot.formId);
+			if (!runtime || !form) throw new Error(`Cannot submit unknown form '${snapshot.formId}'.`);
 			this.blurActiveElement();
-			RootStore.actions.searchFromSubmit(snapshot);
+			RootStore.actions.searchFromSubmit(snapshot, runtime.state.rawOverrides.value, form.target.acceptedOutputs);
 		},
 		resetNewForm() {
 			RootStore.actions.reset();

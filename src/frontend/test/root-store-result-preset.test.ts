@@ -99,6 +99,23 @@ describe('compiled-form result handoff', () => {
 		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 	});
 
+	test('applies accepted overrides before publication and effective-state comparison', () => {
+		resetStores();
+		const compiled = snapshot({ patt: '[word="draft"]', group: 'field:submitted' }, { targetView: 'hits' });
+		const overrides = { patt: '[word="restored"]', collpatt: '[lemma="ignored"]' };
+		const acceptedOutputs = ['patt', 'group'] as const;
+
+		RootStore.actions.searchFromSubmit(compiled, overrides, acceptedOutputs);
+		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: { params: { patt: '[word="restored"]', group: 'field:submitted' } } });
+		expect((QueryStore.getState() as { state: CompiledFormResult }).state.params).not.toHaveProperty('collpatt');
+
+		const view = ViewStore.getOrCreateModule('hits');
+		view.actions.groupBy(['field:changed-later']);
+		RootStore.actions.searchFromSubmit(compiled, overrides, acceptedOutputs);
+
+		expect(view.getState().groupBy).toEqual(['field:changed-later']);
+	});
+
 	test('does not reapply form-owned settings when compiled params are unchanged', () => {
 		resetStores();
 		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } }));

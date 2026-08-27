@@ -119,5 +119,5 @@ export function createSearchTarget(options: SearchTargetOptions = {}): FormTarge
 }
 
 export const searchTarget = createSearchTarget();
-export const hitsSearchTarget = createSearchTarget({ targetView: 'hits', supportedEndpoints: ['hits', 'hits-grouped'] });
+export const hitsSearchTarget = createSearchTarget({ targetView: 'hits', supportedEndpoints: ['hits', 'hits-grouped'], requiredOutputs: ['patt'] });
 export const docsSearchTarget = createSearchTarget({ targetView: 'docs', supportedEndpoints: ['docs', 'docs-grouped'] });

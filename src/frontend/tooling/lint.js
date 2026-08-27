@@ -29,13 +29,8 @@ if (await runChecks(checks)) {
 }
 
 async function runChecks(checks) {
-	const results = await Promise.all(checks.map(runCheck));
-	for (const result of results) {
-		if (!result.stdout && !result.stderr) continue;
-		process.stdout.write(`\n[${result.label}]\n`);
-		if (result.stdout) process.stdout.write(result.stdout);
-		if (result.stderr) process.stdout.write(result.stderr);
-	}
+	const results = [];
+	for (const check of checks) results.push(await runCheck(check));
 
 	const failures = results.filter(result => result.code !== 0);
 	if (!failures.length) return true;
@@ -46,15 +41,13 @@ async function runChecks(checks) {
 }
 
 function runCheck(check) {
+	process.stdout.write(`\n[${check.label}]\n`);
 	return new Promise(resolve => {
-		const child = spawn(check.command, check.args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
-		let stdout = '';
-		let stderr = '';
-		child.stdout.setEncoding('utf8');
-		child.stderr.setEncoding('utf8');
-		child.stdout.on('data', chunk => (stdout += chunk));
-		child.stderr.on('data', chunk => (stderr += chunk));
-		child.on('error', error => resolve({ ...check, code: 1, stdout, stderr: `${stderr}${error.stack ?? error.message}\n` }));
-		child.on('close', code => resolve({ ...check, code: code ?? 1, stdout, stderr }));
+		const child = spawn(check.command, check.args, { cwd: root, env: process.env, stdio: 'inherit' });
+		child.on('error', error => {
+			process.stderr.write(`${error.stack ?? error.message}\n`);
+			resolve({ ...check, code: 1 });
+		});
+		child.on('close', code => resolve({ ...check, code: code ?? 1 }));
 	});
 }

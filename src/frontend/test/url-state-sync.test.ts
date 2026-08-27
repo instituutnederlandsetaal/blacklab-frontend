@@ -31,14 +31,14 @@ vi.mock('@/url/url-state-parser-search', async importOriginal => {
 	};
 });
 
-function startTestUrlSync(searchForms: Ref<FormRuntime | null>, beforeStateLoaded = () => Promise.resolve()) {
+function startTestUrlSync(searchForms: Ref<FormRuntime | null>, beforeStateLoaded = () => Promise.resolve(), query: Record<string, unknown> = { patt: '[word="water"]' }) {
 	vi.stubGlobal('CONTEXT_URL', '');
 	const currentRoute = ref({
 		name: 'search',
 		path: '/test-corpus/search',
 		fullPath: '/test-corpus/search?patt=%5Bword%3D%22water%22%5D',
 		params: { corpus: 'test-corpus' },
-		query: { patt: '[word="water"]' },
+		query,
 	} as unknown as RouteLocationNormalizedLoaded);
 	const router = {
 		currentRoute,
@@ -126,6 +126,25 @@ describe('URL state sync', () => {
 		await nextTick();
 
 		expect(parserGet).toHaveBeenCalledTimes(2);
+		stop();
+	});
+
+	test('publishes accepted URL overrides with a submitted scoped form', async () => {
+		parserGet.mockResolvedValue({ interface: { viewedResults: null }, newForm: null });
+		const replace = vi.spyOn(RootStore.actions, 'replace').mockImplementation(() => undefined);
+		const runtime = createEmptyFormRuntime();
+		const stop = startTestUrlSync(shallowRef(runtime), () => Promise.resolve(), {
+			'f.form': 'search.simple',
+			patt: '[word="restored"]',
+		});
+
+		await vi.waitFor(() => expect(replace).toHaveBeenCalled());
+
+		expect(replace).toHaveBeenCalledWith(
+			expect.objectContaining({
+				newForm: expect.objectContaining({ formId: 'search.simple', params: { patt: '[word="restored"]' } }),
+			}),
+		);
 		stop();
 	});
 });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { createFormFieldNode, type FormOutputProducer } from '@/features/form';
+import { createFormFieldNode, searchTarget, type FormBoundaryNode, type FormOutputProducer } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode } from '@/features/form/model/types/form-shape';
 
@@ -235,5 +235,47 @@ describe('form graph builder editing', () => {
 		parent.addChild(child);
 
 		expect(() => child.appendChild(root)).toThrow(/cycle/);
+	});
+
+	test('rejects a form added directly below another form', () => {
+		const builder = createTestBuilder();
+		const outer = builder.newForm('outer', ContainerRenderer, {});
+		const inner = builder.newForm('inner', ContainerRenderer, {});
+
+		expect(() => outer.addChild(inner)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
+		expect(outer.children).toEqual([]);
+	});
+
+	test('rejects a form added through a container already below a form', () => {
+		const builder = createTestBuilder();
+		const outer = builder.newForm('outer', ContainerRenderer, {});
+		const container = builder.newContainer('container', ContainerRenderer, {});
+		const inner = builder.newForm('inner', ContainerRenderer, {});
+		outer.addChild(container);
+
+		expect(() => container.addChild(inner)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
+		expect(container.children).toEqual([]);
+	});
+
+	test('rejects an adopted subgraph that already contains nested forms', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newContainer('parent', ContainerRenderer, {});
+		const inner = { id: 'inner', kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
+		const outer = { id: 'outer', kind: 'form', component: ContainerRenderer, children: [inner], target: searchTarget } satisfies FormBoundaryNode;
+
+		expect(() => parent.addChild(outer)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
+		expect(parent.children).toEqual([]);
+	});
+
+	test('rejects replacing a node below a form with a form boundary', () => {
+		const builder = createTestBuilder();
+		const outer = builder.newForm('outer', ContainerRenderer, {});
+		const child = builder.newContainer('child', ContainerRenderer, {});
+		outer.addChild(child);
+		const replacement = { id: child.id, kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
+
+		expect(() => builder.replaceNode(child.id, replacement)).toThrow("Form 'child' cannot be nested inside form 'outer'");
+		expect(outer.children).toEqual([child]);
+		expect(builder.getContainer(child.id)).toBe(child);
 	});
 });

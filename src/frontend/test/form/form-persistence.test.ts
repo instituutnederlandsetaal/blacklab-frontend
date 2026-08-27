@@ -24,7 +24,7 @@ import {
 	resultGroupDisplayModeController,
 	resultSortController,
 	restoreControllerState,
-	restoreFormState,
+	restoreFormState as restoreScopedFormState,
 	array,
 	bool,
 	object,
@@ -37,6 +37,7 @@ import {
 	type FormEmission,
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
+import { restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -45,6 +46,8 @@ import ParallelField from '@/features/form/fields/ParallelField.vue';
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+
+const restoreFormState = restoreSearchFormState;
 
 function createSingleTextForm() {
 	const builder = createTestBuilder();
@@ -237,15 +240,16 @@ describe('scoped form persistence', () => {
 		expect(restored.issues).toMatchObject([{ key: 'word', nodeId: fixture.field.id }]);
 	});
 
-	test('retains a canonical patt that scoped fields cannot reproduce as a raw override', () => {
+	test('compares supplied overrides without interpreting unscoped query parameters', () => {
 		const fixture = createSingleTextForm();
-		const restored = restoreFormState(fixture.definition, {
+		const query = {
 			'f.form': fixture.form.id,
 			'f.word': 'water',
 			patt: '[word="(?i)fire"]',
-		});
+		};
 
-		expect(restored.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
+		expect(restoreScopedFormState(fixture.definition, query).rawOverrides).toEqual({});
+		expect(restoreScopedFormState(fixture.definition, query, { overrideCandidates: { patt: '[word="(?i)fire"]' } }).rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
 	});
 
 	test('renders, disables, and dismisses a patt override', async () => {
@@ -483,6 +487,7 @@ describe('scoped form persistence', () => {
 			sensitive: false,
 			scorertype: 'coll-dice',
 		});
+		expect(compileFormNode(fixture.simple, restored, fixture.definition.context).params).toEqual({});
 	});
 
 	test('persists and restores query-affecting tabs with implicit filter contributions', () => {

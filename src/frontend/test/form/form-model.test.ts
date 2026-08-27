@@ -88,14 +88,16 @@ function createReusedFieldFixture(controller = testTextController) {
 function createNonReactiveBoundaryFixture() {
 	const builder = createTestBuilder(reactive(createTestContext()));
 	const createdController = { ...testTextController };
-	const root = builder.newForm('created.form', ContainerRenderer, { title: 'Search' });
+	const root = builder.newContainer('root', ContainerRenderer, {});
+	const createdForm = builder.newForm('created.form', ContainerRenderer, { title: 'Search' });
 	const createdField = builder.newField('created.field', createdController, TestTextField, {
 		annotationId: 'word',
 		displayName: 'Word',
 	});
 	const createdView = builder.newView('created.view', parentFormProbeView, {});
 	const createdContainer = builder.newContainer('created.container', ContainerRenderer, {}).addChildren(createdField, createdView);
-	root.addChildren(createdContainer);
+	createdForm.addChildren(createdContainer);
+	root.addChildren(createdForm);
 
 	const adoptedController = { ...testTextController };
 	const adoptedField = createFormFieldNode('adopted.field', adoptedController, TestTextField, {

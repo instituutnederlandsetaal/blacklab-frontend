@@ -15,7 +15,7 @@ import { createCustomizationRegistry } from '@/customization-api/registry';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import { createSearchFormSystem } from '@/features/search/model/form/search-form-system';
+import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import { installHooksGlobal, runHooks } from '@/interop/hooks';
 import { installCorpusGlobal, installCustomizationApiGlobals, installLegacyStoreGlobals, installVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';

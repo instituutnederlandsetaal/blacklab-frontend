@@ -1,9 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { watchEffect } from 'vue';
 
-import { annotationTextController, createFormFieldNode, expertQueryController, filterTextController, FormBuilder, FormRuntime, parallelController, type FormRuntimeContext } from '@/features/form';
+import {
+	annotationTextController,
+	createFormFieldNode,
+	expertQueryController,
+	filterTextController,
+	FormBuilder,
+	FormRuntime,
+	parallelController,
+	type FormOverrides,
+	type FormRuntimeContext,
+} from '@/features/form';
 import { createDefaultFormState } from '@/features/form/model/state';
-import type { RawFormOverrides } from '@/features/form/model/types/blacklab-params';
 
 import { useI18n, type Translate } from '@/shared/i18n';
 
@@ -130,7 +139,7 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 }
 
 function applyRawOverrides(runtime: FormRuntime, args: OverrideStoryArgs) {
-	const rawOverrides: RawFormOverrides = {};
+	const rawOverrides: FormOverrides = {};
 	if (args.pattOverride) rawOverrides.patt = overrideValues.patt;
 	if (args.filterOverride) rawOverrides.filter = overrideValues.filter;
 	if (args.searchfieldOverride) rawOverrides.searchfield = overrideValues.searchfield;

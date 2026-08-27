@@ -17,7 +17,6 @@
 import { computed, ref, toRef, useAttrs, watch } from 'vue';
 
 import type { FormRuntime } from '@/features/form/model/form-runtime';
-import type { RestorableFormParameter, RestorableFormParams } from '@/features/form/model/types/blacklab-params';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 
 import { provideFormSystemRuntime } from '../model/runtime';
@@ -44,30 +43,12 @@ watch(
 	() => runtimeRevision.value++,
 );
 
-const rawOverrideLabels: Record<RestorableFormParameter, string> = {
-	patt: 'Restored CQL',
-	collpatt: 'Restored collocation CQL',
-	filter: 'Restored Lucene filter',
-	searchfield: 'Restored search field',
-	withspans: 'Restored span inclusion',
-	colltype: 'Restored collocation type',
-	within: 'Restored collocation element',
-	reltype: 'Restored relation type',
-	annotation: 'Restored collocation annotation',
-	sensitive: 'Restored collocation sensitivity',
-	scorertype: 'Restored collocation scorer',
-};
-
 const renderTree = computed(() => props.runtime.renderableGraph(props.rootId));
 
 const activeOverrides = computed(() =>
-	(Object.entries(props.runtime.state.rawOverrides.value ?? {}) as Array<[RestorableFormParameter, RestorableFormParams[RestorableFormParameter] | undefined]>)
-		.filter((entry): entry is [RestorableFormParameter, NonNullable<RestorableFormParams[RestorableFormParameter]>] => entry[1] !== undefined)
-		.map(([parameter, value]) => ({
-			parameter,
-			value,
-			label: rawOverrideLabels[parameter],
-		})),
+	Object.entries(props.runtime.state.rawOverrides.value)
+		.filter(([, value]) => value !== undefined)
+		.map(([parameter, value]) => ({ parameter, value, label: `Restored ${parameter}` })),
 );
 </script>
 

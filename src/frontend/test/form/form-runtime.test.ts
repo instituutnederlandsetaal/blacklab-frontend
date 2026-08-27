@@ -23,6 +23,15 @@ function createNestedFormRuntime() {
 }
 
 describe('form runtime', () => {
+	test('compiles only registered form boundaries', () => {
+		const builder = createTestBuilder();
+		const root = builder.newContainer('root', ContainerRenderer, {});
+		builder.newForm('form', ContainerRenderer, {});
+		const runtime = createTestRuntime(builder);
+
+		expect(() => runtime.compile(root.id)).toThrow("Cannot compile unknown form 'root'.");
+	});
+
 	test('compile detaches nested summaries, encoded tabs, and result presets from later runtime edits', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });

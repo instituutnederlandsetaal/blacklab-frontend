@@ -7,7 +7,6 @@ import { computed } from 'vue';
 
 import { createRenderedNodeProps } from '@/features/form/model/field-component-props';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
-import { RESTORABLE_FORM_PARAMETERS, type RestorableFormParameter } from '@/features/form/model/types/blacklab-params';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 const props = withDefaults(
@@ -29,10 +28,7 @@ const runtime = useFormSystemRuntime();
 const componentProps = computed(() => ({
 	...createRenderedNodeProps(props.field, ['component', 'controller', 'kind']),
 	disabled:
-		props.disabled ||
-		props.field.controller.outputs.some(
-			output => (RESTORABLE_FORM_PARAMETERS as readonly string[]).includes(output) && runtime.value.state.rawOverrides.value[output as RestorableFormParameter] !== undefined,
-		),
+		props.disabled || props.field.controller.outputs.some(output => runtime.value.state.rawOverrides.value[output] !== undefined && Object.hasOwn(runtime.value.state.rawOverrides.value, output)),
 	htmlId: props.htmlId,
 	modelValue: props.modelValue,
 	'onUpdate:modelValue': (value: unknown) => emit('update:modelValue', value),

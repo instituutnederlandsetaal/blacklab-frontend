@@ -3,21 +3,14 @@ import { describe, expect, test } from 'vitest';
 import {
 	createSearchTarget,
 	docsSearchTarget,
-	FORM_OUTPUT_NAMES,
 	hitsSearchTarget,
 	rawCql,
 	searchTarget,
-	type BlackLabEndpointName,
-	type CollocationContext,
-	type CollocationParams,
-	type CompilationIssueCode,
 	type FieldController,
 	type FormEmission,
 	type FormIssue,
 	type FormOutputName,
-	type FormOutputValues,
 	type SearchOutputName,
-	type SharedFormParams,
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
 
@@ -50,18 +43,6 @@ function emission<Name extends FormOutputName>(name: Name, value: FormEmission<N
 }
 
 describe('form output acceptance', () => {
-	test('keeps the runtime output-name list exhaustive for the shared vocabulary', () => {
-		const names: readonly (keyof FormOutputValues)[] = FORM_OUTPUT_NAMES;
-		const context: CollocationContext = [2, 3];
-		const issueCode: CompilationIssueCode = 'malformed-output';
-		const endpoint: BlackLabEndpointName = 'collocations';
-		const shared: SharedFormParams = { patt: '[]' };
-		const collocation: Partial<CollocationParams> = { context: context.join(','), patt: shared.patt };
-
-		expect(names).toEqual(FORM_OUTPUT_NAMES);
-		expect({ issueCode, endpoint, collocation }).toEqual({ issueCode: 'malformed-output', endpoint: 'collocations', collocation: { context: '2,3', patt: '[]' } });
-	});
-
 	test('reports unknown, undeclared, unsupported, and malformed values while retaining unrelated valid outputs', () => {
 		const controller = createController(['patt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
 			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
@@ -90,6 +71,14 @@ describe('form output acceptance', () => {
 		});
 
 		expect(createRuntime(controller).compile('search.form')).toMatchObject({ params: {}, issues: [] });
+	});
+
+	test('reports controller outputs that the reachable form target does not support before they are emitted', () => {
+		const controller = createController(['collpatt'], () => {});
+		const compiled = createRuntime(controller).compile('search.form');
+
+		expect(compiled.params).toEqual({});
+		expect(compiled.issues).toEqual([expect.objectContaining({ stage: 'accept', code: 'unsupported-output', nodeId: 'search.field.0', output: 'collpatt' })]);
 	});
 
 	test('catches controller failures and continues with following fields', () => {
@@ -176,6 +165,17 @@ describe('search target compilation', () => {
 			['target', 'missing-output', 'patt'],
 			['target', 'missing-output', 'searchfield'],
 		]);
+	});
+
+	test('keeps runtime overrides outside target compilation', () => {
+		const builder = createTestBuilder();
+		builder.newForm('hits.form', ContainerRenderer, { target: hitsSearchTarget });
+		const runtime = createTestRuntime(builder);
+		runtime.state.rawOverrides.value.patt = '[word="restored"]';
+		const compiled = runtime.compile('hits.form');
+
+		expect(compiled.params).toEqual({});
+		expect(compiled.issues).toEqual([expect.objectContaining({ stage: 'target', code: 'missing-output', output: 'patt' })]);
 	});
 
 	test('declares endpoint families for generic and explicit-view targets', () => {

@@ -183,6 +183,21 @@ export class FormBuilder {
 		if (this.nodeMap[node.id] !== node) throw new Error(`Parent node '${node.id}' is not registered in this form builder`);
 	}
 
+	private assertNoNestedForms(nodes: readonly FormNode[]): void {
+		for (const form of nodes) {
+			if (form.kind !== 'form') continue;
+			const nested = getAllNodes(form, 'form').find(candidate => candidate !== form);
+			if (nested) throw new Error(`Form '${nested.id}' cannot be nested inside form '${form.id}'`);
+		}
+	}
+
+	private assertCanAttachSubgraph(parent: BaseContainerNode | BaseFormNode, nodes: readonly FormNode[]): void {
+		const nested = nodes.find(candidate => candidate.kind === 'form');
+		if (!nested) return;
+		const containingForm = this.formsList.find(form => this.contains(form, parent.id));
+		if (containingForm) throw new Error(`Form '${nested.id}' cannot be nested inside form '${containingForm.id}'`);
+	}
+
 	private validateSubgraph(node: AnyRealFormNode, replacedNode?: FormNode): FormNode[] {
 		checkNoLoops(node);
 		const nodes = getAllNodes(node);
@@ -204,6 +219,7 @@ export class FormBuilder {
 				}
 			}
 		}
+		this.assertNoNestedForms(nodes);
 		return nodes;
 	}
 
@@ -234,6 +250,7 @@ export class FormBuilder {
 		if (childNodes.some(descendant => descendant.id === node.id)) {
 			throw new Error(`Adding '${child.id}' to '${node.id}' would create a form graph cycle`);
 		}
+		this.assertCanAttachSubgraph(node, childNodes);
 		this.registerNodes(childNodes);
 		return child;
 	}
@@ -377,6 +394,7 @@ export class FormBuilder {
 		const replacementNodes = this.validateSubgraph(replacement, current);
 		const parentEdges = this.getParents(current).map(parent => ({ parent, index: this.getDirectChildIndex(parent, current) }));
 		for (const { parent } of parentEdges) {
+			this.assertCanAttachSubgraph(parent, replacementNodes);
 			if (replacementNodes.includes(parent)) throw new Error(`Replacing '${id}' would create a form graph cycle through '${parent.id}'`);
 		}
 

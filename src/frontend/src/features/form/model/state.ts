@@ -2,20 +2,21 @@ import { ref, toRaw } from 'vue';
 
 import { isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import type { FormNode } from '@/features/form/model/types';
-import type { RawFormOverrides } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { DeepReadonly } from '@/types/apptypes';
+
+export type FormOverrides = Record<string, unknown>;
 
 export type NewFormState = {
 	state: Record<string, unknown>;
 	uiState: Record<string, string | null>;
-	rawOverrides: RawFormOverrides;
+	rawOverrides: FormOverrides;
 };
 
 export type FormStateInput = {
 	readonly state: Readonly<Record<string, unknown>>;
 	readonly uiState: Readonly<Record<string, string | null>>;
-	readonly rawOverrides: Readonly<RawFormOverrides>;
+	readonly rawOverrides: Readonly<FormOverrides>;
 };
 
 function freezeDeep<T>(value: T, seen = new WeakSet<object>()): DeepReadonly<T> {
@@ -73,7 +74,7 @@ export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes
 export default function createFormState(initialState?: FormStateInput) {
 	const state = ref<Record<string, unknown>>(structuredClone(toRaw(initialState?.state ?? {})));
 	const uiState = ref<Record<string, string | null>>(structuredClone(toRaw(initialState?.uiState ?? {})));
-	const rawOverrides = ref<RawFormOverrides>(structuredClone(toRaw(initialState?.rawOverrides ?? {})));
+	const rawOverrides = ref<FormOverrides>(structuredClone(toRaw(initialState?.rawOverrides ?? {})));
 
 	function replaceState(newState: FormStateInput): void {
 		state.value = structuredClone(toRaw(newState.state));

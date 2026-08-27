@@ -1,10 +1,10 @@
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
-import { isContainerNode } from '@/features/form/model/form-utils';
+import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import type { FormStateInput } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { isFormOutputName, type Emit, type FormEmission, type FormIssue, type FormOutputName, type RawEmission, type ResultPreset, type SummaryEntry } from '@/features/form/model/types/form-output';
 import { booleanNode, isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';
-import type { FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
+import type { FormBoundaryNode, FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
 
 export type CollectedFormValues = {
 	emissions: RawEmission[];
@@ -228,6 +228,22 @@ export function collectFormValues(node: FormNode, formState: FormStateInput, run
 		summarizedFields: new Set(),
 	});
 	return { ...batch, issues };
+}
+
+export function diagnoseTargetOutputs(form: FormBoundaryNode, acceptedOutputs: readonly FormOutputName[], issues: FormIssue[]): void {
+	const accepted = new Set(acceptedOutputs);
+	for (const field of getAllNodes(form, 'field')) {
+		for (const output of new Set(field.controller.outputs)) {
+			if (accepted.has(output)) continue;
+			issues.push({
+				stage: 'accept',
+				code: 'unsupported-output',
+				nodeId: field.id,
+				output,
+				message: `Controller for '${field.id}' declares output '${output}', which the form target does not accept.`,
+			});
+		}
+	}
 }
 
 export function acceptTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly RawEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {

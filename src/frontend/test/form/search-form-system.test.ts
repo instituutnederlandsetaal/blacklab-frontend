@@ -13,18 +13,9 @@ import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import {
-	FormSystem,
-	RangeField,
-	restoreFormState,
-	SelectField,
-	summarizeAnnotationPosState,
-	TextField,
-	type AnnotationPosFieldConfig,
-	type ParallelFieldState,
-	type TokenSequenceFieldState,
-} from '@/features/form';
-import { createSearchFormSystem } from '@/features/search/model/form/search-form-system';
+import { FormSystem, RangeField, SelectField, summarizeAnnotationPosState, TextField, type AnnotationPosFieldConfig, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
+import { restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
+import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import type { Corpus, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
 import debug from '@/shared/debug/debug';
@@ -501,7 +492,7 @@ describe('search form system', () => {
 
 	test('restores a scoped Documents URL through the shared form restore path', () => {
 		const runtime = createDefinition();
-		const restored = restoreFormState(runtime.definition, {
+		const restored = restoreSearchFormState(runtime.definition, {
 			'f.form': ids.exploreForm('corpora'),
 			'f.explore-corpora-group-by': 'field:genre',
 			'f.explore-corpora-group-display-mode': 'docs',
@@ -512,8 +503,9 @@ describe('search form system', () => {
 		expect(restored.submittedFormId).toBe(ids.exploreForm('corpora'));
 		expect(runtime.state.state.value[ids.exploreCorporaGroupBy()]).toBe('field:genre');
 		expect(runtime.state.state.value[ids.exploreCorporaGroupDisplayMode()]).toBe('docs');
+		expect(restored.rawOverrides).toEqual({ filter: 'author:Austen' });
 		expect(runtime.compile(ids.exploreForm('corpora'))).toMatchObject({
-			params: { filter: 'author:Austen', group: 'field:genre' },
+			params: { group: 'field:genre' },
 			resultPreset: { groupDisplayMode: 'docs' },
 			targetView: 'docs',
 		});
@@ -582,7 +574,7 @@ describe('search form system', () => {
 
 	test('drops a restored N-gram grouping annotation that is no longer configured', () => {
 		const runtime = createDefinition();
-		const restored = restoreFormState(runtime.definition, {
+		const restored = restoreSearchFormState(runtime.definition, {
 			'f.form': ids.exploreForm('ngram'),
 			'f.explore-ngram-group-by': 'removed',
 		});
@@ -636,7 +628,7 @@ describe('search form system', () => {
 		] satisfies TokenSequenceFieldState;
 		runtime.state.state.value[ids.exploreNgramGroupBy()] = 'pos';
 		const submitted = runtime.compile(ids.exploreForm('ngram'));
-		const restored = restoreFormState(runtime.definition, submitted.encoded);
+		const restored = restoreSearchFormState(runtime.definition, submitted.encoded);
 		runtime.state.replaceState(restored);
 
 		expect(runtime.state.state.value[ids.exploreNgramTokens()]).toEqual([
@@ -793,7 +785,7 @@ describe('search form system', () => {
 
 	test('restores a canonical raw query into the expert form', () => {
 		const runtime = createDefinition();
-		const restored = restoreFormState(runtime.definition, {
+		const restored = restoreSearchFormState(runtime.definition, {
 			patt: '[lemma="water"]',
 		});
 		runtime.state.replaceState(restored);
@@ -1171,7 +1163,7 @@ describe('search form system', () => {
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
 
-		const restored = restoreFormState(replacementRuntime.definition, {
+		const restored = restoreSearchFormState(replacementRuntime.definition, {
 			...committedUrlState.encoded,
 			patt: committedUrlState.params.patt,
 			filter: committedUrlState.params.filter,
@@ -1182,7 +1174,6 @@ describe('search form system', () => {
 		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.params.patt });
 		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: 'Austen', caseSensitive: false });
 		expect(replacementRuntime.compile(ids.searchForm('advanced')).params).toMatchObject({
-			patt: committedUrlState.params.patt,
 			filter: committedUrlState.params.filter,
 		});
 	});
@@ -1284,7 +1275,7 @@ describe('search form system', () => {
 			{ value: 'p', label: 'Paragraph', title: null },
 		];
 		const definition = createDefinition(corpus);
-		const restored = restoreFormState(definition.definition, {
+		const restored = restoreSearchFormState(definition.definition, {
 			'f.form': ids.searchForm('simple'),
 			'f.word': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1309,7 +1300,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreFormState(definition.definition, {
+		const restored = restoreSearchFormState(definition.definition, {
 			'f.form': ids.searchForm('extended'),
 			'f.word_or_lemma': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1323,12 +1314,13 @@ describe('search form system', () => {
 			value: 'schip',
 			caseSensitive: false,
 		});
+		expect(restored.rawOverrides).toEqual({ patt: '[word_or_lemma="(?i)schip"]' });
 		expect(definition.compile(ids.searchForm('extended'))).toMatchObject({
 			encoded: {
 				'f.form': ids.searchForm('extended'),
 				'f.word_or_lemma': 'schip',
 			},
-			params: { patt: '[word_or_lemma="(?i)schip"]' },
+			params: { patt: '[word_or_lemma="schip"]' },
 		});
 	});
 
@@ -1336,7 +1328,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreFormState(definition.definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
+		const restored = restoreSearchFormState(definition.definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
 
 		expect(restored.uiState[ids.annotationTabs()]).toBe(ids.annotationTab('Grammar'));
 		expect(restored.uiState[ids.annotationTab('Grammar')]).toBe(ids.annotationField('extended', 'contents', 'pos'));

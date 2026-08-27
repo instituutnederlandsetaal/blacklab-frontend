@@ -4,21 +4,18 @@ import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-// Results
-// Article
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import type { CompiledFormResult } from '@/features/form';
+import type { CompiledFormResult, FormOutputName, FormOverrides } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
-// Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
-import { handoffCompiledForm } from '@/features/search/model/form/form-result-handoff';
 import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as PatternModule from '@/features/search/model/form/pattern-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
+import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
@@ -198,10 +195,10 @@ function applyLegacyExploreResultSettings(): boolean {
 }
 
 const actions = {
-	searchFromSubmit: (snapshot?: CompiledFormResult | null) => {
+	searchFromSubmit: (snapshot?: CompiledFormResult | null, overrides?: Readonly<FormOverrides>, acceptedOutputs?: readonly FormOutputName[]) => {
 		localSearchIntentRevision += 1;
 		if (snapshot) {
-			handoffCompiledForm(snapshot);
+			handoffCompiledForm(snapshot, overrides, acceptedOutputs);
 			return;
 		}
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {

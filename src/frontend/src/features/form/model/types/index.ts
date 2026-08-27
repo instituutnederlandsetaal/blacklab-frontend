@@ -1,4 +1,4 @@
-export * from './blacklab-params';
+export type * from './blacklab-params';
 export * from './form-controllers';
 export * from './form-output';
 export * from './form-query-ir';
