@@ -242,7 +242,12 @@ function parseCriterium(criterium: string, results?: BLSearchResult): SortingOrG
 						end,
 					},
 				});
-			} // else fallthrough default, which returns the whole part as a string.
+			} else {
+				return {
+					type: 'custom',
+					value: criterium,
+				};
+			}
 		}
 		default: {
 			console.warn(`Unknown group by/sort by criterium type: ${type} (full: ${criterium})`);
