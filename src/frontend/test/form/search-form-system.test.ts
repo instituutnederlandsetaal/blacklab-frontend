@@ -505,7 +505,7 @@ describe('search form system', () => {
 		expect(runtime.state.state.value[ids.exploreCorporaGroupDisplayMode()]).toBe('docs');
 		expect(restored.rawOverrides).toEqual({ filter: 'author:Austen' });
 		expect(runtime.compile(ids.exploreForm('corpora'))).toMatchObject({
-			params: { group: 'field:genre' },
+			params: { filter: 'author:Austen', group: 'field:genre' },
 			resultPreset: { groupDisplayMode: 'docs' },
 			targetView: 'docs',
 		});
@@ -1320,7 +1320,7 @@ describe('search form system', () => {
 				'f.form': ids.searchForm('extended'),
 				'f.word_or_lemma': 'schip',
 			},
-			params: { patt: '[word_or_lemma="schip"]' },
+			params: { patt: '[word_or_lemma="(?i)schip"]' },
 		});
 	});
 

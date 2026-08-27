@@ -53,6 +53,10 @@ function snapshot(params: FormParams, extra: Partial<CompiledFormResult> = {}): 
 	};
 }
 
+function submitNewForm(result: CompiledFormResult) {
+	RootStore.actions.searchFromSubmit(result);
+}
+
 afterEach(() => {
 	vi.restoreAllMocks();
 	resetStores();
@@ -71,7 +75,7 @@ describe('compiled-form result handoff', () => {
 			},
 		);
 
-		RootStore.actions.searchFromSubmit(submitted);
+		submitNewForm(submitted);
 
 		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({
@@ -85,46 +89,43 @@ describe('compiled-form result handoff', () => {
 	test('honors a preferred docs view even when patt is present', () => {
 		resetStores();
 
-		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }, { targetView: 'docs' }));
+		submitNewForm(snapshot({ patt: '[word="water"]' }, { targetView: 'docs' }));
 
 		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 	});
 
 	test('falls back to patt-based view selection when no target preference exists', () => {
 		resetStores();
-		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }));
+		submitNewForm(snapshot({ patt: '[word="water"]' }));
 		expect(InterfaceStore.get.viewedResults()).toBe('hits');
 
-		RootStore.actions.searchFromSubmit(snapshot({}));
+		submitNewForm(snapshot({}));
 		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 	});
 
-	test('applies accepted overrides before publication and effective-state comparison', () => {
+	test('publishes and compares the effective compiled state', () => {
 		resetStores();
-		const compiled = snapshot({ patt: '[word="draft"]', group: 'field:submitted' }, { targetView: 'hits' });
-		const overrides = { patt: '[word="restored"]', collpatt: '[lemma="ignored"]' };
-		const acceptedOutputs = ['patt', 'group'] as const;
+		const effective = snapshot({ patt: '[word="restored"]', group: 'field:submitted' }, { targetView: 'hits' });
 
-		RootStore.actions.searchFromSubmit(compiled, overrides, acceptedOutputs);
+		submitNewForm(effective);
 		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: { params: { patt: '[word="restored"]', group: 'field:submitted' } } });
-		expect((QueryStore.getState() as { state: CompiledFormResult }).state.params).not.toHaveProperty('collpatt');
 
 		const view = ViewStore.getOrCreateModule('hits');
 		view.actions.groupBy(['field:changed-later']);
-		RootStore.actions.searchFromSubmit(compiled, overrides, acceptedOutputs);
+		submitNewForm(effective);
 
 		expect(view.getState().groupBy).toEqual(['field:changed-later']);
 	});
 
 	test('does not reapply form-owned settings when compiled params are unchanged', () => {
 		resetStores();
-		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } }));
+		submitNewForm(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } }));
 		const view = ViewStore.getOrCreateModule('docs');
 		view.actions.groupBy(['field:changed-later']);
 		view.actions.sort('field:changed-later');
 		view.actions.groupDisplayMode('docs');
 
-		RootStore.actions.searchFromSubmit(
+		submitNewForm(
 			snapshot(
 				{ group: 'field:submitted', sort: 'field:submitted' },
 				{ encoded: { 'f.form': 'search.form', 'f.changed': 'presentation-only' }, targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } },
@@ -136,11 +137,11 @@ describe('compiled-form result handoff', () => {
 
 	test('applies form-owned settings again when compiled params change', () => {
 		resetStores();
-		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:first' }, { targetView: 'docs' }));
+		submitNewForm(snapshot({ group: 'field:first' }, { targetView: 'docs' }));
 		const view = ViewStore.getOrCreateModule('docs');
 		view.actions.groupBy(['field:live']);
 
-		RootStore.actions.searchFromSubmit(snapshot({ group: 'field:second' }, { targetView: 'docs' }));
+		submitNewForm(snapshot({ group: 'field:second' }, { targetView: 'docs' }));
 
 		expect(view.getState().groupBy).toEqual(['field:second']);
 	});
@@ -152,7 +153,7 @@ describe('compiled-form result handoff', () => {
 		PatternStore.actions.extended.splitBatch(true);
 		const submitted = snapshot({ patt: '[word="water"]' });
 
-		RootStore.actions.searchFromSubmit(submitted);
+		submitNewForm(submitted);
 
 		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
 	});
@@ -160,7 +161,7 @@ describe('compiled-form result handoff', () => {
 	test('requests spans from the compiled withspans parameter', () => {
 		resetStores();
 
-		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]', withspans: true }));
+		submitNewForm(snapshot({ patt: '[word="water"]', withspans: true }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
 	});
@@ -168,7 +169,7 @@ describe('compiled-form result handoff', () => {
 	test('does not request spans when compiled params omit withspans', () => {
 		resetStores();
 
-		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }));
+		submitNewForm(snapshot({ patt: '[word="water"]' }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
 	});
@@ -201,7 +202,7 @@ describe('compiled-form result handoff', () => {
 		resetStores();
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(false);
 
-		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]', withspans: true }));
+		submitNewForm(snapshot({ patt: '[word="water"]', withspans: true }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(false);
 	});
@@ -210,7 +211,7 @@ describe('compiled-form result handoff', () => {
 		resetStores();
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(true);
 
-		RootStore.actions.searchFromSubmit(snapshot({ patt: '[word="water"]' }));
+		submitNewForm(snapshot({ patt: '[word="water"]' }));
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
 	});

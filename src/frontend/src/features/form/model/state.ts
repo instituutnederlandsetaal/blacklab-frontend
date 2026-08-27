@@ -3,7 +3,6 @@ import { ref, toRaw } from 'vue';
 import { isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import type { FormNode } from '@/features/form/model/types';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { DeepReadonly } from '@/types/apptypes';
 
 export type FormOverrides = Record<string, unknown>;
 
@@ -12,24 +11,6 @@ export type NewFormState = {
 	uiState: Record<string, string | null>;
 	rawOverrides: FormOverrides;
 };
-
-export type FormStateInput = {
-	readonly state: Readonly<Record<string, unknown>>;
-	readonly uiState: Readonly<Record<string, string | null>>;
-	readonly rawOverrides: Readonly<FormOverrides>;
-};
-
-function freezeDeep<T>(value: T, seen = new WeakSet<object>()): DeepReadonly<T> {
-	if (value === null || typeof value !== 'object' || seen.has(value)) return value as DeepReadonly<T>;
-	seen.add(value);
-	for (const child of Object.values(value)) freezeDeep(child, seen);
-	return Object.freeze(value) as DeepReadonly<T>;
-}
-
-/** Create a detached, immutable value that can later be cloned into a runtime. */
-export function createFormStateSnapshot<T extends FormStateInput>(value: T): DeepReadonly<T> {
-	return freezeDeep(structuredClone(toRaw(value)));
-}
 
 /**
  * Walk all nodes, look for field nodes, and create initial states for them using their controller's createDefaultState function, and return an object containing all field states.
@@ -71,12 +52,12 @@ export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes
 	};
 }
 
-export default function createFormState(initialState?: FormStateInput) {
+export default function createFormState(initialState?: NewFormState) {
 	const state = ref<Record<string, unknown>>(structuredClone(toRaw(initialState?.state ?? {})));
 	const uiState = ref<Record<string, string | null>>(structuredClone(toRaw(initialState?.uiState ?? {})));
 	const rawOverrides = ref<FormOverrides>(structuredClone(toRaw(initialState?.rawOverrides ?? {})));
 
-	function replaceState(newState: FormStateInput): void {
+	function replaceState(newState: NewFormState): void {
 		state.value = structuredClone(toRaw(newState.state));
 		uiState.value = structuredClone(toRaw(newState.uiState));
 		rawOverrides.value = structuredClone(toRaw(newState.rawOverrides));

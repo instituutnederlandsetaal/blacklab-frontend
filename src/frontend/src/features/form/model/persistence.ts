@@ -3,12 +3,11 @@ import type { FormBuilder } from '@/features/form/model/builder/form-shape-build
 import { acceptTargetEmissions, collectFormValues, diagnoseTargetOutputs } from '@/features/form/model/compile';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
-import { createDefaultFormState, createFormStateSnapshot, type FormOverrides, type FormStateInput, type NewFormState } from '@/features/form/model/state';
+import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
 import { encodeFieldState, getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult, ScopedFormQuery } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
-import type { DeepReadonly } from '@/types/apptypes';
 
 const FORM_QUERY_PREFIX = 'f.';
 const SCOPED_FORM_KEYS = {
@@ -24,12 +23,11 @@ type RestoreDiagnostic = {
 	code?: FormIssue['code'];
 };
 
-type MutableRestoredFormState = NewFormState & {
+export type RestoredFormState = NewFormState & {
 	issues: FormIssue[];
 	/** Scoped form that can be compiled as the submitted query; canonical-only fallback stays null. */
 	submittedFormId: string | null;
 };
-export type RestoredFormState = DeepReadonly<MutableRestoredFormState>;
 
 export type RestoreFormStateOptions = {
 	overrideCandidates?: Readonly<FormOverrides>;
@@ -224,7 +222,7 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 	return { uiState, issues };
 }
 
-function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[] {
+function queryAffectingTabParams(form: FormNode, state: NewFormState): string[] {
 	const tabs: string[] = [];
 	for (const container of getAllNodes(form, 'container', 'form')) {
 		const activeChildId = state.uiState[container.id];
@@ -235,7 +233,7 @@ function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[
 	return tabs;
 }
 
-function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: FormStateInput): { encoded: ScopedFormQuery; issues: RestoreDiagnostic[] } {
+function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: NewFormState): { encoded: ScopedFormQuery; issues: RestoreDiagnostic[] } {
 	const codec = buildFieldCodec(form, context);
 	const issues = [...codec.issues];
 	const r: ScopedFormQuery = {
@@ -259,13 +257,13 @@ function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, stat
 	return { encoded: r, issues };
 }
 
-export function compileFormNode(node: FormBoundaryNode, state: FormStateInput, context: FormRuntimeContext): CompiledFormResult {
+export function compileFormNode(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext): CompiledFormResult {
 	if (node.kind !== 'form') throw new Error(`Cannot compile non-form node '${node.id}'.`);
 	const target = node.target;
 	const encodedState = encodeScopedFormState(node, context, state);
 	const collected = collectFormValues(node, state, context);
 	const issues: FormIssue[] = [
-		...((state as FormStateInput & { issues?: readonly FormIssue[] }).issues ?? []),
+		...((state as NewFormState & { issues?: readonly FormIssue[] }).issues ?? []),
 		...encodedState.issues.map(issue => ({ ...issue, stage: 'collect' as const, code: issue.code ?? ('malformed-output' as const) })),
 		...collected.issues,
 	];
@@ -332,12 +330,12 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 		const compiledParams = compileFormNode(activeForm, restoredState, definition.context).params as Readonly<Record<string, unknown>>;
 		const rawOverrides = Object.fromEntries(Object.entries(overrideCandidates).filter(([parameter, value]) => !Object.hasOwn(compiledParams, parameter) || compiledParams[parameter] !== value));
 
-		return createFormStateSnapshot({
+		return {
 			...restoredState,
 			rawOverrides,
 			issues,
 			submittedFormId: finalSubmittedFormId,
-		});
+		};
 	};
 
 	// Restored fields or tabs make the scoped form authoritative.

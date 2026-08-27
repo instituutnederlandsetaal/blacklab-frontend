@@ -91,12 +91,6 @@ function createCanonicalFallbackFixture(isParallelCorpus?: boolean) {
 	};
 }
 
-function isDeeplyFrozen(value: unknown, seen = new WeakSet<object>()): boolean {
-	if (value === null || typeof value !== 'object' || seen.has(value)) return true;
-	seen.add(value);
-	return Object.isFrozen(value) && Object.values(value).every(child => isDeeplyFrozen(child, seen));
-}
-
 describe('scoped form persistence', () => {
 	test('includes a field-provided table-mode preset in compiled output', () => {
 		const builder = createTestBuilder();
@@ -185,13 +179,6 @@ describe('scoped form persistence', () => {
 		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.rawOverrides).toEqual({});
 		expect(restored.submittedFormId).toEqual('search.extended');
-	});
-
-	test('returns deeply frozen restoration snapshots', () => {
-		const fixture = createSingleTextForm();
-		const restored = restoreFormState(fixture.definition, { 'f.word': 'water' });
-
-		expect(isDeeplyFrozen(restored)).toBe(true);
 	});
 
 	test('reports dangling scoped parameters and restores fields accepted by the default form for an unknown selector', () => {

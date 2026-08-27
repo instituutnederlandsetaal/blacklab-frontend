@@ -167,15 +167,15 @@ describe('search target compilation', () => {
 		]);
 	});
 
-	test('keeps runtime overrides outside target compilation', () => {
-		const builder = createTestBuilder();
-		builder.newForm('hits.form', ContainerRenderer, { target: hitsSearchTarget });
-		const runtime = createTestRuntime(builder);
+	test('reconciles accepted runtime overrides after target compilation', () => {
+		const controller = createController(['patt'], (_config, _runtime, _state, emit) => emit('patt', rawCql('[word="draft"]')));
+		const runtime = createRuntime(controller);
 		runtime.state.rawOverrides.value.patt = '[word="restored"]';
-		const compiled = runtime.compile('hits.form');
+		runtime.state.rawOverrides.value.collpatt = '[lemma="ignored"]';
 
-		expect(compiled.params).toEqual({});
-		expect(compiled.issues).toEqual([expect.objectContaining({ stage: 'target', code: 'missing-output', output: 'patt' })]);
+		const compiled = runtime.compile('search.form');
+
+		expect(compiled.params).toEqual({ patt: '[word="restored"]' });
 	});
 
 	test('declares endpoint families for generic and explicit-view targets', () => {

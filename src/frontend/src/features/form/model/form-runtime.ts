@@ -2,7 +2,8 @@ import { markRaw } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { compileFormNode } from '@/features/form/model/persistence';
-import createFormState, { createDefaultFormState, type FormStateInput } from '@/features/form/model/state';
+import createFormState, { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
+import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { RenderableFormNode } from '@/features/form/ui/renderable-graph';
 import { renderFormNode } from '@/features/form/ui/renderable-graph';
 
@@ -20,7 +21,7 @@ export class FormRuntime {
 
 	public constructor(
 		public readonly definition: FormBuilder,
-		initialState: FormStateInput = createDefaultFormState(definition.context, ...definition.nodeList),
+		initialState: NewFormState = createDefaultFormState(definition.context, ...definition.nodeList),
 	) {
 		this.state = createFormState(initialState);
 		markRaw(this);
@@ -31,10 +32,16 @@ export class FormRuntime {
 		return root ? renderFormNode(root, { state: this.state }) : undefined;
 	}
 
-	public compile(formId: string) {
+	public compile(formId: string): CompiledFormResult {
 		const form = this.definition.getForm(formId);
 		if (!form) throw new Error(`Cannot compile unknown form '${formId}'.`);
-		return compileFormNode(form, this.state.getReactiveState(), this.definition.context);
+		const state = this.state.getReactiveState();
+		const result = compileFormNode(form, state, this.definition.context);
+		const accepted = new Set<string>(form.target.acceptedOutputs);
+		for (const [parameter, value] of Object.entries(state.rawOverrides)) {
+			if (accepted.has(parameter)) (result.params as unknown as Record<string, unknown>)[parameter] = value;
+		}
+		return result;
 	}
 
 	public reset() {

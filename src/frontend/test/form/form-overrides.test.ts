@@ -1,18 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import type { CompiledFormResult } from '@/features/form';
-import { searchTarget } from '@/features/form';
-import { applySearchFormOverrides, extractSearchFormOverrides } from '@/features/search/model/new-form/form-overrides';
-
-function compiled(params: CompiledFormResult['params']): CompiledFormResult {
-	return {
-		formId: 'search.form',
-		params,
-		encoded: { 'f.form': 'search.form' },
-		issues: [],
-		summaries: [],
-	};
-}
+import { extractSearchFormOverrides } from '@/features/search/model/new-form/form-overrides';
 
 describe('search form override integration', () => {
 	test('extracts the curated canonical request parameters and normalizes aliases', () => {
@@ -41,23 +29,5 @@ describe('search form override integration', () => {
 
 	test('omits searchfield for non-parallel corpora', () => {
 		expect(extractSearchFormOverrides({ searchfield: 'contents__nl' }, false)).toEqual({});
-	});
-
-	test('applies only valid overrides accepted by the selected target without mutating compilation', () => {
-		const result = compiled({ patt: '[word="draft"]', group: 'field:author' });
-		const effective = applySearchFormOverrides(
-			result,
-			{
-				patt: '[word="restored"]',
-				filter: 'author:Austen',
-				collpatt: '[lemma="ignored"]',
-				searchfield: 42,
-				withspans: false,
-			},
-			searchTarget.acceptedOutputs,
-		);
-
-		expect(result.params).toEqual({ patt: '[word="draft"]', group: 'field:author' });
-		expect(effective.params).toEqual({ patt: '[word="restored"]', filter: 'author:Austen', group: 'field:author' });
 	});
 });

@@ -1,6 +1,6 @@
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
-import type { FormStateInput } from '@/features/form/model/state';
+import type { NewFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { isFormOutputName, type Emit, type FormEmission, type FormIssue, type FormOutputName, type RawEmission, type ResultPreset, type SummaryEntry } from '@/features/form/model/types/form-output';
 import { booleanNode, isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';
@@ -14,7 +14,7 @@ export type CollectedFormValues = {
 };
 
 type CollectionContext = {
-	formState: FormStateInput;
+	formState: NewFormState;
 	runtime: FormRuntimeContext;
 	issues: FormIssue[];
 	summarizedFields: Set<FormFieldNode>;
@@ -219,7 +219,7 @@ function collectNode(node: FormNode, context: CollectionContext): CollectionBatc
 	};
 }
 
-export function collectFormValues(node: FormNode, formState: FormStateInput, runtime: FormRuntimeContext): CollectedFormValues {
+export function collectFormValues(node: FormNode, formState: NewFormState, runtime: FormRuntimeContext): CollectedFormValues {
 	const issues: FormIssue[] = [];
 	const batch = collectNode(node, {
 		formState,
@@ -275,7 +275,7 @@ export function acceptTargetEmissions<Names extends readonly FormOutputName[]>(e
 	return result;
 }
 
-export function countSummarizedFields(node: FormNode, formState: FormStateInput, runtime: FormRuntimeContext): number {
+export function countSummarizedFields(node: FormNode, formState: NewFormState, runtime: FormRuntimeContext): number {
 	let count = 0;
 	const seen = new Set<FormFieldNode>();
 	const visit = (current: FormNode): void => {

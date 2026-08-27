@@ -24,11 +24,12 @@ const submitNewForm = (QueryForm as unknown as { methods: { submitNewForm: Submi
 afterEach(() => vi.restoreAllMocks());
 
 describe('new query form submission', () => {
-	test('forwards the active form overrides and target outputs to the search handoff', () => {
+	test('passes the effective compiled result to the search handoff', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm(searchFormIds.searchForm('simple'), ContainerRenderer, {});
 		const runtime = createTestRuntime(builder);
 		runtime.state.rawOverrides.value.patt = '[word="restored"]';
+		runtime.state.rawOverrides.value.collpatt = '[lemma="ignored"]';
 		const snapshot = runtime.compile(form.id);
 		const searchFromSubmit = vi.spyOn(RootStore.actions, 'searchFromSubmit').mockImplementation(() => undefined);
 
@@ -41,6 +42,7 @@ describe('new query form submission', () => {
 			snapshot,
 		);
 
-		expect(searchFromSubmit).toHaveBeenCalledWith(snapshot, runtime.state.rawOverrides.value, form.target.acceptedOutputs);
+		expect(snapshot.params).toEqual({ patt: '[word="restored"]' });
+		expect(searchFromSubmit).toHaveBeenCalledWith(snapshot);
 	});
 });

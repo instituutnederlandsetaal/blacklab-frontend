@@ -5,14 +5,13 @@ import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vu
 import * as RootStore from '@/app/state/root-store';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import { compileFormNode, type FormRuntime } from '@/features/form';
+import type { FormRuntime } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import { applySearchFormOverrides } from '@/features/search/model/new-form/form-overrides';
-import { restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
+import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
@@ -349,16 +348,10 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			const newSearchFormRuntime = dependencies.searchForms.value;
 			let submittedNewForm = restored.newForm ?? null;
 			if (newSearchFormRuntime) {
-				const newFormState = restoreSearchFormState(newSearchFormRuntime.definition, context.route.query);
-				if (newFormState.submittedFormId) {
-					const form = newSearchFormRuntime.definition.getForm(newFormState.submittedFormId);
-					if (!form) throw new Error(`Cannot compile unknown restored form '${newFormState.submittedFormId}'.`);
-					const compiled = compileFormNode(form, newFormState, newSearchFormRuntime.definition.context);
-					submittedNewForm = applySearchFormOverrides(compiled, newFormState.rawOverrides, form.target.acceptedOutputs);
-				}
-				newSearchFormRuntime.state.replaceState(newFormState);
-				if (newFormState.issues.length) {
-					debugLog('url', 'New search form URL restore issues', newFormState.issues);
+				const formRestore = restoreSearchForm(newSearchFormRuntime, context.route.query);
+				submittedNewForm = formRestore.submittedResult ?? submittedNewForm;
+				if (formRestore.state.issues.length) {
+					debugLog('url', 'New search form URL restore issues', formRestore.state.issues);
 				}
 			}
 

@@ -6,7 +6,7 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import type { CompiledFormResult, FormOutputName, FormOverrides } from '@/features/form';
+import type { CompiledFormResult } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
@@ -195,10 +195,10 @@ function applyLegacyExploreResultSettings(): boolean {
 }
 
 const actions = {
-	searchFromSubmit: (snapshot?: CompiledFormResult | null, overrides?: Readonly<FormOverrides>, acceptedOutputs?: readonly FormOutputName[]) => {
+	searchFromSubmit: (snapshot?: CompiledFormResult) => {
 		localSearchIntentRevision += 1;
 		if (snapshot) {
-			handoffCompiledForm(snapshot, overrides, acceptedOutputs);
+			handoffCompiledForm(snapshot);
 			return;
 		}
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
@@ -210,7 +210,7 @@ const actions = {
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
 
 		QueryModule.actions.search(newQueryState);
-		if (!snapshot && applyLegacyExploreResultSettings()) return;
+		if (applyLegacyExploreResultSettings()) return;
 
 		const newPattern = QueryModule.get.patternString();
 		const currentView = InterfaceModule.get.viewedResults();

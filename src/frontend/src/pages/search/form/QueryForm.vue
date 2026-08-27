@@ -171,11 +171,8 @@ export default defineComponent({
 
 		submitNewForm(snapshot: CompiledFormResult) {
 			if (!this.confirmLargeExploreSearch(searchFormIds.formKind(snapshot.formId) ?? undefined)) return;
-			const runtime = this.newForm;
-			const form = runtime?.definition.getForm(snapshot.formId);
-			if (!runtime || !form) throw new Error(`Cannot submit unknown form '${snapshot.formId}'.`);
 			this.blurActiveElement();
-			RootStore.actions.searchFromSubmit(snapshot, runtime.state.rawOverrides.value, form.target.acceptedOutputs);
+			RootStore.actions.searchFromSubmit(snapshot);
 		},
 		resetNewForm() {
 			RootStore.actions.reset();

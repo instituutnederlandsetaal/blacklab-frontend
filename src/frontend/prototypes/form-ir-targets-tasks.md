@@ -367,46 +367,6 @@ The walker calls it beside value collection and passes a returned preset through
 
 Tests must cover resultview selection, grouping/table mode, all Explore outputs and target bindings, the table-only preset shape, changed and unchanged resubmission, one-way live edits, restored-live-state precedence, scoped/live coexistence, and URL/history snapshots.
 
-### 1.5. Fix issues raised by review
-
-## Findings
-
-1. **P1 — Raw overrides can violate the selected target’s parameter contract.**  
-   `compileFormNode` runs target acceptance/compilation, then writes every global restorable parameter directly into the result (`src/features/form/model/persistence.ts:317-321`). Consequently, a search target can publish collocation-only parameters from `RESTORABLE_FORM_PARAMETERS` (`src/features/form/model/types/blacklab-params.ts:41-53`) without accepting or validating them. The resulting object may satisfy neither `SearchParams` nor `CollocationParams`.  
-   Preserve these overrides, but only publish parameters permitted by the target—ideally through an explicit target-owned override policy.
-
-2. **P1 — The Form Boundary invariant is not enforced.**  
-   `compileFormNode` accepts any `FormNode` and silently substitutes `searchTarget` for non-form nodes (`src/features/form/model/persistence.ts:307-309`); `FormRuntime.compile` uses generic `getNode` (`src/features/form/model/form-runtime.ts:35-38`). This bypasses the target boundary. It should accept `FormBoundaryNode`, and runtime lookup should use `getForm()`.
-
-3. **P1 — Nested forms are accepted and their inner target is ignored.**  
-   Builder validation checks IDs and cycles but not nested forms (`src/features/form/model/builder/form-shape-builder.ts:186-207,230-238`). Collection then treats an inner form as an ordinary container (`src/features/form/model/compile/index.ts:193-219`), compiling all descendants with the outer target. This directly contradicts “Forms cannot be nested.”
-
-4. **P2 — Declared outputs are not used for graph diagnostics.**  
-   Controller `outputs` are used for suspension and to detect emissions that were not declared (`src/features/form/model/compile/index.ts:57-61`), but there is no post-assembly check against each reachable form target. A controller declaring only unsupported outputs remains silent until it actually emits one. This misses the task’s graph-diagnostics requirement and makes customization mistakes state-dependent.
-
-5. **P2 — Invalid effective hits sets are not covered through the real target.**  
-   `hitsSearchTarget` does not require `patt` (`src/features/form/model/targets.ts:121-123`), although the API and results view reject hits without one (`src/shared/api/blacklabApi.ts:367-369`, `src/pages/search/results/ResultsView.vue:477-479`). Requiredness tests only exercise ad-hoc targets; there is no end-to-end invalid-effective-set test for `hitsSearchTarget`.
-
-## Taste pass
-
-The delegated reviewer agreed with findings 1–2 and raised these placement/naming concerns:
-
-- Walking, scoped composition, acceptance, and badge counting live in the implementation-heavy `model/compile/index.ts`, while end-to-end compilation lives in `model/persistence.ts`. Prefer something like:
-  - `model/collect.ts` or `model/collection/form-collector.ts`
-  - `model/compile/compile-form.ts`
-  - persistence limited to encoding/restoration.
-- `result-preset-controller.ts` is now misleading: `resultGroupByController` and `resultSortController` emit normal semantic outputs, not presets (`src/features/form/model/controllers/result-preset-controller.ts:13-28`). Split or rename it.
-
-The semantic vocabulary, target compiler, Explore target bindings, CQL wrapper handling, and handoff direction otherwise look coherent.
-
-## Validation
-
-- `npm run lint` — passed
-- Full unit suite — **46 files, 667 tests passed**
-- Working tree clean; `git diff --check` passed
-
-No files were changed.
-
 ### 2. Route descendants through form walking
 
 Apply the common form-walking contract to compound and embedded fields. A compound field combines only the output names it supports according to its container mode and passes unrelated emissions through. Configured active-child contributions use the same producer contract.
