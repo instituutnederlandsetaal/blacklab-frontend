@@ -36,6 +36,7 @@ import {
 	type FormEmission,
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
+import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 
@@ -789,7 +790,7 @@ describe('scoped form persistence', () => {
 		expect(secondKey).toHaveBeenCalledOnce();
 	});
 
-	test('reports the duplicate key and field when persistence keys collide', () => {
+	test('keeps the first field in schema walk order and reports duplicate persistence keys', () => {
 		const duplicateBuilder = createTestBuilder();
 		const duplicateForm = duplicateBuilder.newForm('search.extended', ContainerRenderer, {
 			title: 'Extended',
@@ -803,13 +804,10 @@ describe('scoped form persistence', () => {
 			displayName: 'Duplicate word',
 		});
 		duplicateForm.addChildren(firstDuplicateField, secondDuplicateField);
-		const duplicateDefinition = duplicateBuilder;
-		const duplicateContext = createTestContext();
-		const duplicateState = createDefaultFormState(duplicateContext, duplicateDefinition.getRoot());
-		duplicateState.state[firstDuplicateField.id] = { value: 'water' };
-		duplicateState.state[secondDuplicateField.id] = { value: 'fire' };
+		const schema = resolvePersistenceSchema(duplicateForm, duplicateBuilder.context);
 
-		expect(compileFormNode(duplicateForm, duplicateState, duplicateContext).issues).toEqual([
+		expect([...schema.keys]).toEqual([[firstDuplicateField, 'word']]);
+		expect(schema.issues).toEqual([
 			{
 				severity: 'error',
 				message: `Duplicate form persistence key 'word' for '${secondDuplicateField.id}' and '${firstDuplicateField.id}'.`,

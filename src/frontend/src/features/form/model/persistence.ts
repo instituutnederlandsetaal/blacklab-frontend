@@ -3,7 +3,7 @@ import type { FormBuilder } from '@/features/form/model/builder/form-shape-build
 import { applyRawOverrides, compileFormNode } from '@/features/form/model/compile/form';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
-import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS, type PersistenceSchemaEntry } from '@/features/form/model/persistence/schema';
+import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@/features/form/model/persistence/schema';
 import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
 import { restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue } from '@/features/form/model/types/form-output';
@@ -69,10 +69,9 @@ function getUiStateForPath(rootNodes: FormNode[], targetId: string): Record<stri
 	return activeContainers;
 }
 
-function inferUiStateFromPersistedFields(definition: FormBuilder, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, entries: PersistenceSchemaEntry[]): Record<string, string> {
+function inferUiStateFromPersistedFields(definition: FormBuilder, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, keys: ReadonlyMap<FormFieldNode, string>): Record<string, string> {
 	type PathEntry = { containerId: string; childId: string };
 	const activeContainers: Record<string, string> = {};
-	const keys = new Map(entries.map(entry => [entry.field, entry.key]));
 
 	function visit(node: FormNode, path: PathEntry[]): void {
 		if (node.kind === 'field') {
@@ -114,25 +113,25 @@ function decodeScopedFormParams(query: Record<string, unknown>) {
 	};
 }
 
-function restorePersistedFields(entries: PersistenceSchemaEntry[], persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
+function restorePersistedFields(keys: ReadonlyMap<FormFieldNode, string>, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
 	const state: Record<string, unknown> = {};
 	const issues: FormIssue[] = [];
-	const knownKeys = new Set(entries.map(entry => entry.key));
+	const knownKeys = new Set(keys.values());
 
-	for (const entry of entries) {
-		if (!persistedFields.has(entry.key)) continue;
-		const payload = persistedFields.get(entry.key);
+	for (const [field, key] of keys) {
+		if (!persistedFields.has(key)) continue;
+		const payload = persistedFields.get(key);
 		if (payload == null) {
-			issues.push({ severity: 'warning', message: `Persisted field '${entry.key}' for '${entry.field.id}' has no value.` });
+			issues.push({ severity: 'warning', message: `Persisted field '${key}' for '${field.id}' has no value.` });
 			continue;
 		}
 
 		try {
-			state[entry.field.id] = restoreFieldState(entry.field, payload, context);
+			state[field.id] = restoreFieldState(field, payload, context);
 		} catch (error) {
 			issues.push({
 				severity: 'error',
-				message: `Could not restore persisted field '${entry.key}' for '${entry.field.id}': ${error instanceof Error ? error.message : String(error)}`,
+				message: `Could not restore persisted field '${key}' for '${field.id}': ${error instanceof Error ? error.message : String(error)}`,
 			});
 		}
 	}
@@ -194,7 +193,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 
 	const defaults = createDefaultFormState(definition.context, ...definition.nodeList);
 	const schema = resolvePersistenceSchema(scopedForm, definition.context);
-	const restoredFields = restorePersistedFields(schema.entries, scopedParams.fields, definition.context);
+	const restoredFields = restorePersistedFields(schema.keys, scopedParams.fields, definition.context);
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
 	const issues: FormIssue[] = [...formSelectorIssues, ...schema.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
 
@@ -207,7 +206,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 			},
 			uiState: {
 				...defaults.uiState,
-				...inferUiStateFromPersistedFields(definition, scopedParams.fields, schema.entries),
+				...inferUiStateFromPersistedFields(definition, scopedParams.fields, schema.keys),
 				...persistedTabs.uiState,
 				...getUiStateForPath([definition.getRoot()], activeForm.id),
 			},

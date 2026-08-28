@@ -11,9 +11,7 @@ export const SCOPED_FORM_KEYS = {
 
 const RESERVED_KEYS: ReadonlySet<string> = new Set(Object.values(SCOPED_FORM_KEYS));
 
-export type PersistenceSchemaEntry = { field: FormFieldNode; key: string };
 export type PersistenceSchema = {
-	entries: PersistenceSchemaEntry[];
 	keys: ReadonlyMap<FormFieldNode, string>;
 	issues: FormIssue[];
 };
@@ -46,5 +44,5 @@ export function resolvePersistenceSchema(form: FormNode, context: FormRuntimeCon
 		claimed.set(key, field);
 		keys.set(field, key);
 	}
-	return { entries: [...keys].map(([field, key]) => ({ field, key })), keys, issues };
+	return { keys, issues };
 }
