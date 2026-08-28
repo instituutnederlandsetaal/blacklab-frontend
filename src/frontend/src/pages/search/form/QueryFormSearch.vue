@@ -99,7 +99,6 @@ import { defineComponent } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
@@ -148,7 +147,6 @@ export default defineComponent({
 		parseQueryError: null as string | null,
 		importQueryError: null as string | null,
 
-		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
 		customizations: useCustomizations(),
 	}),
@@ -221,20 +219,8 @@ export default defineComponent({
 			},
 			set: PatternStore.actions.extended.splitBatch,
 		},
-		simple: {
-			get(): AppTypes.AnnotationValue {
-				return PatternStore.getState().simple.annotationValue;
-			},
-			set: PatternStore.actions.simple.annotation,
-		},
 		advancedEnabled(): boolean {
 			return this.customizations.searchFormAdvancedEnabled();
-		},
-		advanced: {
-			get(): CqlQueryBuilderData | null {
-				return PatternStore.getState().advanced.query;
-			},
-			set: PatternStore.actions.advanced.query,
 		},
 		gapValue: {
 			get: GapStore.get.gapValue,
