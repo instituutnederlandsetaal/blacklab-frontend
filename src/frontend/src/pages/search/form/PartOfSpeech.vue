@@ -120,27 +120,11 @@ export default defineComponent({
 			return subAnnotation.values.filter(subValue => !subValue.pos || subValue.pos.includes(this.annotationValue!.value));
 		},
 		reset() {
-			Object.keys(this.selected).forEach(k => (this.selected[k] = false));
+			this.selected = {};
 			this.annotationValue = null;
 		},
 		submit() {
 			this.$emit('submit', this.query);
-		},
-	},
-	watch: {
-		tagset: {
-			handler(t: Tagset | undefined) {
-				if (!t) return;
-				Object.values(t.values).forEach(value => {
-					value.subAnnotationIds.forEach(annotId => {
-						const values = t.subAnnotations[annotId]?.values || [];
-						values.forEach(({ value: subAnnotValue }) => {
-							this.selected[`${value.value}/${annotId}/${subAnnotValue}`] = false;
-						});
-					});
-				});
-			},
-			immediate: true,
 		},
 	},
 });
