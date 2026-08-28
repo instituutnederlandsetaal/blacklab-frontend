@@ -54,9 +54,8 @@
 	</div>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, onUnmounted, watch } from 'vue';
 
 import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
@@ -64,123 +63,62 @@ import type * as BLTypes from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
+import { useI18n } from '@/shared/i18n';
 import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 
-/**
- * Emits update events that contain the new set of totals, so we can update the pagination through our parent components
- * TODO tidy this!
- */
+const props = defineProps<{
+	initialResults: BLTypes.BLSearchResult;
+	type: 'hits' | 'docs';
+	indexId: string;
+	annotatedFieldId: string;
+}>();
 
-export default defineComponent({
-	components: { Spinner },
-	props: {
-		initialResults: {
-			required: true,
-			type: Object as PropType<BLTypes.BLSearchResult>,
-		},
-		type: {
-			required: true,
-			type: String as PropType<'hits' | 'docs'>,
-		},
-		indexId: {
-			required: true,
-			type: String,
-		},
-		annotatedFieldId: {
-			required: true,
-			type: String,
-		},
-	},
-	data: () => ({
-		blacklab: useBlackLabApi(),
-	}),
-	computed: {
-		totals(): IterativeResultCountLoader {
-			return new IterativeResultCountLoader(
-				{
-					annotatedFieldId: this.annotatedFieldId,
-					indexId: this.indexId,
-					operation: this.type,
-					results: this.initialResults,
-				},
-				this.blacklab,
-			);
-		},
-
-		value(): TotalsOutput | undefined {
-			return this.totals.isLoaded() ? this.totals.value : undefined;
-		},
-		error(): ApiError | undefined {
-			return this.totals.isError() ? this.totals.error : undefined;
-		},
-		isCounting(): boolean {
-			return this.value?.state === 'counting';
-		},
-		isLimited(): boolean {
-			return this.value?.state === 'limited';
-		},
-		isPaused(): boolean {
-			return this.value?.state === 'paused';
-		},
-		isFinished(): boolean {
-			return this.value?.state === 'finished';
-		},
-
-		resultType(): string {
-			return this.type === 'hits' ? this.$t('results.resultsTotals.hits').toString() : this.$t('results.resultsTotals.documents').toString();
-		},
-		isGroups(): boolean {
-			return this.value?.groups != null;
-		},
-		searchTime(): string {
-			return this.value ? frac2Percent(this.value.searchTime / 100000, 1).replace('%', 's') : '';
-		},
-
-		numPrefix(): string {
-			return this.isLimited || this.isPaused ? '≥' : '';
-		},
-		numSuffix(): string {
-			return this.isCounting || this.isPaused ? '…' : '';
-		},
-		numResults(): number {
-			return this.type === 'hits' ? (this.value?.hitsCounted ?? 0) : (this.value?.docsCounted ?? 0);
-		},
-		numResultsRetrieved(): number {
-			return this.type === 'hits' ? (this.value?.hitsRetrieved ?? 0) : (this.value?.docsRetrieved ?? 0);
-		},
-		numGroups(): number {
-			return this.value?.groups ?? 0;
-		},
-		// numPages(): number { return Math.ceil((this.isGroups ? this.numGroups : this.numResultsRetrieved) / this.initialResults.summary.searchParam.number); },
-
-		searchSpaceType(): string {
-			return this.type === 'hits' ? this.$t('results.resultsTotals.tokens').toString() : this.$t('results.resultsTotals.documents').toString();
-		},
-		/** The total number of relevant items in the searched subcorpus, tokens if viewing tokens, docs if viewing documents */
-		searchSpaceCount(): number {
-			return this.type === 'hits' ? (this.value?.tokensInMatchingDocuments ?? 0) : (this.value?.numberOfMatchingDocuments ?? 0);
-		},
-		percentOfSearchSpaceClarification(): string {
-			// TODO i18n
-			return `Matched ${this.numResults.toLocaleString()} ${this.resultType} in a total of ${this.isLimited ? ' more than' : ''} ${this.searchSpaceCount.toLocaleString()} ${this.searchSpaceType} in the searched subcorpus.`;
-		},
-	},
-	methods: {
-		frac2Percent,
-	},
-	watch: {
-		totals: {
-			handler(cur: IterativeResultCountLoader, prev: IterativeResultCountLoader) {
-				if (cur !== prev) prev?.dispose();
+const blacklab = useBlackLabApi();
+const { $t } = useI18n();
+const totals = computed(
+	() =>
+		new IterativeResultCountLoader(
+			{
+				annotatedFieldId: props.annotatedFieldId,
+				indexId: props.indexId,
+				operation: props.type,
+				results: props.initialResults,
 			},
-		},
-	},
-	unmounted() {
-		this.totals.dispose();
-	},
+			blacklab,
+		),
+);
+
+const value = computed<TotalsOutput | undefined>(() => (totals.value.isLoaded() ? totals.value.value : undefined));
+const error = computed<ApiError | undefined>(() => (totals.value.isError() ? totals.value.error : undefined));
+const isCounting = computed(() => value.value?.state === 'counting');
+const isLimited = computed(() => value.value?.state === 'limited');
+const isPaused = computed(() => value.value?.state === 'paused');
+const isFinished = computed(() => value.value?.state === 'finished');
+
+const resultType = computed(() => (props.type === 'hits' ? $t('results.resultsTotals.hits').toString() : $t('results.resultsTotals.documents').toString()));
+const isGroups = computed(() => value.value?.groups != null);
+const searchTime = computed(() => (value.value ? frac2Percent(value.value.searchTime / 100000, 1).replace('%', 's') : ''));
+
+const numPrefix = computed(() => (isLimited.value || isPaused.value ? '≥' : ''));
+const numSuffix = computed(() => (isCounting.value || isPaused.value ? '…' : ''));
+const numResults = computed(() => (props.type === 'hits' ? (value.value?.hitsCounted ?? 0) : (value.value?.docsCounted ?? 0)));
+const numResultsRetrieved = computed(() => (props.type === 'hits' ? (value.value?.hitsRetrieved ?? 0) : (value.value?.docsRetrieved ?? 0)));
+const numGroups = computed(() => value.value?.groups ?? 0);
+
+const searchSpaceType = computed(() => (props.type === 'hits' ? $t('results.resultsTotals.tokens').toString() : $t('results.resultsTotals.documents').toString()));
+const searchSpaceCount = computed(() => (props.type === 'hits' ? (value.value?.tokensInMatchingDocuments ?? 0) : (value.value?.numberOfMatchingDocuments ?? 0)));
+const percentOfSearchSpaceClarification = computed(
+	() =>
+		`Matched ${numResults.value.toLocaleString()} ${resultType.value} in a total of ${isLimited.value ? ' more than' : ''} ${searchSpaceCount.value.toLocaleString()} ${searchSpaceType.value} in the searched subcorpus.`,
+);
+
+watch(totals, (current, previous) => {
+	if (current !== previous) previous?.dispose();
 });
+
+onUnmounted(() => totals.value.dispose());
 </script>
 
 <style lang="scss">
