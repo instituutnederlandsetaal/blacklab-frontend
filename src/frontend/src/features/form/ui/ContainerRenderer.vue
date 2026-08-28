@@ -106,7 +106,6 @@ function reset() {
 	runtime.value.reset();
 	emit('reset');
 }
-
 </script>
 
 <style lang="scss">

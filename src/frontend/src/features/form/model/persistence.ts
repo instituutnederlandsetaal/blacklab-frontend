@@ -69,7 +69,11 @@ function getUiStateForPath(rootNodes: FormNode[], targetId: string): Record<stri
 	return activeContainers;
 }
 
-function inferUiStateFromPersistedFields(scopedForm: FormBoundaryNode, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, keys: ReadonlyMap<FormFieldNode, string>): Record<string, string> {
+function inferUiStateFromPersistedFields(
+	scopedForm: FormBoundaryNode,
+	persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>,
+	keys: ReadonlyMap<FormFieldNode, string>,
+): Record<string, string> {
 	type PathEntry = { containerId: string; childId: string };
 	const activeContainers: Record<string, string> = {};
 

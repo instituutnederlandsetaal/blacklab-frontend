@@ -100,10 +100,10 @@ describe('semantic query compilation', () => {
 	});
 
 	test('normalizes compatible CQL and Lucene alternatives', () => {
-		const cql = booleanNode('or', [annotation('word', 'literal', 'a*')!, annotation('word', 'wildcard', 'b*')!])!;
-		const lucene = booleanNode('or', [filter('author', 'literal', 'A*')!, filter('author', 'wildcard', 'B*')!])!;
-		expect(compileCql(cql)).toBe(String.raw`[word="a\*|b.*"]`);
-		expect(compileFilter(lucene)).toBe(String.raw`author:(/A\*|B.*/)`);
+		const cql = booleanNode('or', [annotation('word', 'literal', 'a*')!, annotation('lemma', 'literal', 'c')!, annotation('word', 'wildcard', 'b*')!])!;
+		const lucene = booleanNode('or', [filter('author', 'literal', 'A*')!, filter('title', 'literal', 'C')!, filter('author', 'wildcard', 'B*')!])!;
+		expect(compileCql(cql)?.slice(1, -1).split(' | ').sort()).toEqual([String.raw`word="a\*|b.*"`, 'lemma=l"c"'].sort());
+		expect(compileFilter(lucene)?.slice(1, -1).split(' OR ').sort()).toEqual([String.raw`author:(/A\*|B.*/)`, 'title:(C)'].sort());
 	});
 
 	test('complete-query wrappers are extracted regardless of graph position', () => {
@@ -150,9 +150,13 @@ describe('semantic query compilation', () => {
 		expect(compileCql(combineCqlPatterns([word, lemma], 'or')!)).toBe(String.raw`[word="(?-i)a" | lemma="(?-i)c"] [word="(?-i)b" | lemma="(?-i)d"] [lemma="(?-i)e"]`);
 	});
 
-	test('preserves precedence for mixed token operators', () => {
-		const pattern = booleanNode<CqlPatternNode>('or', [booleanNode('and', [annotation('word', 'wildcard', 'a')!, annotation('word', 'wildcard', 'b')!])!, annotation('lemma', 'wildcard', 'c')!])!;
-		expect(compileCql(pattern)).toBe('[(word="a" & word="b") | lemma="c"]');
+	test('merges compatible alternatives across structured boundaries', () => {
+		const pattern = booleanNode<CqlPatternNode>('or', [
+			annotation('word', 'wildcard', 'a')!,
+			booleanNode('and', [annotation('lemma', 'wildcard', 'b')!, annotation('pos', 'wildcard', 'N')!])!,
+			annotation('word', 'wildcard', 'c')!,
+		])!;
+		expect(compileCql(pattern)?.slice(1, -1).split(' | ').sort()).toEqual(['word="a|c"', '(lemma="b" & pos="N")'].sort());
 	});
 
 	test('keeps comparison and sensitivity semantics separate', () => {
@@ -161,7 +165,7 @@ describe('semantic query compilation', () => {
 			annotation('word', 'literal', 'b', { caseSensitive: false })!,
 			annotation('word', 'literal', 'c', { caseSensitive: false, operator: '!=' })!,
 		])!;
-		expect(compileCql(pattern)).toBe('[word=l"(?-i)a" | word=l"(?i)b" | word!=l"(?i)c"]');
+		expect(compileCql(pattern)?.slice(1, -1).split(' | ').sort()).toEqual(['word=l"(?-i)a"', 'word=l"(?i)b"', 'word!=l"(?i)c"'].sort());
 	});
 
 	test('merges compatible negative token predicates under and', () => {
@@ -170,9 +174,9 @@ describe('semantic query compilation', () => {
 		expect(compileCql(pattern)).toBe('[word!="(?-i)a|b.*"]');
 	});
 
-	test('merges only adjacent compatible Lucene alternatives', () => {
+	test('merges all compatible Lucene alternatives', () => {
 		const node = booleanNode('or', [filter('author', 'literal', 'A|B')!, filter('author', 'wildcard', 'C*')!, filter('title', 'literal', 'D')!, filter('author', 'literal', 'E')!])!;
-		expect(compileFilter(node)).toBe(String.raw`(author:(/A\|B|C.*/) OR title:(D) OR author:(E))`);
+		expect(compileFilter(node)?.slice(1, -1).split(' OR ').sort()).toEqual([String.raw`author:(/A\|B|C.*|E/)`, 'title:(D)'].sort());
 	});
 
 	test('flattens matching CQL and Lucene boolean operators', () => {
@@ -190,7 +194,12 @@ describe('semantic query compilation', () => {
 
 	test('keeps explicit regex wrapper predicates separate from escaped values', () => {
 		const values = booleanNode('or', [textPredicate('literal', 'A*'), textPredicate('wildcard', 'B*'), textPredicate('wildcard', String.raw`D\*`), textPredicate('regex', 'C/.+')])!;
-		expect(compileCql(within('speech', { person: values }))).toBe(String.raw`<speech (person="A\*|B.*|D\*" | person="C/.+")/>`);
+		expect(
+			compileCql(within('speech', { person: values }))
+				?.slice(9, -3)
+				.split(' | ')
+				.sort(),
+		).toEqual([String.raw`person="A\*|B.*|D\*"`, 'person="C/.+"'].sort());
 	});
 
 	test('parallel controls emit source and relation patterns', () => {

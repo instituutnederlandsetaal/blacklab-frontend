@@ -35,8 +35,8 @@ import {
 	type FieldControllerProps,
 	type FormEmission,
 } from '@/features/form';
-import { filter } from '@/features/form/model/types/form-query-ir';
 import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
+import { filter } from '@/features/form/model/types/form-query-ir';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 

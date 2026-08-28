@@ -292,7 +292,6 @@ export class PersistenceCodec<T, Context = any> {
 			},
 		});
 	}
-
 }
 
 type CodecState<Codec> = Codec extends PersistenceCodec<infer State, any> ? State : never;

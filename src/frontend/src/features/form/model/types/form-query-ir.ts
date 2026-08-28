@@ -46,30 +46,18 @@ export function simplifyBooleanNode<TLeaf>(
 		.map(child => simplifyBooleanNode(child, simplifyLeaf, primaryKey, merge))
 		.filter((child): child is BooleanNode<TLeaf> | TLeaf => child != null)
 		.flatMap(child => (isBooleanNode(child) && child.type === expr.type ? child.children : [child]));
-	const merged: Array<BooleanNode<TLeaf> | TLeaf> = [];
-
-	for (let index = 0; index < children.length;) {
-		const child = children[index];
-		if (isBooleanNode<TLeaf>(child)) {
-			merged.push(child);
-			index += 1;
-			continue;
-		}
-
+	const buckets = new Map<string, TLeaf[]>();
+	const unbucketed = children.filter(child => {
+		if (isBooleanNode<TLeaf>(child)) return true;
 		const key = primaryKey(expr.type, child);
-		const run = [child];
-		let nextIndex = index + 1;
-		while (key != null && nextIndex < children.length) {
-			const next = children[nextIndex];
-			if (isBooleanNode<TLeaf>(next) || primaryKey(expr.type, next) !== key) break;
-			run.push(next);
-			nextIndex += 1;
-		}
-		merged.push(run.length === 1 ? child : merge(run));
-		index = nextIndex;
-	}
+		if (key == null) return true;
+		const bucket = buckets.get(key);
+		if (bucket) bucket.push(child);
+		else buckets.set(key, [child]);
+		return false;
+	});
 
-	return booleanNode(expr.type, merged);
+	return booleanNode(expr.type, [...unbucketed, ...Array.from(buckets.values(), leaves => (leaves.length === 1 ? leaves[0] : merge(leaves)))]);
 }
 
 // #endregion
@@ -307,7 +295,13 @@ const summarizeRange = (low?: string | null, high?: string | null): string | nul
 	if (high) return `≤ ${high}`;
 	return null;
 };
-export const summary = (label: string, values: Values | { low?: string | null; high?: string | null }, summaryType?: readonly SummaryType[], group?: string, options?: Options): SummaryInput | null => {
+export const summary = (
+	label: string,
+	values: Values | { low?: string | null; high?: string | null },
+	summaryType?: readonly SummaryType[],
+	group?: string,
+	options?: Options,
+): SummaryInput | null => {
 	const value = isRangeInput(values) ? summarizeRange(values.low, values.high) : summarize(values, options);
 	return value ? { label, value, summaryType, group } : null;
 };
