@@ -43,59 +43,55 @@ import * as Highcharts from 'highcharts';
 import HighchartsBoost from 'highcharts/modules/boost';
 import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsExporting from 'highcharts/modules/exporting';
-import { defineComponent } from 'vue';
-import { type PropType } from 'vue';
+
+HighchartsExporting(Highcharts);
+HighchartsExportingData(Highcharts);
+HighchartsBoost(Highcharts);
+</script>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import type { PropType } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
-import Spinner from '@/shared/ui/Spinner.vue';
 
-HighchartsExporting(Highcharts);
-HighchartsExportingData(Highcharts);
-HighchartsBoost(Highcharts);
+const props = defineProps({
+	snippet: { type: Object as PropType<BLTypes.BLHit>, required: true },
+	document: { type: Object as PropType<BLTypes.BLDocument>, required: true },
+	isPaginated: Boolean,
+});
 
-export default defineComponent({
-	components: {
-		Spinner,
-		AnnotationDistributions,
-		AnnotationGrowths,
-	},
-	props: {
-		snippet: { type: Object as PropType<BLTypes.BLHit>, required: true },
-		document: { type: Object as PropType<BLTypes.BLDocument>, required: true },
-		isPaginated: Boolean,
-	},
-	computed: {
-		baseColor: ArticleStore.get.baseColor,
+const baseColor = computed(ArticleStore.get.baseColor);
 
-		statisticsTableData(): any {
-			const fn = ArticleStore.get.statisticsTableFn();
-			return fn && fn(this.document, this.snippet);
-		},
-		distributionData(): any {
-			const data = ArticleStore.get.distributionAnnotation();
-			return data
-				? {
-						annotationId: data.id,
-						chartTitle: data.displayName,
-						baseColor: this.baseColor,
-					}
-				: null;
-		},
-		growthData(): any {
-			const data = ArticleStore.get.growthAnnotations();
-			return data
-				? {
-						annotations: data.annotations,
-						chartTitle: data.displayName,
-						baseColor: this.baseColor,
-					}
-				: null;
-		},
-	},
+const statisticsTableData = computed(() => {
+	const fn = ArticleStore.get.statisticsTableFn();
+	return fn && fn(props.document, props.snippet);
+});
+
+const distributionData = computed(() => {
+	const data = ArticleStore.get.distributionAnnotation();
+	return data
+		? {
+				annotationId: data.id,
+				chartTitle: data.displayName,
+				baseColor: baseColor.value,
+			}
+		: null;
+});
+
+const growthData = computed(() => {
+	const data = ArticleStore.get.growthAnnotations();
+	return data
+		? {
+				annotations: data.annotations,
+				chartTitle: data.displayName,
+				baseColor: baseColor.value,
+			}
+		: null;
 });
 </script>
 
