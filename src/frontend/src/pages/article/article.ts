@@ -46,7 +46,6 @@ export type Input = { [K in keyof _Input]: _Input[K] | null };
 type ValidPaginationAndDocDisplayParameters = {
 	indexId: string;
 	docId: string;
-	docLength: number;
 	wordstart: number;
 	wordend: number;
 	pageSize: number | null;
@@ -133,25 +132,6 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 		shareReplay(1),
 	);
 
-	// This observable is used to correct the store when the user enters on or navigates to a page that is out of bounds or otherwise invalid.
-	const correctionsForStore$ = combineLatest([input$, validPaginationParameters$]).pipe(
-		map(combineLoadables),
-		mapLoaded(([maybeInvalid, valid]) => {
-			const commonKeys = Object.keys(maybeInvalid).filter(k => k in valid) as Extract<keyof typeof maybeInvalid, keyof typeof valid>[];
-			// extract those properties that are different
-			const difference = commonKeys.reduce(
-				(acc, key) => {
-					if (maybeInvalid[key] !== valid[key]) acc[key] = maybeInvalid[key] as any;
-					return acc;
-				},
-				{} as Partial<Pick<Input, (typeof commonKeys)[number]>>,
-			);
-
-			return difference;
-		}),
-		shareReplay(1),
-	);
-
 	const contents$ = validPaginationParameters$.pipe(
 		mapLoaded(input => {
 			// only let through the necessary parameters, otherwise we might refresh unnecessarily
@@ -185,7 +165,7 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 
 	const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 		map(combineLoadables),
-		mapLoaded(([pagination, hits, { html: container, highlights }]) => {
+		mapLoaded(([pagination, hits, { highlights }]) => {
 			const firstVisibleHitIndex = hits.length ? clamp(Math.abs(binarySearch(hits, h => pagination.wordstart - h[0])), 0, hits.length - 1) : 0;
 			const hitIndexToHighlight = pagination.findhit != null ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
 			const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
@@ -193,11 +173,8 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 			return {
 				totalHits: hits.length,
 				hitIndexToHighlight,
-				firstVisibleHitIndex,
-				localHitIndexToHighlight,
 				hl,
 				isHitVisible: hl != null,
-				container,
 			};
 		}),
 		shareReplay(1),
@@ -216,7 +193,6 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 		metadata$,
 		hits$,
 		validPaginationParameters$,
-		correctionsForStore$,
 		contents$,
 		hitToHighlight$,
 	};
@@ -283,7 +259,6 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 	return {
 		indexId: input.indexId!,
 		docId: input.docId!,
-		docLength,
 
 		patt: input.patt || undefined,
 		pattgapdata: input.pattgapdata || undefined,
