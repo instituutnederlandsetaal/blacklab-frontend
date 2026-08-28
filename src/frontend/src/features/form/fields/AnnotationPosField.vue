@@ -156,34 +156,6 @@ function handleSelectionChange(subAnnotationId: string, subAnnotationValue: stri
 </script>
 
 <style lang="scss" scoped>
-.blf-annotation-pos__controls {
-	display: flex;
-	gap: 12px;
-	align-items: center;
-}
-
-.blf-annotation-pos__preview {
-	flex: 1 1 auto;
-	min-height: 34px;
-	padding: 6px 10px;
-	border: 1px solid #ccc;
-	border-radius: 4px;
-	background: #fff;
-	line-height: 1.4;
-}
-
-.blf-annotation-pos__preview.is-empty {
-	color: #777;
-	font-style: italic;
-}
-
-.blf-annotation-pos__actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex: none;
-}
-
 .list-group-container {
 	display: flex;
 	flex-wrap: nowrap;

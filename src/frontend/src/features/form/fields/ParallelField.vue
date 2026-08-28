@@ -159,12 +159,6 @@ label {
 	font-weight: bold;
 }
 
-.blf-parallel-queries {
-	display: grid;
-	gap: 12px;
-	margin-top: 12px;
-}
-
 .blf-parallel-query {
 	h4 {
 		font-size: 1rem;
