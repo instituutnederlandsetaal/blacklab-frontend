@@ -1,7 +1,9 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+	acceptTargetEmissions,
 	createSearchTarget,
+	diagnoseTargetOutputs,
 	docsSearchTarget,
 	hitsSearchTarget,
 	rawCql,
@@ -43,6 +45,11 @@ function emission<Name extends FormOutputName>(name: Name, value: FormEmission<N
 }
 
 describe('form output acceptance', () => {
+	test('exports acceptance helpers from the public form API', () => {
+		expect(acceptTargetEmissions).toBeTypeOf('function');
+		expect(diagnoseTargetOutputs).toBeTypeOf('function');
+	});
+
 	test('reports unknown, undeclared, and malformed values while retaining unrelated valid outputs', () => {
 		const controller = createController(['patt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
 			const rawEmit = emit as unknown as (name: string, value: unknown) => void;

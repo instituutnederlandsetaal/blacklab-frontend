@@ -8,7 +8,7 @@ import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 
 import { collectFormSummaryValues, collectFormValues } from './gather';
 
-function diagnoseTargetOutputs(form: FormBoundaryNode, acceptedOutputs: readonly FormOutputName[], issues: FormIssue[]): void {
+export function diagnoseTargetOutputs(form: FormBoundaryNode, acceptedOutputs: readonly FormOutputName[], issues: FormIssue[]): void {
 	const accepted = new Set(acceptedOutputs);
 	for (const field of getAllNodes(form, 'field')) {
 		for (const output of new Set(field.controller.outputs)) {
@@ -24,7 +24,7 @@ function diagnoseTargetOutputs(form: FormBoundaryNode, acceptedOutputs: readonly
 	}
 }
 
-function acceptTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly RawEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
+export function acceptTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly RawEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
 	const accepted = new Set<FormOutputName>(acceptedOutputs);
 	const result: FormEmission<Names[number]>[] = [];
 	for (const emission of emissions) {
