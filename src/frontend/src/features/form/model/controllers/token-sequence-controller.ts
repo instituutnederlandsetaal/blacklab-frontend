@@ -12,9 +12,8 @@ import {
 } from '@/features/form/fields/token-sequence-field';
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { array, object, scalar } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { Emit } from '@/features/form/model/types/form-output';
-import { anyToken, sequence, summary, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
+import { defineFieldController, encodeFieldState, gatherOutput, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { anyToken, isCqlPatternNode, sequence, summary } from '@/features/form/model/types/form-query-ir';
 
 type PersistedToken = { fieldId: string; payload: string };
 
@@ -70,11 +69,7 @@ export const tokenSequenceController = defineFieldController<'token-sequence', T
 	collect(config, runtime, state, emit) {
 		const patterns = state.map((token, index) => {
 			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
-			const childPatterns: CqlPatternNode[] = [];
-			field.controller.collect(field, runtime, token.fieldState, ((name, value) => {
-				if (name === 'patt') childPatterns.push(value as CqlPatternNode);
-			}) as Emit);
-			return combineCqlPatterns(childPatterns, 'and') ?? anyToken();
+			return combineCqlPatterns(gatherOutput(field, token.fieldState, runtime, 'patt', isCqlPatternNode), 'and') ?? anyToken();
 		});
 		const pattern = sequence(patterns);
 		if (pattern) emit('patt', pattern);

@@ -70,7 +70,7 @@ describe('compiled-form result handoff', () => {
 			{
 				formId: 'explore.corpora',
 				encoded: { 'f.form': 'explore.corpora' },
-				resultPreset: { groupDisplayMode: 'tokens' },
+				resultPreset: 'tokens',
 				targetView: 'docs',
 			},
 		);
@@ -119,17 +119,14 @@ describe('compiled-form result handoff', () => {
 
 	test('does not reapply form-owned settings when compiled params are unchanged', () => {
 		resetStores();
-		submitNewForm(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } }));
+		submitNewForm(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: 'table' }));
 		const view = ViewStore.getOrCreateModule('docs');
 		view.actions.groupBy(['field:changed-later']);
 		view.actions.sort('field:changed-later');
 		view.actions.groupDisplayMode('docs');
 
 		submitNewForm(
-			snapshot(
-				{ group: 'field:submitted', sort: 'field:submitted' },
-				{ encoded: { 'f.form': 'search.form', 'f.changed': 'presentation-only' }, targetView: 'docs', resultPreset: { groupDisplayMode: 'table' } },
-			),
+			snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { encoded: { 'f.form': 'search.form', 'f.changed': 'presentation-only' }, targetView: 'docs', resultPreset: 'table' }),
 		);
 
 		expect(view.getState()).toMatchObject({ groupBy: ['field:changed-later'], sort: 'field:changed-later', groupDisplayMode: 'docs' });
@@ -240,7 +237,7 @@ describe('compiled-form result handoff', () => {
 			{
 				formId: 'explore.corpora',
 				encoded: { 'f.form': 'explore.corpora' },
-				resultPreset: { groupDisplayMode: 'table' },
+				resultPreset: 'table',
 				targetView: 'docs',
 			},
 		);

@@ -1,9 +1,6 @@
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
-import type { BLCollocationScorer, BLCollocationType } from '@/types/blacklabtypes';
 
-import type { CqlPatternNode, LuceneNode } from './form-query-ir';
-
-export type CollocationContext = number | readonly [before: number, after: number];
+import { isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from './form-query-ir';
 
 export type FormOutputValues = {
 	patt: CqlPatternNode;
@@ -13,31 +10,11 @@ export type FormOutputValues = {
 	group: readonly string[] | null;
 	sort: readonly string[] | null;
 	withspans: true;
-	colltype: BLCollocationType;
-	context: CollocationContext;
-	within: string;
-	reltype: string;
-	annotation: string;
-	sensitive: boolean;
-	scorertype: BLCollocationScorer;
+
+	// Remaining collocation outputs are omitted until the collocation target is implemented.
 };
 
-export const FORM_OUTPUT_NAMES = [
-	'patt',
-	'collpatt',
-	'filter',
-	'searchfield',
-	'group',
-	'sort',
-	'withspans',
-	'colltype',
-	'context',
-	'within',
-	'reltype',
-	'annotation',
-	'sensitive',
-	'scorertype',
-] as const satisfies readonly (keyof FormOutputValues)[];
+const FORM_OUTPUT_NAMES = ['patt', 'collpatt', 'filter', 'searchfield', 'group', 'sort', 'withspans'] as const satisfies readonly (keyof FormOutputValues)[];
 
 export type FormOutputName = keyof FormOutputValues;
 export type Emit = <Name extends FormOutputName>(name: Name, value: FormOutputValues[Name]) => void;
@@ -52,7 +29,22 @@ export type FormEmission<Names extends FormOutputName = FormOutputName> = {
 
 export type RawEmission = Readonly<{ name: string; value: unknown }>;
 
-export type CompilationIssueCode = 'controller-error' | 'unknown-output' | 'undeclared-output' | 'unsupported-output' | 'malformed-output' | 'conflicting-output' | 'missing-output';
+const OUTPUT_VALIDATORS: Record<FormOutputName, (value: unknown) => boolean> = {
+	patt: isCqlPatternNode,
+	collpatt: isCqlPatternNode,
+	filter: isLuceneNode,
+	searchfield: value => typeof value === 'string',
+	group: value => value === null || (Array.isArray(value) && value.every(item => typeof item === 'string')),
+	sort: value => value === null || (Array.isArray(value) && value.every(item => typeof item === 'string')),
+	withspans: value => value === true,
+};
+
+/** Validate an emission against the shared output vocabulary. */
+export function isValidEmission(emission: { name: unknown; value: unknown }): emission is FormEmission {
+	return typeof emission.name === 'string' && isFormOutputName(emission.name) && OUTPUT_VALIDATORS[emission.name](emission.value);
+}
+
+type CompilationIssueCode = 'controller-error' | 'unknown-output' | 'undeclared-output' | 'unexpected-output' | 'unsupported-output' | 'malformed-output' | 'conflicting-output' | 'missing-output';
 
 export type FormIssue = {
 	stage: 'restore' | 'collect' | 'accept' | 'target';
@@ -63,9 +55,7 @@ export type FormIssue = {
 	output?: string;
 };
 
-export type ResultPreset = {
-	groupDisplayMode?: GroupDisplayMode | null;
-};
+export type ResultPreset = GroupDisplayMode | null;
 
 export type SummaryType = FormOutputName;
 export type SummaryEntry = {

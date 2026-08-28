@@ -1,6 +1,6 @@
 import type { BLCollocationScorer, BLCollocationType } from '@/types/blacklabtypes';
 
-export type SharedFormParams = Partial<{
+type SharedFormParams = Partial<{
 	patt: string;
 	filter: string;
 	searchfield: string;
@@ -11,7 +11,7 @@ export type SharedFormParams = Partial<{
 
 export type SearchParams = SharedFormParams & { colltype?: never };
 
-export type CollocationParams = SharedFormParams & {
+type CollocationParams = SharedFormParams & {
 	colltype: BLCollocationType;
 	collpatt?: string;
 	context?: number | string;

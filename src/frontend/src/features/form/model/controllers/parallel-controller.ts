@@ -7,25 +7,22 @@ import {
 	type ParallelFieldDefinition,
 } from '@/features/form/fields/parallel-field';
 import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
+import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { Emit, SummaryEntry } from '@/features/form/model/types/form-output';
-import { parallelQuery, parallelQueryTarget, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
+import { defineFieldController, encodeFieldState, gatherOutput, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import type { SummaryEntry } from '@/features/form/model/types/form-output';
+import { isCqlPatternNode, parallelQuery, parallelQueryTarget, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 
-/** Apply the child template's default state before collecting a parallel branch. */
+/** Apply the child template's default state before gathering a parallel branch. */
 function getParallelChildPattern(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown): CqlPatternNode | null {
-	let pattern: CqlPatternNode | null = null;
-	config.childFieldTemplate.controller.collect(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime), ((name, value) => {
-		if (name === 'patt' && !pattern) pattern = value as CqlPatternNode;
-	}) as Emit);
-	return pattern;
+	return combineCqlPatterns(gatherOutput(config.childFieldTemplate, state ?? createDefaultParallelChildState(config, runtime), runtime, 'patt', isCqlPatternNode), 'and');
 }
 
-function summarizeParallelChild(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown, summaries: SummaryEntry[]): void {
+function summarizeParallelChild(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown, emit: (summary: SummaryEntry) => void): void {
 	config.childFieldTemplate.controller.summarize?.(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime), summary =>
-		summaries.push({
+		emit({
 			...summary,
 			summaryType: summary.summaryType ?? [...config.childFieldTemplate.controller.outputs],
 		}),
@@ -127,30 +124,28 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 		} else if (sourcePattern) emit('patt', sourcePattern);
 	},
 	summarize(config, runtime, state, emit) {
-		const summaries: SummaryEntry[] = [];
 		if (state.source)
-			summaries.push({
+			emit({
 				label: runtime.translate.$t(`search.parallel.searchSourceVersion`),
 				value: parallelAnnotatedFieldLabel(config.fieldOptions.find(field => field.id === state.source) ?? { id: state.source }),
 				summaryType: ['searchfield', 'patt'],
 			});
 		if (state.targets.length)
-			summaries.push({
+			emit({
 				label: runtime.translate.$t(`search.parallel.andCompareWithTargetVersions`),
 				value: state.targets.map(target => parallelAnnotatedFieldLabel(config.fieldOptions.find(field => field.id === target) ?? { id: target })).join(', '),
 				summaryType: ['searchfield', 'patt'],
 			});
 		if (state.alignBy) {
 			const alignBy = findOption(config.alignByOptions ?? [], state.alignBy) ?? state.alignBy;
-			summaries.push({
+			emit({
 				label: runtime.translate.$t(`search.parallel.alignBy`),
 				value: optionLabel(alignBy),
 				summaryType: ['searchfield', 'patt'],
 			});
 		}
 
-		if (state.source) summarizeParallelChild(config, runtime, state.childStates[state.source], summaries);
-		for (const fieldId of state.targets) summarizeParallelChild(config, runtime, state.childStates[fieldId], summaries);
-		for (const summary of summaries) emit(summary);
+		if (state.source) summarizeParallelChild(config, runtime, state.childStates[state.source], emit);
+		for (const fieldId of state.targets) summarizeParallelChild(config, runtime, state.childStates[fieldId], emit);
 	},
 });

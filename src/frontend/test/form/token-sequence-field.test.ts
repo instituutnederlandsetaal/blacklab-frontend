@@ -8,7 +8,7 @@ import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, ob
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
-import { annotation } from '@/features/form/model/types/form-query-ir';
+import { annotation, filter } from '@/features/form/model/types/form-query-ir';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import { createTestBuilder } from './helpers';
@@ -128,6 +128,46 @@ function sequenceState(runtime: FormRuntime): TokenSequenceFieldState {
 	return runtime.state.state.value['explore.ngram.tokens'] as TokenSequenceFieldState;
 }
 
+const gatheredChildController = defineFieldController<'token-sequence-gathered-child', TextFieldDefinition, ChildControllerConfig>({
+	...childController,
+	kind: 'token-sequence-gathered-child',
+	outputs: ['patt', 'filter'],
+	collect(config, _runtime, state, emit) {
+		if (state.value === 'throw') throw new Error('embedded child error');
+		if (state.value === 'filter') {
+			emit('filter', filter('author', 'literal', 'Austen')!);
+			return;
+		}
+		const pattern = annotation(config.annotationId, 'wildcard', state.value);
+		if (pattern) emit('patt', pattern);
+	},
+	summarize(_config, _runtime, state, emit) {
+		if (state.value) emit({ label: 'Child', value: state.value });
+	},
+});
+
+function createGatheredChildrenFixture() {
+	const builder = createTestBuilder();
+	const sequence = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
+		createField: (({ annotationId, ...binding }) =>
+			createFormFieldNode(binding, gatheredChildController, TextField, {
+				annotationId,
+				displayName: 'Word',
+				persistKey: 'word-value',
+			})) satisfies TokenSequenceCreateField,
+		selectorOptions: [{ value: 'word', label: 'Word' }],
+		defaultFieldId: 'word',
+		minLength: 1,
+		maxLength: 3,
+		defaultLength: 2,
+		lengthDisplayName: 'N-gram length',
+		selectorDisplayName: 'Property',
+		persistKey: 'ngram-tokens',
+	});
+	builder.newForm('explore.ngram', ContainerRenderer, {}).addChildren(sequence);
+	return { runtime: new FormRuntime(builder), sequence };
+}
+
 describe('token sequence composite field', () => {
 	test('creates the configured number of independent active token defaults', () => {
 		const { runtime } = createFixture();
@@ -155,6 +195,39 @@ describe('token sequence composite field', () => {
 		state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
 		state[1] = { fieldId: 'lemma', fieldState: { exact: false, lemma: 'run*' } satisfies LemmaFieldState };
 		expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] [lemma="run.*"]');
+	});
+
+	test('reports embedded controller errors from the compound controller', () => {
+		const { runtime } = createGatheredChildrenFixture();
+		const state = sequenceState(runtime);
+		state[0].fieldState = { value: 'throw', caseSensitive: false };
+		state[1].fieldState = { value: 'water', caseSensitive: false };
+
+		const compiled = runtime.compile('explore.ngram');
+
+		expect(compiled.params).not.toHaveProperty('patt');
+		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'controller-error', nodeId: 'explore.ngram.tokens', message: 'embedded child error' }));
+		expect(compiled.summaries.filter(summary => summary.label === 'Child').map(summary => summary.value)).toEqual(['throw', 'water']);
+	});
+
+	test('fails compound collection when a child emits an unexpected output', () => {
+		const { runtime } = createGatheredChildrenFixture();
+		const state = sequenceState(runtime);
+		state[0].fieldState = { value: 'filter', caseSensitive: false };
+		state[1].fieldState = { value: 'water', caseSensitive: false };
+
+		const compiled = runtime.compile('explore.ngram');
+
+		expect(compiled.params).not.toHaveProperty('patt');
+		expect(compiled.params).not.toHaveProperty('filter');
+		expect(compiled.issues).toContainEqual(
+			expect.objectContaining({
+				stage: 'collect',
+				code: 'controller-error',
+				nodeId: 'explore.ngram.tokens',
+				message: "Unexpected 'filter' output from embedded field 'explore.ngram.tokens.token.0.word'.",
+			}),
+		);
 	});
 
 	test('lays out only the length control horizontally', () => {

@@ -341,6 +341,32 @@ describe('form model state', () => {
 		expect(compiled.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 	});
 
+	test('gathers reused field channels at their intended frequencies', () => {
+		const collect = vi.fn(testTextController.collect);
+		const summarize = vi.fn(testTextController.summarize);
+		const key = vi.fn(testTextController.persistence.key);
+		const getResultPreset = vi.fn(() => undefined);
+		const encode = vi.spyOn(testTextController.persistence.codec, 'encode');
+		const { builder, form, sharedField } = createReusedFieldFixture({
+			...testTextController,
+			collect,
+			summarize,
+			persistence: { ...testTextController.persistence, key },
+			getResultPreset,
+		});
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value[sharedField.id] = { value: 'water' };
+
+		runtime.compile(form.id);
+
+		expect(collect).toHaveBeenCalledTimes(2);
+		expect(summarize).toHaveBeenCalledOnce();
+		expect(key).toHaveBeenCalledOnce();
+		expect(encode).toHaveBeenCalledOnce();
+		expect(getResultPreset).toHaveBeenCalledTimes(2);
+		encode.mockRestore();
+	});
+
 	test('parents assign independent active-child contributions to a shared child', () => {
 		const builder = createTestBuilder();
 		const shared = builder.newContainer('shared.tab', ContainerRenderer, { title: 'Shared' });
@@ -361,6 +387,23 @@ describe('form model state', () => {
 
 		runtime.state.uiState.value[first.id] = firstAlternative.id;
 		expect(runtime.compile(form.id).params.filter).toBe('category:(book)');
+	});
+
+	test('validates active-child values before container collection', () => {
+		const builder = createTestBuilder();
+		const selected = builder.newContainer('search.tabs.selected', ContainerRenderer, {});
+		const tabs = builder.newContainer('search.tabs', ContainerRenderer, {}).addChild(selected, {
+			outputWhenActive: emit => {
+				(emit as unknown as (name: string, value: unknown) => void)('patt', { type: 'cql-raw', cql: null });
+				emit('filter', filter('author', 'literal', 'Austen')!);
+			},
+		});
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(tabs);
+
+		const compiled = createTestRuntime(builder).compile(form.id);
+
+		expect(compiled.params).toEqual({ filter: 'author:(Austen)' });
+		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'malformed-output', nodeId: tabs.id, output: 'patt' }));
 	});
 
 	test('active-child contributions preserve nested parent combine modes', () => {

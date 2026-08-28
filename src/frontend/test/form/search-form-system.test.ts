@@ -424,7 +424,7 @@ describe('search form system', () => {
 				'f.explore-corpora-group-display-mode': 'tokens',
 			},
 			params: { filter: 'genre:(fiction)', group: 'field:author' },
-			resultPreset: { groupDisplayMode: 'tokens' },
+			resultPreset: 'tokens',
 			targetView: 'docs',
 		});
 	});
@@ -506,7 +506,7 @@ describe('search form system', () => {
 		expect(restored.rawOverrides).toEqual({ filter: 'author:Austen' });
 		expect(runtime.compile(ids.exploreForm('corpora'))).toMatchObject({
 			params: { filter: 'author:Austen', group: 'field:genre' },
-			resultPreset: { groupDisplayMode: 'docs' },
+			resultPreset: 'docs',
 			targetView: 'docs',
 		});
 	});

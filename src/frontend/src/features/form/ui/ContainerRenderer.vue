@@ -42,8 +42,8 @@
 <script setup lang="ts">
 import { computed, toRef, toValue } from 'vue';
 
-import { countSummarizedFields } from '@/features/form/model/compile';
-import { decodeVariants } from '@/features/form/model/form-utils';
+import { hasEmissions } from '@/features/form/model/compile';
+import { decodeVariants, getAllNodes } from '@/features/form/model/form-utils';
 import { provideParentForm } from '@/features/form/model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { createTabs, tabId } from '@/features/form/ui/tab-utils';
@@ -71,10 +71,13 @@ const variant = computed(() => decodeVariants(props.variant));
 const activeQueryContributionCounts = computed<Record<string, number>>(() => {
 	if (!presentation.value['tab-badges']) return {};
 
+	const state = runtime.value.state.state.value;
+	const context = runtime.value.definition.context;
 	return Object.fromEntries(
 		props.children.map(child => {
 			const node = runtime.value.definition.getNode(child.props.id);
-			return [child.props.id, node ? countSummarizedFields(node, runtime.value.state.getReactiveState(), runtime.value.definition.context) : 0];
+			const count = node ? getAllNodes(node, 'field').filter(field => hasEmissions(field, state[field.id], context)).length : 0;
+			return [child.props.id, count];
 		}),
 	);
 });

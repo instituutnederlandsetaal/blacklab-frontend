@@ -4,9 +4,9 @@ import { acceptTargetEmissions, collectFormValues, diagnoseTargetOutputs } from 
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
-import { encodeFieldState, getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue } from '@/features/form/model/types/form-output';
-import type { CompiledFormResult, ScopedFormQuery } from '@/features/form/model/types/form-result';
+import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
 const FORM_QUERY_PREFIX = 'f.';
@@ -222,51 +222,11 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 	return { uiState, issues };
 }
 
-function queryAffectingTabParams(form: FormNode, state: NewFormState): string[] {
-	const tabs: string[] = [];
-	for (const container of getAllNodes(form, 'container', 'form')) {
-		const activeChildId = state.uiState[container.id];
-		const activeChild = container.children.find(child => child.id === activeChildId);
-		if (!activeChild || !container.activeChildOutputProducers?.[activeChild.id]) continue;
-		tabs.push(`${container.id}:${activeChild.id}`);
-	}
-	return tabs;
-}
-
-function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: NewFormState): { encoded: ScopedFormQuery; issues: RestoreDiagnostic[] } {
-	const codec = buildFieldCodec(form, context);
-	const issues = [...codec.issues];
-	const r: ScopedFormQuery = {
-		[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: form.id,
-	};
-	for (const { field, key } of codec.entries) {
-		try {
-			const value = encodeFieldState(field, state.state[field.id], context);
-			if (value != null && value !== '') r[`${FORM_QUERY_PREFIX}${key}`] = value;
-		} catch (error) {
-			issues.push({
-				key,
-				nodeId: field.id,
-				code: 'controller-error',
-				message: error instanceof Error ? error.message : `Could not encode field '${field.id}'.`,
-			});
-		}
-	}
-	const tabs = queryAffectingTabParams(form, state);
-	if (tabs.length) r[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = tabs;
-	return { encoded: r, issues };
-}
-
 export function compileFormNode(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext): CompiledFormResult {
 	if (node.kind !== 'form') throw new Error(`Cannot compile non-form node '${node.id}'.`);
 	const target = node.target;
-	const encodedState = encodeScopedFormState(node, context, state);
 	const collected = collectFormValues(node, state, context);
-	const issues: FormIssue[] = [
-		...((state as NewFormState & { issues?: readonly FormIssue[] }).issues ?? []),
-		...encodedState.issues.map(issue => ({ ...issue, stage: 'collect' as const, code: issue.code ?? ('malformed-output' as const) })),
-		...collected.issues,
-	];
+	const issues: FormIssue[] = [...((state as NewFormState & { issues?: readonly FormIssue[] }).issues ?? []), ...collected.issues];
 	diagnoseTargetOutputs(node, target.acceptedOutputs, issues);
 	const accepted = acceptTargetEmissions(collected.emissions, target.acceptedOutputs, issues);
 	const params = target.compile(accepted as never, issues);
@@ -274,11 +234,11 @@ export function compileFormNode(node: FormBoundaryNode, state: NewFormState, con
 	return {
 		formId: node.id,
 		params,
-		encoded: encodedState.encoded,
+		encoded: collected.encoded,
 		issues,
 		summaries: collected.summaries.map(summary => ({ ...summary, summaryType: summary.summaryType ? [...summary.summaryType] : undefined })),
 		...(target.targetView ? { targetView: target.targetView } : {}),
-		...(collected.resultPreset ? { resultPreset: { ...collected.resultPreset } } : {}),
+		...(collected.resultPreset !== undefined ? { resultPreset: collected.resultPreset } : {}),
 	};
 }
 

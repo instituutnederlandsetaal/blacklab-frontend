@@ -53,10 +53,10 @@ describe('form runtime', () => {
 				if (pattern) emit('patt', pattern);
 				emit('group', state.groupBy);
 			},
+			getResultPreset: (_config, _context, state) => state.groupDisplayMode,
 			summarize(_config, _context, state, emit) {
 				if (state.value) emit({ label: 'Word', value: state.value, summaryType: state.summaryTypes });
 			},
-			getResultPreset: (_config, _context, state) => ({ groupDisplayMode: state.groupDisplayMode }),
 		};
 		const field = builder.newField('search.simple.word', snapshotController, TestTextField, {
 			annotationId: 'word',
@@ -83,7 +83,7 @@ describe('form runtime', () => {
 		expect(runtime.compile(form.id)).toMatchObject({
 			params: { group: 'fire', searchfield: 'alternative' },
 			encoded: { 'f.tab': [`${tabs.id}:${alternative.id}`] },
-			resultPreset: { groupDisplayMode: 'tokens' },
+			resultPreset: 'tokens',
 			summaries: [{ label: 'Word', value: 'fire', summaryType: ['filter'] }],
 		});
 		expect(submitted).toMatchObject({
@@ -93,7 +93,7 @@ describe('form runtime', () => {
 				'f.tab': [`${tabs.id}:${field.id}`],
 				'f.word': 'water',
 			},
-			resultPreset: { groupDisplayMode: 'table' },
+			resultPreset: 'table',
 			summaries: [{ label: 'Word', value: 'water', summaryType: ['patt'] }],
 		});
 	});

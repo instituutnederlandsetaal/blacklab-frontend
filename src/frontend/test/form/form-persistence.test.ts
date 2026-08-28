@@ -10,6 +10,7 @@ import {
 	createDefaultFormState,
 	createFormFieldNode,
 	compileFormNode,
+	collectFieldValues,
 	expertQueryController,
 	filterCheckboxController,
 	filterDateController,
@@ -32,15 +33,16 @@ import {
 	scalar,
 	withinController,
 	type FieldController,
-	type Emit,
 	type FieldControllerProps,
 	type FormEmission,
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
+import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 import { restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
+import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
@@ -97,7 +99,8 @@ describe('scoped form persistence', () => {
 		const resultPresetController: FieldController<'result-preset-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'result-preset-text',
-			getResultPreset: () => ({ groupDisplayMode: 'table' }),
+			collect: testTextController.collect,
+			getResultPreset: () => 'table',
 		};
 		const field = builder.newField('explore.corpora.options', resultPresetController, TestTextField, {
 			annotationId: 'word',
@@ -109,14 +112,12 @@ describe('scoped form persistence', () => {
 
 		const compiled = compileFormNode(form, state, builder.context);
 
-		expect(compiled.resultPreset).toEqual({ groupDisplayMode: 'table' });
+		expect(compiled.resultPreset).toBe('table');
 	});
 
 	function collectController(controller: typeof resultGroupByController | typeof resultSortController, state: string): FormEmission[] {
-		const emissions: FormEmission[] = [];
-		controller.collect({ kind: 'field', id: 'field', displayName: 'Field', options: [], persistKey: 'field' }, createTestContext(), state, ((name, value) =>
-			emissions.push({ name, value } as FormEmission)) as Emit);
-		return emissions;
+		const field = { kind: 'field', id: 'field', displayName: 'Field', options: [], persistKey: 'field', controller, component: SelectField } as unknown as FormFieldNode;
+		return collectFieldValues(field, state, createTestContext(), []).emissions as FormEmission[];
 	}
 
 	test('group-by controller emits a one-item group output', () => {
@@ -124,17 +125,42 @@ describe('scoped form persistence', () => {
 	});
 
 	test('group-display-mode controller contributes only groupDisplayMode', () => {
-		const contribution = resultGroupDisplayModeController.getResultPreset?.(
-			{ kind: 'field', id: 'display', displayName: 'Display', options: [], persistKey: 'display' },
-			createTestContext(),
-			'tokens',
-		);
+		const field = {
+			kind: 'field',
+			id: 'display',
+			displayName: 'Display',
+			options: [],
+			persistKey: 'display',
+			controller: resultGroupDisplayModeController,
+			component: SelectField,
+		} as unknown as FormFieldNode;
+		const gathered = collectFieldValues(field, 'tokens', createTestContext(), []);
 
-		expect(contribution).toEqual({ groupDisplayMode: 'tokens' });
+		expect(gathered).toMatchObject({ emissions: [], resultPreset: 'tokens' });
 	});
 
 	test('sort controller emits a one-item sort output', () => {
 		expect(collectController(resultSortController, 'field:title')).toEqual([{ name: 'sort', value: ['field:title'] }]);
+	});
+
+	test('keeps the first frontend-result contribution through nested containers', () => {
+		const builder = createTestBuilder();
+		const first = builder.newField('display.first', resultGroupDisplayModeController, SelectField, {
+			displayName: 'First',
+			options: [],
+			persistKey: 'display-first',
+		});
+		const second = builder.newField('display.second', resultGroupDisplayModeController, SelectField, {
+			displayName: 'Second',
+			options: [],
+			persistKey: 'display-second',
+		});
+		const form = builder.newForm('explore.form', ContainerRenderer, {}).addChildren(builder.newContainer('display.container', ContainerRenderer, {}).addChildren(first, second));
+		const state = createDefaultFormState(builder.context, form);
+		state.state[first.id] = 'tokens';
+		state.state[second.id] = 'table';
+
+		expect(compileFormNode(form, state, builder.context).resultPreset).toBe('tokens');
 	});
 
 	test('uses properties when object prototype is null', () => {
@@ -216,6 +242,31 @@ describe('scoped form persistence', () => {
 
 		expect(restored.state[field.id]).toEqual({ value: '' });
 		expect(restored.issues).toMatchObject([{ key: 'word', nodeId: field.id }]);
+	});
+
+	test('continues gathering when a persistence key fails', () => {
+		const controller: FieldController<'broken-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'broken-persistence-key',
+			persistence: {
+				...testTextController.persistence,
+				key: () => {
+					throw new Error('broken persistence key');
+				},
+			},
+			getResultPreset: () => 'table',
+		};
+		const builder = createTestBuilder();
+		const field = builder.newField('search.extended.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' });
+		const form = builder.newForm('search.extended', ContainerRenderer, {}).addChildren(field);
+		const state = createDefaultFormState(builder.context, form);
+		state.state[field.id] = { value: 'water' };
+
+		const compiled = compileFormNode(form, state, builder.context);
+
+		expect(compiled.params.patt).toBe('[word="water"]');
+		expect(compiled.resultPreset).toBe('table');
+		expect(compiled.issues).toEqual([expect.objectContaining({ code: 'controller-error', nodeId: field.id, message: 'broken persistence key' })]);
 	});
 
 	test('reports a present scoped field without a decodable value', () => {
@@ -630,6 +681,20 @@ describe('scoped form persistence', () => {
 				nodeId: secondDuplicateField.id,
 				message: `Duplicate form persistence key 'word' for '${secondDuplicateField.id}' and '${firstDuplicateField.id}'.`,
 			},
+		]);
+	});
+
+	test('rejects an empty persistence key', () => {
+		const controller: FieldController<'empty-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'empty-persistence-key',
+			persistence: { ...testTextController.persistence, key: () => '' },
+		};
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.empty', ContainerRenderer, {}).addChildren(builder.newField('search.empty.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' }));
+
+		expect(compileFormNode(form, createDefaultFormState(builder.context, form), builder.context).issues).toEqual([
+			expect.objectContaining({ stage: 'collect', code: 'malformed-output', nodeId: 'search.empty.word', key: '' }),
 		]);
 	});
 

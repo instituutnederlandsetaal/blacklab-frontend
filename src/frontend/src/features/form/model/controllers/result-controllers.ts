@@ -35,7 +35,5 @@ export const resultGroupDisplayModeController = defineFieldController<'result-gr
 		codec: stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultFieldConfig>) => config.defaultValue ?? ''),
 	},
 	collect() {},
-	getResultPreset(_config, _runtime, state) {
-		return { groupDisplayMode: groupDisplayModes.has(state as GroupDisplayMode) ? (state as GroupDisplayMode) : null };
-	},
+	getResultPreset: (_config, _runtime, state) => (groupDisplayModes.has(state as GroupDisplayMode) ? (state as GroupDisplayMode) : null),
 });

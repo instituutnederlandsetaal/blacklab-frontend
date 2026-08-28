@@ -30,6 +30,24 @@ const queryOnlyTextController = defineFieldController<'query-only-text', TestTex
 	},
 });
 
+const frontendOnlyTextController = defineFieldController<'frontend-only-text', TestTextFieldDefinition>({
+	...queryOnlyTextController,
+	kind: 'frontend-only-text',
+	outputs: [],
+	collect() {},
+	getResultPreset: () => 'table',
+});
+
+const summaryOnlyTextController = defineFieldController<'summary-only-text', TestTextFieldDefinition>({
+	...queryOnlyTextController,
+	kind: 'summary-only-text',
+	outputs: [],
+	collect() {},
+	summarize(config, _runtime, _state, emit) {
+		emit({ label: config.annotationId, value: 'summary' });
+	},
+});
+
 function createSingleFormFixture(): FormFixture {
 	const builder = createTestBuilder();
 	const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
@@ -498,7 +516,7 @@ describe('form system integration', () => {
 		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
 	});
 
-	test('tab badges ignore emissions without a summary', async () => {
+	test('tab badges count semantic emissions without requiring a summary', async () => {
 		const builder = createTestBuilder();
 		builder.newForm('search.query-only', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
 			builder.newContainer('search.query-only.tab', ContainerRenderer, { title: 'Query only' }).addChildren(
@@ -516,7 +534,24 @@ describe('form system integration', () => {
 		await wrapper.get('input[aria-label="Query only field"]').setValue('water');
 		await nextTick();
 
-		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
+		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
 		expect(runtime.compile('search.query-only').summaries).toEqual([]);
+	});
+
+	test('tab badges ignore summary and frontend-only contributions', () => {
+		const builder = createTestBuilder();
+		builder
+			.newForm('search.non-semantic', ContainerRenderer, { variant: ['tabs', 'tab-badges'] })
+			.addChildren(
+				builder
+					.newContainer('search.non-semantic.tab', ContainerRenderer, { title: 'Non-semantic' })
+					.addChildren(
+						builder.newField('search.non-semantic.summary', summaryOnlyTextController, TestTextField, { annotationId: 'summary', displayName: 'Summary' }),
+						builder.newField('search.non-semantic.frontend', frontendOnlyTextController, TestTextField, { annotationId: 'frontend', displayName: 'Frontend' }),
+					),
+			);
+		const wrapper = mount(FormSystem, { props: { runtime: createTestRuntime(builder) } });
+
+		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
 	});
 });

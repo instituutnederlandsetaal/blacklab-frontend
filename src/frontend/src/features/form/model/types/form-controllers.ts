@@ -1,7 +1,7 @@
 import type { PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/form/model/field-component-props';
-import type { Emit, FormOutputName, ResultPreset, SummaryEntry } from '@/features/form/model/types/form-output';
-import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
+import type { Emit, FormOutputName, FormOutputValues, ResultPreset, SummaryEntry } from '@/features/form/model/types/form-output';
+import type { BaseFieldNode, FormFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
 
@@ -34,15 +34,33 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 	/** Unique key for this controller. */
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
-	collect: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, emit: Emit) => void;
+	collect: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, sink: Emit) => void;
 	summarize?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, emit: (summary: SummaryEntry) => void) => void;
-	getResultPreset?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => Readonly<Pick<ResultPreset, 'groupDisplayMode'>> | undefined;
+	getResultPreset?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => ResultPreset | undefined;
 	persistence: FieldPersistence<State, Extra>;
 	/** Semantic outputs this field may emit. */
 	outputs: readonly FormOutputName[];
 };
 
 export type AnyFieldController = FieldController<string, any, any>;
+
+/** Collect the sole output accepted by a compound controller. */
+export function gatherOutput<Name extends FormOutputName>(
+	field: FormFieldNode,
+	state: unknown,
+	runtime: FormRuntimeContext,
+	name: Name,
+	isValue: (value: unknown) => value is FormOutputValues[Name],
+): FormOutputValues[Name][] {
+	const values: FormOutputValues[Name][] = [];
+	const sink = (output: unknown, value: unknown): void => {
+		if (output !== name) throw new Error(`Unexpected '${String(output)}' output from embedded field '${field.id}'.`);
+		if (!isValue(value)) throw new Error(`Malformed '${name}' output from embedded field '${field.id}'.`);
+		values.push(value);
+	};
+	field.controller.collect(field, runtime, state, sink);
+	return values;
+}
 
 /** Controller config derived from a field contract, plus controller-only node props. */
 export type FieldControllerConfig<Definition extends AnyFieldDefinition, Extra extends object = object> = FieldNodeProps<Definition> & Extra;

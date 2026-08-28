@@ -3,7 +3,7 @@ import type { FormParams, SearchParams } from '@/features/form/model/types/black
 import type { FormEmission, FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 
 export type ViewName = 'hits' | 'docs';
-export type BlackLabEndpointName = 'hits' | 'docs' | 'hits-grouped' | 'docs-grouped' | 'collocations';
+type BlackLabEndpointName = 'hits' | 'docs' | 'hits-grouped' | 'docs-grouped' | 'collocations';
 
 export type FormTarget<Accepted extends readonly FormOutputName[], Params extends FormParams = FormParams> = {
 	readonly acceptedOutputs: Accepted;

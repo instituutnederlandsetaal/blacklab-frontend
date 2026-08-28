@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import {
 	createSearchTarget,
@@ -43,10 +43,10 @@ function emission<Name extends FormOutputName>(name: Name, value: FormEmission<N
 }
 
 describe('form output acceptance', () => {
-	test('reports unknown, undeclared, unsupported, and malformed values while retaining unrelated valid outputs', () => {
+	test('reports unknown, undeclared, and malformed values while retaining unrelated valid outputs', () => {
 		const controller = createController(['patt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
 			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
-			rawEmit('unknown', undefined);
+			rawEmit('unknown', 'value');
 			rawEmit('group', [' field:author ']);
 			rawEmit('collpatt', undefined);
 			rawEmit('filter', { type: 'lucene-field' });
@@ -59,9 +59,7 @@ describe('form output acceptance', () => {
 		expect(compiled.issues).toEqual([
 			expect.objectContaining({ stage: 'collect', code: 'unknown-output', nodeId: 'search.field.0', output: 'unknown' }),
 			expect.objectContaining({ stage: 'collect', code: 'undeclared-output', nodeId: 'search.field.0', output: 'group' }),
-			expect.objectContaining({ stage: 'collect', code: 'undeclared-output', nodeId: 'search.field.0', output: 'collpatt' }),
 			expect.objectContaining({ stage: 'collect', code: 'malformed-output', output: 'filter' }),
-			expect.objectContaining({ stage: 'accept', code: 'unsupported-output', output: 'collpatt' }),
 		]);
 	});
 
@@ -91,6 +89,40 @@ describe('form output acceptance', () => {
 
 		expect(compiled.params).toEqual({ patt: '[word="water"]', filter: 'author:(Austen)' });
 		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'controller-error', nodeId: 'search.field.0', message: 'broken controller' }));
+	});
+
+	test('isolates every controller channel and continues with later fields', () => {
+		const summarize = vi.fn((_config, _runtime, _state, emit) => {
+			emit({ label: 'Partial', value: 'summary' });
+			throw new Error('broken summary');
+		});
+		const first = {
+			...createController(['patt'], (_config, _runtime, _state, emit) => {
+				emit('patt', rawCql('[word="water"]'));
+				throw new Error('broken collection');
+			}),
+			summarize,
+			persistence: {
+				...testTextController.persistence,
+				codec: testTextController.persistence.codec.refine(() => {
+					throw new Error('broken persistence');
+				}),
+			},
+			getResultPreset: () => {
+				throw new Error('broken preset');
+			},
+		} satisfies TestController;
+		const second = {
+			...createController(['filter'], (_config, _runtime, _state, emit) => emit('filter', filter('author', 'literal', 'Austen')!)),
+			getResultPreset: () => 'tokens' as const,
+		} satisfies TestController;
+
+		const compiled = createRuntime(first, second).compile('search.form');
+
+		expect(compiled.params).toEqual({ patt: '[word="water"]', filter: 'author:(Austen)' });
+		expect(compiled.resultPreset).toBe('tokens');
+		expect(compiled.summaries).toContainEqual({ label: 'Partial', value: 'summary', summaryType: ['patt'] });
+		expect(compiled.issues.filter(issue => issue.code === 'controller-error').map(issue => issue.message)).toEqual(['broken collection', 'broken summary', 'broken persistence', 'broken preset']);
 	});
 
 	test('rejects malformed recursive CQL instead of throwing during target compilation', () => {

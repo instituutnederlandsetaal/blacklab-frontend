@@ -36,7 +36,7 @@ export function handoffCompiledForm(result: CompiledFormResult): boolean {
 		if (!Object.hasOwn(result.params, 'sort')) view.actions.sort(previousSort);
 	}
 	if (Object.hasOwn(result.params, 'sort')) view.actions.sort(result.params.sort ?? null);
-	if (result.resultPreset?.groupDisplayMode !== undefined) view.actions.groupDisplayMode(result.resultPreset.groupDisplayMode);
+	if (result.resultPreset !== undefined) view.actions.groupDisplayMode(result.resultPreset);
 	return true;
 }
 

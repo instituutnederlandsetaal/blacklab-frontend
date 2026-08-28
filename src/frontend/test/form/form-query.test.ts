@@ -8,7 +8,7 @@ import {
 	filterDateController,
 	filterTextController,
 	parallelController,
-	type Emit,
+	collectFieldValues,
 	type FieldController,
 	type FieldControllerProps,
 	type FormEmission,
@@ -30,6 +30,7 @@ import {
 	type CqlPatternNode,
 	type LuceneNode,
 } from '@/features/form/model/types/form-query-ir';
+import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 
@@ -39,9 +40,8 @@ const context: FormRuntimeContext = {
 };
 
 function collect<State, Extra>(controller: FieldController<string, State, Extra>, config: FieldControllerProps<Extra>, state: State): FormEmission[] {
-	const emissions: FormEmission[] = [];
-	controller.collect(config, context, state, ((name, value) => emissions.push({ name, value } as FormEmission)) as Emit);
-	return emissions;
+	const field = { ...config, controller, component: RawCqlField } as unknown as FormFieldNode;
+	return collectFieldValues(field, state, context, []).emissions as FormEmission[];
 }
 
 function patt<State, Extra>(controller: FieldController<string, State, Extra>, config: FieldControllerProps<Extra>, state: State): CqlPatternNode | null {
