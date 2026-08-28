@@ -16,26 +16,15 @@
 	</ol>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
-
-export default defineComponent({
-	props: {
-		crumbs: {
-			type: Array as PropType<
-				Array<{
-					label: string;
-					title?: string;
-					onClick?: () => void;
-				}>
-			>,
-			required: true,
-		},
-		disabled: Boolean,
-	},
-	computed: {},
-});
+<script setup lang="ts">
+defineProps<{
+	crumbs: Array<{
+		label: string;
+		title?: string;
+		onClick?: () => void;
+	}>;
+	disabled?: boolean;
+}>();
 </script>
 
 <style lang="scss">
