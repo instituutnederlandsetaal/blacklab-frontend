@@ -30,9 +30,7 @@ type GatherContext = {
 	visitedFields: Set<FormFieldNode>;
 	persistenceKeys: Map<string, FormFieldNode>;
 	field?: FormFieldNode;
-	sink?: Sink;
 	resultPreset?: ResultPreset;
-	emit: Emit;
 };
 
 function reportIssue(context: GatherContext, nodeId: string, code: FormIssue['code'], message: string, output?: string, key?: string): void {
@@ -112,13 +110,17 @@ function persistField(context: GatherContext, field: FormFieldNode, state: unkno
 	}
 }
 
-function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink): void {
+function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink, collectAuxiliary = true): void {
 	if (context.field) throw new Error(`Cannot enter field '${node.id}' while collecting '${context.field.id}'.`);
 	context.field = node;
-	context.sink = sink;
+	const emit = ((name: unknown, value: unknown) => {
+		if (context.field !== node) throw new Error('Cannot emit outside field collection.');
+		emitValue(context, node.id, sink, node.controller.outputs, name, value);
+	}) as Emit;
 	const firstVisit = !context.visitedFields.has(node);
 	try {
-		invoke(context, node.id, () => node.controller.collect(node, context.runtime, state, context.emit));
+		invoke(context, node.id, () => node.controller.collect(node, context.runtime, state, emit));
+		if (!collectAuxiliary) return;
 		if (firstVisit) {
 			if (node.controller.summarize) invoke(context, node.id, () => node.controller.summarize!(node, context.runtime, state, summary => addSummary(context, summary)));
 			persistField(context, node, state);
@@ -132,7 +134,6 @@ function visitField(node: FormFieldNode, state: unknown, context: GatherContext,
 	} finally {
 		context.visitedFields.add(node);
 		context.field = undefined;
-		context.sink = undefined;
 	}
 }
 
@@ -181,7 +182,7 @@ function visitNode(node: FormNode, context: GatherContext, sink: Sink): void {
 }
 
 function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: ScopedFormQuery, formState?: NewFormState): GatherContext {
-	const context: GatherContext = {
+	return {
 		runtime,
 		formState,
 		issues,
@@ -191,13 +192,7 @@ function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: Scope
 		tabs: new Set(),
 		visitedFields: new Set(),
 		persistenceKeys: new Map(),
-		emit: undefined as unknown as Emit,
 	};
-	context.emit = ((name: unknown, value: unknown) => {
-		if (!context.field || !context.sink) throw new Error('Cannot emit outside field collection.');
-		emitValue(context, context.field.id, context.sink, context.field.controller.outputs, name, value);
-	}) as Emit;
-	return context;
 }
 
 function result(context: GatherContext): GatheredFormValues {
@@ -210,7 +205,12 @@ function result(context: GatherContext): GatheredFormValues {
 	};
 }
 
-/** Gather one field through its normal controller path. */
+export function collectFieldEmissions(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): FormEmission[] {
+	const context = gather(runtime, issues, {});
+	visitField(node, state, context, emission => context.emissions.push(emission), false);
+	return context.emissions;
+}
+
 export function collectFieldValues(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): GatheredFormValues {
 	const context = gather(runtime, issues, {});
 	visitField(node, state, context, emission => context.emissions.push(emission));
@@ -224,7 +224,7 @@ export function collectFormValues(node: FormBoundaryNode, formState: NewFormStat
 	return { ...result(context), issues };
 }
 
-/** Gather a field through the normal controller path and ignore every channel except semantic emissions. */
+/** Check a field's validated semantic contributions without evaluating auxiliary channels. */
 export function hasEmissions(field: FormFieldNode, state: unknown, runtime: FormRuntimeContext): boolean {
-	return collectFieldValues(field, state, runtime, []).emissions.length > 0;
+	return collectFieldEmissions(field, state, runtime, []).length > 0;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { createDefaultFormState, createFormFieldNode, searchTarget, type QueryCombineMode } from '@/features/form';
+import { collectFieldEmissions, createDefaultFormState, createFormFieldNode, searchTarget, type FormIssue, type QueryCombineMode } from '@/features/form';
 import { annotation, filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode, FormBoundaryNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
@@ -364,6 +364,41 @@ describe('form model state', () => {
 		expect(key).toHaveBeenCalledOnce();
 		expect(encode).toHaveBeenCalledOnce();
 		expect(getResultPreset).toHaveBeenCalledTimes(2);
+		encode.mockRestore();
+	});
+
+	test('collects field emissions without evaluating auxiliary channels', () => {
+		const collect = vi.fn((...args: Parameters<typeof testTextController.collect>) => {
+			const [config, _runtime, state, emit] = args;
+			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
+			emit('patt', annotation(config.annotationId, 'wildcard', state.value)!);
+			rawEmit('unknown', 'ignored');
+			emit('group', ['field:author']);
+			rawEmit('filter', {});
+			throw new Error('collect failed');
+		});
+		const summarize = vi.fn(testTextController.summarize);
+		const key = vi.fn(testTextController.persistence.key);
+		const encode = vi.spyOn(testTextController.persistence.codec, 'encode');
+		const getResultPreset = vi.fn(() => 'table' as const);
+		const { builder, sharedField } = createReusedFieldFixture({
+			...testTextController,
+			collect,
+			summarize,
+			persistence: { ...testTextController.persistence, key },
+			getResultPreset,
+		});
+		const issues: FormIssue[] = [];
+
+		const emissions = collectFieldEmissions(sharedField, { value: 'water' }, builder.context, issues);
+
+		expect(emissions.map(emission => emission.name)).toEqual(['patt', 'group']);
+		expect(issues.map(issue => issue.code)).toEqual(['unknown-output', 'undeclared-output', 'malformed-output', 'controller-error']);
+		expect(collect).toHaveBeenCalledOnce();
+		expect(summarize).not.toHaveBeenCalled();
+		expect(key).not.toHaveBeenCalled();
+		expect(encode).not.toHaveBeenCalled();
+		expect(getResultPreset).not.toHaveBeenCalled();
 		encode.mockRestore();
 	});
 
