@@ -21,14 +21,6 @@
  * escape these strings themselves.
  */
 
-/** The error */
-class PersistenceCodecError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'PersistenceCodecError';
-	}
-}
-
 type Encoded = string | null;
 type DefaultValue<T, Context> = T | ((context: Context) => T);
 // Placement only has meaning when this codec is used as an object property.
@@ -41,7 +33,7 @@ type CodecFunctions<T, Context> = {
 };
 
 function codecError(message: string): never {
-	throw new PersistenceCodecError(message);
+	throw new Error(message);
 }
 
 /**
@@ -147,11 +139,6 @@ function unescapeBoundary(value: string, reserved: string): string {
 		output += escaped;
 	}
 	return output;
-}
-
-function withPath(error: unknown, path: string): never {
-	if (error instanceof PersistenceCodecError) codecError(`${path}: ${error.message}`);
-	throw error;
 }
 
 function encodeEmbedded(codec: PersistenceCodec<any, any>, encoded: string, reserved: string): string {
@@ -432,13 +419,7 @@ export function array<Item, Context = any>(item: PersistenceCodec<Item, Context>
 			decode: (payload, context) => {
 				if (payload == null) codecError('Missing required array value.');
 				if (payload === '') return [];
-				return splitBoundary(payload, ',').map((value, index) => {
-					try {
-						return decodeEmbedded(item, value, context, ',');
-					} catch (error) {
-						withPath(error, `[${index}]`);
-					}
-				});
+				return splitBoundary(payload, ',').map(value => decodeEmbedded(item, value, context, ','));
 			},
 		},
 		{ structured: true },
@@ -467,11 +448,7 @@ export function record<Value, Context = any>(valueCodec: PersistenceCodec<Value,
 					if (separator < 1) codecError(`Invalid record entry '${entry}'.`);
 					const key = unescapeBoundary(entry.slice(0, separator), ';:{}');
 					if (result.has(key)) codecError(`Duplicate record key '${key}'.`);
-					try {
-						result.set(key, decodeEmbedded(valueCodec, entry.slice(separator + 1), context, ';'));
-					} catch (error) {
-						withPath(error, key);
-					}
+					result.set(key, decodeEmbedded(valueCodec, entry.slice(separator + 1), context, ';'));
 				}
 				return Object.fromEntries(result);
 			},
@@ -505,12 +482,7 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest
 			if (!value || Array.isArray(value) || typeof value !== 'object') codecError('Expected an object value.');
 			const entries: Array<{ root: boolean; key?: string; value: string; codec: PersistenceCodec<any, Context> }> = [];
 			for (const [stateKey, child] of Object.entries(shape)) {
-				let encoded: Encoded;
-				try {
-					encoded = child.encode((value as Record<string, unknown>)[stateKey], context);
-				} catch (error) {
-					withPath(error, stateKey);
-				}
+				const encoded = child.encode((value as Record<string, unknown>)[stateKey], context);
 				if (encoded == null) continue;
 				const placement = child._meta.placement;
 				const root = placement.kind === 'root';
@@ -568,11 +540,7 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest
 				const key = meta.scope ? (isRoot ? meta.scope : `${meta.scope}.${childKey}`) : childKey;
 				const childPayload = isRoot && !meta.scope ? root : named.get(key!);
 				if (key && named.has(key)) consumed.add(key);
-				try {
-					result.set(stateKey, decodeEmbedded(child, childPayload ?? null, context, isRoot && !meta.scope ? ';=' : ';'));
-				} catch (error) {
-					withPath(error, stateKey);
-				}
+				result.set(stateKey, decodeEmbedded(child, childPayload ?? null, context, isRoot && !meta.scope ? ';=' : ';'));
 			}
 			if (root != null && !acceptsRoot) codecError('Object contains an unsupported root value.');
 			for (const [key, value] of named) {
@@ -582,11 +550,7 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest
 				const stateKey = restPrefix ? key.slice(restPrefix.length) : key;
 				if (!stateKey) codecError(`Unsupported object key '${key}'.`);
 				if (knownStateKeys.has(stateKey) || wireKeys.has(stateKey)) codecError(`Rest property key '${stateKey}' collides with a fixed object property.`);
-				try {
-					result.set(stateKey, decodeEmbedded(rest.codec, value, context, ';'));
-				} catch (error) {
-					withPath(error, stateKey);
-				}
+				result.set(stateKey, decodeEmbedded(rest.codec, value, context, ';'));
 			}
 			return Object.fromEntries(result) as ShapeState<Shape>;
 		},

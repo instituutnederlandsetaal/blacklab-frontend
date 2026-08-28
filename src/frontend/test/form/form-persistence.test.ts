@@ -418,8 +418,9 @@ describe('scoped form persistence', () => {
 			kind: 'rejecting-text',
 			persistence: {
 				...testTextController.persistence,
-				codec: testTextController.persistence.codec.refine(() => {
-					throw new Error('Invalid word state.');
+				codec: object({ values: array(scalar()).at('v') }).transform<TestTextFieldState>({
+					encode: state => ({ values: [state.value] }),
+					decode: state => ({ value: state.values[0] ?? '' }),
 				}),
 			},
 		};
@@ -435,11 +436,14 @@ describe('scoped form persistence', () => {
 		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(word, author);
 		const restored = restoreFormState(builder, {
 			'f.form': 'search.extended',
-			'f.word': 'water',
+			'f.word': 'v={water\\q}',
 			'f.author': 'Austen',
 		});
 
-		expect(restored.issues).toEqual([{ severity: 'error', message: `Could not restore persisted field 'word' for '${word.id}': Invalid word state.` }]);
+		expect(restored.issues).toEqual([
+			{ severity: 'error', message: `Could not restore persisted field 'word' for '${word.id}': Persisted value contains invalid escape '\\q'.` },
+		]);
+		expect(restored.state[word.id]).toEqual({ value: '' });
 		expect(restored.state[author.id]).toEqual({ value: 'Austen', caseSensitive: false });
 	});
 
@@ -1098,7 +1102,7 @@ describe('controller persistence codecs', () => {
 	});
 
 	test('structured codecs reject reserved characters and incomplete escapes', () => {
-		expect(() => object({ value: scalar().at('v') }).decode('v=a{;unknown=x}', undefined)).toThrow("value: Persisted value contains unescaped reserved character '{'.");
+		expect(() => object({ value: scalar().at('v') }).decode('v=a{;unknown=x}', undefined)).toThrow("Persisted value contains unescaped reserved character '{'.");
 		expect(() => array(scalar()).decode('one\\', undefined)).toThrow('Persisted value ends with an incomplete escape.');
 	});
 
@@ -1152,7 +1156,7 @@ describe('controller persistence codecs', () => {
 
 	test('date persistence rejects malformed dates', () => {
 		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
-		expect(() => restore(filterDateController, 's=2020-01-02-extra', dateConfig)).toThrow("startDate: Cannot restore date value '2020-01-02-extra' with more than three components.");
+		expect(() => restore(filterDateController, 's=2020-01-02-extra', dateConfig)).toThrow("Cannot restore date value '2020-01-02-extra' with more than three components.");
 	});
 
 	test('part-of-speech persistence round-trips subannotation selections', () => {
