@@ -106,7 +106,7 @@ import Modal from '@/shared/ui/Modal.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 // outside component, want to always run this code, even when component is invisible.
-export const wideView = localStorageSynced('cf/wideView', false);
+const wideView = localStorageSynced('cf/wideView', false);
 watch(
 	() => wideView.value,
 	v =>

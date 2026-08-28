@@ -180,20 +180,3 @@ export default defineComponent({
 	},
 });
 </script>
-
-<style lang="scss">
-#searchContainer,
-#filterContainer {
-	-webkit-transition: all 0.5s ease;
-	-moz-transition: all 0.5s ease;
-	-o-transition: all 0.5s ease;
-	transition: all 0.5s ease;
-}
-
-#filterContainer > .tab-content {
-	max-height: 500px;
-	overflow-y: auto;
-	overflow-x: hidden;
-	/* required due to negative margin-right of contents causing scrollbar otherwise */
-}
-</style>

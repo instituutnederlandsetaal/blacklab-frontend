@@ -22,21 +22,15 @@ import * as RootStore from '@/app/state/root-store';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
-import { wideView } from '@/pages/search/form/QueryFormSettings.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
-import Spinner from '@/shared/ui/Spinner.vue';
 
 export default defineComponent({
 	components: {
 		QueryForm,
 		QuerySummary,
 		Results,
-		Spinner,
 	},
-	data: () => ({
-		wideView,
-	}),
 	computed: {
 		resultsVisible(): boolean {
 			return InterfaceStore.getState().viewedResults != null;
@@ -45,5 +39,3 @@ export default defineComponent({
 	},
 });
 </script>
-
-<style lang="scss"></style>
