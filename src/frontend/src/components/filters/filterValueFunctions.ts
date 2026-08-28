@@ -1,5 +1,6 @@
 import type { ASTNode, ASTRange } from 'lucene-query-parser';
 
+import { DateUtils as FormDateUtils, type DateValue as FormDateValue } from '@/features/form/fields/generic/date-field';
 // @ts-ignore - weird this doesn't work during builds
 import type { FullFilterState } from '@/features/search/model/form/filter-state';
 import type { FilterValue } from '@/types/apptypes';
@@ -11,11 +12,7 @@ import { findOption, optionLabel, optionValues, type Option } from '@/shared/uti
 import { unescapeLucene, escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
-export type DateValue = {
-	d: string;
-	m: string;
-	y: string;
-};
+export type DateValue = FormDateValue;
 
 /** Value prop of the FilterDate component */
 export type FilterDateValue = {
@@ -169,25 +166,8 @@ function getFieldValues(
 }
 
 export const DateUtils = {
-	/**
-	 * Conver the date object into a lucene filter string (which is just the concatenated numbers with zero-padding).
-	 * Filling in blank months or days based on the mode. (first/last month of the year, first/last day of the month).
-	 * Ex. {d: '1', m: '4', y: '2022'} => '20220401'.
-	 * Returns an empty string if the date could not be parsed.
-	 */
 	dateValueToLucene(date: DateValue | null | undefined, mode: 'start' | 'end'): string {
-		if (!date) return '';
-		let { y, m, d } = date;
-		if (!y.length || !y.match(/^[0-9]{1,4}$/)) {
-			return '';
-		}
-		if (!m.length || !m.match(/^[0-9]{1,2}$/)) {
-			m = mode === 'start' ? '1' : '12';
-		}
-		if (!d.length || !d.match(/^[0-9]{1,2}$/)) {
-			d = mode === 'start' ? '1' : new Date(Number(y), Number(m), 0).getDate().toString();
-		}
-		return `${y.padStart(4, '0')}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
+		return FormDateUtils.dateValueToString(date, mode);
 	},
 	/**
 	 * The opposite of DateValueToLuceneString. Assumed to be used to decode initial value for FilterDate.
@@ -207,28 +187,11 @@ export const DateUtils = {
 		const [_, y, m, d] = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/)!;
 		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 	},
-	/**
-	 * Boundary dates are the minDate and maxDate settings for FilterDate. E.g. boundaries of what the user may enter (also used to inform the user about the contents of the corpus).
-	 * For convenience we allow the admin to enter boundary dates in a couple of formats ('yyyymmdd', 'yyyy-mm-dd', new Date(), {y: string, m: string, d: string}).
-	 * Check which one it is, and convert it into a valid DateValue.
-	 * Semantics are a little different than the other conversion functions: this one returns null if the process fails at any step.
-	 */
 	normalizeBoundaryDate(date?: DateValue | Date | string): DateValue | null {
-		if (!date) return null;
-		if (date instanceof Date) return this.dateToValue(date);
-		if (typeof date === 'string') {
-			const match = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/);
-			if (!match) return null;
-			const [_, y, m, d] = match;
-			return { y, m, d };
-		}
-		return date;
+		return FormDateUtils.normalizeBoundaryDate(date);
 	},
 	dateToValue(date: Date): DateValue {
-		const y = date.getFullYear().toString().padStart(4, '0');
-		const m = (date.getMonth() + 1).toString().padStart(2, '0');
-		const d = date.getDate().toString().padStart(2, '0');
-		return { y, m, d };
+		return FormDateUtils.dateToValue(date);
 	},
 };
 
