@@ -118,11 +118,6 @@ function forwardReset() {
 </script>
 
 <style lang="scss">
-.blf-form-body {
-	display: grid;
-	gap: 16px;
-}
-
 .blf-form-container,
 .blf-form-content,
 .blf-form-tab-body {
