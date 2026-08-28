@@ -1,7 +1,7 @@
 import { markRaw } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { applyRawOverrides, compileFormNode, compileFormSummary } from '@/features/form/model/persistence';
+import { applyRawOverrides, compileFormNode, compileFormSummary } from '@/features/form/model/compile';
 import createFormState, { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import type { RenderableFormNode } from '@/features/form/ui/renderable-graph';
