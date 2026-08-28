@@ -55,7 +55,7 @@ function groupToPredicate(group: CqlAttributeGroupData): CqlAnnotationNode | nul
 	const children = group.entries.map(groupEntryToPredicate).filter((child): child is CqlAnnotationNode => child != null);
 	if (!children.length) return null;
 	if (children.length === 1) return children[0];
-	return booleanNode(group.operator === '|' ? 'or' : 'and', ...children);
+	return booleanNode(group.operator === '|' ? 'or' : 'and', children);
 }
 
 function hasRepeat(properties: QueryBuilderFieldState['tokens'][number]['properties']): boolean {

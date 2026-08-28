@@ -20,39 +20,10 @@ export type { BooleanType } from '@/features/form/model/types/form-primitives';
 export type BooleanNode<TLeaf> = { type: BooleanType; children: Array<BooleanNode<TLeaf> | TLeaf> };
 
 /** Construct a boolean node from a given set of children */
-export function booleanNode<TLeaf>(type: BooleanType, children: Array<BooleanNode<TLeaf> | TLeaf>): BooleanNode<TLeaf> | TLeaf | null;
-/** Construct a boolean node from a given list of children */
-export function booleanNode<TLeaf>(type: BooleanType, ...children: Array<BooleanNode<TLeaf> | TLeaf>): BooleanNode<TLeaf> | TLeaf | null;
-/** Construct a boolean node from a given set of values. Every value is turned into a leaf clause with the extra properties */
-export function booleanNode<TLeaf>(type: BooleanType, values: Values, restValues: Omit<TLeaf, 'value'>): BooleanNode<TLeaf> | TLeaf | null;
-/** Construct a boolean node from a given set of values and a node creation function. The function is given every value in succession and must return a leaf if the value is valid. */
-export function booleanNode<TLeaf>(type: BooleanType, values: Values, createNode: (value: string) => TLeaf | null): BooleanNode<TLeaf> | TLeaf | null;
-export function booleanNode<TLeaf>(type: BooleanType, arg1?: unknown, ...args: unknown[]): BooleanNode<TLeaf> | TLeaf | null {
-	let children: Array<BooleanNode<TLeaf> | TLeaf>;
-	if (args.length && isValues(arg1)) {
-		const construct = args[0];
-		const createNode: (value: string) => TLeaf | null =
-			typeof construct === 'function' ? (construct as (value: string) => TLeaf | null) : (value: string): TLeaf => ({ value, ...(construct as object) }) as TLeaf;
-		children = valuesToArray(arg1)
-			.map(createNode)
-			.filter((child): child is TLeaf => child != null);
-	} else if (arg1 === undefined) {
-		children = [];
-	} else if (Array.isArray(arg1)) {
-		children = arg1 as Array<BooleanNode<TLeaf> | TLeaf>;
-	} else {
-		children = [arg1 as BooleanNode<TLeaf> | TLeaf, ...(args as Array<BooleanNode<TLeaf> | TLeaf>)];
-	}
-
+export function booleanNode<TLeaf>(type: BooleanType, children: Array<BooleanNode<TLeaf> | TLeaf>): BooleanNode<TLeaf> | TLeaf | null {
 	if (!children.length) return null;
 	if (children.length === 1) return children[0];
 	return { type, children };
-}
-
-function isValues(value: unknown): value is Values {
-	if (typeof value === 'string') return true;
-	if (Array.isArray(value)) return value.every(item => typeof item === 'string');
-	return Boolean(value && typeof value === 'object' && Object.values(value).every(item => typeof item === 'boolean'));
 }
 
 export function isBooleanNode<TNode>(node: any): node is BooleanNode<TNode> {
@@ -163,7 +134,10 @@ type _CqlAnnotationNode = PredicateTextNode & CqlAnnotationNodeCompare & CqlBase
 export type CqlAnnotationNode = _CqlAnnotationNode | BooleanNode<_CqlAnnotationNode>;
 
 export const annotation = (annotation: string, valueType: TextValueType, values: Values, p?: Partial<CqlAnnotationNodeCompare>): CqlAnnotationNode | null =>
-	booleanNode<_CqlAnnotationNode>('or', values, { type: 'cql-annotation', annotation, valueType, ...p });
+	booleanNode(
+		'or',
+		valuesToArray(values).map(value => ({ type: 'cql-annotation', annotation, valueType, value, ...p })),
+	);
 type CqlNodeAnyToken = CqlBaseNode<'any-token'>;
 /** Match one unrestricted token. */
 export const anyToken = (): CqlNodeAnyToken => ({ type: 'cql-any-token' });
@@ -203,7 +177,10 @@ export const within = (element: string, attributes: Record<string, PredicateAttr
 });
 /** Build one text-valued attribute constraint for a within wrapper. */
 export const withinAttribute = (attribute: string, valueType: TextValueType, values: Values): Record<string, PredicateAttributeNode> => {
-	const value = booleanNode<PredicateValueNode>('or', values, { valueType });
+	const value = booleanNode<PredicateValueNode>(
+		'or',
+		valuesToArray(values).map(value => ({ valueType, value })),
+	);
 	return value ? { [attribute]: value } : {};
 };
 /** Build one range-valued attribute constraint for a within wrapper. */
@@ -290,7 +267,11 @@ type _LuceneFieldNode = PredicateValueNode & { type: 'lucene-field' } & {
 };
 
 export type LuceneNode = _LuceneFieldNode | BooleanNode<_LuceneFieldNode>;
-export const filter = (field: string, valueType: TextValueType, values: Values): LuceneNode | null => booleanNode<_LuceneFieldNode>('or', values, { type: 'lucene-field', valueType, field });
+export const filter = (field: string, valueType: TextValueType, values: Values): LuceneNode | null =>
+	booleanNode(
+		'or',
+		valuesToArray(values).map(value => ({ type: 'lucene-field', field, valueType, value })),
+	);
 export const filterRange = (field: string, low?: string, high?: string): LuceneNode | null => ({
 	type: 'lucene-field',
 	field,

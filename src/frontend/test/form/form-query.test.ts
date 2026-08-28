@@ -79,7 +79,7 @@ describe('semantic query compilation', () => {
 				mode: 'permissive',
 			},
 		);
-		expect(node).toEqual(booleanNode('or', filterRange('start', '20200101', '20211231')!, filterRange('end', '20200101', '20211231')!));
+		expect(node).toEqual(booleanNode('or', [filterRange('start', '20200101', '20211231')!, filterRange('end', '20200101', '20211231')!]));
 	});
 
 	test('and/or composition folds compatible token predicates', () => {
@@ -95,19 +95,22 @@ describe('semantic query compilation', () => {
 	});
 
 	test('compiles Lucene conjunctions', () => {
-		const node = booleanNode('and', filter('author', 'literal', 'Austen')!, filter('year', 'literal', '1813')!)!;
+		const node = booleanNode('and', [filter('author', 'literal', 'Austen')!, filter('year', 'literal', '1813')!])!;
 		expect(compileFilter(node)).toBe('(author:(Austen) AND year:(1813))');
 	});
 
 	test('normalizes compatible CQL and Lucene alternatives', () => {
-		const cql = booleanNode('or', annotation('word', 'literal', 'a*')!, annotation('word', 'wildcard', 'b*')!)!;
-		const lucene = booleanNode('or', filter('author', 'literal', 'A*')!, filter('author', 'wildcard', 'B*')!)!;
+		const cql = booleanNode('or', [annotation('word', 'literal', 'a*')!, annotation('word', 'wildcard', 'b*')!])!;
+		const lucene = booleanNode('or', [filter('author', 'literal', 'A*')!, filter('author', 'wildcard', 'B*')!])!;
 		expect(compileCql(cql)).toBe(String.raw`[word="a\*|b.*"]`);
 		expect(compileFilter(lucene)).toBe(String.raw`author:(/A\*|B.*/)`);
 	});
 
 	test('complete-query wrappers are extracted regardless of graph position', () => {
-		const pattern = combineCqlPatterns([rawCql('[word="water"]'), booleanNode<CqlPatternNode>('or', within('speech', { person: textPredicate('wildcard', 'Alice*') }), containing('s'))!], 'sequence')!;
+		const pattern = combineCqlPatterns(
+			[rawCql('[word="water"]'), booleanNode<CqlPatternNode>('or', [within('speech', { person: textPredicate('wildcard', 'Alice*') }), containing('s')])!],
+			'sequence',
+		)!;
 		expect(compileCql(pattern)).toBe('(<s/> containing ([word="water"])) within <speech person="Alice.*"/>');
 	});
 
@@ -148,46 +151,45 @@ describe('semantic query compilation', () => {
 	});
 
 	test('preserves precedence for mixed token operators', () => {
-		const pattern = booleanNode<CqlPatternNode>('or', booleanNode('and', annotation('word', 'wildcard', 'a')!, annotation('word', 'wildcard', 'b')!)!, annotation('lemma', 'wildcard', 'c')!)!;
+		const pattern = booleanNode<CqlPatternNode>('or', [booleanNode('and', [annotation('word', 'wildcard', 'a')!, annotation('word', 'wildcard', 'b')!])!, annotation('lemma', 'wildcard', 'c')!])!;
 		expect(compileCql(pattern)).toBe('[(word="a" & word="b") | lemma="c"]');
 	});
 
 	test('keeps comparison and sensitivity semantics separate', () => {
-		const pattern = booleanNode(
-			'or',
+		const pattern = booleanNode('or', [
 			annotation('word', 'literal', 'a', { caseSensitive: true })!,
 			annotation('word', 'literal', 'b', { caseSensitive: false })!,
 			annotation('word', 'literal', 'c', { caseSensitive: false, operator: '!=' })!,
-		)!;
+		])!;
 		expect(compileCql(pattern)).toBe('[word=l"(?-i)a" | word=l"(?i)b" | word!=l"(?i)c"]');
 	});
 
 	test('merges compatible negative token predicates under and', () => {
 		const options = { caseSensitive: true, operator: '!=' as const };
-		const pattern = booleanNode('and', annotation('word', 'literal', 'a', options)!, annotation('word', 'wildcard', 'b*', options)!)!;
+		const pattern = booleanNode('and', [annotation('word', 'literal', 'a', options)!, annotation('word', 'wildcard', 'b*', options)!])!;
 		expect(compileCql(pattern)).toBe('[word!="(?-i)a|b.*"]');
 	});
 
 	test('merges only adjacent compatible Lucene alternatives', () => {
-		const node = booleanNode('or', filter('author', 'literal', 'A|B')!, filter('author', 'wildcard', 'C*')!, filter('title', 'literal', 'D')!, filter('author', 'literal', 'E')!)!;
+		const node = booleanNode('or', [filter('author', 'literal', 'A|B')!, filter('author', 'wildcard', 'C*')!, filter('title', 'literal', 'D')!, filter('author', 'literal', 'E')!])!;
 		expect(compileFilter(node)).toBe(String.raw`(author:(/A\|B|C.*/) OR title:(D) OR author:(E))`);
 	});
 
 	test('flattens matching CQL and Lucene boolean operators', () => {
-		const cql = booleanNode('and', rawCql('[word="a"]'), booleanNode('and', rawCql('[lemma="b"]'), rawCql('[pos="N"]'))!)!;
-		const lucene = booleanNode('and', filter('author', 'literal', 'alice')!, booleanNode('and', filter('title', 'literal', 'water')!, filter('year', 'literal', '2020')!)!)!;
+		const cql = booleanNode('and', [rawCql('[word="a"]'), booleanNode('and', [rawCql('[lemma="b"]'), rawCql('[pos="N"]')])!])!;
+		const lucene = booleanNode('and', [filter('author', 'literal', 'alice')!, booleanNode('and', [filter('title', 'literal', 'water')!, filter('year', 'literal', '2020')!])!])!;
 		expect(compileCql(cql)).toBe('([word="a"] & [lemma="b"] & [pos="N"])');
 		expect(compileFilter(lucene)).toBe('(author:(alice) AND title:(water) AND year:(2020))');
 	});
 
 	test('emits escaped wrapper values, open ranges, and empty tags', () => {
-		const people = booleanNode('or', textPredicate('wildcard', 'A"B'), textPredicate('wildcard', 'C?'))!;
+		const people = booleanNode('or', [textPredicate('wildcard', 'A"B'), textPredicate('wildcard', 'C?')])!;
 		const pattern = combineCqlPatterns([within('speech', { person: people }), within('p', { n: rangePredicate(undefined, '5') }), within('div')], 'and')!;
 		expect(compileCql(pattern)).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[0,5]/> overlap <div/>`);
 	});
 
 	test('keeps explicit regex wrapper predicates separate from escaped values', () => {
-		const values = booleanNode('or', textPredicate('literal', 'A*'), textPredicate('wildcard', 'B*'), textPredicate('wildcard', String.raw`D\*`), textPredicate('regex', 'C/.+'))!;
+		const values = booleanNode('or', [textPredicate('literal', 'A*'), textPredicate('wildcard', 'B*'), textPredicate('wildcard', String.raw`D\*`), textPredicate('regex', 'C/.+')])!;
 		expect(compileCql(within('speech', { person: values }))).toBe(String.raw`<speech (person="A\*|B.*|D\*" | person="C/.+")/>`);
 	});
 

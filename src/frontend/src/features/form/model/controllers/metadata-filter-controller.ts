@@ -136,11 +136,10 @@ export const filterDateController = defineFieldController<'metadata-filter-date'
 		const start = enteredStart || DateUtils.dateValueToString({ d: '1', m: '1', y: '0' }, 'start');
 		const end = enteredEnd || DateUtils.dateValueToString({ d: '31', m: '12', y: '9999' }, 'end');
 		const filterNode = isBiFieldConfig(config)
-			? booleanNode(
-					(config.mode ?? state.mode) === 'permissive' ? 'or' : 'and',
+			? booleanNode((config.mode ?? state.mode) === 'permissive' ? 'or' : 'and', [
 					(start === end ? filter(config.fromField, 'literal', start) : filterRange(config.fromField, start, end))!,
 					(start === end ? filter(config.toField, 'literal', start) : filterRange(config.toField, start, end))!,
-				)
+				])
 			: start === end
 				? filter(config.metadataFieldId, 'literal', start)
 				: filterRange(config.metadataFieldId, start, end);
@@ -181,11 +180,10 @@ export const filterRangeController = defineFieldController<'metadata-filter-rang
 		const highPadded = state.high ? state.high.padStart(4, '0') : '9999';
 
 		if (isBiFieldConfig(config)) {
-			const filterNode = booleanNode(
-				(config.mode ?? state.mode) === 'permissive' ? 'or' : 'and',
+			const filterNode = booleanNode((config.mode ?? state.mode) === 'permissive' ? 'or' : 'and', [
 				filterRange(config.fromField, lowPadded, highPadded)!,
 				filterRange(config.toField, lowPadded, highPadded)!,
-			);
+			]);
 			emit('filter', filterNode as LuceneNode);
 			return;
 		}
