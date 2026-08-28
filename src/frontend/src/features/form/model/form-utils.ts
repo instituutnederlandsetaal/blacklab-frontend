@@ -28,12 +28,12 @@ export function getAllNodes<K extends FormNodeKind>(root: FormNode, ...kind: K[]
 export function getAllNodes(root: FormNode, ...kind: FormNodeKind[]): FormNode[] {
 	return Array.from(walkFormNodes(root, ...kind));
 }
-export function checkNoLoops(root: AnyBaseFormNode, completedSubgraphs = new Set<AnyBaseFormNode>()): void {
+export function checkNoLoops(root: AnyBaseFormNode): void {
 	const visited = new Set<AnyBaseFormNode>();
 	const visiting = new Set<AnyBaseFormNode>();
 
 	const visit = (node: AnyBaseFormNode): void => {
-		if (completedSubgraphs.has(node) || visited.has(node)) return;
+		if (visited.has(node)) return;
 		if (visiting.has(node)) throw new Error(`Node with id ${node.id} is part of a loop`);
 
 		visiting.add(node);
@@ -46,29 +46,17 @@ export function checkNoLoops(root: AnyBaseFormNode, completedSubgraphs = new Set
 
 		visiting.delete(node);
 		visited.add(node);
-		completedSubgraphs.add(node);
 	};
 
 	visit(root);
 }
 
-function findPathToNodeImpl(node: FormContainerLikeNode, targetId: string): string[] | null {
-	for (const child of node.children) {
-		if (child.id === targetId) return [node.id, child.id];
-		if (isContainerNode(child)) {
-			const path = findPathToNodeImpl(child, targetId);
-			if (path) return [node.id, ...path];
-		}
-	}
-	return null;
-}
-
-export function findPathToNode(roots: FormNode[], targetId: string): string[] | null {
-	for (const root of roots) {
-		if (isContainerNode(root)) {
-			const path = findPathToNodeImpl(root, targetId);
-			if (path) return path;
-		}
+export function findPathToNode(root: FormNode, targetId: string): string[] | null {
+	if (!isContainerNode(root)) return null;
+	for (const child of root.children) {
+		if (child.id === targetId) return [root.id, child.id];
+		const path = findPathToNode(child, targetId);
+		if (path) return [root.id, ...path];
 	}
 	return null;
 }

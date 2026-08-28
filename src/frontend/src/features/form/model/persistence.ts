@@ -56,9 +56,9 @@ function findExpertFallback(definition: FormBuilder, canonicalPattern: string, c
 	return null;
 }
 
-function getUiStateForPath(rootNodes: FormNode[], targetId: string): Record<string, string> {
+function getUiStateForPath(root: FormNode, targetId: string): Record<string, string> {
 	const activeContainers: Record<string, string> = {};
-	const path = findPathToNode(rootNodes, targetId);
+	const path = findPathToNode(root, targetId);
 	if (path) {
 		for (let i = 0; i < path.length - 1; i++) {
 			const containerId = path[i];
@@ -210,7 +210,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 				...defaults.uiState,
 				...inferUiStateFromPersistedFields(scopedForm, scopedParams.fields, schema.keys),
 				...persistedTabs.uiState,
-				...getUiStateForPath([definition.getRoot()], activeForm.id),
+				...getUiStateForPath(definition.getRoot(), activeForm.id),
 			},
 			rawOverrides: {},
 		};
