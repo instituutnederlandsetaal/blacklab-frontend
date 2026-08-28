@@ -2,19 +2,13 @@ import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field'
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { acceptTargetEmissions, collectFormValues, diagnoseTargetOutputs } from '@/features/form/model/compile';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
-import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
+import { findPathToNode, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
+import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS, type PersistenceSchemaEntry } from '@/features/form/model/persistence/schema';
 import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
-import { getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
-
-const FORM_QUERY_PREFIX = 'f.';
-const SCOPED_FORM_KEYS = {
-	formSelector: 'form',
-	tabSelections: 'tab',
-} as const;
-const RESERVED_SCOPED_FORM_KEYS: ReadonlySet<string> = new Set(Object.values(SCOPED_FORM_KEYS));
 
 type RestoreDiagnostic = {
 	key?: string;
@@ -44,11 +38,6 @@ export type RestoreFormStateOptions = {
 
 type DecodedScopedParameter = { present: false } | { present: true; value: EncodedFieldValue | undefined };
 
-type FieldCodecEntry = {
-	field: FormFieldNode;
-	key: string;
-};
-
 function asArray(value: unknown): string[] {
 	if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
 	return typeof value === 'string' ? [value] : [];
@@ -74,35 +63,6 @@ function findExpertFallback(definition: FormBuilder, canonicalPattern: string, c
 	return null;
 }
 
-function buildFieldCodec(form: FormNode, context: FormRuntimeContext): { entries: FieldCodecEntry[]; issues: RestoreDiagnostic[] } {
-	const seen = new Map<string, FormFieldNode>();
-	const entries: FieldCodecEntry[] = [];
-	const issues: RestoreDiagnostic[] = [];
-
-	for (const field of getAllNodes(form, 'field')) {
-		const key = getFieldPersistKey(field, context);
-		if (RESERVED_SCOPED_FORM_KEYS.has(key)) {
-			issues.push({
-				key,
-				nodeId: field.id,
-				message: `Field '${field.id}' uses reserved form persistence key '${key}'.`,
-			});
-			continue;
-		}
-		if (seen.has(key)) {
-			issues.push({
-				key,
-				nodeId: field.id,
-				message: `Duplicate form persistence key '${key}' for '${field.id}' and '${seen.get(key)!.id}'.`,
-			});
-			continue;
-		}
-		seen.set(key, field);
-		entries.push({ field, key });
-	}
-	return { entries, issues };
-}
-
 function getUiStateForPath(rootNodes: FormNode[], targetId: string): Record<string, string> {
 	const activeContainers: Record<string, string> = {};
 	const path = findPathToNode(rootNodes, targetId);
@@ -116,31 +76,22 @@ function getUiStateForPath(rootNodes: FormNode[], targetId: string): Record<stri
 	return activeContainers;
 }
 
-function inferUiStateFromPersistedFields(definition: FormBuilder, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>): Record<string, string> {
+function inferUiStateFromPersistedFields(definition: FormBuilder, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, entries: PersistenceSchemaEntry[]): Record<string, string> {
 	type PathEntry = { containerId: string; childId: string };
 	const activeContainers: Record<string, string> = {};
+	const keys = new Map(entries.map(entry => [entry.field, entry.key]));
 
 	function visit(node: FormNode, path: PathEntry[]): void {
 		if (node.kind === 'field') {
-			const persistKey = getFieldPersistKey(node, definition.context);
-			if (!persistedFields.has(persistKey)) return;
-
-			for (const { containerId, childId } of path) {
-				if (activeContainers[containerId] == null) activeContainers[containerId] = childId;
-			}
+			if (!persistedFields.has(keys.get(node) ?? '')) return;
+			for (const { containerId, childId } of path) activeContainers[containerId] ??= childId;
 			return;
 		}
 		if (!isContainerNode(node)) return;
-
-		for (const child of node.children) {
-			path.push({ containerId: node.id, childId: child.id });
-			visit(child, path);
-			path.pop();
-		}
+		for (const child of node.children) visit(child, [...path, { containerId: node.id, childId: child.id }]);
 	}
 
-	// Prefer paths through the canonical root. Builders can also contain reusable
-	// subgraphs that are not attached there, so use every container as a fallback.
+	// Prefer the canonical root, then fall back to builder-owned detached graphs.
 	visit(definition.getRoot(), []);
 	for (const container of definition.containerList) visit(container, []);
 	return activeContainers;
@@ -170,7 +121,7 @@ function decodeScopedFormParams(query: Record<string, unknown>) {
 	};
 }
 
-function restorePersistedFields(entries: FieldCodecEntry[], persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
+function restorePersistedFields(entries: PersistenceSchemaEntry[], persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
 	const state: Record<string, unknown> = {};
 	const issues: RestoreDiagnostic[] = [];
 	const knownKeys = new Set(entries.map(entry => entry.key));
@@ -228,9 +179,13 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 }
 
 export function compileFormNode(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext): CompiledFormResult {
+	return compileFormNodeWithSchema(node, state, context, resolvePersistenceSchema(node, context));
+}
+
+function compileFormNodeWithSchema(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, schema: ReturnType<typeof resolvePersistenceSchema>): CompiledFormResult {
 	if (node.kind !== 'form') throw new Error(`Cannot compile non-form node '${node.id}'.`);
 	const target = node.target;
-	const collected = collectFormValues(node, state, context);
+	const collected = collectFormValues(node, state, context, schema);
 	const issues: FormIssue[] = [...((state as NewFormState & { issues?: readonly FormIssue[] }).issues ?? []), ...collected.issues];
 	diagnoseTargetOutputs(node, target.acceptedOutputs, issues);
 	const accepted = acceptTargetEmissions(collected.emissions, target.acceptedOutputs, issues);
@@ -279,10 +234,11 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 	}
 
 	const defaults = createDefaultFormState(definition.context, ...definition.nodeList);
-	const codec = buildFieldCodec(scopedForm, definition.context);
-	const restoredFields = restorePersistedFields(codec.entries, scopedParams.fields, definition.context);
+	const schema = resolvePersistenceSchema(scopedForm, definition.context);
+	const restoredFields = restorePersistedFields(schema.entries, scopedParams.fields, definition.context);
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
-	const issues: FormIssue[] = [...formSelectorIssues, ...codec.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues].map(issue => ({
+	const schemaIssues = schema.issues.map(({ kind: _, ...issue }) => issue);
+	const issues: FormIssue[] = [...formSelectorIssues, ...schemaIssues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues].map(issue => ({
 		...issue,
 		stage: 'restore',
 		code: 'invalid-restored-state',
@@ -297,13 +253,14 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 			},
 			uiState: {
 				...Object.fromEntries(definition.containerList.map(container => [container.id, container.children[0]?.id ?? null])),
-				...inferUiStateFromPersistedFields(definition, scopedParams.fields),
+				...inferUiStateFromPersistedFields(definition, scopedParams.fields, schema.entries),
 				...persistedTabs.uiState,
 				...getUiStateForPath([definition.getRoot()], activeForm.id),
 			},
 			rawOverrides: {},
 		};
-		const compiled = compileFormNode(activeForm, restoredState, definition.context);
+		const activeSchema = activeForm === scopedForm ? schema : resolvePersistenceSchema(activeForm, definition.context);
+		const compiled = compileFormNodeWithSchema(activeForm, restoredState, definition.context, activeSchema);
 		const compiledParams = compiled.params as Readonly<Record<string, unknown>>;
 		const rawOverrides = Object.fromEntries(Object.entries(overrideCandidates).filter(([parameter, value]) => !Object.hasOwn(compiledParams, parameter) || compiledParams[parameter] !== value));
 		const state: RestoredFormState = {

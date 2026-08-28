@@ -287,6 +287,41 @@ describe('scoped form persistence', () => {
 		expect(restored.issues).toMatchObject([{ key: 'word', nodeId: field.id }]);
 	});
 
+	test.each([
+		[
+			'throwing',
+			(): string => {
+				throw new Error('broken persistence key');
+			},
+		],
+		['non-string', (): string => 42 as unknown as string],
+		['empty', (): string => ''],
+		['reserved form selector', (): string => 'form'],
+		['reserved tab selector', (): string => 'tab'],
+	] as const)('reports a %s persistence key consistently without aborting restoration', (_name, resolveKey) => {
+		const key = vi.fn(resolveKey);
+		const controller: FieldController<'invalid-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'invalid-persistence-key',
+			persistence: { ...testTextController.persistence, key },
+		};
+		const builder = createTestBuilder();
+		const field = builder.newField('search.invalid.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' });
+		const form = builder.newForm('search.invalid', ContainerRenderer, {}).addChildren(field);
+		const state = createDefaultFormState(builder.context, form);
+		state.state[field.id] = { value: 'water' };
+
+		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.nodeId === field.id)!;
+		expect(compiledIssue.stage).toBe('collect');
+		expect(compiledIssue.code).toBe(_name === 'throwing' ? 'controller-error' : 'malformed-output');
+
+		key.mockClear();
+		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.unknown': 'water' });
+		const restoredIssue = restored.issues.find(issue => issue.nodeId === field.id)!;
+		expect(restoredIssue).toMatchObject({ stage: 'restore', code: 'invalid-restored-state', message: compiledIssue.message });
+		expect(key).toHaveBeenCalledOnce();
+	});
+
 	test('continues gathering when a persistence key fails', () => {
 		const controller: FieldController<'broken-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
@@ -677,13 +712,41 @@ describe('scoped form persistence', () => {
 		expect(restored.uiState[tabs.id]).toBe(first.id);
 	});
 
-	test('activates persisted fields in forms outside the canonical root graph', () => {
+	test('prefers the canonical path to a persisted field shared with a detached graph', () => {
+		const key = vi.fn(testTextController.persistence.key);
+		const controller: FieldController<'shared-persistence-path', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'shared-persistence-path',
+			persistence: { ...testTextController.persistence, key },
+		};
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.shared', ContainerRenderer, {});
+		const first = builder.newContainer('search.shared.tabs.first', ContainerRenderer, {});
+		const shared = builder.newField('search.shared.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' });
+		const second = builder.newContainer('search.shared.tabs.second', ContainerRenderer, {}).addChildren(shared);
+		const tabs = builder.newContainer('search.shared.tabs', ContainerRenderer, { variant: 'tabs' }).addChildren(first, second);
+		form.addChildren(tabs);
+		builder.newContainer('detached', ContainerRenderer, {}).addChildren(shared);
+
+		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.word': 'water' });
+
+		expect(restored.uiState[tabs.id]).toBe(second.id);
+		expect(key).toHaveBeenCalledOnce();
+	});
+
+	test('activates persisted fields in forms outside the canonical root graph with one schema resolution', () => {
+		const key = vi.fn(testTextController.persistence.key);
+		const controller: FieldController<'detached-text', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'detached-text',
+			persistence: { ...testTextController.persistence, key },
+		};
 		const builder = createTestBuilder();
 		builder.newForm('search.first', ContainerRenderer, { title: 'First' });
 		const secondForm = builder.newForm('search.second', ContainerRenderer, { title: 'Second' });
 		const first = builder.newContainer('search.second.tabs.first', ContainerRenderer, { title: 'First' });
 		const second = builder.newContainer('search.second.tabs.second', ContainerRenderer, { title: 'Second' }).addChildren(
-			builder.newField('search.second.tabs.second.word', testTextController, TestTextField, {
+			builder.newField('search.second.tabs.second.word', controller, TestTextField, {
 				annotationId: 'word',
 				displayName: 'Word',
 			}),
@@ -694,6 +757,36 @@ describe('scoped form persistence', () => {
 		const restored = restoreFormState(builder, { 'f.form': secondForm.id, 'f.word': 'water' });
 
 		expect(restored.uiState[tabs.id]).toBe(second.id);
+		expect(key).toHaveBeenCalledOnce();
+	});
+
+	test('restores the first field for duplicate keys and resolves each field key once', () => {
+		const firstKey = vi.fn(() => 'word');
+		const secondKey = vi.fn(() => 'word');
+		const firstController = { ...testTextController, kind: 'first-duplicate-key', persistence: { ...testTextController.persistence, key: firstKey } } as const;
+		const secondController = { ...testTextController, kind: 'second-duplicate-key', persistence: { ...testTextController.persistence, key: secondKey } } as const;
+		const builder = createTestBuilder();
+		const first = builder.newField('search.duplicate.first', firstController, TestTextField, { annotationId: 'word', displayName: 'First' });
+		const second = builder.newField('search.duplicate.second', secondController, TestTextField, { annotationId: 'lemma', displayName: 'Second' });
+		const form = builder.newForm('search.duplicate', ContainerRenderer, {}).addChildren(first, second);
+		const state = createDefaultFormState(builder.context, form);
+		state.state[first.id] = { value: 'water' };
+		state.state[second.id] = { value: 'fire' };
+
+		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.nodeId === second.id)!;
+		expect(compiledIssue).toMatchObject({ stage: 'collect', code: 'malformed-output', key: 'word' });
+		expect(firstKey).toHaveBeenCalledOnce();
+		expect(secondKey).toHaveBeenCalledOnce();
+		firstKey.mockClear();
+		secondKey.mockClear();
+
+		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.word': 'water' });
+
+		expect(restored.state[first.id]).toEqual({ value: 'water' });
+		expect(restored.state[second.id]).toEqual({ value: '' });
+		expect(restored.issues).toContainEqual(expect.objectContaining({ nodeId: second.id, key: 'word', message: compiledIssue.message }));
+		expect(firstKey).toHaveBeenCalledOnce();
+		expect(secondKey).toHaveBeenCalledOnce();
 	});
 
 	test('reports the duplicate key and field when persistence keys collide', () => {

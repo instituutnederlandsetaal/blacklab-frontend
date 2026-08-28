@@ -1,7 +1,8 @@
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { isContainerNode } from '@/features/form/model/form-utils';
+import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS, type PersistenceSchema } from '@/features/form/model/persistence/schema';
 import type { NewFormState } from '@/features/form/model/state';
-import { encodeFieldState, getFieldPersistKey, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { encodeFieldState, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { isFormOutputName, isValidEmission, type Emit, type FormEmission, type FormIssue, type FormOutputName, type ResultPreset, type SummaryEntry } from '@/features/form/model/types/form-output';
 import { booleanNode, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';
 import type { ScopedFormQuery } from '@/features/form/model/types/form-result';
@@ -28,7 +29,7 @@ type GatherContext = {
 	encoded: ScopedFormQuery;
 	tabs: Set<string>;
 	visitedFields: Set<FormFieldNode>;
-	persistenceKeys: Map<string, FormFieldNode>;
+	persistenceKeys: ReadonlyMap<FormFieldNode, string>;
 	field?: FormFieldNode;
 	resultPreset?: ResultPreset;
 };
@@ -37,15 +38,11 @@ function reportIssue(context: GatherContext, nodeId: string, code: FormIssue['co
 	context.issues.push({ stage: 'collect', code, nodeId, message, ...(output === undefined ? {} : { output }), ...(key === undefined ? {} : { key }) });
 }
 
-function reportError(context: GatherContext, nodeId: string, error: unknown, key?: string): void {
-	reportIssue(context, nodeId, 'controller-error', error instanceof Error ? error.message : String(error), undefined, key);
-}
-
 function invoke(context: GatherContext, nodeId: string, callback: () => void): void {
 	try {
 		callback();
 	} catch (error) {
-		reportError(context, nodeId, error);
+		reportIssue(context, nodeId, 'controller-error', error instanceof Error ? error.message : String(error));
 	}
 }
 
@@ -78,35 +75,14 @@ function addSummary(context: GatherContext, summary: SummaryEntry): void {
 	context.summaries.push(normalized);
 }
 
-const RESERVED_PERSISTENCE_KEYS = new Set(['form', 'tab']);
-
 function persistField(context: GatherContext, field: FormFieldNode, state: unknown): void {
-	let key: unknown;
-	try {
-		key = getFieldPersistKey(field, context.runtime);
-	} catch (error) {
-		reportError(context, field.id, error);
-		return;
-	}
-	if (typeof key !== 'string' || !key) {
-		reportIssue(context, field.id, 'malformed-output', `Field '${field.id}' has an invalid form persistence key.`, undefined, typeof key === 'string' ? key : undefined);
-		return;
-	}
-	if (RESERVED_PERSISTENCE_KEYS.has(key)) {
-		reportIssue(context, field.id, 'malformed-output', `Field '${field.id}' uses reserved form persistence key '${key}'.`, undefined, key);
-		return;
-	}
-	const previous = context.persistenceKeys.get(key);
-	if (previous) {
-		reportIssue(context, field.id, 'malformed-output', `Duplicate form persistence key '${key}' for '${field.id}' and '${previous.id}'.`, undefined, key);
-		return;
-	}
-	context.persistenceKeys.set(key, field);
+	const key = context.persistenceKeys.get(field);
+	if (!key) return;
 	try {
 		const value = encodeFieldState(field, state, context.runtime);
-		if (value != null && value !== '') context.encoded[`f.${key}`] = value;
+		if (value != null && value !== '') context.encoded[`${FORM_QUERY_PREFIX}${key}`] = value;
 	} catch (error) {
-		reportError(context, field.id, error, key);
+		reportIssue(context, field.id, 'controller-error', error instanceof Error ? error.message : String(error), undefined, key);
 	}
 }
 
@@ -181,7 +157,10 @@ function visitNode(node: FormNode, context: GatherContext, sink: Sink): void {
 	else if (isContainerNode(node)) visitContainer(node, context, sink);
 }
 
-function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: ScopedFormQuery, formState?: NewFormState): GatherContext {
+function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: ScopedFormQuery, formState?: NewFormState, schema?: PersistenceSchema): GatherContext {
+	for (const { kind, ...issue } of schema?.issues ?? []) {
+		issues.push({ stage: 'collect', code: kind === 'key-error' ? 'controller-error' : 'malformed-output', ...issue });
+	}
 	return {
 		runtime,
 		formState,
@@ -191,12 +170,12 @@ function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: Scope
 		encoded,
 		tabs: new Set(),
 		visitedFields: new Set(),
-		persistenceKeys: new Map(),
+		persistenceKeys: schema?.keys ?? new Map(),
 	};
 }
 
 function result(context: GatherContext): GatheredFormValues {
-	if (context.tabs.size) context.encoded['f.tab'] = [...context.tabs];
+	if (context.tabs.size) context.encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...context.tabs];
 	return {
 		emissions: context.emissions,
 		summaries: context.summaries,
@@ -212,14 +191,14 @@ export function collectFieldEmissions(node: FormFieldNode, state: unknown, runti
 }
 
 export function collectFieldValues(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): GatheredFormValues {
-	const context = gather(runtime, issues, {});
+	const context = gather(runtime, issues, {}, undefined, resolvePersistenceSchema(node, runtime));
 	visitField(node, state, context, emission => context.emissions.push(emission));
 	return result(context);
 }
 
-export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext): CollectedFormValues {
+export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, schema = resolvePersistenceSchema(node, runtime)): CollectedFormValues {
 	const issues: FormIssue[] = [];
-	const context = gather(runtime, issues, { 'f.form': node.id }, formState);
+	const context = gather(runtime, issues, { [`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: node.id }, formState, schema);
 	visitNode(node, context, emission => context.emissions.push(emission));
 	return { ...result(context), issues };
 }
