@@ -13,3 +13,5 @@ export type CompiledFormResult<Params extends FormParams = FormParams> = {
 	targetView?: ViewName;
 	resultPreset?: ResultPreset;
 };
+
+export type CompiledFormSummary<Params extends FormParams = FormParams> = Pick<CompiledFormResult<Params>, 'params' | 'summaries'>;

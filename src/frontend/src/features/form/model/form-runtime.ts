@@ -1,9 +1,9 @@
 import { markRaw } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { applyRawOverrides, compileFormNode } from '@/features/form/model/persistence';
+import { applyRawOverrides, compileFormNode, compileFormSummary } from '@/features/form/model/persistence';
 import createFormState, { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
-import type { CompiledFormResult } from '@/features/form/model/types/form-result';
+import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import type { RenderableFormNode } from '@/features/form/ui/renderable-graph';
 import { renderFormNode } from '@/features/form/ui/renderable-graph';
 
@@ -37,6 +37,13 @@ export class FormRuntime {
 		if (!form) throw new Error(`Cannot compile unknown form '${formId}'.`);
 		const state = this.state.getReactiveState();
 		return applyRawOverrides(compileFormNode(form, state, this.definition.context), state.rawOverrides, form.target.acceptedOutputs);
+	}
+
+	public compileSummary(formId: string): CompiledFormSummary {
+		const form = this.definition.getForm(formId);
+		if (!form) throw new Error(`Cannot compile summary for unknown form '${formId}'.`);
+		const state = this.state.getReactiveState();
+		return applyRawOverrides(compileFormSummary(form, state, this.definition.context), state.rawOverrides, form.target.acceptedOutputs);
 	}
 
 	public reset() {

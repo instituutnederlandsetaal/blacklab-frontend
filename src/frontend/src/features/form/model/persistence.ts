@@ -1,13 +1,13 @@
 import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field';
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { acceptTargetEmissions, collectFormValues, diagnoseTargetOutputs } from '@/features/form/model/compile';
+import { acceptTargetEmissions, collectFormSummaryValues, collectFormValues, diagnoseTargetOutputs } from '@/features/form/model/compile';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS, type PersistenceSchemaEntry } from '@/features/form/model/persistence/schema';
 import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
 import { restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
-import type { CompiledFormResult } from '@/features/form/model/types/form-result';
+import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
 type RestoreDiagnostic = {
@@ -182,14 +182,18 @@ export function compileFormNode(node: FormBoundaryNode, state: NewFormState, con
 	return compileFormNodeWithSchema(node, state, context, resolvePersistenceSchema(node, context));
 }
 
-function compileFormNodeWithSchema(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, schema: ReturnType<typeof resolvePersistenceSchema>): CompiledFormResult {
+function compileCollected(node: FormBoundaryNode, state: NewFormState, collected: ReturnType<typeof collectFormSummaryValues>) {
 	if (node.kind !== 'form') throw new Error(`Cannot compile non-form node '${node.id}'.`);
 	const target = node.target;
-	const collected = collectFormValues(node, state, context, schema);
 	const issues: FormIssue[] = [...((state as NewFormState & { issues?: readonly FormIssue[] }).issues ?? []), ...collected.issues];
 	diagnoseTargetOutputs(node, target.acceptedOutputs, issues);
 	const accepted = acceptTargetEmissions(collected.emissions, target.acceptedOutputs, issues);
-	const params = target.compile(accepted as never, issues);
+	return { params: target.compile(accepted as never, issues), issues };
+}
+
+function compileFormNodeWithSchema(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, schema: ReturnType<typeof resolvePersistenceSchema>): CompiledFormResult {
+	const collected = collectFormValues(node, state, context, schema);
+	const { params, issues } = compileCollected(node, state, collected);
 
 	return {
 		formId: node.id,
@@ -197,12 +201,18 @@ function compileFormNodeWithSchema(node: FormBoundaryNode, state: NewFormState, 
 		encoded: collected.encoded,
 		issues,
 		summaries: collected.summaries.map(summary => ({ ...summary, summaryType: summary.summaryType ? [...summary.summaryType] : undefined })),
-		...(target.targetView ? { targetView: target.targetView } : {}),
+		...(node.target.targetView ? { targetView: node.target.targetView } : {}),
 		...(collected.resultPreset !== undefined ? { resultPreset: collected.resultPreset } : {}),
 	};
 }
 
-export function applyRawOverrides(result: CompiledFormResult, rawOverrides: Readonly<FormOverrides>, acceptedOutputs: readonly FormOutputName[]): CompiledFormResult {
+/** Compile the live-summary projection without resolving persistence or result-preset channels. */
+export function compileFormSummary(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext): CompiledFormSummary {
+	const collected = collectFormSummaryValues(node, state, context);
+	return { params: compileCollected(node, state, collected).params, summaries: collected.summaries };
+}
+
+export function applyRawOverrides<Result extends Pick<CompiledFormResult, 'params'>>(result: Result, rawOverrides: Readonly<FormOverrides>, acceptedOutputs: readonly FormOutputName[]): Result {
 	const accepted = new Set<FormOutputName>(acceptedOutputs);
 	return {
 		...result,
@@ -210,7 +220,7 @@ export function applyRawOverrides(result: CompiledFormResult, rawOverrides: Read
 			...result.params,
 			...Object.fromEntries(Object.entries(rawOverrides).filter(([parameter]) => accepted.has(parameter as FormOutputName))),
 		},
-	};
+	} as Result;
 }
 
 export function restoreForm(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredForm {

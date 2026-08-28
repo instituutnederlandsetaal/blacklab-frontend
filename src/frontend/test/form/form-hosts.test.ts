@@ -577,6 +577,8 @@ describe('builtin view hosts', () => {
 		});
 
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.emptyText);
+		const compile = vi.spyOn(harness.runtime, 'compile');
+		const compileSummary = vi.spyOn(harness.runtime, 'compileSummary');
 
 		harness.runtime.state.state.value[harness.extra.fieldId] = {
 			value: summaryViewExpectation.entryValue,
@@ -587,6 +589,8 @@ describe('builtin view hosts', () => {
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.title);
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryLabel);
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryValue);
+		expect(compileSummary).toHaveBeenCalled();
+		expect(compile).not.toHaveBeenCalled();
 	});
 
 	test('filters summary entries by affected BlackLab parameter', async () => {

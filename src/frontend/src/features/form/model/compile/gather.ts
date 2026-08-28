@@ -20,18 +20,23 @@ export type CollectedFormValues = GatheredFormValues & {
 };
 
 type Sink = (emission: FormEmission) => void;
+type GatherChannels = {
+	summaries?: SummaryEntry[];
+	persistence?: {
+		encoded: ScopedFormQuery;
+		keys: ReadonlyMap<FormFieldNode, string>;
+		tabs: Set<string>;
+	};
+	resultPreset?: { value?: ResultPreset };
+};
 type GatherContext = {
 	runtime: FormRuntimeContext;
 	formState?: NewFormState;
 	issues: FormIssue[];
 	emissions: FormEmission[];
-	summaries: SummaryEntry[];
-	encoded: ScopedFormQuery;
-	tabs: Set<string>;
+	channels: GatherChannels;
 	visitedFields: Set<FormFieldNode>;
-	persistenceKeys: ReadonlyMap<FormFieldNode, string>;
 	field?: FormFieldNode;
-	resultPreset?: ResultPreset;
 };
 
 function reportIssue(context: GatherContext, nodeId: string, code: FormIssue['code'], message: string, output?: string, key?: string): void {
@@ -66,27 +71,28 @@ function emitValue(context: GatherContext, nodeId: string, sink: Sink, declared:
 
 function addSummary(context: GatherContext, summary: SummaryEntry): void {
 	const field = context.field;
-	if (!field) throw new Error('Cannot summarize outside field collection.');
+	if (!field || !context.channels.summaries) throw new Error('Cannot summarize outside field collection.');
 	const normalized: SummaryEntry = {
 		...summary,
 		summaryType: summary.summaryType === undefined ? [...field.controller.outputs] : [...summary.summaryType],
 	};
 	if (normalized.group === undefined) delete normalized.group;
-	context.summaries.push(normalized);
+	context.channels.summaries.push(normalized);
 }
 
 function persistField(context: GatherContext, field: FormFieldNode, state: unknown): void {
-	const key = context.persistenceKeys.get(field);
-	if (!key) return;
+	const persistence = context.channels.persistence;
+	const key = persistence?.keys.get(field);
+	if (!persistence || !key) return;
 	try {
 		const value = encodeFieldState(field, state, context.runtime);
-		if (value != null && value !== '') context.encoded[`${FORM_QUERY_PREFIX}${key}`] = value;
+		if (value != null && value !== '') persistence.encoded[`${FORM_QUERY_PREFIX}${key}`] = value;
 	} catch (error) {
 		reportIssue(context, field.id, 'controller-error', error instanceof Error ? error.message : String(error), undefined, key);
 	}
 }
 
-function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink, collectAuxiliary = true): void {
+function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink): void {
 	if (context.field) throw new Error(`Cannot enter field '${node.id}' while collecting '${context.field.id}'.`);
 	context.field = node;
 	const emit = ((name: unknown, value: unknown) => {
@@ -96,15 +102,14 @@ function visitField(node: FormFieldNode, state: unknown, context: GatherContext,
 	const firstVisit = !context.visitedFields.has(node);
 	try {
 		invoke(context, node.id, () => node.controller.collect(node, context.runtime, state, emit));
-		if (!collectAuxiliary) return;
 		if (firstVisit) {
-			if (node.controller.summarize) invoke(context, node.id, () => node.controller.summarize!(node, context.runtime, state, summary => addSummary(context, summary)));
-			persistField(context, node, state);
+			if (context.channels.summaries && node.controller.summarize) invoke(context, node.id, () => node.controller.summarize!(node, context.runtime, state, summary => addSummary(context, summary)));
+			if (context.channels.persistence) persistField(context, node, state);
 		}
-		if (node.controller.getResultPreset) {
+		if (context.channels.resultPreset && node.controller.getResultPreset) {
 			invoke(context, node.id, () => {
 				const preset = node.controller.getResultPreset!(node, context.runtime, state);
-				if (context.resultPreset === undefined && preset !== undefined) context.resultPreset = preset;
+				if (context.channels.resultPreset!.value === undefined && preset !== undefined) context.channels.resultPreset!.value = preset;
 			});
 		}
 	} finally {
@@ -145,7 +150,7 @@ function visitContainer(node: Extract<FormNode, { kind: 'container' | 'form' }>,
 	};
 	const selectedChild = node.children.find(child => child.id === context.formState?.uiState[node.id]);
 	const activeProducer = selectedChild ? node.activeChildOutputProducers?.[selectedChild.id] : undefined;
-	if (activeProducer) context.tabs.add(`${node.id}:${selectedChild!.id}`);
+	if (activeProducer) context.channels.persistence?.tabs.add(`${node.id}:${selectedChild!.id}`);
 
 	for (const child of node.children) visitNode(child, context, scopedSink);
 	if (activeProducer) invoke(context, node.id, () => activeProducer(((name: unknown, value: unknown) => emitValue(context, node.id, scopedSink, undefined, name, value)) as Emit));
@@ -157,7 +162,7 @@ function visitNode(node: FormNode, context: GatherContext, sink: Sink): void {
 	else if (isContainerNode(node)) visitContainer(node, context, sink);
 }
 
-function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: ScopedFormQuery, formState?: NewFormState, schema?: PersistenceSchema): GatherContext {
+function gather(runtime: FormRuntimeContext, issues: FormIssue[], formState?: NewFormState, channels: GatherChannels = {}, schema?: PersistenceSchema): GatherContext {
 	for (const { kind, ...issue } of schema?.issues ?? []) {
 		issues.push({ stage: 'collect', code: kind === 'key-error' ? 'controller-error' : 'malformed-output', ...issue });
 	}
@@ -166,41 +171,59 @@ function gather(runtime: FormRuntimeContext, issues: FormIssue[], encoded: Scope
 		formState,
 		issues,
 		emissions: [],
-		summaries: [],
-		encoded,
-		tabs: new Set(),
+		channels,
 		visitedFields: new Set(),
-		persistenceKeys: schema?.keys ?? new Map(),
 	};
 }
 
 function result(context: GatherContext): GatheredFormValues {
-	if (context.tabs.size) context.encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...context.tabs];
+	const summaries = context.channels.summaries ?? [];
+	const persistence = context.channels.persistence;
+	const encoded = persistence?.encoded ?? {};
+	if (persistence?.tabs.size) encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...persistence.tabs];
 	return {
 		emissions: context.emissions,
-		summaries: context.summaries,
-		encoded: context.encoded,
-		...(context.resultPreset !== undefined ? { resultPreset: context.resultPreset } : {}),
+		summaries,
+		encoded,
+		...(context.channels.resultPreset?.value !== undefined ? { resultPreset: context.channels.resultPreset.value } : {}),
 	};
 }
 
 export function collectFieldEmissions(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): FormEmission[] {
-	const context = gather(runtime, issues, {});
-	visitField(node, state, context, emission => context.emissions.push(emission), false);
+	const context = gather(runtime, issues);
+	visitField(node, state, context, emission => context.emissions.push(emission));
 	return context.emissions;
 }
 
 export function collectFieldValues(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): GatheredFormValues {
-	const context = gather(runtime, issues, {}, undefined, resolvePersistenceSchema(node, runtime));
+	const schema = resolvePersistenceSchema(node, runtime);
+	const context = gather(runtime, issues, undefined, { summaries: [], persistence: { encoded: {}, keys: schema.keys, tabs: new Set() }, resultPreset: {} }, schema);
 	visitField(node, state, context, emission => context.emissions.push(emission));
 	return result(context);
 }
 
 export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, schema = resolvePersistenceSchema(node, runtime)): CollectedFormValues {
 	const issues: FormIssue[] = [];
-	const context = gather(runtime, issues, { [`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: node.id }, formState, schema);
+	const context = gather(
+		runtime,
+		issues,
+		formState,
+		{
+			summaries: [],
+			persistence: { encoded: { [`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: node.id }, keys: schema.keys, tabs: new Set() },
+			resultPreset: {},
+		},
+		schema,
+	);
 	visitNode(node, context, emission => context.emissions.push(emission));
 	return { ...result(context), issues };
+}
+
+export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext): Pick<CollectedFormValues, 'emissions' | 'summaries' | 'issues'> {
+	const issues: FormIssue[] = [];
+	const context = gather(runtime, issues, formState, { summaries: [] });
+	visitNode(node, context, emission => context.emissions.push(emission));
+	return { emissions: context.emissions, summaries: context.channels.summaries!, issues };
 }
 
 /** Check a field's validated semantic contributions without evaluating auxiliary channels. */

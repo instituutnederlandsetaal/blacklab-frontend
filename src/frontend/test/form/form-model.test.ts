@@ -367,6 +367,68 @@ describe('form model state', () => {
 		encode.mockRestore();
 	});
 
+	test('compiles shared-DAG summaries with active-child semantics but without persistence or preset work', () => {
+		const collect = vi.fn(testTextController.collect);
+		const summarize = vi.fn(testTextController.summarize);
+		const key = vi.fn(testTextController.persistence.key);
+		const encode = vi.spyOn(testTextController.persistence.codec, 'encode');
+		const getResultPreset = vi.fn(() => 'table' as const);
+		const firstProducer = vi.fn((emit: Parameters<NonNullable<ContainerNode['activeChildOutputProducers']>[string]>[0]) => emit('filter', filter('category', 'literal', 'newspaper')!));
+		const secondProducer = vi.fn((emit: Parameters<NonNullable<ContainerNode['activeChildOutputProducers']>[string]>[0]) => emit('filter', filter('category', 'literal', 'book')!));
+		const builder = createTestBuilder();
+		const sharedField = builder.newField(
+			'shared.word',
+			{
+				...testTextController,
+				collect,
+				summarize,
+				persistence: { ...testTextController.persistence, key },
+				getResultPreset,
+			},
+			TestTextField,
+			{ annotationId: 'word', displayName: 'Word' },
+		);
+		const first = builder.newContainer('first.tabs', ContainerRenderer, {}).addChild(sharedField, { outputWhenActive: firstProducer });
+		const second = builder.newContainer('second.tabs', ContainerRenderer, {}).addChild(sharedField, { outputWhenActive: secondProducer });
+		const sequence = builder.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' }).addChildren(first, second);
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(sequence);
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value[sharedField.id] = { value: 'water' };
+
+		const summary = runtime.compileSummary(form.id);
+
+		expect(summary).toEqual({
+			params: { patt: '[word="water"] [word="water"]', filter: '(category:(newspaper) AND category:(book))' },
+			summaries: [{ label: 'Word', value: 'water', summaryType: ['patt'] }],
+		});
+		expect(collect).toHaveBeenCalledTimes(2);
+		expect(summarize).toHaveBeenCalledOnce();
+		expect(firstProducer).toHaveBeenCalledOnce();
+		expect(secondProducer).toHaveBeenCalledOnce();
+		expect(key).not.toHaveBeenCalled();
+		expect(encode).not.toHaveBeenCalled();
+		expect(getResultPreset).not.toHaveBeenCalled();
+
+		collect.mockClear();
+		summarize.mockClear();
+		firstProducer.mockClear();
+		secondProducer.mockClear();
+		const compiled = runtime.compile(form.id);
+
+		expect(summary).toEqual({ params: compiled.params, summaries: compiled.summaries });
+		expect(collect).toHaveBeenCalledTimes(2);
+		expect(summarize).toHaveBeenCalledOnce();
+		expect(firstProducer).toHaveBeenCalledOnce();
+		expect(secondProducer).toHaveBeenCalledOnce();
+		expect(key).toHaveBeenCalledOnce();
+		expect(encode).toHaveBeenCalledOnce();
+		expect(getResultPreset).toHaveBeenCalledTimes(2);
+
+		runtime.state.rawOverrides.value.patt = '[word="override"]';
+		expect(runtime.compileSummary(form.id).params.patt).toBe('[word="override"]');
+		encode.mockRestore();
+	});
+
 	test('collects field emissions without evaluating auxiliary channels', () => {
 		const collect = vi.fn((...args: Parameters<typeof testTextController.collect>) => {
 			const [config, _runtime, state, emit] = args;

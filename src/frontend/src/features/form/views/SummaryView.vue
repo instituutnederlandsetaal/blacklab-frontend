@@ -38,7 +38,7 @@ const props = defineProps<SummaryViewConfig>();
 const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 const parentForm = useParentForm();
 const runtime = useFormSystemRuntime();
-const compiled = computed(() => runtime.value.compile(parentForm.value));
+const compiled = computed(() => runtime.value.compileSummary(parentForm.value));
 const summaryTypes = computed(() => (props.summaryType ? (Array.isArray(props.summaryType) ? props.summaryType : [props.summaryType]) : null));
 const summaries = computed(() => (summaryTypes.value ? compiled.value.summaries.filter(entry => entry.summaryType?.some(type => summaryTypes.value?.includes(type))) : compiled.value.summaries));
 const totalsController = props.createTotals?.();
