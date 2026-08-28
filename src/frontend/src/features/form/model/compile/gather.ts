@@ -37,7 +37,6 @@ type GatherContext = {
 	emissions: FormEmission[];
 	channels: GatherChannels;
 	visitedFields: Set<FormFieldNode>;
-	field?: FormFieldNode;
 };
 
 function reportIssue(context: GatherContext, severity: FormIssue['severity'], message: string): void {
@@ -64,15 +63,13 @@ function emitValue(context: GatherContext, nodeId: string, sink: Sink, declared:
 	sink(emission);
 }
 
-function addSummary(context: GatherContext, summary: SummaryInput): void {
-	const field = context.field;
-	if (!field || !context.channels.summaries) throw new Error('Cannot summarize outside field collection.');
+function addSummary(summaries: SummaryEntry[], field: FormFieldNode, summary: SummaryInput): void {
 	const normalized: SummaryEntry = {
 		...summary,
 		summaryType: summary.summaryType === undefined ? [...field.controller.outputs] : [...summary.summaryType],
 	};
 	if (normalized.group === undefined) delete normalized.group;
-	context.channels.summaries.push(normalized);
+	summaries.push(normalized);
 }
 
 function persistField(context: GatherContext, field: FormFieldNode, state: unknown): void {
@@ -88,29 +85,23 @@ function persistField(context: GatherContext, field: FormFieldNode, state: unkno
 }
 
 function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink): void {
-	if (context.field) throw new Error(`Cannot enter field '${node.id}' while collecting '${context.field.id}'.`);
-	context.field = node;
 	const emit = ((name: unknown, value: unknown) => {
-		if (context.field !== node) throw new Error('Cannot emit outside field collection.');
 		emitValue(context, node.id, sink, node.controller.outputs, name, value);
 	}) as Emit;
 	const firstVisit = !context.visitedFields.has(node);
-	try {
-		invoke(context, node.id, () => node.controller.collect(node, context.runtime, state, emit));
-		if (firstVisit) {
-			if (context.channels.summaries && node.controller.summarize) invoke(context, node.id, () => node.controller.summarize!(node, context.runtime, state, summary => addSummary(context, summary)));
-			if (context.channels.persistence) persistField(context, node, state);
-		}
-		if (context.channels.resultPreset && node.controller.getResultPreset) {
-			invoke(context, node.id, () => {
-				const preset = node.controller.getResultPreset!(node, context.runtime, state);
-				if (context.channels.resultPreset!.value === undefined && preset !== undefined) context.channels.resultPreset!.value = preset;
-			});
-		}
-	} finally {
-		context.visitedFields.add(node);
-		context.field = undefined;
+	invoke(context, node.id, () => node.controller.collect(node, context.runtime, state, emit));
+	if (firstVisit) {
+		const summaries = context.channels.summaries;
+		if (summaries && node.controller.summarize) invoke(context, node.id, () => node.controller.summarize!(node, context.runtime, state, summary => addSummary(summaries, node, summary)));
+		if (context.channels.persistence) persistField(context, node, state);
 	}
+	if (context.channels.resultPreset && node.controller.getResultPreset) {
+		invoke(context, node.id, () => {
+			const preset = node.controller.getResultPreset!(node, context.runtime, state);
+			if (context.channels.resultPreset!.value === undefined && preset !== undefined) context.channels.resultPreset!.value = preset;
+		});
+	}
+	context.visitedFields.add(node);
 }
 
 const SCOPED_OUTPUTS = ['patt', 'collpatt', 'filter'] as const;
