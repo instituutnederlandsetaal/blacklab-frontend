@@ -50,6 +50,26 @@ describe('form output acceptance', () => {
 		expect(diagnoseTargetOutputs).toBeTypeOf('function');
 	});
 
+	test('defensively validates emissions passed through the public acceptance helper', () => {
+		const issues: FormIssue[] = [];
+		const accepted = acceptTargetEmissions(
+			[
+				{ name: 'patt', value: rawCql('[word="water"]') },
+				{ name: 'filter', value: {} },
+				{ name: 'collpatt', value: undefined },
+				{ name: 'unknown', value: 'ignored' },
+			],
+			['patt', 'filter'] as const,
+			issues,
+		);
+
+		expect(accepted).toEqual([emission('patt', rawCql('[word="water"]'))]);
+		expect(issues).toEqual([
+			expect.objectContaining({ stage: 'accept', code: 'malformed-output', output: 'filter' }),
+			expect.objectContaining({ stage: 'accept', code: 'unsupported-output', output: 'collpatt' }),
+		]);
+	});
+
 	test('reports unknown, undeclared, and malformed values while retaining unrelated valid outputs', () => {
 		const controller = createController(['patt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
 			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
