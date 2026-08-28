@@ -1,28 +1,30 @@
 <template>
-	<section :class="['blf-summary-view', totals ? 'filter-overview' : 'panel panel-default']">
-		<template v-if="totals">
-			<div v-for="(entry, index) in summaries" :key="index">
-				{{ entry.label }}<small v-if="entry.group"> ({{ entry.group }})</small>: <i>{{ entry.value }}</i>
-			</div>
-			<TotalsView :totals />
-		</template>
-		<template v-else>
-			<header class="panel-body">{{ resolvedTitle || $t(`form.summary.heading`) }}</header>
-			<div v-if="summaries.length" class="entries panel-body">
-				<div v-for="(entry, index) in summaries" :key="index" class="entry">
-					<span class="label">{{ entry.label }}</span>
-					<span class="value">{{ entry.value }}</span>
-				</div>
-			</div>
-			<div v-else class="empty">{{ $t(`form.summary.empty`) }}</div>
-
-			<dl v-if="showRaw" class="raw">
-				<dt>CQL</dt>
-				<dd>{{ compiled.params.patt || $t(`form.summary.none`) }}</dd>
-				<dt>Lucene</dt>
-				<dd>{{ compiled.params.filter || $t(`form.summary.none`) }}</dd>
-			</dl>
-		</template>
+	<section class="blf-summary-view">
+		<div v-for="(entry, index) in summaries" :key="index">
+			{{ entry.label }}<small v-if="entry.group"> ({{ entry.group }})</small>: <i>{{ entry.value }}</i>
+		</div>
+		<div class="sub-corpus-size">
+			<template v-if="totals.status === 'error'"> {{ $t('filterOverview.error') }}: {{ totals.message }} </template>
+			<template v-else-if="totals.status === 'loaded'">
+				{{ $t('filterOverview.subCorpus') }}:<br />
+				<span>
+					{{ $t('filterOverview.totalDocuments') }}:<br />
+					{{ $t('filterOverview.totalTokens') }}:
+				</span>
+				<span class="numbers">
+					{{ totals.documents.toLocaleString() }}<br />
+					{{ totals.tokens.toLocaleString() }}
+				</span>
+				<span class="numbers">
+					({{ percentage(totals.documents, totals.totalDocuments) }})<br />
+					({{ percentage(totals.tokens, totals.totalTokens) }})
+				</span>
+			</template>
+			<template v-else>
+				<Spinner xs inline />
+				{{ $t('filterOverview.calculating') }}
+			</template>
+		</div>
 	</section>
 </template>
 
@@ -33,39 +35,30 @@ import { useFormSystemRuntime, useParentForm } from '../model/runtime';
 import { summaryMatchesType } from '../model/types/form-output';
 import type { SummaryViewConfig } from '../model/views/summary-view';
 
-import TotalsView from './TotalsView.vue';
+import { frac2Percent } from '@/shared/utils/number-utils';
+
+import Spinner from '@/shared/ui/Spinner.vue';
 
 const props = defineProps<SummaryViewConfig>();
-const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 const parentForm = useParentForm();
 const runtime = useFormSystemRuntime();
 const compiled = computed(() => runtime.value.compileSummary(parentForm.value));
-const summaryTypes = computed(() => (props.summaryType ? (Array.isArray(props.summaryType) ? props.summaryType : [props.summaryType]) : null));
-const summaries = computed(() =>
-	summaryTypes.value ? compiled.value.summaries.filter(entry => summaryTypes.value?.some(type => summaryMatchesType(entry, type, { includeUntyped: false }))) : compiled.value.summaries,
-);
-const totalsController = props.createTotals?.();
-const totals = totalsController ? computed(() => toValue(totalsController.state)) : null;
+const summaries = computed(() => compiled.value.summaries.filter(entry => summaryMatchesType(entry, 'filter', { includeUntyped: false })));
+const totalsController = props.createTotals();
+const totals = computed(() => toValue(totalsController.state));
+const filter = computed(() => compiled.value.params.filter);
+const searchfield = computed(() => compiled.value.params.searchfield);
 
-if (totalsController) {
-	const filter = computed(() => compiled.value.params.filter);
-	const searchfield = computed(() => compiled.value.params.searchfield);
-	watch([filter, searchfield], ([nextFilter, nextSearchfield]) => totalsController.update({ filter: nextFilter, searchfield: nextSearchfield }), { immediate: true });
-	if (totalsController.dispose) onScopeDispose(() => totalsController.dispose?.());
+watch([filter, searchfield], ([nextFilter, nextSearchfield]) => totalsController.update({ filter: nextFilter, searchfield: nextSearchfield }), { immediate: true });
+if (totalsController.dispose) onScopeDispose(() => totalsController.dispose?.());
+
+function percentage(value: number, total: number): string {
+	return frac2Percent(total > 0 ? value / total : 0);
 }
 </script>
 
 <style lang="scss" scoped>
 .blf-summary-view {
-	display: grid;
-	gap: 8px;
-	border: 1px solid var(--blf-border);
-	border-radius: 5px;
-	background: #fff;
-	padding: 10px;
-}
-
-.filter-overview {
 	display: block;
 	color: #888888;
 	font-size: 85%;
@@ -75,50 +68,18 @@ if (totalsController) {
 	background: transparent;
 }
 
-header {
-	font-weight: 700;
+.sub-corpus-size {
+	margin-top: 10px;
+	margin-left: 10px;
 }
 
-.entries {
-	display: grid;
-	gap: 5px;
+span {
+	display: inline-block;
+	vertical-align: top;
 }
 
-.entry {
-	display: grid;
-	grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
-	gap: 8px;
-}
-
-.label {
-	color: var(--blf-text-muted);
-}
-
-.value,
-dd {
-	word-break: break-word;
-}
-
-.empty {
-	color: var(--blf-text-muted);
-	font-style: italic;
-}
-
-.raw {
-	display: grid;
-	grid-template-columns: max-content minmax(0, 1fr);
-	gap: 4px 8px;
-	margin: 0;
-	border-top: 1px solid var(--blf-border);
-	padding-top: 8px;
-}
-
-dt,
-dd {
-	margin: 0;
-}
-
-dt {
-	color: var(--blf-text-muted);
+.numbers {
+	text-align: right;
+	font-family: monospace;
 }
 </style>

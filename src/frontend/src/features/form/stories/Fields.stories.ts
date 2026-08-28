@@ -39,7 +39,6 @@ import ParallelField from '../fields/ParallelField.vue';
 import RawCqlField from '../fields/RawCqlField.vue';
 import WithinField from '../fields/WithinField.vue';
 import HeadingView from '../views/HeadingView.vue';
-import SummaryView from '../views/SummaryView.vue';
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -126,13 +125,9 @@ function createFieldStory<State>(buildField: (builder: FormBuilder) => FormField
 				definition.newForm('root', ContainerRenderer, { title: 'Field preview' }).addChildren(
 					definition.newView('root.heading', HeadingView, {
 						title: field.title ?? field.id,
-						description: 'Rendered through a real form instance with live state and query output.',
+						description: 'Rendered through a real form instance with live state.',
 					}),
 					field,
-					definition.newView('root.summary', SummaryView, {
-						title: 'Live query preview',
-						showRaw: true,
-					}),
 				);
 				const runtime = new FormRuntime(definition);
 				if (initialState !== undefined) runtime.state.state.value[field.id] = structuredClone(initialState);

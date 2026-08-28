@@ -1,2 +1,1 @@
-export type { SummaryTotalsController, SummaryTotalsInput } from './summary-view';
-export type { TotalsViewState } from './totals-view';
+export type { SummaryTotalsController, SummaryTotalsInput, SummaryTotalsState } from './summary-view';

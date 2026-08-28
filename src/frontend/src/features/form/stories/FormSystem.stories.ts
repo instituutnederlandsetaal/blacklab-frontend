@@ -22,7 +22,6 @@ import ParallelField from '@/features/form/fields/ParallelField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
-import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type OverrideStoryArgs = {
 	pattOverride: boolean;
@@ -108,10 +107,6 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 			childFieldTemplate: createFormFieldNode('raw-overrides.demo.parallel.query', expertQueryController, RawCqlField, {}),
 			fieldOptions: parallelFieldOptions,
 			alignByOptions: ['s', 'p'].map(value => ({ value, label: () => translate.$tAlignByDisplayName({ value }) })),
-		}),
-		definition.newView('raw-overrides.demo.summary', SummaryView, {
-			title: 'Live query preview',
-			showRaw: true,
 		}),
 	);
 

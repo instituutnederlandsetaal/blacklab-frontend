@@ -5,7 +5,6 @@ import { annotationTextController, createLexiconLookup, FormBuilder, FormRuntime
 import { useI18n } from '@/shared/i18n';
 
 import LexiconField from '../fields/generic/LexiconField.vue';
-import SummaryView from '../views/SummaryView.vue';
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -44,13 +43,7 @@ export const ProductionLexiconService: Story = {
 				}),
 			});
 
-			definition.newForm('root', ContainerRenderer, { title: 'Lexicon field' }).addChildren(
-				field,
-				definition.newView('root.summary', SummaryView, {
-					title: 'Live query preview',
-					showRaw: true,
-				}),
-			);
+			definition.newForm('root', ContainerRenderer, { title: 'Lexicon field' }).addChildren(field);
 
 			return { runtime: new FormRuntime(definition) };
 		},

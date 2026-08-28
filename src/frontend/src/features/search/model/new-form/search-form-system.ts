@@ -34,8 +34,8 @@ import {
 	type FormFieldNode,
 	type FormNode,
 	type SummaryTotalsController,
+	type SummaryTotalsState,
 	type TokenSequenceCreateField,
-	type TotalsViewState,
 } from '@/features/form';
 import type { WithinFieldOption } from '@/features/form/fields/within-field';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
@@ -60,7 +60,7 @@ const EXPLORE_NGRAM_MAX_SIZE = 5;
 function createSearchFormTotalsFactory(corpus: Corpus, blacklab: BlackLabApi): () => SummaryTotalsController {
 	return () => {
 		const loader = new FilteredResultCountLoader();
-		const state = computed<TotalsViewState>(() => {
+		const state = computed<SummaryTotalsState>(() => {
 			if (loader.isError()) return { status: 'error', message: loader.error?.message ?? 'Could not load result totals.' };
 			if (!loader.isLoaded()) return { status: 'loading' };
 
@@ -159,7 +159,6 @@ function createSharedFilters(context: BuildContext): FormNode | null {
 		filters,
 		builder.newView(ids.sharedFiltersSummary(), SummaryView, {
 			createTotals: createSearchFormTotalsFactory(corpus, blacklabApi),
-			summaryType: 'filter',
 		}),
 	);
 }
