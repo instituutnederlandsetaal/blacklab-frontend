@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import cloneDeep from 'clone-deep';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 
@@ -99,17 +99,8 @@ const emit = defineEmits<{
 }>();
 
 const editorOpen = ref(false);
-const draftState = ref(cloneDeep(props.modelValue));
-
-watch(
-	() => props.modelValue,
-	value => {
-		if (!editorOpen.value) {
-			draftState.value = cloneDeep(value);
-		}
-	},
-	{ deep: true },
-);
+const draftState = ref<AnnotationPosFieldState>({});
+const displayedState = computed(() => (editorOpen.value ? draftState.value : props.modelValue));
 
 const field = useFieldPresentation(props);
 const buttonId = computed(() => `${props.htmlId}_editor`);
@@ -117,7 +108,7 @@ const annotationLabel = computed(() => props.displayName ?? props.annotationId);
 const mainValues = computed(() => Object.values(props.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value[props.annotationId]?.[0]));
 const modalSize = computed(() => props.modalSize ?? 'lg');
-const selectionSummary = computed(() => summarizeAnnotationPosState(props, draftState.value));
+const selectionSummary = computed(() => summarizeAnnotationPosState(props, displayedState.value));
 const hasSelection = computed(() => !!props.modelValue[props.annotationId]?.[0]);
 
 function openEditor() {
@@ -127,7 +118,6 @@ function openEditor() {
 
 function closeEditor() {
 	editorOpen.value = false;
-	draftState.value = cloneDeep(props.modelValue);
 }
 
 function commitDraft() {

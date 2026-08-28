@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import { createDefaultCqlQueryBuilderData, type CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
-import { findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState } from '@/features/form/fields/annotation-pos-field';
+import { findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState, type AnnotationPosFieldState } from '@/features/form/fields/annotation-pos-field';
 import { createDefaultCheckboxFieldState } from '@/features/form/fields/generic/checkbox-field';
 import { createDefaultDateFieldState, DateUtils } from '@/features/form/fields/generic/date-field';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
@@ -263,7 +263,7 @@ describe('part-of-speech field', () => {
 		expect(summarizeAnnotationPosState({ ...baseProps, annotationId: 'pos', tagset, subAnnotationLabels: { number: () => 'Features' } }, state)).toBe('Noun; Features: Singular');
 	});
 
-	test('edits a draft, commits it, reopens it, resets it, and clears selection', async () => {
+	test('reflects external replacements while closed and keeps open edits isolated until cancel', async () => {
 		const wrapper = mount(AnnotationPosField, {
 			props: {
 				...baseProps,
@@ -274,29 +274,65 @@ describe('part-of-speech field', () => {
 			},
 		});
 		expect(wrapper.get('input[readonly]').element.getAttribute('value')).toContain('Noun');
+		await wrapper.setProps({ modelValue: { pos: ['V'] } });
+		expect(wrapper.get('input[readonly]').element.getAttribute('value')).toBe('Verb');
 
-		await wrapper.findAll('button')[1].trigger('click');
+		await wrapper.get('.input-group-btn button:last-child').trigger('click');
 		expect(wrapper.findComponent(Modal).exists()).toBe(true);
-		await wrapper.find('.list-group.main button').trigger('click');
-		await wrapper.find('.list-group.main button').trigger('click');
+		await wrapper.findAll('.list-group.main button')[0].trigger('click');
+		expect(wrapper.get('input[readonly]').element.getAttribute('value')).toBe('Noun');
+		await wrapper.setProps({ modelValue: {} });
+		expect(wrapper.get('input[readonly]').element.getAttribute('value')).toBe('Noun');
+
+		wrapper.findComponent(Modal).vm.$emit('close');
+		await nextTick();
+		expect(wrapper.findComponent(Modal).exists()).toBe(false);
+		expect(wrapper.get('input[readonly]').element.getAttribute('value')).toBe('');
+		expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+	});
+
+	test('commits a cloned draft without mutating the model value', async () => {
+		const modelValue = { pos: ['N'], number: ['sg'] };
+		const wrapper = mount(AnnotationPosField, {
+			props: { ...baseProps, annotationId: 'pos', tagset, modelValue },
+		});
+
+		await wrapper.get('.input-group-btn button:last-child').trigger('click');
 		const checkboxes = wrapper.findAll('input[type="checkbox"]');
 		await checkboxes[0].setValue(false);
 		await checkboxes[1].setValue(true);
 		wrapper.findComponent(Modal).vm.$emit('confirm');
 		await nextTick();
-		expect(wrapper.emitted('update:modelValue')).toEqual([[{ pos: ['N'], number: ['pl'] }]]);
+		const committed = wrapper.emitted('update:modelValue')?.[0][0] as AnnotationPosFieldState | undefined;
+		expect(committed).toEqual({ pos: ['N'], number: ['pl'] });
+		expect(committed).not.toBe(modelValue);
+		expect(committed?.pos).not.toBe(modelValue.pos);
+		expect(modelValue).toEqual({ pos: ['N'], number: ['sg'] });
+	});
 
-		await wrapper.findAll('button')[1].trigger('click');
-		await wrapper.findAll('button')[0].trigger('click');
-		await wrapper.setProps({ modelValue: { pos: ['V'] } });
+	test('resets only the draft and clears the committed selection explicitly', async () => {
+		const modelValue = { pos: ['N'], number: ['sg'] };
+		const wrapper = mount(AnnotationPosField, {
+			props: { ...baseProps, annotationId: 'pos', tagset, modelValue },
+		});
+
+		await wrapper.get('.input-group-btn button:last-child').trigger('click');
 		await wrapper.find('.modal-footer .btn-default').trigger('click');
 		wrapper.findComponent(Modal).vm.$emit('close');
 		await nextTick();
-		expect(wrapper.findComponent(Modal).exists()).toBe(false);
+		expect(wrapper.get('input[readonly]').element.getAttribute('value')).toContain('Noun');
+		expect(wrapper.emitted('update:modelValue')).toBeUndefined();
 
-		await wrapper.findAll('button')[0].trigger('click');
-		expect(wrapper.emitted('update:modelValue')).toContainEqual([{}]);
-		await wrapper.setProps({ modelValue: { pos: ['N'] } });
+		await wrapper.get('.input-group-btn button:last-child').trigger('click');
+		await wrapper.find('.modal-footer .btn-default').trigger('click');
+		wrapper.findComponent(Modal).vm.$emit('confirm');
+		await nextTick();
+		expect(wrapper.emitted('update:modelValue')).toEqual([[{}]]);
+		expect(modelValue).toEqual({ pos: ['N'], number: ['sg'] });
+
+		await wrapper.get('.input-group-btn button:first-child').trigger('click');
+		expect(wrapper.emitted('update:modelValue')).toEqual([[{}], [{}]]);
+		expect(modelValue).toEqual({ pos: ['N'], number: ['sg'] });
 	});
 });
 
