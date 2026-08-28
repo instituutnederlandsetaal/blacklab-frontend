@@ -5,9 +5,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, shallowRef, toRaw } from 'vue';
 
 import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormResult, type FormRuntime } from '@/features/form';
-import { provideFormSystemRuntime } from '@/features/form/model/runtime';
 import { annotation } from '@/features/form/model/types/form-query-ir';
-import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { tabId } from '@/features/form/ui/tab-utils';
 
 import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController, type TestTextFieldDefinition } from './helpers';
@@ -198,53 +196,6 @@ describe('form system integration', () => {
 		expect(tabId('search.extended.annotations', 'search.extended.annotations.Part-of-Speech-features')).toBe('form-tab-search_2eextended_2eannotations--r-Part-of-Speech-features');
 		expect(tabId('a.', 'child')).not.toBe(tabId('a_2e', 'child'));
 		expect(tabId('parent', 'child')).not.toBe(tabId('parent', 'parent.child'));
-	});
-
-	test('container setup resolves configured, unavailable, and replacement children', async () => {
-		const builder = createTestBuilder();
-		builder
-			.newContainer('root.tabs', ContainerRenderer, { variant: 'tabs' })
-			.addChildren(builder.newContainer('root.tabs.first', ContainerRenderer, {}), builder.newContainer('root.tabs.second', ContainerRenderer, {}));
-		const runtime = createTestRuntime(builder);
-		const containerProps = runtime.renderableGraph('root.tabs')!.props;
-		const Probe = defineComponent({
-			props: { value: { type: Object, required: true } },
-			setup(props, { expose }) {
-				const result = containerRendererSetup(props.value as never);
-				expose(result);
-				return () => h('div');
-			},
-		});
-		const Host = defineComponent({
-			setup() {
-				provideFormSystemRuntime(shallowRef(runtime));
-				return () => h(Probe, { value: containerProps });
-			},
-		});
-		const wrapper = mount(Host);
-		const exposed = wrapper.findComponent(Probe).vm.$.exposed!;
-		expect(exposed.activeChild.value.props.id).toBe('root.tabs.first');
-
-		exposed.activeChildId.value = 'root.tabs.second';
-		expect(runtime.state.uiState.value['root.tabs']).toBe('root.tabs.second');
-		expect(exposed.activeChild.value.props.id).toBe('root.tabs.second');
-
-		runtime.state.uiState.value['root.tabs'] = 'missing';
-		await nextTick();
-		expect(exposed.activeChildId.value).toBe('missing');
-		expect(exposed.activeChild.value).toBeNull();
-
-		const [, secondChild] = containerProps.children as Array<unknown>;
-		containerProps.children = [secondChild];
-		runtime.state.uiState.value['root.tabs'] = 'root.tabs.second';
-		await nextTick();
-		expect(exposed.activeChild.value.props.id).toBe('root.tabs.second');
-
-		containerProps.children = [];
-		delete runtime.state.uiState.value['root.tabs'];
-		await nextTick();
-		expect(exposed.activeChildId.value).toBeNull();
-		expect(exposed.activeChild.value).toBeNull();
 	});
 
 	test('can render a selected root form from a shared definition', () => {

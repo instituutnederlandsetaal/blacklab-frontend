@@ -1,7 +1,7 @@
 <template>
 	<component :is="isForm ? 'form' : 'div'" :class="containerClasses" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
 		<template v-if="isTabbed">
-			<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" :class="tabClasses">
+			<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="toValue(props.title) || 'Form sections'" :class="tabClasses">
 				<template v-if="presentation['tab-badges']" #label="{ tab }">
 					{{ tab.label }}
 					<template v-if="activeQueryContributionCounts[tab.value]">
@@ -13,14 +13,14 @@
 
 			<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
 			<div v-if="activeChild" :id="tabId(props.id, activeChild.props.id, 'panel')" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
-				<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset">
+				<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="emit('submit', $event)" @reset="emit('reset')">
 					<template #actions><slot name="actions" /></template>
 				</Component>
 			</div>
 		</template>
 
 		<div v-else class="blf-form-content">
-			<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="forwardSubmit" @reset="forwardReset">
+			<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="emit('submit', $event)" @reset="emit('reset')">
 				<template #actions><slot name="actions" /></template>
 			</Component>
 		</div>
@@ -38,8 +38,7 @@ import { computed, toRef, toValue } from 'vue';
 
 import { hasEmissions } from '@/features/form/model/compile';
 import { decodeVariants, getAllNodes } from '@/features/form/model/form-utils';
-import { provideParentForm } from '@/features/form/model/runtime';
-import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
+import { provideParentForm, useFormSystemRuntime } from '@/features/form/model/runtime';
 import { createTabs, tabId } from '@/features/form/ui/tab-utils';
 
 import type { CompiledFormResult, ImplicitContainerComponentProps } from '../model/types';
@@ -56,11 +55,17 @@ const emit = defineEmits<{
 	submit: [snapshot: CompiledFormResult];
 	reset: [];
 }>();
-const { runtime, presentation, activeChildId, activeChild } = containerRendererSetup(props);
-const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
-const tabs = computed(() => createTabs(props.id, props.children));
+const runtime = useFormSystemRuntime();
+const presentation = computed(() => decodeVariants(props.variant));
+const activeChildId = computed({
+	get: () => runtime.value.state.uiState.value[props.id] ?? props.children[0]?.props.id ?? null,
+	set: (value: string) => {
+		runtime.value.state.uiState.value[props.id] = value;
+	},
+});
+const activeChild = computed(() => props.children.find(child => child.props.id === activeChildId.value) ?? null);
 
-const variant = computed(() => decodeVariants(props.variant));
+const tabs = computed(() => createTabs(props.id, props.children));
 
 const activeQueryContributionCounts = computed<Record<string, number>>(() => {
 	if (!presentation.value['tab-badges']) return {};
@@ -82,7 +87,7 @@ const containerClasses = computed(() => [
 	'blf-form-container',
 	isForm.value ? 'blf-form' : null,
 	presentation.value['panel-tabs'] ? 'blf-form-surface' : null,
-	variant.value,
+	presentation.value,
 	!isTabbed.value ? props.class : null,
 ]);
 const tabClasses = computed(() => ['blf-form-container-tabs', props.class, presentation.value['panel-tabs'] ? 'blf-form-surface-tabs' : null]);
@@ -102,13 +107,6 @@ function reset() {
 	emit('reset');
 }
 
-function forwardSubmit(snapshot: CompiledFormResult) {
-	emit('submit', snapshot);
-}
-
-function forwardReset() {
-	emit('reset');
-}
 </script>
 
 <style lang="scss">
