@@ -1,6 +1,6 @@
 import type { PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/form/model/field-component-props';
-import type { Emit, FormOutputName, FormOutputValues, ResultPreset, SummaryEntry } from '@/features/form/model/types/form-output';
+import type { Emit, FormOutputName, FormOutputValues, ResultPreset, SummaryInput } from '@/features/form/model/types/form-output';
 import type { BaseFieldNode, FormFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
@@ -35,7 +35,7 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
 	collect: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, sink: Emit) => void;
-	summarize?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, emit: (summary: SummaryEntry) => void) => void;
+	summarize?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State, emit: (summary: SummaryInput) => void) => void;
 	getResultPreset?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => ResultPreset | undefined;
 	persistence: FieldPersistence<State, Extra>;
 	/** Semantic outputs this field may emit. */

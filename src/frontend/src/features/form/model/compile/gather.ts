@@ -4,6 +4,7 @@ import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS, type Per
 import type { NewFormState } from '@/features/form/model/state';
 import { encodeFieldState, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { isFormOutputName, isValidEmission, type Emit, type FormEmission, type FormIssue, type FormOutputName, type ResultPreset, type SummaryEntry } from '@/features/form/model/types/form-output';
+import type { SummaryInput } from '@/features/form/model/types/form-output';
 import { booleanNode, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';
 import type { ScopedFormQuery } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
@@ -69,7 +70,7 @@ function emitValue(context: GatherContext, nodeId: string, sink: Sink, declared:
 	sink(emission);
 }
 
-function addSummary(context: GatherContext, summary: SummaryEntry): void {
+function addSummary(context: GatherContext, summary: SummaryInput): void {
 	const field = context.field;
 	if (!field || !context.channels.summaries) throw new Error('Cannot summarize outside field collection.');
 	const normalized: SummaryEntry = {

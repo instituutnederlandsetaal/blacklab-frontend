@@ -134,7 +134,7 @@ const get = {
 	/** Human-readable version of the query for use in history, summaries, etc. */
 	patternSummary: (): string | undefined => {
 		if (state.form === 'new') {
-			return formatSummaryEntries(state.state.summaries, 'patt', { includeUntyped: true });
+			return formatSummaryEntries(state.state.summaries, 'patt');
 		}
 		const formState = {
 			[state.subForm as string]: state.formState,
@@ -162,7 +162,7 @@ const get = {
 		if (!state.form) return undefined;
 
 		if (state.form === 'new') {
-			return formatSummaryEntries(state.state.summaries, 'filter', { includeUntyped: true });
+			return formatSummaryEntries(state.state.summaries, 'filter');
 		}
 
 		return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));

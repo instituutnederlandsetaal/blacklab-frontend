@@ -1,4 +1,4 @@
-import type { SummaryEntry, SummaryType } from '@/features/form/model/types/form-output';
+import type { SummaryInput, SummaryType } from '@/features/form/model/types/form-output';
 import type { BooleanType } from '@/features/form/model/types/form-primitives';
 
 import { lenientIter, type LenientArray } from '@/shared/utils/array-utils';
@@ -326,7 +326,7 @@ const summarizeRange = (low?: string | null, high?: string | null): string | nul
 	if (high) return `≤ ${high}`;
 	return null;
 };
-export const summary = (label: string, values: Values | { low?: string | null; high?: string | null }, summaryType?: SummaryType[], group?: string, options?: Options): SummaryEntry | null => {
+export const summary = (label: string, values: Values | { low?: string | null; high?: string | null }, summaryType?: SummaryType[], group?: string, options?: Options): SummaryInput | null => {
 	const value = isRangeInput(values) ? summarizeRange(values.low, values.high) : summarize(values, options);
 	return value ? { label, value, summaryType, group } : null;
 };

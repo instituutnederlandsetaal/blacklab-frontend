@@ -587,13 +587,12 @@ describe('builtin view hosts', () => {
 		expect(compile).not.toHaveBeenCalled();
 	});
 
-	test('excludes untyped summaries and accepts multi-type summaries when filtered', () => {
+	test('excludes summaries whose normalized types do not include filter', () => {
 		const runtime = {
 			compileSummary: () => ({
 				params: {},
 				summaries: [
-					{ label: 'Untyped', value: 'missing' },
-					{ label: 'Empty', summaryType: [], value: 'empty' },
+					{ label: 'Frontend only', summaryType: [], value: 'frontend' },
 					{ label: 'Pattern only', summaryType: ['patt'], value: 'pattern' },
 					{ label: 'Multi-type', summaryType: ['patt', 'filter'], value: 'shared' },
 				],
@@ -612,8 +611,7 @@ describe('builtin view hosts', () => {
 		const wrapper = mount(Host);
 
 		expect(wrapper.text()).toContain('Multi-type');
-		expect(wrapper.text()).not.toContain('Untyped');
-		expect(wrapper.text()).not.toContain('Empty');
+		expect(wrapper.text()).not.toContain('Frontend only');
 		expect(wrapper.text()).not.toContain('Pattern only');
 	});
 

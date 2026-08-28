@@ -159,11 +159,11 @@ const actions = {
 
 		// Order needs to be consistent or hash will be different.
 		const filterSummary: string | undefined = entry.newForm
-			? formatSummaryEntries(entry.newForm.summaries, 'filter', { includeUntyped: true })
+			? formatSummaryEntries(entry.newForm.summaries, 'filter')
 			: getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const configuredAlignBy = customizations?.searchFormAlignByDefault() ?? '';
 		const patternSummary: string | undefined = entry.newForm
-			? formatSummaryEntries(entry.newForm.summaries, 'patt', { includeUntyped: true })
+			? formatSummaryEntries(entry.newForm.summaries, 'patt')
 			: entry.interface.form === 'search'
 				? getPatternStringSearch(entry.interface.patternMode, entry.patterns, configuredAlignBy, entry.filters)
 				: entry.interface.form === 'explore'

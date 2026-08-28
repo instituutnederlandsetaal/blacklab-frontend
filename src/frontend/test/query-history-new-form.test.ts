@@ -12,8 +12,7 @@ afterEach(() => {
 });
 
 const mixedSummaries: CompiledFormResult['summaries'] = [
-	{ label: 'Untyped', value: 'missing' },
-	{ label: 'Empty', summaryType: [], value: 'empty' },
+	{ label: 'Frontend only', summaryType: [], value: 'frontend' },
 	{ label: 'Pattern only', summaryType: ['patt'], value: 'pattern' },
 	{ label: 'Filter only', summaryType: ['filter'], value: 'filter' },
 	{ label: 'Multi-type', summaryType: ['patt', 'filter'], value: 'shared' },
@@ -43,11 +42,11 @@ function historyEntry(newForm: CompiledFormResult): HistoryEntry {
 }
 
 describe('new-form query summary selectors', () => {
-	test('includes untyped and multi-type summaries for each requested type', () => {
+	test('selects summaries by their normalized output types', () => {
 		QueryStore.actions.search({ form: 'new', state: mixedSummaryForm() });
 
-		expect(QueryStore.get.patternSummary()).toBe('Untyped: missing, Empty: empty, Pattern only: pattern, Multi-type: shared');
-		expect(QueryStore.get.filterSummary()).toBe('Untyped: missing, Empty: empty, Filter only: filter, Multi-type: shared');
+		expect(QueryStore.get.patternSummary()).toBe('Pattern only: pattern, Multi-type: shared');
+		expect(QueryStore.get.filterSummary()).toBe('Filter only: filter, Multi-type: shared');
 	});
 });
 
@@ -81,12 +80,12 @@ describe('new-form query history summaries', () => {
 		expect(getState()[0]?.displayValues.filters).toBe('Author: Austen');
 	});
 
-	test('includes untyped and multi-type summaries consistently in pattern and filter display values', () => {
+	test('selects history summaries by their normalized output types', () => {
 		const newForm = mixedSummaryForm();
 
 		actions.addEntry({ entry: historyEntry(newForm), pattern: newForm.params.patt, url: '/test-corpus/search/hits' });
 
-		expect(getState()[0]?.displayValues.pattern).toBe('Untyped: missing, Empty: empty, Pattern only: pattern, Multi-type: shared');
-		expect(getState()[0]?.displayValues.filters).toBe('Untyped: missing, Empty: empty, Filter only: filter, Multi-type: shared');
+		expect(getState()[0]?.displayValues.pattern).toBe('Pattern only: pattern, Multi-type: shared');
+		expect(getState()[0]?.displayValues.filters).toBe('Filter only: filter, Multi-type: shared');
 	});
 });

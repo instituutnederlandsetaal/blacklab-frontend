@@ -32,7 +32,6 @@
 import { computed, onScopeDispose, toValue, watch } from 'vue';
 
 import { useFormSystemRuntime, useParentForm } from '../model/runtime';
-import { summaryMatchesType } from '../model/types/form-output';
 import type { SummaryViewConfig } from '../model/views/summary-view';
 
 import { frac2Percent } from '@/shared/utils/number-utils';
@@ -43,7 +42,7 @@ const props = defineProps<SummaryViewConfig>();
 const parentForm = useParentForm();
 const runtime = useFormSystemRuntime();
 const compiled = computed(() => runtime.value.compileSummary(parentForm.value));
-const summaries = computed(() => compiled.value.summaries.filter(entry => summaryMatchesType(entry, 'filter', { includeUntyped: false })));
+const summaries = computed(() => compiled.value.summaries.filter(entry => entry.summaryType.includes('filter')));
 const totalsController = props.createTotals();
 const totals = computed(() => toValue(totalsController.state));
 const filter = computed(() => compiled.value.params.filter);

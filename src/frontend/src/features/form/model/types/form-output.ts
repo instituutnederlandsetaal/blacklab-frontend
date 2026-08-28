@@ -58,22 +58,16 @@ export type FormIssue = {
 export type ResultPreset = GroupDisplayMode | null;
 
 export type SummaryType = FormOutputName;
-export type SummaryEntry = {
+type SummaryValue = {
 	label: string;
 	value: string;
-	summaryType?: SummaryType[];
 	group?: string;
 };
+export type SummaryInput = SummaryValue & { summaryType?: SummaryType[] };
+export type SummaryEntry = SummaryValue & { summaryType: SummaryType[] };
 
-type SummaryMatchingPolicy = Readonly<{ includeUntyped: boolean }>;
-
-/** Match a summary to an output while making the fallback policy for missing or empty types explicit. */
-export function summaryMatchesType(entry: SummaryEntry, type: SummaryType, { includeUntyped }: SummaryMatchingPolicy): boolean {
-	return entry.summaryType?.length ? entry.summaryType.includes(type) : includeUntyped;
-}
-
-export function formatSummaryEntries(entries: readonly SummaryEntry[], type: SummaryType, policy: SummaryMatchingPolicy): string | undefined {
-	const matching = entries.filter(entry => summaryMatchesType(entry, type, policy));
+export function formatSummaryEntries(entries: readonly SummaryEntry[], type: SummaryType): string | undefined {
+	const matching = entries.filter(entry => entry.summaryType.includes(type));
 	return matching.length ? matching.map(entry => `${entry.label}: ${entry.value}`).join(', ') : undefined;
 }
 

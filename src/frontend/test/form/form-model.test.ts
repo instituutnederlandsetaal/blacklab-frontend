@@ -341,6 +341,32 @@ describe('form model state', () => {
 		expect(compiled.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 	});
 
+	test('normalizes summary types from the controller output contract', () => {
+		const builder = createTestBuilder();
+		const explicitController = {
+			...testTextController,
+			summarize: (_config, _runtime, _state, emit) => emit({ label: 'Explicit', value: 'value', summaryType: ['filter'] }),
+		} satisfies typeof testTextController;
+		const noOutputController = {
+			...testTextController,
+			outputs: [],
+			collect() {},
+			summarize: (_config, _runtime, _state, emit) => emit({ label: 'Frontend only', value: 'value' }),
+		} satisfies typeof testTextController;
+		const explicit = builder.newField('summary.explicit', explicitController, TestTextField, { annotationId: 'explicit', displayName: 'Explicit' });
+		const inherited = builder.newField('summary.inherited', testTextController, TestTextField, { annotationId: 'inherited', displayName: 'Inherited' });
+		const frontendOnly = builder.newField('summary.frontend', noOutputController, TestTextField, { annotationId: 'frontend', displayName: 'Frontend only' });
+		const form = builder.newForm('summary.form', ContainerRenderer, {}).addChildren(explicit, inherited, frontendOnly);
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value[inherited.id] = { value: 'value' };
+
+		expect(runtime.compile(form.id).summaries).toEqual([
+			{ label: 'Explicit', value: 'value', summaryType: ['filter'] },
+			{ label: 'Inherited', value: 'value', summaryType: ['patt'] },
+			{ label: 'Frontend only', value: 'value', summaryType: [] },
+		]);
+	});
+
 	test('gathers reused field channels at their intended frequencies', () => {
 		const collect = vi.fn(testTextController.collect);
 		const summarize = vi.fn(testTextController.summarize);

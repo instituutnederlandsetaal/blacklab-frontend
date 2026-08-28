@@ -10,7 +10,7 @@ import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, gatherOutput, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { SummaryEntry } from '@/features/form/model/types/form-output';
+import type { SummaryInput } from '@/features/form/model/types/form-output';
 import { isCqlPatternNode, parallelQuery, parallelQueryTarget, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
@@ -20,7 +20,7 @@ function getParallelChildPattern(config: FieldControllerProps<ParallelFieldConfi
 	return combineCqlPatterns(gatherOutput(config.childFieldTemplate, state ?? createDefaultParallelChildState(config, runtime), runtime, 'patt', isCqlPatternNode), 'and');
 }
 
-function summarizeParallelChild(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown, emit: (summary: SummaryEntry) => void): void {
+function summarizeParallelChild(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown, emit: (summary: SummaryInput) => void): void {
 	config.childFieldTemplate.controller.summarize?.(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime), summary =>
 		emit({
 			...summary,
