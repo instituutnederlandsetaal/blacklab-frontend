@@ -1,37 +1,31 @@
 <template>
-	<component v-if="isTabbed" :is="isForm ? 'form' : 'div'" :class="containerClasses" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
-		<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" :class="tabClasses">
-			<template v-if="presentation['tab-badges']" #label="{ tab }">
-				{{ tab.label }}
-				<template v-if="activeQueryContributionCounts[tab.value]">
-					&nbsp;
-					<span class="badge">{{ activeQueryContributionCounts[tab.value] }}</span>
+	<component :is="isForm ? 'form' : 'div'" :class="containerClasses" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
+		<template v-if="isTabbed">
+			<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" :class="tabClasses">
+				<template v-if="presentation['tab-badges']" #label="{ tab }">
+					{{ tab.label }}
+					<template v-if="activeQueryContributionCounts[tab.value]">
+						&nbsp;
+						<span class="badge">{{ activeQueryContributionCounts[tab.value] }}</span>
+					</template>
 				</template>
-			</template>
-		</Tabs>
+			</Tabs>
 
-		<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-		<div v-if="activeChild" :id="tabId(props.id, activeChild.props.id, 'panel')" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
-			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset">
-				<template #actions><slot name="actions" /></template>
-			</Component>
-		</div>
+			<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
+			<div v-if="activeChild" :id="tabId(props.id, activeChild.props.id, 'panel')" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
+				<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset">
+					<template #actions><slot name="actions" /></template>
+				</Component>
+			</div>
+		</template>
 
-		<div class="blf-form-actions btn-toolbar" v-if="isForm">
-			<button class="btn btn-primary btn-lg" type="submit">{{ $t(`queryForm.search`) }}</button>
-			<button class="btn btn-default btn-lg" type="reset">{{ $t(`queryForm.reset`) }}</button>
-			<slot name="actions" />
-		</div>
-	</component>
-
-	<component v-else :is="isForm ? 'form' : 'div'" @submit.stop.prevent="submit" @reset.stop.prevent="reset" :class="containerClasses">
-		<div class="blf-form-content">
+		<div v-else class="blf-form-content">
 			<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="forwardSubmit" @reset="forwardReset">
 				<template #actions><slot name="actions" /></template>
 			</Component>
 		</div>
 
-		<div class="blf-form-actions btn-toolbar" v-if="isForm">
+		<div v-if="isForm" class="blf-form-actions btn-toolbar">
 			<button class="btn btn-primary btn-lg" type="submit">{{ $t(`queryForm.search`) }}</button>
 			<button class="btn btn-default btn-lg" type="reset">{{ $t(`queryForm.reset`) }}</button>
 			<slot name="actions" />
