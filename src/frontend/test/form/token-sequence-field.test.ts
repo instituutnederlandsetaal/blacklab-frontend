@@ -229,10 +229,7 @@ describe('token sequence composite field', () => {
 	test('lays out only the length control horizontally', () => {
 		const { runtime } = createFixture(['large', 'horizontal']);
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 
 		const length = wrapper.findComponent(NumberField);
@@ -252,10 +249,7 @@ describe('token sequence composite field', () => {
 	test('hides labels on token selectors and editors', () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 
 		const selectors = wrapper.findAllComponents(SelectField);
@@ -269,10 +263,7 @@ describe('token sequence composite field', () => {
 	test('growing the sequence appends fresh default tokens', async () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 
 		await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('4');
@@ -283,10 +274,7 @@ describe('token sequence composite field', () => {
 	test('changing a token selector replaces its child state with controller defaults', async () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 		sequenceState(runtime)[0].fieldState = { value: 'draft', caseSensitive: false } satisfies TextFieldState;
 		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', ['lemma']);
@@ -300,10 +288,7 @@ describe('token sequence composite field', () => {
 	test('accepts scalar selector updates and writes nested field state immutably', async () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 
 		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', 'lemma');
@@ -322,10 +307,7 @@ describe('token sequence composite field', () => {
 	test('a patt override disables and clearing it re-enables nested token editors', async () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 		runtime.state.rawOverrides.value.patt = '[word="fixed"]';
 		await nextTick();
@@ -338,10 +320,7 @@ describe('token sequence composite field', () => {
 	test('shrinking then regrowing creates fresh trailing token state', async () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
-			props: {
-				runtime,
-				rootId: 'explore.ngram',
-			},
+			props: { runtime },
 		});
 		sequenceState(runtime)[1].fieldState = { value: 'discarded', caseSensitive: false } satisfies TextFieldState;
 		await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('1');

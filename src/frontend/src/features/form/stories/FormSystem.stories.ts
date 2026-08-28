@@ -12,7 +12,6 @@ import {
 	type FormOverrides,
 	type FormRuntimeContext,
 } from '@/features/form';
-import { createDefaultFormState } from '@/features/form/model/state';
 
 import { useI18n, type Translate } from '@/shared/i18n';
 
@@ -110,17 +109,17 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		}),
 	);
 
-	const initialState = createDefaultFormState(context, definition.getRoot());
-	initialState.state['raw-overrides.demo.word'] = {
+	const runtime = new FormRuntime(definition);
+	runtime.state.state.value['raw-overrides.demo.word'] = {
 		value: 'water',
 		caseSensitive: false,
 	};
-	initialState.state['raw-overrides.demo.expert'] = '[lemma="river"]';
-	initialState.state['raw-overrides.demo.author'] = {
+	runtime.state.state.value['raw-overrides.demo.expert'] = '[lemma="river"]';
+	runtime.state.state.value['raw-overrides.demo.author'] = {
 		value: 'Austen',
 		caseSensitive: false,
 	};
-	initialState.state['raw-overrides.demo.parallel'] = {
+	runtime.state.state.value['raw-overrides.demo.parallel'] = {
 		source: 'contents__en',
 		targets: ['contents__nl'],
 		alignBy: 's',
@@ -130,7 +129,7 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		},
 	};
 
-	return { runtime: new FormRuntime(definition, initialState) };
+	return { runtime };
 }
 
 function applyRawOverrides(runtime: FormRuntime, args: OverrideStoryArgs) {
@@ -364,21 +363,21 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 
 	root.addChildren(directFieldsForm, listFieldsForm, tabbedForms, nestedTabs);
 
-	const initialState = createDefaultFormState(context, definition.getRoot());
-	initialState.state['layout-lab.1-direct-fields.word'] = { value: 'river', caseSensitive: false };
-	initialState.state['layout-lab.1-direct-fields.lemma'] = { value: 'flow', caseSensitive: false };
-	initialState.state['layout-lab.2-list-fields.word'] = { value: 'water', caseSensitive: false };
-	initialState.state['layout-lab.2-list-fields.pos'] = { value: 'noun', caseSensitive: false };
-	initialState.state['layout-lab.3-tabbed-forms.text.word'] = { value: 'book', caseSensitive: false };
-	initialState.state['layout-lab.3-tabbed-forms.text.lemma'] = { value: 'read', caseSensitive: false };
-	initialState.state['layout-lab.3-tabbed-forms.metadata.author'] = { value: 'Austen', caseSensitive: false };
-	initialState.state['layout-lab.4-nested-tabs.forms.search.fields.word'] = { value: 'sea', caseSensitive: false };
-	initialState.state['layout-lab.4-nested-tabs.forms.search.fields.lemma'] = { value: 'wave', caseSensitive: false };
-	initialState.state['layout-lab.4-nested-tabs.forms.options.sections.general.author'] = { value: 'Woolf', caseSensitive: false };
-	initialState.state['layout-lab.4-nested-tabs.forms.options.sections.details.title'] = { value: 'To the Lighthouse', caseSensitive: false };
-	initialState.state['layout-lab.4-nested-tabs.preview.keyword'] = { value: 'harbour', caseSensitive: false };
+	const runtime = new FormRuntime(definition);
+	runtime.state.state.value['layout-lab.1-direct-fields.word'] = { value: 'river', caseSensitive: false };
+	runtime.state.state.value['layout-lab.1-direct-fields.lemma'] = { value: 'flow', caseSensitive: false };
+	runtime.state.state.value['layout-lab.2-list-fields.word'] = { value: 'water', caseSensitive: false };
+	runtime.state.state.value['layout-lab.2-list-fields.pos'] = { value: 'noun', caseSensitive: false };
+	runtime.state.state.value['layout-lab.3-tabbed-forms.text.word'] = { value: 'book', caseSensitive: false };
+	runtime.state.state.value['layout-lab.3-tabbed-forms.text.lemma'] = { value: 'read', caseSensitive: false };
+	runtime.state.state.value['layout-lab.3-tabbed-forms.metadata.author'] = { value: 'Austen', caseSensitive: false };
+	runtime.state.state.value['layout-lab.4-nested-tabs.forms.search.fields.word'] = { value: 'sea', caseSensitive: false };
+	runtime.state.state.value['layout-lab.4-nested-tabs.forms.search.fields.lemma'] = { value: 'wave', caseSensitive: false };
+	runtime.state.state.value['layout-lab.4-nested-tabs.forms.options.sections.general.author'] = { value: 'Woolf', caseSensitive: false };
+	runtime.state.state.value['layout-lab.4-nested-tabs.forms.options.sections.details.title'] = { value: 'To the Lighthouse', caseSensitive: false };
+	runtime.state.state.value['layout-lab.4-nested-tabs.preview.keyword'] = { value: 'harbour', caseSensitive: false };
 
-	return { runtime: new FormRuntime(definition, initialState) };
+	return { runtime };
 }
 
 export const ProgressiveLayouts: Story = {

@@ -46,7 +46,7 @@ describe('form graph builder editing', () => {
 
 		expect(editorKeys.length).toBeGreaterThan(0);
 		for (const key of editorKeys) expect(Object.getOwnPropertyDescriptor(parent, key)?.enumerable).toBe(false);
-		const rendered = createTestRuntime(builder).renderableGraph(parent.id)!;
+		const rendered = createTestRuntime(builder).renderableGraph();
 		expect(editorKeys.filter(key => Object.hasOwn(rendered.props, key))).toEqual([]);
 	});
 

@@ -2,9 +2,8 @@ import { markRaw } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { applyRawOverrides, compileFormNode, compileFormSummary } from '@/features/form/model/compile';
-import createFormState, { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
+import createFormState, { createDefaultFormState } from '@/features/form/model/state';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
-import type { RenderableFormNode } from '@/features/form/ui/renderable-graph';
 import { renderFormNode } from '@/features/form/ui/renderable-graph';
 
 /**
@@ -19,17 +18,13 @@ import { renderFormNode } from '@/features/form/ui/renderable-graph';
 export class FormRuntime {
 	public readonly state;
 
-	public constructor(
-		public readonly definition: FormBuilder,
-		initialState: NewFormState = createDefaultFormState(definition.context, ...definition.nodeList),
-	) {
-		this.state = createFormState(initialState);
+	public constructor(public readonly definition: FormBuilder) {
+		this.state = createFormState(createDefaultFormState(definition.context, ...definition.nodeList));
 		markRaw(this);
 	}
 
-	public renderableGraph(rootId?: string): RenderableFormNode | undefined {
-		const root = rootId ? this.definition.getNode(rootId) : this.definition.getRoot();
-		return root ? renderFormNode(root, { state: this.state }) : undefined;
+	public renderableGraph() {
+		return renderFormNode(this.definition.getRoot(), { state: this.state });
 	}
 
 	public compile(formId: string): CompiledFormResult {

@@ -7,7 +7,7 @@
 				<button type="button" class="btn btn-xs btn-default" @click="props.runtime.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component v-if="renderTree" :is="renderTree.is" v-bind="{ ...attrs, ...renderTree.props }" :key="runtimeRevision" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
+		<Component :is="renderTree.is" v-bind="{ ...attrs, ...renderTree.props }" :key="runtimeRevision" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
 			<template #actions><slot name="actions" /></template>
 		</Component>
 	</div>
@@ -23,7 +23,6 @@ import { provideFormSystemRuntime } from '../model/runtime';
 
 const props = defineProps<{
 	runtime: FormRuntime;
-	rootId?: string;
 }>();
 
 const attrs = useAttrs();
@@ -43,7 +42,7 @@ watch(
 	() => runtimeRevision.value++,
 );
 
-const renderTree = computed(() => props.runtime.renderableGraph(props.rootId));
+const renderTree = computed(() => props.runtime.renderableGraph());
 
 const activeOverrides = computed(() =>
 	Object.entries(props.runtime.state.rawOverrides.value)

@@ -198,17 +198,12 @@ describe('form system integration', () => {
 		expect(tabId('parent', 'child')).not.toBe(tabId('parent', 'parent.child'));
 	});
 
-	test('can render a selected root form from a shared definition', () => {
+	test('renders the definition root', () => {
 		const fixture = createSiblingFormsFixture();
-		const wrapper = mount(FormSystem, {
-			props: {
-				...fixture,
-				rootId: 'search.extended',
-			},
-		});
+		const wrapper = mount(FormSystem, { props: fixture });
 
-		expect(wrapper.find('input[aria-label="Simple word"]').exists()).toBe(false);
-		expect(wrapper.find('input[aria-label="Extended lemma"]').exists()).toBe(true);
+		expect(wrapper.find('input[aria-label="Simple word"]').exists()).toBe(true);
+		expect(wrapper.find('input[aria-label="Extended lemma"]').exists()).toBe(false);
 	});
 
 	test('mounted views receive live parent-form projections', async () => {
@@ -301,16 +296,13 @@ describe('form system integration', () => {
 		expect(parentSubmit).not.toHaveBeenCalled();
 	});
 
-	test('submit is scoped to the mounted form host instead of broadcast through the runtime', async () => {
-		const fixture = createSiblingFormsFixture();
+	test('submit remains scoped to its mounted form host', async () => {
+		const simpleRuntime = createLabeledRuntime('Simple word');
+		const extendedRuntime = createLabeledRuntime('Extended lemma');
 		const simpleSubmit = vi.fn();
 		const extendedSubmit = vi.fn();
 		const Harness = defineComponent({
-			setup: () => () =>
-				h('div', [
-					h(FormSystem, { runtime: fixture.runtime, rootId: 'search.simple', onSubmit: simpleSubmit }),
-					h(FormSystem, { runtime: fixture.runtime, rootId: 'search.extended', onSubmit: extendedSubmit }),
-				]),
+			setup: () => () => h('div', [h(FormSystem, { runtime: simpleRuntime, onSubmit: simpleSubmit }), h(FormSystem, { runtime: extendedRuntime, onSubmit: extendedSubmit })]),
 		});
 		const wrapper = mount(Harness);
 

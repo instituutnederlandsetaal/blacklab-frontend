@@ -12,6 +12,7 @@ import {
 	encodeFieldState,
 	expertQueryController,
 	filterTextController,
+	FormSystem,
 	parallelController,
 	withinController,
 	type FormBoundaryNode,
@@ -169,18 +170,6 @@ const fieldExpectations = {
 	},
 } satisfies Record<string, FieldExpectation>;
 
-function createHostHarness(node: FormFieldNode | FormViewNode, form: FormBoundaryNode, runtime: FormSystemRuntime, _host: 'field' | 'view') {
-	return defineComponent({
-		setup() {
-			provideFormSystemRuntime(shallowRef(runtime));
-			provideParentForm(ref(form.id));
-			const renderable = runtime.renderableGraph(node.id)!;
-
-			return () => h(renderable.is, renderable.props);
-		},
-	});
-}
-
 function addFieldToForm(builder: FormBuilder, form: ReturnType<FormBuilder['newForm']>, field: FormFieldNode, placement: FieldPlacement) {
 	if (placement === 'direct') {
 		form.addChildren(field);
@@ -222,7 +211,7 @@ function mountFieldHarness<TField extends FormFieldNode>(
 	placement: FieldPlacement = 'direct',
 ): FieldHarness<TField> {
 	const harness = createFieldRuntime(buildField, placement);
-	const wrapper = mount(createHostHarness(harness.field, harness.form, harness.runtime, 'field'));
+	const wrapper = mount(FormSystem, { props: { runtime: harness.runtime } });
 
 	return { ...harness, wrapper };
 }
@@ -240,7 +229,7 @@ function mountViewHarness<TExtra, TView extends FormViewNode>(
 	const form = builder.newForm('harness.form', ContainerRenderer, { title: 'Harness' });
 	const { extra, view } = buildView(builder, form);
 	const runtime = createTestRuntime(builder);
-	const wrapper = mount(createHostHarness(view, form, runtime, 'view'));
+	const wrapper = mount(FormSystem, { props: { runtime } });
 
 	return { extra, form, runtime, view, wrapper };
 }
@@ -578,10 +567,11 @@ describe('builtin view hosts', () => {
 		harness.runtime.state.state.value[harness.extra.filterId] = { value: 'Austen', caseSensitive: false };
 		await nextTick();
 
-		expect(harness.wrapper.text()).toContain('Author');
-		expect(harness.wrapper.text()).toContain('Austen');
-		expect(harness.wrapper.text()).not.toContain('Pattern');
-		expect(harness.wrapper.text()).not.toContain('water');
+		const summary = harness.wrapper.get('.blf-summary-view');
+		expect(summary.text()).toContain('Author');
+		expect(summary.text()).toContain('Austen');
+		expect(summary.text()).not.toContain('Pattern');
+		expect(summary.text()).not.toContain('water');
 		expect(compileSummary).toHaveBeenCalled();
 		expect(compile).not.toHaveBeenCalled();
 	});

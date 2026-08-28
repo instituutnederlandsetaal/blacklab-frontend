@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { ref } from 'vue';
 
-import { createDefaultFormState, filterCheckboxController, FormBuilder, FormRuntime, type CompiledFormResult, type SummaryTotalsInput, type SummaryTotalsState } from '@/features/form';
+import { filterCheckboxController, FormBuilder, FormRuntime, type CompiledFormResult, type SummaryTotalsInput, type SummaryTotalsState } from '@/features/form';
 
 import { useI18n, type Translate } from '@/shared/i18n';
 
@@ -80,11 +80,9 @@ function createViewStoryModel(translate: Translate): ViewStoryModel {
 	);
 	root.addChildren(headingForm, filterSummaryForm);
 
-	const initialState = createDefaultFormState(context, definition.getRoot());
-	initialState.uiState[root.id] = filterSummaryForm.id;
-	initialState.state['view-catalog.totals.genre'] = ['newspaper'];
-
-	const runtime = new FormRuntime(definition, initialState);
+	const runtime = new FormRuntime(definition);
+	runtime.state.uiState.value[root.id] = filterSummaryForm.id;
+	runtime.state.state.value['view-catalog.totals.genre'] = ['newspaper'];
 	return {
 		runtime,
 		initialSubmitted: runtime.compile(filterSummaryForm.id),

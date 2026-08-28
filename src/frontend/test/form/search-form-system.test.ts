@@ -208,6 +208,12 @@ function createDefinition(corpus = createCorpus()) {
 	}).runtime.value!;
 }
 
+function selectRenderedForm(runtime: FormRuntime, formId: string) {
+	const explore = ids.formKind(formId) === 'explore';
+	runtime.state.uiState.value[ids.root()] = explore ? ids.exploreSection() : ids.searchSection();
+	runtime.state.uiState.value[explore ? ids.exploreFormsContainer() : ids.searchFormsContainer()] = formId;
+}
+
 function createLocalizedSearchSystem() {
 	const locale = ref('en');
 	const translate = createMockTranslate();
@@ -598,11 +604,9 @@ describe('search form system', () => {
 
 	test('renders the N-gram length bounds and five active token editors', () => {
 		const runtime = createDefinition();
+		selectRenderedForm(runtime, ids.exploreForm('ngram'));
 		const wrapper = mount(FormSystem, {
-			props: {
-				rootId: ids.exploreForm('ngram'),
-				runtime,
-			},
+			props: { runtime },
 		});
 		const length = wrapper.get('.blf-token-sequence-field input[type="number"]');
 
@@ -718,12 +722,10 @@ describe('search form system', () => {
 
 	test('configures the expert heading and raw CQL field presentation', () => {
 		const runtime = createDefinition();
+		selectRenderedForm(runtime, ids.searchForm('expert'));
 
 		const wrapper = mount(FormSystem, {
-			props: {
-				rootId: ids.searchForm('expert'),
-				runtime,
-			},
+			props: { runtime },
 		});
 		expect(wrapper.get('.blf-heading-view h3 a').attributes('href')).toBe('https://blacklab.ivdnt.org/guide/corpus-query-language.html');
 		expect(wrapper.find('.blf-expert-query-field > label').exists()).toBe(false);
@@ -1294,16 +1296,12 @@ describe('search form system', () => {
 			patt: '[word_or_lemma="(?i)schip"]',
 		});
 		definition.state.replaceState(restored);
+		selectRenderedForm(definition, ids.searchForm('extended'));
 		const currentWithinState = definition.state.state.value[ids.withinField()] as { element: string | null; attributes: Record<string, string> };
 		const withinStateBeforeMount = { element: currentWithinState.element, attributes: { ...currentWithinState.attributes } };
 		expect(withinStateBeforeMount).toEqual({ element: null, attributes: {} });
 
-		mount(FormSystem, {
-			props: {
-				runtime: definition,
-				rootId: ids.searchForm('extended'),
-			},
-		});
+		mount(FormSystem, { props: { runtime: definition } });
 		await nextTick();
 
 		expect(definition.state.state.value[ids.withinField()]).toEqual(withinStateBeforeMount);
