@@ -1,12 +1,33 @@
-import { computed, type FunctionPlugin } from 'vue';
-import { createRouter, createWebHistory } from 'vue-router';
+import { computed, toValue, type FunctionPlugin, type MaybeRefOrGetter } from 'vue';
+import { createRouter, createWebHistory, useRoute, useRouter } from 'vue-router';
 
 import type { PageBootstrap } from '@/navigation/page-bootstrap';
-import { provideArticleId, provideCorpusId, providePageMeta, useCorpusId, type PageMeta } from '@/navigation/page-context';
+import { provideCorpusId, useCorpusId, type PageMeta } from '@/navigation/page-context';
+import { getAnnotatedFieldFromRouteQuery, getNumberFromRouteQuery, getRouteParamString, getStringFromRouteQuery, updateRouteQuery, type RouteQueryPatch } from '@/url/route-query';
 
 // make sure we always have a route meta object
 declare module 'vue-router' {
 	interface RouteMeta extends PageMeta {}
+}
+
+function useArticleRoute(annotatedFields: MaybeRefOrGetter<Record<string, unknown>>, defaultField: MaybeRefOrGetter<string>) {
+	const route = useRoute();
+	const router = useRouter();
+	const articleRoute = computed(() => ({
+		docId: getRouteParamString(route.params.docId),
+		viewField: getAnnotatedFieldFromRouteQuery(route, toValue(annotatedFields), 'field') ?? toValue(defaultField),
+		// searchfield is canonical; searchField and field remain as backward-compatible aliases.
+		searchfield: getAnnotatedFieldFromRouteQuery(route, toValue(annotatedFields), 'searchfield', 'searchField', 'field') ?? toValue(defaultField),
+		wordstart: getNumberFromRouteQuery(route, 'wordstart'),
+		wordend: getNumberFromRouteQuery(route, 'wordend'),
+		findhit: getNumberFromRouteQuery(route, 'findhit'),
+		patt: getStringFromRouteQuery(route, 'patt', 'query'),
+		pattgapdata: getStringFromRouteQuery(route, 'pattgapdata'),
+	}));
+	return {
+		articleRoute,
+		updateArticleQuery: (patch: RouteQueryPatch) => updateRouteQuery(router, route, patch),
+	};
 }
 
 function createBlfRouter(pageBootstrap: PageBootstrap) {
@@ -109,25 +130,17 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 	});
 
 	const corpusId = computed(() => router.currentRoute.value.params.corpus as string | undefined);
-	const articleId = computed(() => router.currentRoute.value.params.docId as string | undefined);
 	const pageMeta = computed(() => (router.currentRoute.value.meta as PageMeta) || null);
-	let resolveInitialRouteState: () => void;
-	const initialRouteStateApplied = new Promise<void>(resolve => (resolveInitialRouteState = resolve));
 	return {
 		router,
 		corpusId,
-		articleId,
 		pageMeta,
-		initialRouteStateApplied,
 
 		install: (app => {
 			router.install(app);
 			provideCorpusId(app, corpusId);
-			provideArticleId(app, articleId);
-			providePageMeta(app, pageMeta);
-			resolveInitialRouteState();
 		}) satisfies FunctionPlugin,
 	};
 }
 
-export { useCorpusId, createBlfRouter };
+export { useArticleRoute, useCorpusId, createBlfRouter };

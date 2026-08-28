@@ -3,7 +3,7 @@
 import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref, shallowRef, type Ref } from 'vue';
+import { effectScope, nextTick, ref, shallowRef, type Ref } from 'vue';
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
@@ -51,15 +51,19 @@ function startTestUrlSync(searchForms: Ref<FormRuntime | null>, beforeStateLoade
 	} as unknown as LoadableFromRequest<CorpusContext>;
 	const corpus = { id: 'test-corpus', relations: { spans: {} } } as never;
 	const customizationRegistry = createCustomizationRegistry(corpus);
-	return startUrlSync(router, {
-		blacklabApi: createMockApi().blacklabApi,
-		corpusContext,
-		indexId: ref('test-corpus'),
-		pageMeta: ref({ name: 'search' } as PageMeta),
-		searchForms,
-		customizations: createCustomizations(customizationRegistry, corpus, {} as never, () => {}),
-		beforeStateLoaded,
+	const scope = effectScope();
+	scope.run(() => {
+		startUrlSync(router, {
+			blacklabApi: createMockApi().blacklabApi,
+			corpusContext,
+			indexId: ref('test-corpus'),
+			pageMeta: ref({ name: 'search' } as PageMeta),
+			searchForms,
+			customizations: createCustomizations(customizationRegistry, corpus, {} as never, () => {}),
+			beforeStateLoaded,
+		});
 	});
+	return () => scope.stop();
 }
 
 function createEmptyFormRuntime() {

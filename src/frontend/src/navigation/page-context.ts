@@ -15,7 +15,5 @@ export type PageMeta = {
 };
 
 const [, provideCorpusId, useCorpusId] = useInjectable<Ref<string | undefined>>('corpus_id');
-const [, provideArticleId] = useInjectable<Ref<string | undefined>>('article_id');
-const [, providePageMeta] = useInjectable<Ref<PageMeta | null>>('page_meta');
 
-export { provideArticleId, provideCorpusId, providePageMeta, useCorpusId };
+export { provideCorpusId, useCorpusId };

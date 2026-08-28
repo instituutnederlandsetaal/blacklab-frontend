@@ -372,7 +372,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 		}
 	}
 
-	const stopUrlSync = watch(
+	watch(
 		() => [routerUrl.value, storeUrl.value, dependencies.searchForms.value] as const,
 		async (current, previous) => {
 			const context = getUrlSyncContext();
@@ -393,7 +393,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 				const next = storeUrlInput.value;
 				if (!next) return;
 				urlRestoreRevision += 1;
-				pushStoreStateToRouter(router, cloneDeep(next));
+				pushStoreStateToRouter(router, next);
 				return;
 			}
 
@@ -407,8 +407,4 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			flush: 'post',
 		},
 	);
-
-	return () => {
-		stopUrlSync();
-	};
 }

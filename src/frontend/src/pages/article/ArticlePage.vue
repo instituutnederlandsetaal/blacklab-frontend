@@ -129,15 +129,14 @@
 <script setup lang="ts">
 import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
 import { computed, defineAsyncComponent, onUnmounted, ref, useTemplateRef, watch, watchEffect } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as ArticleStore from '@/features/article/model/article-state';
 import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { useArticleRoute } from '@/navigation/router';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
-import { getAnnotatedFieldFromRouteQuery, getNumberFromRouteQuery, getRouteParamString, getStringFromRouteQuery, updateRouteQuery } from '@/url/route-query';
 
 import { createArticleStreams, type Input } from './article';
 
@@ -158,10 +157,12 @@ const blacklab = useBlackLabApi();
 const pageBootstrap = usePageBootstrap();
 const articleStreams = createArticleStreams(blacklab, useFrontendApi());
 const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
-const route = useRoute();
-const router = useRouter();
 const cfPageConfig = useCfPageConfig();
 const corpus = useCorpus();
+const { articleRoute, updateArticleQuery } = useArticleRoute(
+	() => corpus.value.allAnnotatedFieldsMap,
+	() => corpus.value.mainAnnotatedField,
+);
 const customizations = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
@@ -180,18 +181,8 @@ watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statis
 
 const inputs = computed<Input>(() => ({
 	indexId: corpus.value.id,
-	docId: getRouteParamString(route.params.docId),
-
-	viewField: getAnnotatedFieldFromRouteQuery(route, corpus.value.allAnnotatedFieldsMap, 'field') ?? corpus.value.mainAnnotatedField,
-	// we canonically use 'searchfield' nowadays, but we used to use field/searchField, so keep those as fallbacks for backwards compatibility
-	searchfield: getAnnotatedFieldFromRouteQuery(route, corpus.value.allAnnotatedFieldsMap, 'searchfield', 'searchField', 'field') ?? corpus.value.mainAnnotatedField,
-
-	wordstart: getNumberFromRouteQuery(route, 'wordstart'),
-	wordend: getNumberFromRouteQuery(route, 'wordend'),
+	...articleRoute.value,
 	pageSize: cfPageConfig.value.pageSize,
-	findhit: getNumberFromRouteQuery(route, 'findhit'),
-	patt: getStringFromRouteQuery(route, 'patt', 'query'),
-	pattgapdata: getStringFromRouteQuery(route, 'pattgapdata'),
 }));
 
 const metadataFieldsToShow = computed(() =>
@@ -238,11 +229,6 @@ function scrollCurrentHitIntoView() {
 /** Prefer server diagnostics while keeping a readable fallback for the template. */
 function errorDiagnostics(error: ApiError) {
 	return error.diagnostics || error.message;
-}
-
-/** Bind article navigation updates to this page's current router and route. */
-function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {
-	return updateRouteQuery(router, route, patch);
 }
 
 watch(
