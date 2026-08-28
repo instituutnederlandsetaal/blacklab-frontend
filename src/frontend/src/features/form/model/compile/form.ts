@@ -8,10 +8,9 @@ import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 import { collectFormSummaryValues, collectFormValues } from './gather';
 
 function filterTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly FormEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
-	const accepted = new Set<FormOutputName>(acceptedOutputs);
 	const result: FormEmission<Names[number]>[] = [];
 	for (const emission of emissions) {
-		if (!accepted.has(emission.name)) {
+		if (!acceptedOutputs.includes(emission.name as Names[number])) {
 			issues.push({ severity: 'warning', message: `The form target does not accept output '${emission.name}'; ignoring it.` });
 			continue;
 		}
@@ -21,7 +20,6 @@ function filterTargetEmissions<Names extends readonly FormOutputName[]>(emission
 }
 
 function compileCollected(node: FormBoundaryNode, collected: ReturnType<typeof collectFormSummaryValues>) {
-	if (node.kind !== 'form') throw new Error(`Cannot compile non-form node '${node.id}'.`);
 	const target = node.target;
 	const issues = collected.issues;
 	const accepted = filterTargetEmissions(collected.emissions, target.acceptedOutputs, issues);
@@ -50,12 +48,11 @@ export function compileFormSummary(node: FormBoundaryNode, state: NewFormState, 
 }
 
 export function applyRawOverrides<Result extends Pick<CompiledFormResult, 'params'>>(result: Result, rawOverrides: Readonly<FormOverrides>, acceptedOutputs: readonly FormOutputName[]): Result {
-	const accepted = new Set<FormOutputName>(acceptedOutputs);
 	return {
 		...result,
 		params: {
 			...result.params,
-			...Object.fromEntries(Object.entries(rawOverrides).filter(([parameter]) => accepted.has(parameter as FormOutputName))),
+			...Object.fromEntries(Object.entries(rawOverrides).filter(([parameter]) => acceptedOutputs.includes(parameter as FormOutputName))),
 		},
 	} as Result;
 }
