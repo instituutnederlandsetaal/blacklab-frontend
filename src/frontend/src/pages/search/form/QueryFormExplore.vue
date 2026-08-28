@@ -168,7 +168,6 @@ export default defineComponent({
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	data: () => ({
-		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
 		customizations: useCustomizations(),
 	}),
@@ -302,17 +301,11 @@ export default defineComponent({
 	created() {
 		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value as GroupDisplayMode;
 
-		this.subscriptions.push(
-			watch(ExploreStore.resetSignal, () => {
-				if (this.$refs.reset) {
-					(this.$refs.reset as any[]).forEach(v => v.reset());
-				}
-			}),
-		);
-	},
-	beforeUnmount() {
-		this.subscriptions.forEach(unsub => unsub());
-		this.subscriptions = [];
+		watch(ExploreStore.resetSignal, () => {
+			if (this.$refs.reset) {
+				(this.$refs.reset as any[]).forEach(v => v.reset());
+			}
+		});
 	},
 });
 </script>
