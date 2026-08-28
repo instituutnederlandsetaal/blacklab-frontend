@@ -1,7 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import {
-	acceptTargetEmissions,
 	createSearchTarget,
 	docsSearchTarget,
 	hitsSearchTarget,
@@ -44,36 +43,12 @@ function emission<Name extends FormOutputName>(name: Name, value: FormEmission<N
 }
 
 describe('form output acceptance', () => {
-	test('exports acceptance helpers from the public form API', () => {
-		expect(acceptTargetEmissions).toBeTypeOf('function');
-	});
-
-	test('defensively validates emissions passed through the public acceptance helper', () => {
-		const issues: FormIssue[] = [];
-		const accepted = acceptTargetEmissions(
-			[
-				{ name: 'patt', value: rawCql('[word="water"]') },
-				{ name: 'filter', value: {} },
-				{ name: 'collpatt', value: undefined },
-				{ name: 'unknown', value: 'ignored' },
-			],
-			['patt', 'filter'] as const,
-			issues,
-		);
-
-		expect(accepted).toEqual([emission('patt', rawCql('[word="water"]'))]);
-		expect(issues).toEqual([
-			{ severity: 'warning', message: "Ignoring malformed output 'filter'." },
-			{ severity: 'warning', message: "The form target does not accept output 'collpatt'; ignoring it." },
-		]);
-	});
-
-	test('reports unknown, undeclared, and malformed values while retaining unrelated valid outputs', () => {
-		const controller = createController(['patt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
+	test('reports unknown, undeclared, malformed, and unsupported values while retaining unrelated valid outputs', () => {
+		const controller = createController(['patt', 'collpatt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
 			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
 			rawEmit('unknown', 'value');
 			rawEmit('group', [' field:author ']);
-			rawEmit('collpatt', undefined);
+			emit('collpatt', rawCql('[lemma="novel"]'));
 			rawEmit('filter', { type: 'lucene-field' });
 			emit('patt', rawCql(' [word="water"] '));
 			emit('searchfield', ' contents ');
@@ -85,6 +60,7 @@ describe('form output acceptance', () => {
 			{ severity: 'warning', message: "Controller for 'search.field.0' emitted unknown output 'unknown'; ignoring it." },
 			{ severity: 'warning', message: "Controller for 'search.field.0' emitted undeclared output 'group'." },
 			{ severity: 'warning', message: "Controller for 'search.field.0' emitted malformed output 'filter'; ignoring it." },
+			{ severity: 'warning', message: "The form target does not accept output 'collpatt'; ignoring it." },
 		]);
 	});
 

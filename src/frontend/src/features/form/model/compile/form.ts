@@ -1,22 +1,11 @@
 import { resolvePersistenceSchema, type PersistenceSchema } from '@/features/form/model/persistence/schema';
 import type { FormOverrides, NewFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import { isFormOutputName, isValidEmission, type FormEmission, type FormIssue, type FormOutputName, type RawEmission } from '@/features/form/model/types/form-output';
+import type { FormEmission, FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 
 import { collectFormSummaryValues, collectFormValues } from './gather';
-
-export function acceptTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly RawEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
-	const valid: FormEmission[] = [];
-	for (const emission of emissions) {
-		if (!isFormOutputName(emission.name)) continue;
-		if (!acceptedOutputs.includes(emission.name)) valid.push(emission as FormEmission);
-		else if (emission.value !== undefined && isValidEmission(emission)) valid.push(emission);
-		else if (emission.value !== undefined) issues.push({ severity: 'warning', message: `Ignoring malformed output '${emission.name}'.` });
-	}
-	return filterTargetEmissions(valid, acceptedOutputs, issues);
-}
 
 function filterTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly FormEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
 	const accepted = new Set<FormOutputName>(acceptedOutputs);

@@ -27,8 +27,6 @@ export type FormEmission<Names extends FormOutputName = FormOutputName> = {
 	};
 }[Names];
 
-export type RawEmission = Readonly<{ name: string; value: unknown }>;
-
 const OUTPUT_VALIDATORS: Record<FormOutputName, (value: unknown) => boolean> = {
 	patt: isCqlPatternNode,
 	collpatt: isCqlPatternNode,
