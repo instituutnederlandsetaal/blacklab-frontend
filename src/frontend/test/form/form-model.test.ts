@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { collectFieldEmissions, createDefaultFormState, createFormFieldNode, searchTarget, type FormIssue, type QueryCombineMode } from '@/features/form';
+import { collectFieldEmissions, createDefaultFormState, createFormFieldNode, hasEmissions, searchTarget, type FormIssue, type QueryCombineMode } from '@/features/form';
 import { annotation, filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode, FormBoundaryNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
@@ -394,6 +394,29 @@ describe('form model state', () => {
 
 		expect(emissions.map(emission => emission.name)).toEqual(['patt', 'group']);
 		expect(issues.map(issue => issue.code)).toEqual(['unknown-output', 'undeclared-output', 'malformed-output', 'controller-error']);
+		expect(collect).toHaveBeenCalledOnce();
+		expect(summarize).not.toHaveBeenCalled();
+		expect(key).not.toHaveBeenCalled();
+		expect(encode).not.toHaveBeenCalled();
+		expect(getResultPreset).not.toHaveBeenCalled();
+		encode.mockRestore();
+	});
+
+	test('checks badge emissions without evaluating auxiliary channels', () => {
+		const collect = vi.fn(testTextController.collect);
+		const summarize = vi.fn(testTextController.summarize);
+		const key = vi.fn(testTextController.persistence.key);
+		const encode = vi.spyOn(testTextController.persistence.codec, 'encode');
+		const getResultPreset = vi.fn(() => 'table' as const);
+		const { builder, sharedField } = createReusedFieldFixture({
+			...testTextController,
+			collect,
+			summarize,
+			persistence: { ...testTextController.persistence, key },
+			getResultPreset,
+		});
+
+		expect(hasEmissions(sharedField, { value: 'water' }, builder.context)).toBe(true);
 		expect(collect).toHaveBeenCalledOnce();
 		expect(summarize).not.toHaveBeenCalled();
 		expect(key).not.toHaveBeenCalled();
