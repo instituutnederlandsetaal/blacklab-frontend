@@ -1,6 +1,6 @@
 <template>
 	<!-- TODO: i18n -->
-	<div class="container article" v-if="inputs">
+	<div class="container article">
 		<div ref="article-pagination" title="Hold to drag" class="article-pagination" :style="paginationDraggable.style.value">
 			<template v-if="validPaginationInfo.isLoaded() && validPaginationInfo.value.pageSize != null">
 				<div class="pagination-container">
@@ -97,7 +97,7 @@
 								</template>
 								<tr>
 									<td>Document length (tokens)</td>
-									<td id="docLengthTokens">{{ metadata.value.json.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs!.viewField)?.tokenCount }}</td>
+									<td id="docLengthTokens">{{ metadata.value.json.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs.viewField)?.tokenCount }}</td>
 								</tr>
 							</tbody>
 						</table>
@@ -191,7 +191,7 @@ const metadataFieldsToShow = computed(() =>
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
 const isParallel = computed(() => corpus.value.isParallelCorpus);
-const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value?.viewField ?? '']);
+const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value.viewField ?? '']);
 
 watchEffect(() => {
 	if (!statisticsEnabled.value && activeArticleTab.value === 'statistics') activeArticleTab.value = 'content';
@@ -231,13 +231,7 @@ function errorDiagnostics(error: ApiError) {
 	return error.diagnostics || error.message;
 }
 
-watch(
-	inputs,
-	v => {
-		if (v) input$.next(v);
-	},
-	{ immediate: true, deep: true },
-);
+watch(inputs, v => input$.next(v), { immediate: true, deep: true });
 watch(
 	() => hitToHighlight.value,
 	(cur, prev) => {
@@ -279,10 +273,7 @@ const draggablePosition = useLocalStorage('article-page-pagination-screen-positi
 	y: window.innerHeight * 0.1,
 });
 const paginationDraggable = useDraggable(useTemplateRef('article-pagination'), {
-	initialValue: useLocalStorage('article-page-pagination-screen-position', {
-		x: Math.max(0, window.innerWidth * 0.9 - 150),
-		y: window.innerHeight * 0.1,
-	}),
+	initialValue: draggablePosition,
 });
 const viewport = useWindowSize();
 watchEffect(() => {
