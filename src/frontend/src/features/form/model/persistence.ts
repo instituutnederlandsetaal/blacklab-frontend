@@ -206,7 +206,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 				...(expertFallback ? { [expertFallback.fieldId]: expertFallback.state } : {}),
 			},
 			uiState: {
-				...Object.fromEntries(definition.containerList.map(container => [container.id, container.children[0]?.id ?? null])),
+				...defaults.uiState,
 				...inferUiStateFromPersistedFields(definition, scopedParams.fields, schema.entries),
 				...persistedTabs.uiState,
 				...getUiStateForPath([definition.getRoot()], activeForm.id),

@@ -194,7 +194,7 @@ describe('form model state', () => {
 		first.state.uiState.value[form.id] = null;
 		first.state.rawOverrides.value.patt = '[word="water"]';
 
-		expect(second.state.getRawState()).toEqual({
+		expect(second.state.getReactiveState()).toEqual({
 			state: {
 				[field.id]: {
 					value: '',
@@ -240,7 +240,7 @@ describe('form model state', () => {
 		expect(builder.getRoot().id).toBe(form.id);
 	});
 
-	test('createDefaultFormState calls a reused field default creator once', () => {
+	test('createDefaultFormState initializes nested UI and a reused field in one identity-deduped graph', () => {
 		const createDefaultState = vi.fn(testTextController.createDefaultState);
 		const { builder, sharedField } = createReusedFieldFixture({ ...testTextController, createDefaultState });
 
@@ -249,6 +249,12 @@ describe('form model state', () => {
 		expect(createDefaultState).toHaveBeenCalledOnce();
 		expect(createDefaultState).toHaveBeenCalledWith(sharedField, builder.context);
 		expect(state.state[sharedField.id]).toEqual({ value: '' });
+		expect(state.uiState).toEqual({
+			'search.extended': 'search.sequence',
+			'search.sequence': 'search.sequence.first',
+			'search.sequence.first': sharedField.id,
+			'search.sequence.second': sharedField.id,
+		});
 	});
 
 	test('flattens form and view configuration onto their nodes', () => {
@@ -637,6 +643,6 @@ describe('form model state', () => {
 
 		runtime.state.replaceState({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
 
-		expect(runtime.state.getRawState()).toEqual({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
+		expect(runtime.state.getReactiveState()).toEqual({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
 	});
 });

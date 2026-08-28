@@ -2,7 +2,7 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { nextTick, ref, toRaw } from 'vue';
 
 import { FormSystem, type FieldController } from '@/features/form';
 import { annotation } from '@/features/form/model/types/form-query-ir';
@@ -107,7 +107,11 @@ describe('form runtime', () => {
 		});
 		form.addChildren(field);
 		const runtime = createTestRuntime(builder);
-		const replacement = structuredClone(runtime.state.getRawState());
+		const replacement = {
+			state: structuredClone(toRaw(runtime.state.state.value)),
+			uiState: structuredClone(toRaw(runtime.state.uiState.value)),
+			rawOverrides: structuredClone(toRaw(runtime.state.rawOverrides.value)),
+		};
 		const callerOwned = {
 			value: 'water',
 			composite: {

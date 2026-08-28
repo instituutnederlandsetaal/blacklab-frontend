@@ -2,7 +2,7 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
-import { defineComponent, h, nextTick, shallowRef } from 'vue';
+import { defineComponent, h, nextTick, shallowRef, toRaw } from 'vue';
 
 import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormResult, type FormRuntime } from '@/features/form';
 import { provideFormSystemRuntime } from '@/features/form/model/runtime';
@@ -417,7 +417,11 @@ describe('form system integration', () => {
 			props: fixture,
 		});
 		const runtime = fixture.runtime;
-		const replacement = structuredClone(runtime.state.getRawState());
+		const replacement = {
+			state: structuredClone(toRaw(runtime.state.state.value)),
+			uiState: structuredClone(toRaw(runtime.state.uiState.value)),
+			rawOverrides: structuredClone(toRaw(runtime.state.rawOverrides.value)),
+		};
 		replacement.state['search.simple.word'] = { value: 'water' };
 
 		runtime.state.replaceState(replacement);

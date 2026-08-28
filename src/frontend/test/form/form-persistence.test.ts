@@ -767,6 +767,7 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreFormState(builder, { 'f.form': secondForm.id, 'f.word': 'water' });
 
+		expect(restored.uiState[secondForm.id]).toBe(tabs.id);
 		expect(restored.uiState[tabs.id]).toBe(second.id);
 		expect(key).toHaveBeenCalledOnce();
 	});

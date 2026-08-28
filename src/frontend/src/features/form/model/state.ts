@@ -12,42 +12,16 @@ export type NewFormState = {
 	rawOverrides: FormOverrides;
 };
 
-/**
- * Walk all nodes, look for field nodes, and create initial states for them using their controller's createDefaultState function, and return an object containing all field states.
- *
- * @param rootNode the root
- * @param context
- * @returns
- */
-function createInitialControllerStates(context: FormRuntimeContext, ...rootNodes: FormNode[]): Record<string, unknown> {
-	const states: Record<string, unknown> = {};
-	for (const field of walkFormNodes(rootNodes, 'field')) {
-		const initialState = field.controller.createDefaultState(field, context);
-		states[field.id] = initialState;
-	}
-	return states;
-}
-
-/**
- * Walk all nodes, look for container nodes, and create initial ui states for them by setting their active child to the first child in their children array (if any),
- * so that tabs and similar container types will have an active child by default.
- *
- * @param definition the form graph
- * @returns the container ui map
- */
-function createInitialUiStates(...rootNodes: FormNode[]): Record<string, string | null> {
-	const activeContainers: Record<string, string | null> = {};
-	for (const node of walkFormNodes(rootNodes).filter(isContainerNode)) {
-		const firstChild = node.children[0];
-		if (firstChild) activeContainers[node.id] = firstChild.id;
-	}
-	return activeContainers;
-}
-
 export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes: FormNode[]): NewFormState {
+	const state: Record<string, unknown> = {};
+	const uiState: Record<string, string | null> = {};
+	for (const node of walkFormNodes(rootNodes)) {
+		if (node.kind === 'field') state[node.id] = node.controller.createDefaultState(node, context);
+		else if (isContainerNode(node) && node.children[0]) uiState[node.id] = node.children[0].id;
+	}
 	return {
-		state: createInitialControllerStates(context, ...rootNodes),
-		uiState: createInitialUiStates(...rootNodes),
+		state,
+		uiState,
 		rawOverrides: {},
 	};
 }
@@ -63,14 +37,6 @@ export default function createFormState(initialState?: NewFormState) {
 		rawOverrides.value = structuredClone(toRaw(newState.rawOverrides));
 	}
 
-	function getRawState(): NewFormState {
-		return {
-			state: structuredClone(toRaw(state.value)),
-			uiState: structuredClone(toRaw(uiState.value)),
-			rawOverrides: structuredClone(toRaw(rawOverrides.value)),
-		};
-	}
-
 	function getReactiveState(): NewFormState {
 		return {
 			state: state.value,
@@ -81,7 +47,6 @@ export default function createFormState(initialState?: NewFormState) {
 
 	return {
 		replaceState,
-		getRawState,
 		getReactiveState,
 		state,
 		uiState,
