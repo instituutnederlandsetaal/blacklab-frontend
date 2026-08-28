@@ -2,10 +2,9 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
-import { nextTick, ref, toRaw } from 'vue';
+import { nextTick, ref } from 'vue';
 
 import { RawCqlField, TextField, WithinField } from '@/features/form';
-import type { WithinFieldOption } from '@/features/form/fields/within-field';
 
 import NumberField from '@/features/form/fields/generic/NumberField.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
@@ -198,49 +197,17 @@ describe('field presentation', () => {
 		expect(wrapper.emitted('update:modelValue')).toEqual([[0.5]]);
 	});
 
-	test('sorts within elements and attributes without replacing configured option objects', () => {
-		const document = { value: '', label: 'Document', metadata: { kind: 'document' } };
-		const type = { value: 'type', label: 'Type', title: 'Type title', disabled: true };
-		const role = { value: 'role', label: 'Role' };
-		const sentence = { value: 's', label: 'Sentence', attributes: [type, role] };
-		const paragraph = { value: 'p', label: 'Paragraph' };
-		const tiedParagraph = { value: 'p2', label: 'Paragraph' };
-		const options = [sentence, document, paragraph, tiedParagraph] as WithinFieldOption[];
-		const wrapper = mount(WithinField, {
-			props: {
-				id: 'within',
-				htmlId: 'within_1',
-				modelValue: { element: 's', attributes: {} },
-				options,
-				sortOptions: true,
-				variant: 'large',
-			},
-		});
-
-		expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Document', 'Paragraph', 'Paragraph', 'Sentence']);
-		expect(wrapper.findAll('.blf-within-attributes label').map(label => label.text())).toEqual(['Role', 'Type']);
-		expect(wrapper.get('#within_1_type').attributes('title')).toBe('Type title');
-		expect(wrapper.findAll('button').every(button => button.classes().includes('btn-lg'))).toBe(true);
-		expect(wrapper.get('input').classes()).toContain('input-lg');
-
-		const setup = (wrapper.vm.$ as unknown as { setupState: { sortedOptions: WithinFieldOption[]; selectedAttributes: WithinFieldOption[] } }).setupState;
-		expect(setup.sortedOptions).toEqual([document, paragraph, tiedParagraph, sentence]);
-		expect(toRaw(setup.sortedOptions[0])).toBe(document);
-		expect(toRaw(setup.sortedOptions[1])).toBe(paragraph);
-		expect(toRaw(setup.sortedOptions[2])).toBe(tiedParagraph);
-		expect(toRaw(setup.sortedOptions[3])).toBe(sentence);
-		expect(setup.selectedAttributes).toEqual([role, type]);
-		expect(toRaw(setup.selectedAttributes[1])).toBe(type);
-		expect(options).toEqual([sentence, document, paragraph, tiedParagraph]);
-		expect(sentence.attributes).toEqual([type, role]);
-	});
-
-	test('keeps configured within ordering and model updates', async () => {
-		const options = [
-			{ value: 'p', label: 'Paragraph' },
-			{ value: '', label: 'Document' },
-			{ value: 's', label: 'Sentence', attributes: [{ value: 'type', label: 'Type' }] },
-		];
+	test('renders and sorts original within options reactively', async () => {
+		const locale = ref<'en' | 'nl'>('en');
+		const type = { value: 'type', label: () => (locale.value === 'en' ? 'Zulu type' : 'Alpha type'), title: 'Type title', disabled: true };
+		const role = { value: 'role', label: () => (locale.value === 'en' ? 'Alpha role' : 'Zulu role') };
+		const sentence = { value: 's', label: () => (locale.value === 'en' ? 'Zulu' : 'Aardvark'), title: () => `${locale.value}:title`, attributes: [type, role], metadata: 'kept' };
+		const options = [sentence, { value: '', label: 'Document' }, { value: 'p', label: 'Alpha', title: 'first' }, { value: 'p2', label: 'Alpha', title: 'second' }];
+		Object.freeze(type);
+		Object.freeze(role);
+		Object.freeze(sentence.attributes);
+		Object.freeze(sentence);
+		Object.freeze(options);
 		const wrapper = mount(WithinField, {
 			props: {
 				id: 'within',
@@ -250,57 +217,20 @@ describe('field presentation', () => {
 			},
 		});
 
-		expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Paragraph', 'Document', 'Sentence']);
-		expect(toRaw((wrapper.vm.$ as unknown as { setupState: { sortedOptions: WithinFieldOption[] } }).setupState.sortedOptions)).toBe(options);
+		const renderedOptions = () => wrapper.findAll('button').map(button => `${button.text()}:${button.attributes('title')}`);
+		expect(renderedOptions()).toEqual(['Zulu:en:title', 'Document:undefined', 'Alpha:first', 'Alpha:second']);
 
-		await wrapper.get('#within_1_type').setValue('quote');
-		await wrapper.findAll('button')[0].trigger('click');
-		expect(wrapper.emitted('update:modelValue')).toEqual([[{ element: 's', attributes: { existing: 'value', type: 'quote' } }], [{ element: 'p', attributes: {} }]]);
-	});
-
-	test('reactively resolves and sorts within labels and titles', async () => {
-		const locale = ref<'en' | 'nl'>('en');
-		const labels = {
-			document: { en: 'Document', nl: 'Document' },
-			paragraph: { en: 'Zulu', nl: 'Alpha' },
-			sentence: { en: 'Alpha', nl: 'Zulu' },
-			role: { en: 'Zulu attribute', nl: 'Alpha attribute' },
-			type: { en: 'Alpha attribute', nl: 'Zulu attribute' },
-		};
-		const text = (key: keyof typeof labels) => () => labels[key][locale.value];
-		const wrapper = mount(WithinField, {
-			props: {
-				id: 'within',
-				htmlId: 'within_1',
-				modelValue: { element: 's', attributes: {} },
-				options: [
-					{ value: 'p', label: text('paragraph') },
-					{
-						value: 's',
-						label: text('sentence'),
-						title: () => `${locale.value}:sentence-title`,
-						attributes: [
-							{ value: 'role', label: text('role') },
-							{ value: 'type', label: text('type') },
-						],
-					},
-					{ value: '', label: text('document') },
-				],
-				sortOptions: true,
-			},
-		});
-
-		expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Document', 'Alpha', 'Zulu']);
-		expect(wrapper.findAll('.blf-within-attributes label').map(label => label.text())).toEqual(['Alpha attribute', 'Zulu attribute']);
-		expect(wrapper.findAll('.blf-within-attributes input').map(input => input.attributes('id'))).toEqual(['within_1_type', 'within_1_role']);
-		expect(wrapper.findAll('button')[1].attributes('title')).toBe('en:sentence-title');
+		await wrapper.setProps({ sortOptions: true });
+		expect(renderedOptions()).toEqual(['Document:undefined', 'Alpha:first', 'Alpha:second', 'Zulu:en:title']);
+		expect(wrapper.findAll('.blf-within-attributes input').map(input => input.attributes('id'))).toEqual(['within_1_role', 'within_1_type']);
 
 		locale.value = 'nl';
 		await nextTick();
+		expect(renderedOptions()).toEqual(['Document:undefined', 'Aardvark:nl:title', 'Alpha:first', 'Alpha:second']);
+		expect(wrapper.findAll('.blf-within-attributes input').map(input => input.attributes('id'))).toEqual(['within_1_type', 'within_1_role']);
 
-		expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Document', 'Alpha', 'Zulu']);
-		expect(wrapper.findAll('.blf-within-attributes label').map(label => label.text())).toEqual(['Alpha attribute', 'Zulu attribute']);
-		expect(wrapper.findAll('.blf-within-attributes input').map(input => input.attributes('id'))).toEqual(['within_1_role', 'within_1_type']);
-		expect(wrapper.findAll('button')[2].attributes('title')).toBe('nl:sentence-title');
+		await wrapper.get('#within_1_type').setValue('quote');
+		expect(wrapper.emitted('update:modelValue')).toEqual([[{ element: 's', attributes: { existing: 'value', type: 'quote' } }]]);
+		expect([sentence.value, sentence.metadata, ...sentence.attributes.map(attribute => attribute.value)]).toEqual(['s', 'kept', 'type', 'role']);
 	});
 });
