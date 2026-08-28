@@ -351,7 +351,10 @@ describe('form model state', () => {
 		const builder = createTestBuilder();
 		const explicitController = {
 			...testTextController,
-			summarize: (_config, _runtime, _state, emit) => emit({ label: 'Explicit', value: 'value', summaryType: ['filter'] }),
+			summarize: (_config, _runtime, _state, emit) => {
+				emit({ label: 'Explicit', value: 'value', summaryType: ['filter'] });
+				emit({ label: 'Explicitly frontend only', value: 'value', summaryType: [] });
+			},
 		} satisfies typeof testTextController;
 		const noOutputController = {
 			...testTextController,
@@ -368,6 +371,7 @@ describe('form model state', () => {
 
 		expect(runtime.compile(form.id).summaries).toEqual([
 			{ label: 'Explicit', value: 'value', summaryType: ['filter'] },
+			{ label: 'Explicitly frontend only', value: 'value', summaryType: [] },
 			{ label: 'Inherited', value: 'value', summaryType: ['patt'] },
 			{ label: 'Frontend only', value: 'value', summaryType: [] },
 		]);

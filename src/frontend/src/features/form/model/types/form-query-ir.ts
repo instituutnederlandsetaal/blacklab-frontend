@@ -307,7 +307,7 @@ const summarizeRange = (low?: string | null, high?: string | null): string | nul
 	if (high) return `≤ ${high}`;
 	return null;
 };
-export const summary = (label: string, values: Values | { low?: string | null; high?: string | null }, summaryType?: SummaryType[], group?: string, options?: Options): SummaryInput | null => {
+export const summary = (label: string, values: Values | { low?: string | null; high?: string | null }, summaryType?: readonly SummaryType[], group?: string, options?: Options): SummaryInput | null => {
 	const value = isRangeInput(values) ? summarizeRange(values.low, values.high) : summarize(values, options);
 	return value ? { label, value, summaryType, group } : null;
 };

@@ -24,7 +24,7 @@ function summarizeParallelChild(config: FieldControllerProps<ParallelFieldConfig
 	config.childFieldTemplate.controller.summarize?.(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime), summary =>
 		emit({
 			...summary,
-			summaryType: summary.summaryType ?? [...config.childFieldTemplate.controller.outputs],
+			summaryType: summary.summaryType ?? config.childFieldTemplate.controller.outputs,
 		}),
 	);
 }

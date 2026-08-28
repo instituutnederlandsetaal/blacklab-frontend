@@ -55,8 +55,8 @@ type SummaryValue = {
 	value: string;
 	group?: string;
 };
-export type SummaryInput = SummaryValue & { summaryType?: SummaryType[] };
-export type SummaryEntry = SummaryValue & { summaryType: SummaryType[] };
+export type SummaryInput = SummaryValue & { summaryType?: readonly SummaryType[] };
+export type SummaryEntry = SummaryValue & { summaryType: readonly SummaryType[] };
 
 export function formatSummaryEntries(entries: readonly SummaryEntry[], type: SummaryType): string | undefined {
 	const matching = entries.filter(entry => entry.summaryType.includes(type));
