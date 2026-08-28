@@ -16,8 +16,8 @@
 					{{ totals.tokens.toLocaleString() }}
 				</span>
 				<span class="numbers">
-					({{ percentage(totals.documents, totals.totalDocuments) }})<br />
-					({{ percentage(totals.tokens, totals.totalTokens) }})
+					({{ frac2Percent(totals.totalDocuments > 0 ? totals.documents / totals.totalDocuments : 0) }})<br />
+					({{ frac2Percent(totals.totalTokens > 0 ? totals.tokens / totals.totalTokens : 0) }})
 				</span>
 			</template>
 			<template v-else>
@@ -51,10 +51,6 @@ const searchfield = computed(() => compiled.value.params.searchfield);
 
 watch([filter, searchfield], ([nextFilter, nextSearchfield]) => totalsController.update({ filter: nextFilter, searchfield: nextSearchfield }), { immediate: true });
 if (totalsController.dispose) onScopeDispose(() => totalsController.dispose?.());
-
-function percentage(value: number, total: number): string {
-	return frac2Percent(total > 0 ? value / total : 0);
-}
 </script>
 
 <style lang="scss" scoped>

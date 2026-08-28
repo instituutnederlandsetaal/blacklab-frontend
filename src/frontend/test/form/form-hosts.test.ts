@@ -19,7 +19,7 @@ import {
 	type FormFieldNode,
 	type FormViewNode,
 	type SummaryEntry,
-	type TotalsViewState,
+	type SummaryTotalsState,
 } from '@/features/form';
 import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/runtime';
@@ -170,13 +170,6 @@ const fieldExpectations = {
 	},
 } satisfies Record<string, FieldExpectation>;
 
-const summaryViewExpectation = {
-	entryLabel: 'shouldRenderSummaryLabel.summary-view',
-	entryValue: 'shouldRenderSummaryValue.summary-view',
-	emptyText: 'form.summary.empty',
-	title: 'shouldRenderSummaryTitle.summary-view',
-};
-
 function createHostHarness(node: FormFieldNode | FormViewNode, form: FormBoundaryNode, runtime: FormSystemRuntime, _host: 'field' | 'view') {
 	return defineComponent({
 		setup() {
@@ -291,7 +284,7 @@ function mountLocalizedParallelHarness() {
 }
 
 function mountTotalsSummaryHarness() {
-	const totals = ref<TotalsViewState>({ status: 'loading' });
+	const totals = ref<SummaryTotalsState>({ status: 'loading' });
 	const update = vi.fn();
 	const dispose = vi.fn();
 	const harness = mountViewHarness((builder, form) => {
@@ -308,7 +301,6 @@ function mountTotalsSummaryHarness() {
 		});
 		const view = builder.newView('harness.summary.filters-with-totals', SummaryView, {
 			createTotals: () => ({ state: totals, update, dispose }),
-			summaryType: 'filter',
 		});
 		form.addChildren(searchfield, field, view);
 		return { extra: { dutchId: dutch.id, fieldId: field.id, searchfieldId: searchfield.id }, view };
@@ -563,37 +555,8 @@ describe('builtin view hosts', () => {
 		});
 	});
 
-	test('renders the summary view host against provided parent-form state', async () => {
-		const harness = mountViewHarness((builder, form) => {
-			const field = builder.newField('harness.summary.field', annotationTextController, TextField, {
-				annotationId: 'shouldEndUpInSummaryId.summary-view',
-				displayName: summaryViewExpectation.entryLabel,
-			});
-			const view = builder.newView('harness.summary', SummaryView, {
-				title: summaryViewExpectation.title,
-			});
-			form.addChildren(field, view);
-			return { extra: { fieldId: field.id }, view };
-		});
-
-		expect(harness.wrapper.text()).toContain(summaryViewExpectation.emptyText);
-		const compile = vi.spyOn(harness.runtime, 'compile');
-		const compileSummary = vi.spyOn(harness.runtime, 'compileSummary');
-
-		harness.runtime.state.state.value[harness.extra.fieldId] = {
-			value: summaryViewExpectation.entryValue,
-			caseSensitive: false,
-		};
-		await nextTick();
-
-		expect(harness.wrapper.text()).toContain(summaryViewExpectation.title);
-		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryLabel);
-		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryValue);
-		expect(compileSummary).toHaveBeenCalled();
-		expect(compile).not.toHaveBeenCalled();
-	});
-
 	test('filters summary entries by affected BlackLab parameter', async () => {
+		const totals = ref<SummaryTotalsState>({ status: 'loading' });
 		const harness = mountViewHarness((builder, form) => {
 			const annotation = builder.newField('harness.summary.annotation', annotationTextController, TextField, {
 				annotationId: 'word',
@@ -604,11 +567,13 @@ describe('builtin view hosts', () => {
 				metadataFieldId: 'author',
 			});
 			const view = builder.newView('harness.summary.filters', SummaryView, {
-				summaryType: 'filter',
+				createTotals: () => ({ state: totals, update: vi.fn() }),
 			});
 			form.addChildren(annotation, filter, view);
 			return { extra: { annotationId: annotation.id, filterId: filter.id }, view };
 		});
+		const compile = vi.spyOn(harness.runtime, 'compile');
+		const compileSummary = vi.spyOn(harness.runtime, 'compileSummary');
 
 		harness.runtime.state.state.value[harness.extra.annotationId] = { value: 'water', caseSensitive: false };
 		harness.runtime.state.state.value[harness.extra.filterId] = { value: 'Austen', caseSensitive: false };
@@ -618,6 +583,8 @@ describe('builtin view hosts', () => {
 		expect(harness.wrapper.text()).toContain('Austen');
 		expect(harness.wrapper.text()).not.toContain('Pattern');
 		expect(harness.wrapper.text()).not.toContain('water');
+		expect(compileSummary).toHaveBeenCalled();
+		expect(compile).not.toHaveBeenCalled();
 	});
 
 	test('excludes untyped summaries and accepts multi-type summaries when filtered', () => {
@@ -636,7 +603,10 @@ describe('builtin view hosts', () => {
 			setup() {
 				provideFormSystemRuntime(shallowRef(runtime));
 				provideParentForm(ref('harness.form'));
-				return () => h(SummaryView, { summaryType: 'filter' });
+				return () =>
+					h(SummaryView, {
+						createTotals: () => ({ state: ref<SummaryTotalsState>({ status: 'loading' }), update: vi.fn() }),
+					});
 			},
 		});
 		const wrapper = mount(Host);
