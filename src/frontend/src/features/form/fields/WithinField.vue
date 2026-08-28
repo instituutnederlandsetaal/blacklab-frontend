@@ -8,21 +8,21 @@
 					type="button"
 					:class="['btn', state.element === option.value || (!state.element && !option.value) ? 'active btn-primary' : 'btn-default', field.buttonClass]"
 					:key="option.value"
-					:title="option.title || undefined"
+					:title="optionText(option.title) || undefined"
 					:disabled
 					@click="selectElement(option.value)"
 				>
-					{{ option.label }}
+					{{ optionLabel(option) }}
 				</button>
 			</div>
 
 			<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
-				<label :for="`${htmlId}_${attr.value}`">{{ attr.label }}</label>
+				<label :for="`${htmlId}_${attr.value}`">{{ optionLabel(attr) }}</label>
 				<input
 					:class="['form-control', field.inputClass]"
 					type="text"
 					:id="`${htmlId}_${attr.value}`"
-					:title="attr.title || undefined"
+					:title="optionText(attr.title) || undefined"
 					:value="state.attributes[attr.value] || ''"
 					:disabled
 					@input="changeWithinAttribute(attr.value, ($event.target as HTMLInputElement).value)"
@@ -46,42 +46,33 @@ const props = withDefaults(defineProps<WithinFieldComponentProps>(), {
 });
 const state = defineModel<WithinFieldState>({ required: true });
 
-const emit = defineEmits<{
-	'update:modelValue': [value: WithinFieldState];
-}>();
-
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-within-field' });
 const sortedOptions = computed(() => {
-	const resolvedOptions = props.options.map(option => ({
-		...option,
-		label: optionLabel(option),
-		title: optionText(option.title),
-		attributes: [...(option.attributes ?? [])]
-			.map(attribute => ({ ...attribute, label: optionLabel(attribute), title: optionText(attribute.title) }))
-			.sort((left, right) => left.label.localeCompare(right.label)),
-	}));
-	if (!props.sortOptions) return resolvedOptions;
-	const documentOption = resolvedOptions.filter(option => !option.value);
-	const spanOptions = resolvedOptions.filter(option => option.value).sort((left, right) => left.label.localeCompare(right.label));
-	return [...documentOption, ...spanOptions];
+	if (!props.sortOptions) return props.options;
+	return [...props.options].sort((left, right) => {
+		if (!left.value || !right.value) return left.value ? 1 : right.value ? -1 : 0;
+		return optionLabel(left).localeCompare(optionLabel(right));
+	});
 });
-const selectedAttributes = computed(() => sortedOptions.value.find(option => option.value === state.value.element)?.attributes ?? []);
+const selectedAttributes = computed(() =>
+	[...(sortedOptions.value.find(option => option.value === state.value.element)?.attributes ?? [])].sort((left, right) => optionLabel(left).localeCompare(optionLabel(right))),
+);
 
 function selectElement(element: string) {
-	emit('update:modelValue', {
+	state.value = {
 		element: element || null,
 		attributes: {},
-	});
+	};
 }
 
 function changeWithinAttribute(attribute: string, value: string) {
-	emit('update:modelValue', {
+	state.value = {
 		...state.value,
 		attributes: {
 			...state.value.attributes,
 			[attribute]: value,
 		},
-	});
+	};
 }
 </script>
 
