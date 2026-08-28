@@ -28,18 +28,18 @@
 					:disabled
 				/>
 			</div>
-			<div v-if="showModeSelector" :class="['btn-group', 'blf-range-modes', field.buttonGroupClass]">
+			<div v-if="!mode && modeEnabled" :class="['btn-group', 'blf-range-modes', field.buttonGroupClass]">
 				<button
-					v-for="mode in modes"
+					v-for="option in modeOptions ?? rawRangeModeOptions"
 					type="button"
-					:class="['btn btn-default', { active: currentMode === mode.value }]"
-					:key="mode.value"
-					:value="mode.value"
-					:title="optionText(mode.title) || ''"
+					:class="['btn btn-default', { active: (mode ?? modelValue.mode) === option.value }]"
+					:key="option.value"
+					:value="option.value"
+					:title="optionText(option.title) || ''"
 					:disabled
-					@click="updateMode(mode.value)"
+					@click="updateMode(option.value)"
 				>
-					{{ optionLabel(mode) }}
+					{{ optionLabel(option) }}
 				</button>
 			</div>
 			<small v-if="description" class="help-block">{{ description }}</small>
@@ -52,7 +52,7 @@ import { computed } from 'vue';
 
 import { useFieldPresentation } from '../field-presentation';
 import type { RangeFieldComponentProps, RangeFieldState } from './range-field';
-import { rawRangeModeOptions, type RangeMode } from './range-mode';
+import { rawRangeModeOptions } from './range-mode';
 
 import { optionLabel, optionText } from '@/shared/utils/options';
 
@@ -64,12 +64,8 @@ const emit = defineEmits<{
 }>();
 
 const field = useFieldPresentation(props);
-const lockedMode = computed(() => props.mode ?? null);
 const modeEnabled = computed(() => props.showMode || Boolean(props.lowField && props.highField));
-const showModeSelector = computed(() => !lockedMode.value && modeEnabled.value);
-const currentMode = computed(() => props.mode ?? props.modelValue.mode);
 const resolvedInputType = computed(() => props.inputType ?? (modeEnabled.value ? 'number' : 'text'));
-const modes = computed(() => props.modeOptions ?? rawRangeModeOptions);
 
 const lower = computed({
 	get: () => props.modelValue.low,
@@ -91,7 +87,7 @@ const upper = computed({
 	},
 });
 
-function updateMode(mode: RangeMode) {
+function updateMode(mode: RangeFieldState['mode']) {
 	emit('update:modelValue', {
 		...props.modelValue,
 		mode,
