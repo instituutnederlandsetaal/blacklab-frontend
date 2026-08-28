@@ -22,12 +22,21 @@ function prepareViews(): void {
 
 export function handoffCompiledForm(result: CompiledFormResult): boolean {
 	const current = QueryStore.getState();
-	const unchanged = current.form === 'new' && current.state.params !== undefined && stableStringify(current.state.params) === stableStringify(result.params);
+	const isCurrentForm = current.form === 'new';
+	const queryChanged = !isCurrentForm || stableStringify(current.state.params) !== stableStringify(result.params);
+	const presentationChanged = !isCurrentForm || current.state.targetView !== result.targetView || current.state.resultPreset !== result.resultPreset;
 	QueryStore.actions.search({ form: 'new', state: result });
-	if (unchanged) return false;
+
+	const viewName = result.targetView ?? (result.params.patt ? 'hits' : 'docs');
+	if (!queryChanged) {
+		if (presentationChanged) {
+			InterfaceStore.actions.viewedResults(viewName);
+			if (result.resultPreset !== undefined) ViewStore.getOrCreateModule(viewName).actions.groupDisplayMode(result.resultPreset);
+		}
+		return false;
+	}
 
 	prepareViews();
-	const viewName = result.targetView ?? (result.params.patt ? 'hits' : 'docs');
 	InterfaceStore.actions.viewedResults(viewName);
 	const view = ViewStore.getOrCreateModule(viewName);
 	const previousSort = view.getState().sort;

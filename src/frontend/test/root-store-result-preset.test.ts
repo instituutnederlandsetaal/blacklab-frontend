@@ -14,6 +14,7 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
@@ -132,13 +133,62 @@ describe('compiled-form result handoff', () => {
 		expect(view.getState()).toMatchObject({ groupBy: ['field:changed-later'], sort: 'field:changed-later', groupDisplayMode: 'docs' });
 	});
 
+	test('applies a changed result preset without resetting query view state', () => {
+		resetStores();
+		const params = { group: 'field:submitted', sort: 'field:submitted' };
+		expect(handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }))).toBe(true);
+		const view = ViewStore.getOrCreateModule('docs');
+		view.actions.groupBy(['field:live']);
+		view.actions.sort('field:live');
+		view.actions.range({ first: 40, number: 10 });
+		view.actions.setRequestedRange({ first: 40, number: 10 });
+		const submitted = snapshot(params, {
+			encoded: { 'f.form': 'search.form', 'f.mode': 'tokens' },
+			targetView: 'docs',
+			resultPreset: 'tokens',
+		});
+
+		expect(handoffCompiledForm(submitted)).toBe(false);
+
+		expect(view.getState()).toMatchObject({
+			groupBy: ['field:live'],
+			sort: 'field:live',
+			first: 40,
+			number: 10,
+			requestedRange: { first: 40, number: 10 },
+			groupDisplayMode: 'tokens',
+		});
+		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
+	});
+
+	test('applies a changed target view without resetting view state', () => {
+		resetStores();
+		const params = { patt: '[word="water"]' };
+		expect(handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }))).toBe(true);
+		const hits = ViewStore.getOrCreateModule('hits');
+		hits.actions.viewGroup('field:live');
+		hits.actions.range({ first: 30, number: 10 });
+		hits.actions.setRequestedRange({ first: 30, number: 10 });
+
+		expect(handoffCompiledForm(snapshot(params, { targetView: 'hits', resultPreset: 'table' }))).toBe(false);
+
+		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(hits.getState()).toMatchObject({
+			viewGroup: 'field:live',
+			first: 30,
+			number: 10,
+			requestedRange: { first: 30, number: 10 },
+			groupDisplayMode: 'table',
+		});
+	});
+
 	test('applies form-owned settings again when compiled params change', () => {
 		resetStores();
-		submitNewForm(snapshot({ group: 'field:first' }, { targetView: 'docs' }));
+		expect(handoffCompiledForm(snapshot({ group: 'field:first' }, { targetView: 'docs' }))).toBe(true);
 		const view = ViewStore.getOrCreateModule('docs');
 		view.actions.groupBy(['field:live']);
 
-		submitNewForm(snapshot({ group: 'field:second' }, { targetView: 'docs' }));
+		expect(handoffCompiledForm(snapshot({ group: 'field:second' }, { targetView: 'docs' }))).toBe(true);
 
 		expect(view.getState().groupBy).toEqual(['field:second']);
 	});
