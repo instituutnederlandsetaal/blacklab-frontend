@@ -9,14 +9,6 @@ import { booleanNode, type CqlPatternNode, type LuceneNode } from '@/features/fo
 import type { ScopedFormQuery } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
 
-type GatheredFormValues = {
-	emissions: FormEmission[];
-	summaries: SummaryEntry[];
-	encoded: ScopedFormQuery;
-	resultPreset?: ResultPreset;
-	issues: FormIssue[];
-};
-
 type Sink = (emission: FormEmission) => void;
 type GatherChannels = {
 	summaries?: SummaryEntry[];
@@ -154,21 +146,7 @@ function gather(runtime: FormRuntimeContext, formState?: NewFormState, channels:
 	};
 }
 
-function result(context: GatherContext): GatheredFormValues {
-	const summaries = context.channels.summaries ?? [];
-	const persistence = context.channels.persistence;
-	const encoded = persistence?.encoded ?? {};
-	if (persistence?.tabs.size) encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...persistence.tabs];
-	return {
-		emissions: context.emissions,
-		summaries,
-		encoded,
-		issues: context.issues,
-		...(context.channels.resultPreset?.value !== undefined ? { resultPreset: context.channels.resultPreset.value } : {}),
-	};
-}
-
-export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, schema = resolvePersistenceSchema(node, runtime)): GatheredFormValues {
+export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, schema = resolvePersistenceSchema(node, runtime)) {
 	const context = gather(
 		runtime,
 		formState,
@@ -180,10 +158,12 @@ export function collectFormValues(node: FormBoundaryNode, formState: NewFormStat
 		schema.issues,
 	);
 	visitNode(node, context, emission => context.emissions.push(emission));
-	return result(context);
+	const persistence = context.channels.persistence!;
+	if (persistence.tabs.size) persistence.encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...persistence.tabs];
+	return context;
 }
 
-export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext): Pick<GatheredFormValues, 'emissions' | 'summaries' | 'issues'> {
+export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext) {
 	const context = gather(runtime, formState, { summaries: [] });
 	visitNode(node, context, emission => context.emissions.push(emission));
 	return { emissions: context.emissions, summaries: context.channels.summaries!, issues: context.issues };

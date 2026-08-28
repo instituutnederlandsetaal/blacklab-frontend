@@ -19,32 +19,31 @@ function filterTargetEmissions<Names extends readonly FormOutputName[]>(emission
 	return result;
 }
 
-function compileCollected(node: FormBoundaryNode, collected: ReturnType<typeof collectFormSummaryValues>) {
+function compileCollected(node: FormBoundaryNode, collected: Pick<ReturnType<typeof collectFormValues>, 'emissions' | 'issues'>) {
 	const target = node.target;
-	const issues = collected.issues;
-	const accepted = filterTargetEmissions(collected.emissions, target.acceptedOutputs, issues);
-	return { params: target.compile(accepted as never, issues), issues };
+	const accepted = filterTargetEmissions(collected.emissions, target.acceptedOutputs, collected.issues);
+	return target.compile(accepted as never, collected.issues);
 }
 
 export function compileFormNode(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, schema: PersistenceSchema = resolvePersistenceSchema(node, context)): CompiledFormResult {
 	const collected = collectFormValues(node, state, context, schema);
-	const { params, issues } = compileCollected(node, collected);
+	const { persistence, resultPreset, summaries } = collected.channels;
 
 	return {
 		formId: node.id,
-		params,
-		encoded: collected.encoded,
-		issues,
-		summaries: collected.summaries,
+		params: compileCollected(node, collected),
+		encoded: persistence!.encoded,
+		issues: collected.issues,
+		summaries: summaries!,
 		...(node.target.targetView ? { targetView: node.target.targetView } : {}),
-		...(collected.resultPreset !== undefined ? { resultPreset: collected.resultPreset } : {}),
+		...(resultPreset!.value !== undefined ? { resultPreset: resultPreset!.value } : {}),
 	};
 }
 
 /** Compile the live-summary projection without resolving persistence or result-preset channels. */
 export function compileFormSummary(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext): CompiledFormSummary {
 	const collected = collectFormSummaryValues(node, state, context);
-	return { params: compileCollected(node, collected).params, summaries: collected.summaries };
+	return { params: compileCollected(node, collected), summaries: collected.summaries };
 }
 
 export function applyRawOverrides<Result extends Pick<CompiledFormResult, 'params'>>(result: Result, rawOverrides: Readonly<FormOverrides>, acceptedOutputs: readonly FormOutputName[]): Result {
