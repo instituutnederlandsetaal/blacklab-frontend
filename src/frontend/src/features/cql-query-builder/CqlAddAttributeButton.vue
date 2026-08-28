@@ -18,15 +18,10 @@
 import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
 
 import { optionLabel } from '@/shared/utils/options';
-withDefaults(
-	defineProps<{
-		options: CqlQueryBuilderOptions;
-		disabled?: boolean;
-	}>(),
-	{
-		disabled: false,
-	},
-);
+defineProps<{
+	options: CqlQueryBuilderOptions;
+	disabled?: boolean;
+}>();
 const emit = defineEmits<{
 	click: [operator: CqlAnnotationCombinator];
 }>();

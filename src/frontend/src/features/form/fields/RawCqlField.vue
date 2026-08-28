@@ -22,10 +22,7 @@
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 import type { RawCqlQueryFieldComponentProps, RawCqlQueryFieldState } from '@/features/form/fields/raw-cql-field';
 
-const props = withDefaults(defineProps<RawCqlQueryFieldComponentProps>(), {
-	disabled: false,
-	hideLabel: false,
-});
+const props = defineProps<RawCqlQueryFieldComponentProps>();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RawCqlQueryFieldState];

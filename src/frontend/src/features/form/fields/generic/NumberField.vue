@@ -32,8 +32,6 @@ import type { NumberFieldComponentProps } from './number-field';
 
 const props = withDefaults(defineProps<NumberFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
-	step: 1,
 });
 const emit = defineEmits<{
 	'update:modelValue': [value: number];
@@ -42,7 +40,7 @@ const emit = defineEmits<{
 const field = useFieldPresentation(props);
 const finiteMin = computed(() => (Number.isFinite(props.min) ? props.min : undefined));
 const finiteMax = computed(() => (Number.isFinite(props.max) ? props.max : undefined));
-const normalizedStep = computed(() => (Number.isFinite(props.step) && props.step > 0 ? props.step : 1));
+const normalizedStep = computed(() => (typeof props.step === 'number' && props.step > 0 && Number.isFinite(props.step) ? props.step : 1));
 
 function normalizeValue(value: number): number {
 	const stepBase = finiteMin.value ?? 0;

@@ -104,7 +104,6 @@ const props = withDefaults(
 		canMoveRight?: boolean;
 	}>(),
 	{
-		disabled: false,
 		canMoveLeft: false,
 		canMoveRight: false,
 	},

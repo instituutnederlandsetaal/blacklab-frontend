@@ -32,7 +32,6 @@ import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<RadioFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 
 const emit = defineEmits<{

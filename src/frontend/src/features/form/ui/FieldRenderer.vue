@@ -9,17 +9,12 @@ import { createRenderedNodeProps } from '@/features/form/model/field-component-p
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
-const props = withDefaults(
-	defineProps<{
-		field: FormFieldNode;
-		modelValue: unknown;
-		htmlId: string;
-		disabled?: boolean;
-	}>(),
-	{
-		disabled: false,
-	},
-);
+const props = defineProps<{
+	field: FormFieldNode;
+	modelValue: unknown;
+	htmlId: string;
+	disabled?: boolean;
+}>();
 const emit = defineEmits<{
 	'update:modelValue': [value: unknown];
 }>();

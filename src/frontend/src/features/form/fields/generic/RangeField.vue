@@ -58,7 +58,6 @@ import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<RangeFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 const emit = defineEmits<{
 	'update:modelValue': [value: RangeFieldState];

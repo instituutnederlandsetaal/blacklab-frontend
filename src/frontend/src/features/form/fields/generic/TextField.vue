@@ -65,7 +65,6 @@ import Autocomplete from '@/shared/ui/Autocomplete.vue';
 
 const props = withDefaults(defineProps<TextFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 const emit = defineEmits<{
 	'update:modelValue': [value: TextFieldState];

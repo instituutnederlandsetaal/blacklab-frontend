@@ -65,7 +65,6 @@ import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<DateFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 
 const emit = defineEmits<{

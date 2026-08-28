@@ -10,9 +10,7 @@ import type { QueryBuilderFieldComponentProps, QueryBuilderFieldState } from '@/
 
 import CqlQueryBuilder from '@/features/cql-query-builder/CqlQueryBuilder.vue';
 
-const props = withDefaults(defineProps<QueryBuilderFieldComponentProps>(), {
-	disabled: false,
-});
+const props = defineProps<QueryBuilderFieldComponentProps>();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: QueryBuilderFieldState];

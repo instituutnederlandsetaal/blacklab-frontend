@@ -61,7 +61,6 @@ const props = withDefaults(
 	}>(),
 	{
 		isRoot: false,
-		disabled: false,
 	},
 );
 

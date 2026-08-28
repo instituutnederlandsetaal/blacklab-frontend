@@ -35,16 +35,11 @@ import { createDefaultCqlToken } from './model';
 
 import CqlToken from './CqlToken.vue';
 
-const props = withDefaults(
-	defineProps<{
-		modelValue: CqlQueryBuilderData;
-		options: CqlQueryBuilderOptions;
-		disabled?: boolean;
-	}>(),
-	{
-		disabled: false,
-	},
-);
+const props = defineProps<{
+	modelValue: CqlQueryBuilderData;
+	options: CqlQueryBuilderOptions;
+	disabled?: boolean;
+}>();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: CqlQueryBuilderData];

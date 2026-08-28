@@ -64,9 +64,7 @@ import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 
 defineOptions({ name: 'TokenSequenceField', inheritAttrs: false });
 
-const props = withDefaults(defineProps<TokenSequenceFieldComponentProps>(), {
-	disabled: false,
-});
+const props = defineProps<TokenSequenceFieldComponentProps>();
 const emit = defineEmits<{
 	'update:modelValue': [value: TokenSequenceFieldState];
 }>();

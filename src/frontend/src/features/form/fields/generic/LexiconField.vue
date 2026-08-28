@@ -76,7 +76,6 @@ import Spinner from '@/shared/ui/Spinner.vue';
 
 const props = withDefaults(defineProps<LexiconFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 const emit = defineEmits<{
 	'update:modelValue': [value: TextFieldState];

@@ -40,7 +40,6 @@ type SelectPickerModelValue = string | string[] | null;
 
 const props = withDefaults(defineProps<SelectFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 
 const emit = defineEmits<{

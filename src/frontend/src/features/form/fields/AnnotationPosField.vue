@@ -91,7 +91,6 @@ type AnnotationPosFieldProps = Omit<AnnotationPosFieldComponentProps, 'modelValu
 
 const props = withDefaults(defineProps<AnnotationPosFieldProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 
 const emit = defineEmits<{

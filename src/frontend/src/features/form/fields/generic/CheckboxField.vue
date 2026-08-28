@@ -31,7 +31,6 @@ import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<CheckboxFieldComponentProps>(), {
 	showLabel: true,
-	disabled: false,
 });
 
 const emit = defineEmits<{

@@ -41,9 +41,7 @@ import type { WithinFieldComponentProps, WithinFieldState } from './within-field
 
 import { optionLabel, optionText } from '@/shared/utils/options';
 
-const props = withDefaults(defineProps<WithinFieldComponentProps>(), {
-	disabled: false,
-});
+const props = defineProps<WithinFieldComponentProps>();
 const state = defineModel<WithinFieldState>({ required: true });
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-within-field' });
