@@ -242,8 +242,3 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 
 	return finishRestore(expertFallback.form, null, expertFallback);
 }
-
-/** Restore hydratable state when the provisional submitted result is not needed. */
-export function restoreFormState(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredFormState {
-	return restoreForm(definition, query, options).state;
-}

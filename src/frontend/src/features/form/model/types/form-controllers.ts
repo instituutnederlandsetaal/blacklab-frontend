@@ -84,21 +84,12 @@ export function getFieldPersistKey(field: { controller: AnyFieldController } & B
 	return field.controller.persistence.key(field, runtime);
 }
 
-export function restoreControllerState<State, Extra>(
-	controller: FieldController<string, State, Extra>,
-	payload: EncodedFieldValue,
-	config: FieldControllerProps<Extra>,
-	runtime: FormRuntimeContext,
-): State {
-	if (Array.isArray(payload)) throw new Error(`Cannot restore field persistence from multiple URL values.`);
-	return controller.persistence.codec.decode(payload, { config, runtime });
-}
-
 export function encodeFieldState(field: { controller: AnyFieldController } & BaseFieldNode, state: unknown, runtime: FormRuntimeContext): string | null {
 	return field.controller.persistence.codec.encode(state, { config: field, runtime });
 }
 
 /** Restore nested field state with the field itself as controller configuration. */
 export function restoreFieldState(field: { controller: AnyFieldController } & BaseFieldNode, payload: EncodedFieldValue, runtime: FormRuntimeContext): unknown {
-	return restoreControllerState(field.controller, payload, field, runtime);
+	if (Array.isArray(payload)) throw new Error(`Cannot restore field persistence from multiple URL values.`);
+	return field.controller.persistence.codec.decode(payload, { config: field, runtime });
 }

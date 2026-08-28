@@ -9,7 +9,7 @@ import { booleanNode, type CqlPatternNode, type LuceneNode } from '@/features/fo
 import type { ScopedFormQuery } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
 
-export type GatheredFormValues = {
+type GatheredFormValues = {
 	emissions: FormEmission[];
 	summaries: SummaryEntry[];
 	encoded: ScopedFormQuery;
@@ -182,19 +182,6 @@ function result(context: GatherContext): GatheredFormValues {
 	};
 }
 
-export function collectFieldEmissions(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): FormEmission[] {
-	const context = gather(runtime, issues);
-	visitField(node, state, context, emission => context.emissions.push(emission));
-	return context.emissions;
-}
-
-export function collectFieldValues(node: FormFieldNode, state: unknown, runtime: FormRuntimeContext, issues: FormIssue[]): GatheredFormValues {
-	const schema = resolvePersistenceSchema(node, runtime);
-	const context = gather(runtime, issues, undefined, { summaries: [], persistence: { encoded: {}, keys: schema.keys, tabs: new Set() }, resultPreset: {} }, schema);
-	visitField(node, state, context, emission => context.emissions.push(emission));
-	return result(context);
-}
-
 export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, schema = resolvePersistenceSchema(node, runtime)): CollectedFormValues {
 	const issues: FormIssue[] = [];
 	const context = gather(
@@ -221,5 +208,7 @@ export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewF
 
 /** Check a field's validated semantic contributions without evaluating auxiliary channels. */
 export function hasEmissions(field: FormFieldNode, state: unknown, runtime: FormRuntimeContext): boolean {
-	return collectFieldEmissions(field, state, runtime, []).length > 0;
+	let hasEmission = false;
+	visitField(field, state, gather(runtime, []), () => (hasEmission = true));
+	return hasEmission;
 }

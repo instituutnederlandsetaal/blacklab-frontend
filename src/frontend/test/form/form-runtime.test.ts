@@ -63,10 +63,9 @@ describe('form runtime', () => {
 			displayName: 'Word',
 		});
 		const alternative = builder.newContainer('search.simple.alternative', ContainerRenderer, {});
-		const tabs = builder
-			.newContainer('search.simple.tabs', ContainerRenderer, {})
-			.addChild(field, { outputWhenActive: emit => emit('searchfield', 'contents') })
-			.addChild(alternative, { outputWhenActive: emit => emit('searchfield', 'alternative') });
+		const tabs = builder.newContainer('search.simple.tabs', ContainerRenderer, {});
+		tabs.prependChild(alternative, { outputWhenActive: emit => emit('searchfield', 'alternative') });
+		tabs.prependChild(field, { outputWhenActive: emit => emit('searchfield', 'contents') });
 		form.addChildren(tabs);
 
 		const runtime = createTestRuntime(builder);

@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { defineComponent, h, nextTick, type PropType } from 'vue';
 
-import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreControllerState, scalar, type NamedFieldDefinition } from '@/features/form';
+import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreFieldState, scalar, type NamedFieldDefinition } from '@/features/form';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
@@ -361,7 +361,7 @@ describe('token sequence composite field', () => {
 		expect(encoded).toContain('f=word');
 		expect(encoded).toContain('f=lemma');
 
-		const restored = restoreControllerState(tokenSequenceController, encoded!, runtime.definition.getField('explore.ngram.tokens') as never, runtime.definition.context);
+		const restored = restoreFieldState(runtime.definition.getField('explore.ngram.tokens')!, encoded!, runtime.definition.context);
 		expect(restored).toEqual([
 			{ fieldId: 'word', fieldState: { value: 'a,b;c=d', caseSensitive: false } },
 			{ fieldId: 'lemma', fieldState: { exact: false, lemma: 'lopen' } },
@@ -370,23 +370,21 @@ describe('token sequence composite field', () => {
 
 	test('restoration rejects token counts below the configured minimum', () => {
 		const { runtime, sequence } = createFixture('large', 2);
-		expect(() => restoreControllerState(tokenSequenceController, '{f=word}', sequence, runtime.definition.context)).toThrow('Cannot restore token sequence length 1; expected 2-5.');
+		expect(() => restoreFieldState(sequence, '{f=word}', runtime.definition.context)).toThrow('Cannot restore token sequence length 1; expected 2-5.');
 	});
 
 	test('restoration rejects token counts above the configured maximum', () => {
 		const { runtime, sequence } = createFixture();
-		expect(() => restoreControllerState(tokenSequenceController, Array.from({ length: 9 }, () => '{f=word}').join(','), sequence, runtime.definition.context)).toThrow(
-			'Cannot restore token sequence length 9; expected 1-5.',
-		);
+		expect(() => restoreFieldState(sequence, Array.from({ length: 9 }, () => '{f=word}').join(','), runtime.definition.context)).toThrow('Cannot restore token sequence length 9; expected 1-5.');
 	});
 
 	test('restoration rejects unavailable child field ids', () => {
 		const { runtime, sequence } = createFixture();
-		expect(() => restoreControllerState(tokenSequenceController, '{f=removed}', sequence, runtime.definition.context)).toThrow("Cannot restore token 1 field 'removed' because it is not available.");
+		expect(() => restoreFieldState(sequence, '{f=removed}', runtime.definition.context)).toThrow("Cannot restore token 1 field 'removed' because it is not available.");
 	});
 
 	test('restoration reports nested child codec failures', () => {
 		const { runtime, sequence } = createFixture();
-		expect(() => restoreControllerState(tokenSequenceController, '{f=word;v=invalid}', sequence, runtime.definition.context)).toThrow('nested child error');
+		expect(() => restoreFieldState(sequence, '{f=word;v=invalid}', runtime.definition.context)).toThrow('nested child error');
 	});
 });

@@ -11,9 +11,7 @@ import type {
 	BaseViewNode,
 	FormBoundaryNode,
 	FormContainerLikeNode,
-	FormFieldNode,
 	FormNode,
-	FormViewNode,
 	ImplicitContainerComponentProps,
 	NodeKind,
 	NodeKindMap,
@@ -88,17 +86,14 @@ export type AddChildOptions = {
 export type FormNodeReference = FormNode | string;
 
 export interface AddChildNodes {
-	appendChild<Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions): Child;
 	prependChild<Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions): Child;
 	insertBefore<Child extends AnyRealFormNode>(newChild: Child, referenceChild: FormNodeReference, options?: AddChildOptions): Child;
 	replaceChild<Child extends AnyRealFormNode>(newChild: Child, oldChild: FormNodeReference, options?: AddChildOptions): FormNode;
 	removeChild(child: FormNodeReference): FormNode;
-	addChild(child: AnyRealFormNode, options?: AddChildOptions): this;
 	addChildren(...children: Array<AnyRealFormNode | null | undefined>): this;
 }
 
 export type BuilderContainerNode = FormContainerLikeNode & AddChildNodes;
-export type BuilderNode = BuilderContainerNode | FormFieldNode | FormViewNode;
 
 // Builder
 // ==========================================================================================================================
@@ -140,10 +135,6 @@ export class FormBuilder {
 	public getNode(id: string): FormNode | null {
 		return (this.nodeMap[id] as FormNode | undefined) ?? null;
 	}
-	public getElementById(id: string): BuilderNode | null {
-		return (this.nodeMap[id] as BuilderNode | undefined) ?? null;
-	}
-
 	public getParents(nodeOrId: FormNodeReference): BuilderContainerNode[] {
 		const node = this.resolveNode(nodeOrId);
 		if (!node) return [];
@@ -292,15 +283,10 @@ export class FormBuilder {
 
 	private attachGraphFunctions<T extends BaseContainerNode | BaseFormNode>(node: T): T & AddChildNodes {
 		return assignNonEnumerable(node, {
-			addChild: (child: AnyRealFormNode, options?: AddChildOptions) => {
-				this.insertChildAt(node, child, node.children.length, options);
-				return node;
-			},
 			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => {
 				for (const child of children) if (child) this.insertChildAt(node, child, node.children.length);
 				return node;
 			},
-			appendChild: <Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions) => this.insertChildAt(node, child, node.children.length, options),
 			prependChild: <Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions) => this.insertChildAt(node, child, 0, options),
 			insertBefore: <Child extends AnyRealFormNode>(newChild: Child, referenceChild: FormNodeReference, options?: AddChildOptions) =>
 				this.insertChildAt(node, newChild, this.getDirectChildIndex(node, referenceChild), options),

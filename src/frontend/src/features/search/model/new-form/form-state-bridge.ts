@@ -57,10 +57,6 @@ function restoreSearchFormResult(definition: FormBuilder, query: Record<string, 
 	});
 }
 
-export function restoreSearchFormState(definition: FormBuilder, query: Record<string, unknown>): RestoredFormState {
-	return restoreSearchFormResult(definition, query).state;
-}
-
 export function restoreSearchForm(runtime: FormRuntime, query: Record<string, unknown>): { state: RestoredFormState; submittedResult: CompiledFormResult | null } {
 	const restored = restoreSearchFormResult(runtime.definition, query);
 	runtime.state.replaceState(restored.state);

@@ -10,7 +10,6 @@ import {
 	createDefaultFormState,
 	createFormFieldNode,
 	compileFormNode,
-	collectFieldValues,
 	expertQueryController,
 	filterCheckboxController,
 	filterDateController,
@@ -24,8 +23,8 @@ import {
 	resultGroupByController,
 	resultGroupDisplayModeController,
 	resultSortController,
-	restoreControllerState,
-	restoreFormState as restoreScopedFormState,
+	restoreForm,
+	restoreFieldState,
 	array,
 	bool,
 	object,
@@ -38,7 +37,7 @@ import {
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
-import { restoreSearchForm, restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
+import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -49,7 +48,9 @@ import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
-const restoreFormState = restoreSearchFormState;
+function restoreFormState(definition: ReturnType<typeof createTestBuilder>, query: Record<string, unknown>) {
+	return restoreSearchForm(createTestRuntime(definition), query).state;
+}
 
 function createSingleTextForm() {
 	const builder = createTestBuilder();
@@ -117,7 +118,9 @@ describe('scoped form persistence', () => {
 
 	function collectController(controller: typeof resultGroupByController | typeof resultSortController, state: string): FormEmission[] {
 		const field = { kind: 'field', id: 'field', displayName: 'Field', options: [], persistKey: 'field', controller, component: SelectField } as unknown as FormFieldNode;
-		return collectFieldValues(field, state, createTestContext(), []).emissions as FormEmission[];
+		const emissions: FormEmission[] = [];
+		controller.collect(field as never, createTestContext(), state, (name, value) => emissions.push({ name, value } as FormEmission));
+		return emissions;
 	}
 
 	test('group-by controller emits a one-item group output', () => {
@@ -125,18 +128,13 @@ describe('scoped form persistence', () => {
 	});
 
 	test('group-display-mode controller contributes only groupDisplayMode', () => {
-		const field = {
-			kind: 'field',
-			id: 'display',
-			displayName: 'Display',
-			options: [],
-			persistKey: 'display',
-			controller: resultGroupDisplayModeController,
-			component: SelectField,
-		} as unknown as FormFieldNode;
-		const gathered = collectFieldValues(field, 'tokens', createTestContext(), []);
+		const builder = createTestBuilder();
+		const field = builder.newField('display', resultGroupDisplayModeController, SelectField, { displayName: 'Display', options: [], persistKey: 'display' });
+		const form = builder.newForm('form', ContainerRenderer, {}).addChildren(field);
+		const state = createDefaultFormState(builder.context, form);
+		state.state[field.id] = 'tokens';
 
-		expect(gathered).toMatchObject({ emissions: [], resultPreset: 'tokens' });
+		expect(compileFormNode(form, state, builder.context)).toMatchObject({ params: {}, resultPreset: 'tokens' });
 	});
 
 	test('sort controller emits a one-item sort output', () => {
@@ -367,8 +365,8 @@ describe('scoped form persistence', () => {
 			patt: '[word="(?i)fire"]',
 		};
 
-		expect(restoreScopedFormState(fixture.definition, query).rawOverrides).toEqual({});
-		expect(restoreScopedFormState(fixture.definition, query, { overrideCandidates: { patt: '[word="(?i)fire"]' } }).rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
+		expect(restoreForm(fixture.definition, query).state.rawOverrides).toEqual({});
+		expect(restoreForm(fixture.definition, query, { overrideCandidates: { patt: '[word="(?i)fire"]' } }).state.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
 	});
 
 	test('renders, disables, and dismisses a patt override', async () => {
@@ -440,9 +438,7 @@ describe('scoped form persistence', () => {
 			'f.author': 'Austen',
 		});
 
-		expect(restored.issues).toEqual([
-			{ severity: 'error', message: `Could not restore persisted field 'word' for '${word.id}': Persisted value contains invalid escape '\\q'.` },
-		]);
+		expect(restored.issues).toEqual([{ severity: 'error', message: `Could not restore persisted field 'word' for '${word.id}': Persisted value contains invalid escape '\\q'.` }]);
 		expect(restored.state[word.id]).toEqual({ value: '' });
 		expect(restored.state[author.id]).toEqual({ value: 'Austen', caseSensitive: false });
 	});
@@ -623,17 +619,9 @@ describe('scoped form persistence', () => {
 		const newspapers = builder.newContainer('search.extended.filters.newspapers', ContainerRenderer, {
 			title: 'Newspapers',
 		});
-		const filters = builder
-			.newContainer('search.extended.filters', ContainerRenderer, {
-				title: 'Filters',
-				variant: 'tabs',
-			})
-			.addChildren(
-				builder.newContainer('search.extended.filters.shared', ContainerRenderer, {
-					title: 'Shared',
-				}),
-			)
-			.addChild(newspapers, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) });
+		const filters = builder.newContainer('search.extended.filters', ContainerRenderer, { title: 'Filters', variant: 'tabs' });
+		filters.prependChild(newspapers, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) });
+		filters.prependChild(builder.newContainer('search.extended.filters.shared', ContainerRenderer, { title: 'Shared' }));
 		form.addChildren(filters);
 		const definition = builder;
 		const context = createTestContext();
@@ -991,8 +979,8 @@ describe('controller persistence codecs', () => {
 
 	const encode = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, state: State, config: FieldControllerProps<Extra>) =>
 		controller.persistence.codec.encode(state, { config, runtime: context });
-	const restore = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, payload: string | string[], config: FieldControllerProps<Extra>) =>
-		restoreControllerState(controller, payload, config, context);
+	const restore = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, payload: string | string[], config: FieldControllerProps<Extra>): State =>
+		restoreFieldState({ ...config, controller }, payload, context) as State;
 
 	test('object codecs omit defaults and round-trip escaped record values', () => {
 		const codec = object({

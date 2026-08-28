@@ -13,8 +13,18 @@ import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { FormSystem, RangeField, SelectField, summarizeAnnotationPosState, TextField, type AnnotationPosFieldConfig, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
-import { restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
+import {
+	FormSystem,
+	RangeField,
+	SelectField,
+	summarizeAnnotationPosState,
+	TextField,
+	type AnnotationPosFieldConfig,
+	type FormRuntime,
+	type ParallelFieldState,
+	type TokenSequenceFieldState,
+} from '@/features/form';
+import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import type { Corpus, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
@@ -22,6 +32,10 @@ import debug from '@/shared/debug/debug';
 import { findOption, optionLabel, optionText, optionTitle, optionValues, type Options, type OptionText } from '@/shared/utils/options';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
+
+function restoreSearchFormState(runtime: FormRuntime, query: Record<string, unknown>) {
+	return restoreSearchForm(runtime, query).state;
+}
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
 	return {
@@ -492,7 +506,7 @@ describe('search form system', () => {
 
 	test('restores a scoped Documents URL through the shared form restore path', () => {
 		const runtime = createDefinition();
-		const restored = restoreSearchFormState(runtime.definition, {
+		const restored = restoreSearchFormState(runtime, {
 			'f.form': ids.exploreForm('corpora'),
 			'f.explore-corpora-group-by': 'field:genre',
 			'f.explore-corpora-group-display-mode': 'docs',
@@ -574,7 +588,7 @@ describe('search form system', () => {
 
 	test('drops a restored N-gram grouping annotation that is no longer configured', () => {
 		const runtime = createDefinition();
-		const restored = restoreSearchFormState(runtime.definition, {
+		const restored = restoreSearchFormState(runtime, {
 			'f.form': ids.exploreForm('ngram'),
 			'f.explore-ngram-group-by': 'removed',
 		});
@@ -628,7 +642,7 @@ describe('search form system', () => {
 		] satisfies TokenSequenceFieldState;
 		runtime.state.state.value[ids.exploreNgramGroupBy()] = 'pos';
 		const submitted = runtime.compile(ids.exploreForm('ngram'));
-		const restored = restoreSearchFormState(runtime.definition, submitted.encoded);
+		const restored = restoreSearchFormState(runtime, submitted.encoded);
 		runtime.state.replaceState(restored);
 
 		expect(runtime.state.state.value[ids.exploreNgramTokens()]).toEqual([
@@ -785,7 +799,7 @@ describe('search form system', () => {
 
 	test('restores a canonical raw query into the expert form', () => {
 		const runtime = createDefinition();
-		const restored = restoreSearchFormState(runtime.definition, {
+		const restored = restoreSearchFormState(runtime, {
 			patt: '[lemma="water"]',
 		});
 		runtime.state.replaceState(restored);
@@ -1163,7 +1177,7 @@ describe('search form system', () => {
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
 
-		const restored = restoreSearchFormState(replacementRuntime.definition, {
+		const restored = restoreSearchFormState(replacementRuntime, {
 			...committedUrlState.encoded,
 			patt: committedUrlState.params.patt,
 			filter: committedUrlState.params.filter,
@@ -1275,7 +1289,7 @@ describe('search form system', () => {
 			{ value: 'p', label: 'Paragraph', title: null },
 		];
 		const definition = createDefinition(corpus);
-		const restored = restoreSearchFormState(definition.definition, {
+		const restored = restoreSearchFormState(definition, {
 			'f.form': ids.searchForm('simple'),
 			'f.word': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1300,7 +1314,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreSearchFormState(definition.definition, {
+		const restored = restoreSearchFormState(definition, {
 			'f.form': ids.searchForm('extended'),
 			'f.word_or_lemma': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1328,7 +1342,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreSearchFormState(definition.definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
+		const restored = restoreSearchFormState(definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
 
 		expect(restored.uiState[ids.annotationTabs()]).toBe(ids.annotationTab('Grammar'));
 		expect(restored.uiState[ids.annotationTab('Grammar')]).toBe(ids.annotationField('extended', 'contents', 'pos'));

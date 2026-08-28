@@ -12,7 +12,6 @@ import {
 	encodeFieldState,
 	expertQueryController,
 	filterTextController,
-	collectFieldValues,
 	parallelController,
 	withinController,
 	type FormBoundaryNode,
@@ -290,10 +289,9 @@ function mountTotalsSummaryHarness() {
 	const harness = mountViewHarness((builder, form) => {
 		const english = builder.newContainer('harness.summary.searchfield.english', ContainerRenderer, { title: 'English' });
 		const dutch = builder.newContainer('harness.summary.searchfield.dutch', ContainerRenderer, { title: 'Dutch' });
-		const searchfield = builder
-			.newContainer('harness.summary.searchfield', ContainerRenderer, { variant: 'tabs' })
-			.addChild(english, { outputWhenActive: emit => emit('searchfield', 'contents__en') })
-			.addChild(dutch, { outputWhenActive: emit => emit('searchfield', 'contents__nl') });
+		const searchfield = builder.newContainer('harness.summary.searchfield', ContainerRenderer, { variant: 'tabs' });
+		searchfield.prependChild(dutch, { outputWhenActive: emit => emit('searchfield', 'contents__nl') });
+		searchfield.prependChild(english, { outputWhenActive: emit => emit('searchfield', 'contents__en') });
 		const field = builder.newField('harness.summary.filter', filterTextController, TextField, {
 			displayName: 'Author',
 			groupId: 'Bibliographic',
@@ -405,7 +403,8 @@ describe('builtin controller hosts', () => {
 
 	test('resolves graph-owned parallel summary labels when compiling the field', () => {
 		const { graphState, harness, locale } = mountLocalizedParallelHarness();
-		const summaryValues = () => collectFieldValues(harness.field, graphState, harness.runtime.definition.context, []).summaries.map((summary: SummaryEntry) => summary.value);
+		harness.runtime.state.state.value[harness.field.id] = graphState;
+		const summaryValues = () => harness.runtime.compileSummary(harness.form.id).summaries.map((summary: SummaryEntry) => summary.value);
 
 		expect(summaryValues()).toEqual(expect.arrayContaining(['Raw field', 'en:graph-field', 'en:graph-align']));
 

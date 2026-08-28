@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { collectFieldEmissions, createDefaultFormState, createFormFieldNode, hasEmissions, searchTarget, type FormIssue, type QueryCombineMode } from '@/features/form';
+import { createDefaultFormState, createFormFieldNode, hasEmissions, searchTarget, type QueryCombineMode } from '@/features/form';
 import { annotation, filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode, FormBoundaryNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
@@ -420,8 +420,10 @@ describe('form model state', () => {
 			TestTextField,
 			{ annotationId: 'word', displayName: 'Word' },
 		);
-		const first = builder.newContainer('first.tabs', ContainerRenderer, {}).addChild(sharedField, { outputWhenActive: firstProducer });
-		const second = builder.newContainer('second.tabs', ContainerRenderer, {}).addChild(sharedField, { outputWhenActive: secondProducer });
+		const first = builder.newContainer('first.tabs', ContainerRenderer, {});
+		const second = builder.newContainer('second.tabs', ContainerRenderer, {});
+		first.prependChild(sharedField, { outputWhenActive: firstProducer });
+		second.prependChild(sharedField, { outputWhenActive: secondProducer });
 		const sequence = builder.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' }).addChildren(first, second);
 		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(sequence);
 		const runtime = createTestRuntime(builder);
@@ -461,46 +463,6 @@ describe('form model state', () => {
 		encode.mockRestore();
 	});
 
-	test('collects field emissions without evaluating auxiliary channels', () => {
-		const collect = vi.fn((...args: Parameters<typeof testTextController.collect>) => {
-			const [config, _runtime, state, emit] = args;
-			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
-			emit('patt', annotation(config.annotationId, 'wildcard', state.value)!);
-			rawEmit('unknown', 'ignored');
-			emit('group', ['field:author']);
-			rawEmit('filter', {});
-			throw new Error('collect failed');
-		});
-		const summarize = vi.fn(testTextController.summarize);
-		const key = vi.fn(testTextController.persistence.key);
-		const encode = vi.spyOn(testTextController.persistence.codec, 'encode');
-		const getResultPreset = vi.fn(() => 'table' as const);
-		const { builder, sharedField } = createReusedFieldFixture({
-			...testTextController,
-			collect,
-			summarize,
-			persistence: { ...testTextController.persistence, key },
-			getResultPreset,
-		});
-		const issues: FormIssue[] = [];
-
-		const emissions = collectFieldEmissions(sharedField, { value: 'water' }, builder.context, issues);
-
-		expect(emissions.map(emission => emission.name)).toEqual(['patt', 'group']);
-		expect(issues).toEqual([
-			{ severity: 'warning', message: `Controller for '${sharedField.id}' emitted unknown output 'unknown'; ignoring it.` },
-			{ severity: 'warning', message: `Controller for '${sharedField.id}' emitted undeclared output 'group'.` },
-			{ severity: 'warning', message: `Controller for '${sharedField.id}' emitted malformed output 'filter'; ignoring it.` },
-			{ severity: 'error', message: `Controller for '${sharedField.id}' failed: collect failed` },
-		]);
-		expect(collect).toHaveBeenCalledOnce();
-		expect(summarize).not.toHaveBeenCalled();
-		expect(key).not.toHaveBeenCalled();
-		expect(encode).not.toHaveBeenCalled();
-		expect(getResultPreset).not.toHaveBeenCalled();
-		encode.mockRestore();
-	});
-
 	test('checks badge emissions without evaluating auxiliary channels', () => {
 		const collect = vi.fn(testTextController.collect);
 		const summarize = vi.fn(testTextController.summarize);
@@ -529,14 +491,10 @@ describe('form model state', () => {
 		const shared = builder.newContainer('shared.tab', ContainerRenderer, { title: 'Shared' });
 		const firstAlternative = builder.newContainer('first.alternative', ContainerRenderer, { title: 'First alternative' });
 		const secondAlternative = builder.newContainer('second.alternative', ContainerRenderer, { title: 'Second alternative' });
-		const first = builder
-			.newContainer('first.tabs', ContainerRenderer, {})
-			.addChild(shared, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) })
-			.addChildren(firstAlternative);
-		const second = builder
-			.newContainer('second.tabs', ContainerRenderer, {})
-			.addChild(shared, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'book')!) })
-			.addChildren(secondAlternative);
+		const first = builder.newContainer('first.tabs', ContainerRenderer, {}).addChildren(firstAlternative);
+		const second = builder.newContainer('second.tabs', ContainerRenderer, {}).addChildren(secondAlternative);
+		first.prependChild(shared, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) });
+		second.prependChild(shared, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'book')!) });
 		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(first, second);
 		const runtime = createTestRuntime(builder);
 
@@ -549,7 +507,8 @@ describe('form model state', () => {
 	test('validates active-child values before container collection', () => {
 		const builder = createTestBuilder();
 		const selected = builder.newContainer('search.tabs.selected', ContainerRenderer, {});
-		const tabs = builder.newContainer('search.tabs', ContainerRenderer, {}).addChild(selected, {
+		const tabs = builder.newContainer('search.tabs', ContainerRenderer, {});
+		tabs.prependChild(selected, {
 			outputWhenActive: emit => {
 				(emit as unknown as (name: string, value: unknown) => void)('patt', { type: 'cql-raw', cql: null });
 				emit('filter', filter('author', 'literal', 'Austen')!);
@@ -574,12 +533,9 @@ describe('form model state', () => {
 			displayName: 'Lemma',
 		});
 		const semanticTab = builder.newContainer('search.semantic', ContainerRenderer, {});
-		const alternatives = builder
-			.newContainer('search.alternatives', ContainerRenderer, {
-				combine: 'or',
-			})
-			.addChildren(lemma)
-			.addChild(semanticTab, { outputWhenActive: emit => emit('patt', annotation('pos', 'wildcard', 'N')!) });
+		const alternatives = builder.newContainer('search.alternatives', ContainerRenderer, { combine: 'or' });
+		alternatives.prependChild(semanticTab, { outputWhenActive: emit => emit('patt', annotation('pos', 'wildcard', 'N')!) });
+		alternatives.prependChild(lemma);
 		const sequence = builder.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' }).addChildren(word, alternatives);
 		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(sequence);
 		const state = createDefaultFormState(builder.context, builder.getRoot());

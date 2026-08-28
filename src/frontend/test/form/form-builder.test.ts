@@ -32,8 +32,8 @@ function createSharedFieldGraph() {
 	const left = builder.newContainer('left', ContainerRenderer, {});
 	const right = builder.newContainer('right', ContainerRenderer, {});
 	const shared = newTextField(builder, 'shared');
-	left.addChild(shared);
-	right.addChild(shared);
+	left.addChildren(shared);
+	right.addChildren(shared);
 	root.addChildren(left, right);
 	return { builder, left, right, root, shared };
 }
@@ -50,21 +50,12 @@ describe('form graph builder editing', () => {
 		expect(editorKeys.filter(key => Object.hasOwn(rendered.props, key))).toEqual([]);
 	});
 
-	test('appendChild appends and returns the child', () => {
-		const builder = createTestBuilder();
-		const parent = builder.newForm('root', ContainerRenderer, {});
-		const child = newTextField(builder, 'child');
-
-		expect(parent.appendChild(child)).toBe(child);
-		expect(parent.children).toEqual([child]);
-	});
-
 	test('prependChild inserts before existing children and returns the child', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newForm('root', ContainerRenderer, {});
 		const first = newTextField(builder, 'first');
 		const prepended = newTextField(builder, 'prepended');
-		parent.addChild(first);
+		parent.addChildren(first);
 
 		expect(parent.prependChild(prepended)).toBe(prepended);
 		expect(parent.children).toEqual([prepended, first]);
@@ -110,13 +101,14 @@ describe('form graph builder editing', () => {
 		const root = builder.newForm('root', ContainerRenderer, {});
 		const group = builder.newContainer('group', ContainerRenderer, {});
 		const field = newTextField(builder, 'field');
-		root.addChild(group.addChild(field));
+		group.addChildren(field);
+		root.addChildren(group);
 
-		expect(builder.getElementById(field.id)).toBe(field);
+		expect(builder.getNode(field.id)).toBe(field);
 		expect(builder.getField(field.id)).toBe(field);
 		expect(builder.getContainer(group.id)).toBe(group);
 		expect(builder.getForm(root.id)).toBe(root);
-		expect(builder.getElementById('missing')).toBeNull();
+		expect(builder.getNode('missing')).toBeNull();
 	});
 
 	test('returns every direct parent of a shared node', () => {
@@ -131,7 +123,8 @@ describe('form graph builder editing', () => {
 		const root = builder.newForm('root', ContainerRenderer, {});
 		const group = builder.newContainer('group', ContainerRenderer, {});
 		const field = newTextField(builder, 'field');
-		root.addChild(group.addChild(field));
+		group.addChildren(field);
+		root.addChildren(group);
 
 		expect(builder.contains(root, field.id)).toBe(true);
 		expect(builder.contains(field, field)).toBe(true);
@@ -158,8 +151,8 @@ describe('form graph builder editing', () => {
 		const shared = newTextField(builder, 'shared');
 		const leftContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'left-selected')!);
 		const rightContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'right-selected')!);
-		left.addChild(shared, { outputWhenActive: leftContribution });
-		right.addChild(shared, { outputWhenActive: rightContribution });
+		left.prependChild(shared, { outputWhenActive: leftContribution });
+		right.prependChild(shared, { outputWhenActive: rightContribution });
 		root.addChildren(left, right);
 
 		builder.replaceNode(shared.id, replacementTextField(shared.id));
@@ -182,8 +175,8 @@ describe('form graph builder editing', () => {
 		const right = builder.newContainer('right', ContainerRenderer, {});
 		const shared = newTextField(builder, 'shared');
 		const contribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'selected')!);
-		left.addChild(shared, { outputWhenActive: contribution });
-		right.addChild(shared, { outputWhenActive: contribution });
+		left.prependChild(shared, { outputWhenActive: contribution });
+		right.prependChild(shared, { outputWhenActive: contribution });
 		root.addChildren(left, right);
 
 		expect(left.removeChild(shared)).toBe(shared);
@@ -192,7 +185,7 @@ describe('form graph builder editing', () => {
 		expect(left.activeChildOutputProducers).toBeUndefined();
 
 		expect(builder.removeNode(shared.id)).toBe(shared);
-		expect(builder.getElementById(shared.id)).toBeNull();
+		expect(builder.getNode(shared.id)).toBeNull();
 		expect(right.children).toEqual([]);
 		expect(right.activeChildOutputProducers).toBeUndefined();
 	});
@@ -203,16 +196,16 @@ describe('form graph builder editing', () => {
 		const left = builder.newContainer('left', ContainerRenderer, {});
 		const right = builder.newContainer('right', ContainerRenderer, {});
 		const shared = newTextField(builder, 'shared');
-		left.addChild(shared);
-		right.addChild(shared);
+		left.addChildren(shared);
+		right.addChildren(shared);
 		root.addChildren(left, right);
-		const detached = builder.newContainer('detached', ContainerRenderer, {}).addChild(shared);
+		const detached = builder.newContainer('detached', ContainerRenderer, {}).addChildren(shared);
 		const detachedField = newTextField(builder, 'detached-field');
-		detached.addChild(detachedField);
+		detached.addChildren(detachedField);
 
 		expect(builder.pruneDetachedNodes().map(node => node.id)).toEqual(['detached', 'detached-field']);
-		expect(builder.getElementById('detached')).toBeNull();
-		expect(builder.getElementById('detached-field')).toBeNull();
+		expect(builder.getNode('detached')).toBeNull();
+		expect(builder.getNode('detached-field')).toBeNull();
 		expect(builder.getField(shared.id)).toBe(shared);
 		expect(builder.getParents(shared)).toEqual([left, right]);
 	});
@@ -221,9 +214,9 @@ describe('form graph builder editing', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newContainer('parent', ContainerRenderer, {});
 		const child = builder.newContainer('child', ContainerRenderer, {});
-		parent.addChild(child);
+		parent.addChildren(child);
 
-		expect(() => parent.appendChild(child)).toThrow(/already contains child/);
+		expect(() => parent.addChildren(child)).toThrow(/already contains child/);
 	});
 
 	test('rejects a parent-scoped edit that would create a cycle', () => {
@@ -231,10 +224,10 @@ describe('form graph builder editing', () => {
 		const root = builder.newForm('root', ContainerRenderer, {});
 		const parent = builder.newContainer('parent', ContainerRenderer, {});
 		const child = builder.newContainer('child', ContainerRenderer, {});
-		root.addChild(parent);
-		parent.addChild(child);
+		root.addChildren(parent);
+		parent.addChildren(child);
 
-		expect(() => child.appendChild(root)).toThrow(/cycle/);
+		expect(() => child.addChildren(root)).toThrow(/cycle/);
 	});
 
 	test('rejects a form added directly below another form', () => {
@@ -242,7 +235,7 @@ describe('form graph builder editing', () => {
 		const outer = builder.newForm('outer', ContainerRenderer, {});
 		const inner = builder.newForm('inner', ContainerRenderer, {});
 
-		expect(() => outer.addChild(inner)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
+		expect(() => outer.addChildren(inner)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
 		expect(outer.children).toEqual([]);
 	});
 
@@ -251,9 +244,9 @@ describe('form graph builder editing', () => {
 		const outer = builder.newForm('outer', ContainerRenderer, {});
 		const container = builder.newContainer('container', ContainerRenderer, {});
 		const inner = builder.newForm('inner', ContainerRenderer, {});
-		outer.addChild(container);
+		outer.addChildren(container);
 
-		expect(() => container.addChild(inner)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
+		expect(() => container.addChildren(inner)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
 		expect(container.children).toEqual([]);
 	});
 
@@ -263,7 +256,7 @@ describe('form graph builder editing', () => {
 		const inner = { id: 'inner', kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
 		const outer = { id: 'outer', kind: 'form', component: ContainerRenderer, children: [inner], target: searchTarget } satisfies FormBoundaryNode;
 
-		expect(() => parent.addChild(outer)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
+		expect(() => parent.addChildren(outer)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
 		expect(parent.children).toEqual([]);
 	});
 
@@ -271,7 +264,7 @@ describe('form graph builder editing', () => {
 		const builder = createTestBuilder();
 		const outer = builder.newForm('outer', ContainerRenderer, {});
 		const child = builder.newContainer('child', ContainerRenderer, {});
-		outer.addChild(child);
+		outer.addChildren(child);
 		const replacement = { id: child.id, kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
 
 		expect(() => builder.replaceNode(child.id, replacement)).toThrow("Form 'child' cannot be nested inside form 'outer'");
