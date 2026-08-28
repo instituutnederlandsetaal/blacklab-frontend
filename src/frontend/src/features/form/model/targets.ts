@@ -26,9 +26,7 @@ export type SearchTargetOptions = {
 
 function conflict(issues: FormIssue[], output: SearchOutputName): void {
 	issues.push({
-		stage: 'target',
-		code: 'conflicting-output',
-		output,
+		severity: 'warning',
 		message: `Ignoring repeated non-empty output '${output}'.`,
 	});
 }
@@ -82,31 +80,13 @@ export function createSearchTarget(options: SearchTargetOptions = {}): FormTarge
 						sort.push(...(emission.value?.map(item => item.trim()).filter(Boolean) ?? []));
 						break;
 					case 'withspans':
-						if (withspans !== undefined) conflict(issues, 'withspans');
-						else withspans = true;
+						withspans = true;
 						break;
 				}
 			}
 
 			searchfield ??= defaultSearchfield;
-			const present = new Set<SearchOutputName>();
-			if (patt !== undefined) present.add('patt');
-			if (filter !== undefined) present.add('filter');
-			if (searchfield !== undefined) present.add('searchfield');
-			if (groupSeen) present.add('group');
-			if (sortSeen) present.add('sort');
-			if (withspans !== undefined) present.add('withspans');
-			for (const output of requiredOutputs) {
-				if (present.has(output)) continue;
-				issues.push({
-					stage: 'target',
-					code: 'missing-output',
-					output,
-					message: `Required output '${output}' is missing.`,
-				});
-			}
-
-			return {
+			const params: SearchParams = {
 				...(patt !== undefined ? { patt } : {}),
 				...(filter !== undefined ? { filter } : {}),
 				...(searchfield !== undefined ? { searchfield } : {}),
@@ -114,6 +94,14 @@ export function createSearchTarget(options: SearchTargetOptions = {}): FormTarge
 				...(sortSeen ? { sort: sort.length ? sort.join(',') : null } : {}),
 				...(withspans !== undefined ? { withspans } : {}),
 			};
+			for (const output of requiredOutputs) {
+				if (output in params) continue;
+				issues.push({
+					severity: 'error',
+					message: `Required output '${output}' is missing.`,
+				});
+			}
+			return params;
 		},
 	};
 }

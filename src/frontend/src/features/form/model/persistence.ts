@@ -10,13 +10,6 @@ import type { FormIssue } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
-type RestoreDiagnostic = {
-	key?: string;
-	nodeId?: string;
-	message: string;
-	code?: FormIssue['code'];
-};
-
 export type RestoredFormState = NewFormState & {
 	issues: FormIssue[];
 	/** Scoped form that can be compiled as the submitted query; canonical-only fallback stays null. */
@@ -123,14 +116,14 @@ function decodeScopedFormParams(query: Record<string, unknown>) {
 
 function restorePersistedFields(entries: PersistenceSchemaEntry[], persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
 	const state: Record<string, unknown> = {};
-	const issues: RestoreDiagnostic[] = [];
+	const issues: FormIssue[] = [];
 	const knownKeys = new Set(entries.map(entry => entry.key));
 
 	for (const entry of entries) {
 		if (!persistedFields.has(entry.key)) continue;
 		const payload = persistedFields.get(entry.key);
 		if (payload == null) {
-			issues.push({ key: entry.key, nodeId: entry.field.id, message: `Persisted field '${entry.key}' has no value.` });
+			issues.push({ severity: 'warning', message: `Persisted field '${entry.key}' for '${entry.field.id}' has no value.` });
 			continue;
 		}
 
@@ -138,39 +131,40 @@ function restorePersistedFields(entries: PersistenceSchemaEntry[], persistedFiel
 			state[entry.field.id] = restoreFieldState(entry.field, payload, context);
 		} catch (error) {
 			issues.push({
-				key: entry.key,
-				nodeId: entry.field.id,
-				message: error instanceof Error ? error.message : `Could not restore field '${entry.field.id}'.`,
+				severity: 'error',
+				message: `Could not restore persisted field '${entry.key}' for '${entry.field.id}': ${error instanceof Error ? error.message : String(error)}`,
 			});
 		}
 	}
 
-	const unrecognizedIssues = [...persistedFields.keys()].filter(key => !knownKeys.has(key)).map(key => ({ key, message: `No current form field accepts persisted key '${key}'.` }));
+	const unrecognizedIssues: FormIssue[] = [...persistedFields.keys()]
+		.filter(key => !knownKeys.has(key))
+		.map(key => ({ severity: 'warning', message: `No current form field accepts persisted key '${key}'.` }));
 	return { state, issues, unrecognizedIssues };
 }
 
 function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: DecodedScopedParameter) {
 	const uiState: Record<string, string> = {};
-	const issues: RestoreDiagnostic[] = [];
+	const issues: FormIssue[] = [];
 	if (!persistedTabs.present) return { uiState, issues };
 	if (persistedTabs.value == null) {
-		return { uiState, issues: [{ key: SCOPED_FORM_KEYS.tabSelections, message: 'Persisted tab selection has no value.' }] };
+		return { uiState, issues: [{ severity: 'warning' as const, message: 'Persisted tab selection has no value.' }] };
 	}
 
 	for (const tab of asArray(persistedTabs.value)) {
 		const [containerKey, childKey] = tab.split(':');
 		if (!containerKey || !childKey || tab.split(':').length !== 2) {
-			issues.push({ key: SCOPED_FORM_KEYS.tabSelections, message: `Invalid persisted tab selection '${tab}'.` });
+			issues.push({ severity: 'warning', message: `Invalid persisted tab selection '${tab}'.` });
 			continue;
 		}
 		const container = definition.getNode(containerKey);
 		if (!isContainerNode(container)) {
-			issues.push({ key: SCOPED_FORM_KEYS.tabSelections, message: `No current form container accepts persisted tab key '${containerKey}'.` });
+			issues.push({ severity: 'warning', message: `No current form container accepts persisted tab key '${containerKey}'.` });
 			continue;
 		}
 		const child = container.children.find(child => child.id === childKey);
 		if (!child) {
-			issues.push({ key: SCOPED_FORM_KEYS.tabSelections, nodeId: container.id, message: `No child '${childKey}' exists in persisted tab container '${containerKey}'.` });
+			issues.push({ severity: 'warning', message: `No child '${childKey}' exists in persisted tab container '${containerKey}'.` });
 			continue;
 		}
 		uiState[container.id] = child.id;
@@ -187,12 +181,12 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 	const scopedForm = definition.formsMap[requestedFormId ?? ''] ?? definition.formsList[0];
 
 	let submittedFormId: string | null = null;
-	const formSelectorIssues: RestoreDiagnostic[] = [];
+	const formSelectorIssues: FormIssue[] = [];
 	if (scopedParams.formSelector.present) {
 		if (requestedFormId === scopedForm.id) submittedFormId = requestedFormId;
 		else {
 			formSelectorIssues.push({
-				key: SCOPED_FORM_KEYS.formSelector,
+				severity: 'warning',
 				message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
 			});
 		}
@@ -202,12 +196,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 	const schema = resolvePersistenceSchema(scopedForm, definition.context);
 	const restoredFields = restorePersistedFields(schema.entries, scopedParams.fields, definition.context);
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
-	const schemaIssues = schema.issues.map(({ kind: _, ...issue }) => issue);
-	const issues: FormIssue[] = [...formSelectorIssues, ...schemaIssues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues].map(issue => ({
-		...issue,
-		stage: 'restore',
-		code: 'invalid-restored-state',
-	}));
+	const issues: FormIssue[] = [...formSelectorIssues, ...schema.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
 
 	const finishRestore = (activeForm: FormBoundaryNode, finalSubmittedFormId: string | null, expertFallback: ReturnType<typeof findExpertFallback> = null): RestoredForm => {
 		const restoredState: NewFormState = {

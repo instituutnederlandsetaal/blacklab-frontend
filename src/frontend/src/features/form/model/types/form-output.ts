@@ -44,15 +44,9 @@ export function isValidEmission(emission: { name: unknown; value: unknown }): em
 	return typeof emission.name === 'string' && isFormOutputName(emission.name) && OUTPUT_VALIDATORS[emission.name](emission.value);
 }
 
-type CompilationIssueCode = 'controller-error' | 'unknown-output' | 'undeclared-output' | 'unexpected-output' | 'unsupported-output' | 'malformed-output' | 'conflicting-output' | 'missing-output';
-
 export type FormIssue = {
-	stage: 'restore' | 'collect' | 'accept' | 'target';
-	code: CompilationIssueCode | 'invalid-restored-state';
+	severity: 'warning' | 'error';
 	message: string;
-	key?: string;
-	nodeId?: string;
-	output?: string;
 };
 
 export type ResultPreset = GroupDisplayMode | null;

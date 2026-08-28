@@ -239,8 +239,8 @@ describe('scoped form persistence', () => {
 			resultPreset: 'table',
 		});
 		expect(restored.submittedResult?.issues).toEqual([
-			expect.objectContaining({ stage: 'restore', code: 'invalid-restored-state', key: 'removed' }),
-			expect.objectContaining({ stage: 'collect', code: 'controller-error', nodeId: field.id, message: 'compile diagnostic' }),
+			{ severity: 'warning', message: "No current form field accepts persisted key 'removed'." },
+			{ severity: 'error', message: `Controller for '${field.id}' failed: compile diagnostic` },
 		]);
 
 		collect.mockClear();
@@ -260,7 +260,11 @@ describe('scoped form persistence', () => {
 		});
 
 		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
-		expect(restored.issues).toMatchObject([{ key: 'form' }, { key: 'v' }, { key: 'removed' }]);
+		expect(restored.issues).toEqual([
+			{ severity: 'warning', message: "No current form accepts persisted selector 'removed-form'." },
+			{ severity: 'warning', message: "No current form field accepts persisted key 'v'." },
+			{ severity: 'warning', message: "No current form field accepts persisted key 'removed'." },
+		]);
 	});
 
 	test('retains defaults when a known field restore throws', () => {
@@ -284,7 +288,7 @@ describe('scoped form persistence', () => {
 		const restored = restoreFormState(builder, { 'f.word': 'old' });
 
 		expect(restored.state[field.id]).toEqual({ value: '' });
-		expect(restored.issues).toMatchObject([{ key: 'word', nodeId: field.id }]);
+		expect(restored.issues).toEqual([{ severity: 'error', message: `Could not restore persisted field 'word' for '${field.id}': Unsupported historical value.` }]);
 	});
 
 	test.each([
@@ -311,14 +315,13 @@ describe('scoped form persistence', () => {
 		const state = createDefaultFormState(builder.context, form);
 		state.state[field.id] = { value: 'water' };
 
-		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.nodeId === field.id)!;
-		expect(compiledIssue.stage).toBe('collect');
-		expect(compiledIssue.code).toBe(_name === 'throwing' ? 'controller-error' : 'malformed-output');
+		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.message.includes(field.id))!;
+		expect(compiledIssue.severity).toBe('error');
 
 		key.mockClear();
 		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.unknown': 'water' });
-		const restoredIssue = restored.issues.find(issue => issue.nodeId === field.id)!;
-		expect(restoredIssue).toMatchObject({ stage: 'restore', code: 'invalid-restored-state', message: compiledIssue.message });
+		const restoredIssue = restored.issues.find(issue => issue.message.includes(field.id))!;
+		expect(restoredIssue).toEqual(compiledIssue);
 		expect(key).toHaveBeenCalledOnce();
 	});
 
@@ -344,7 +347,7 @@ describe('scoped form persistence', () => {
 
 		expect(compiled.params.patt).toBe('[word="water"]');
 		expect(compiled.resultPreset).toBe('table');
-		expect(compiled.issues).toEqual([expect.objectContaining({ code: 'controller-error', nodeId: field.id, message: 'broken persistence key' })]);
+		expect(compiled.issues).toEqual([{ severity: 'error', message: `Could not resolve persistence key for '${field.id}': broken persistence key` }]);
 	});
 
 	test('reports a present scoped field without a decodable value', () => {
@@ -353,7 +356,7 @@ describe('scoped form persistence', () => {
 		const restored = restoreFormState(fixture.definition, { 'f.word': null });
 
 		expect(restored.state[fixture.field.id]).toEqual({ value: '' });
-		expect(restored.issues).toMatchObject([{ key: 'word', nodeId: fixture.field.id }]);
+		expect(restored.issues).toEqual([{ severity: 'warning', message: `Persisted field 'word' for '${fixture.field.id}' has no value.` }]);
 	});
 
 	test('compares supplied overrides without interpreting unscoped query parameters', () => {
@@ -436,7 +439,7 @@ describe('scoped form persistence', () => {
 			'f.author': 'Austen',
 		});
 
-		expect(restored.issues).toEqual([{ stage: 'restore', code: 'invalid-restored-state', key: 'word', nodeId: word.id, message: 'Invalid word state.' }]);
+		expect(restored.issues).toEqual([{ severity: 'error', message: `Could not restore persisted field 'word' for '${word.id}': Invalid word state.` }]);
 		expect(restored.state[author.id]).toEqual({ value: 'Austen', caseSensitive: false });
 	});
 
@@ -495,7 +498,11 @@ describe('scoped form persistence', () => {
 		expect(restored.uiState.search).toBe(fixture.expert.id);
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
-		expect(restored.issues.map(issue => issue.key)).toEqual(['form', 'tab', 'removed']);
+		expect(restored.issues).toEqual([
+			{ severity: 'warning', message: "No current form accepts persisted selector 'removed-form'." },
+			{ severity: 'warning', message: "No current form container accepts persisted tab key 'missing'." },
+			{ severity: 'warning', message: "No current form field accepts persisted key 'removed'." },
+		]);
 	});
 
 	test('does not treat a form selector by itself as restorable query state', () => {
@@ -773,8 +780,8 @@ describe('scoped form persistence', () => {
 		state.state[first.id] = { value: 'water' };
 		state.state[second.id] = { value: 'fire' };
 
-		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.nodeId === second.id)!;
-		expect(compiledIssue).toMatchObject({ stage: 'collect', code: 'malformed-output', key: 'word' });
+		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.message.includes(second.id))!;
+		expect(compiledIssue).toEqual({ severity: 'error', message: `Duplicate form persistence key 'word' for '${second.id}' and '${first.id}'.` });
 		expect(firstKey).toHaveBeenCalledOnce();
 		expect(secondKey).toHaveBeenCalledOnce();
 		firstKey.mockClear();
@@ -784,7 +791,7 @@ describe('scoped form persistence', () => {
 
 		expect(restored.state[first.id]).toEqual({ value: 'water' });
 		expect(restored.state[second.id]).toEqual({ value: '' });
-		expect(restored.issues).toContainEqual(expect.objectContaining({ nodeId: second.id, key: 'word', message: compiledIssue.message }));
+		expect(restored.issues).toContainEqual(compiledIssue);
 		expect(firstKey).toHaveBeenCalledOnce();
 		expect(secondKey).toHaveBeenCalledOnce();
 	});
@@ -811,10 +818,7 @@ describe('scoped form persistence', () => {
 
 		expect(compileFormNode(duplicateForm, duplicateState, duplicateContext).issues).toEqual([
 			{
-				stage: 'collect',
-				code: 'malformed-output',
-				key: 'word',
-				nodeId: secondDuplicateField.id,
+				severity: 'error',
 				message: `Duplicate form persistence key 'word' for '${secondDuplicateField.id}' and '${firstDuplicateField.id}'.`,
 			},
 		]);
@@ -830,7 +834,7 @@ describe('scoped form persistence', () => {
 		const form = builder.newForm('search.empty', ContainerRenderer, {}).addChildren(builder.newField('search.empty.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' }));
 
 		expect(compileFormNode(form, createDefaultFormState(builder.context, form), builder.context).issues).toEqual([
-			expect.objectContaining({ stage: 'collect', code: 'malformed-output', nodeId: 'search.empty.word', key: '' }),
+			{ severity: 'error', message: "Field 'search.empty.word' has an invalid form persistence key ''." },
 		]);
 	});
 
@@ -853,10 +857,7 @@ describe('scoped form persistence', () => {
 
 		expect(compileFormNode(form, createDefaultFormState(reservedContext, reservedDefinition.getRoot()), reservedContext).issues).toEqual([
 			{
-				stage: 'collect',
-				code: 'malformed-output',
-				key: 'form',
-				nodeId: 'search.reserved.word',
+				severity: 'error',
 				message: "Field 'search.reserved.word' uses reserved form persistence key 'form'.",
 			},
 		]);

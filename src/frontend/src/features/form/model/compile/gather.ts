@@ -40,15 +40,15 @@ type GatherContext = {
 	field?: FormFieldNode;
 };
 
-function reportIssue(context: GatherContext, nodeId: string, code: FormIssue['code'], message: string, output?: string, key?: string): void {
-	context.issues.push({ stage: 'collect', code, nodeId, message, ...(output === undefined ? {} : { output }), ...(key === undefined ? {} : { key }) });
+function reportIssue(context: GatherContext, severity: FormIssue['severity'], message: string): void {
+	context.issues.push({ severity, message });
 }
 
 function invoke(context: GatherContext, nodeId: string, callback: () => void): void {
 	try {
 		callback();
 	} catch (error) {
-		reportIssue(context, nodeId, 'controller-error', error instanceof Error ? error.message : String(error));
+		reportIssue(context, 'error', `Controller for '${nodeId}' failed: ${error instanceof Error ? error.message : String(error)}`);
 	}
 }
 
@@ -57,16 +57,10 @@ function emitValue(context: GatherContext, nodeId: string, sink: Sink, declared:
 	const emission = { name, value };
 	if (!isValidEmission(emission)) {
 		const knownName = typeof name === 'string' && isFormOutputName(name);
-		reportIssue(
-			context,
-			nodeId,
-			knownName ? 'malformed-output' : 'unknown-output',
-			`Ignoring ${knownName ? 'malformed' : 'unknown'} output '${String(name)}'.`,
-			typeof name === 'string' ? name : undefined,
-		);
+		reportIssue(context, 'warning', `Controller for '${nodeId}' emitted ${knownName ? 'malformed' : 'unknown'} output '${String(name)}'; ignoring it.`);
 		return;
 	}
-	if (declared && !declared.includes(emission.name)) reportIssue(context, nodeId, 'undeclared-output', `Controller for '${nodeId}' emitted undeclared output '${emission.name}'.`, emission.name);
+	if (declared && !declared.includes(emission.name)) reportIssue(context, 'warning', `Controller for '${nodeId}' emitted undeclared output '${emission.name}'.`);
 	sink(emission);
 }
 
@@ -89,7 +83,7 @@ function persistField(context: GatherContext, field: FormFieldNode, state: unkno
 		const value = encodeFieldState(field, state, context.runtime);
 		if (value != null && value !== '') persistence.encoded[`${FORM_QUERY_PREFIX}${key}`] = value;
 	} catch (error) {
-		reportIssue(context, field.id, 'controller-error', error instanceof Error ? error.message : String(error), undefined, key);
+		reportIssue(context, 'error', `Could not persist '${key}' for controller '${field.id}': ${error instanceof Error ? error.message : String(error)}`);
 	}
 }
 
@@ -164,9 +158,7 @@ function visitNode(node: FormNode, context: GatherContext, sink: Sink): void {
 }
 
 function gather(runtime: FormRuntimeContext, issues: FormIssue[], formState?: NewFormState, channels: GatherChannels = {}, schema?: PersistenceSchema): GatherContext {
-	for (const { kind, ...issue } of schema?.issues ?? []) {
-		issues.push({ stage: 'collect', code: kind === 'key-error' ? 'controller-error' : 'malformed-output', ...issue });
-	}
+	issues.push(...(schema?.issues ?? []));
 	return {
 		runtime,
 		formState,

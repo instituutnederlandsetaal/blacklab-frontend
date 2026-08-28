@@ -481,7 +481,12 @@ describe('form model state', () => {
 		const emissions = collectFieldEmissions(sharedField, { value: 'water' }, builder.context, issues);
 
 		expect(emissions.map(emission => emission.name)).toEqual(['patt', 'group']);
-		expect(issues.map(issue => issue.code)).toEqual(['unknown-output', 'undeclared-output', 'malformed-output', 'controller-error']);
+		expect(issues).toEqual([
+			{ severity: 'warning', message: `Controller for '${sharedField.id}' emitted unknown output 'unknown'; ignoring it.` },
+			{ severity: 'warning', message: `Controller for '${sharedField.id}' emitted undeclared output 'group'.` },
+			{ severity: 'warning', message: `Controller for '${sharedField.id}' emitted malformed output 'filter'; ignoring it.` },
+			{ severity: 'error', message: `Controller for '${sharedField.id}' failed: collect failed` },
+		]);
 		expect(collect).toHaveBeenCalledOnce();
 		expect(summarize).not.toHaveBeenCalled();
 		expect(key).not.toHaveBeenCalled();
@@ -549,7 +554,7 @@ describe('form model state', () => {
 		const compiled = createTestRuntime(builder).compile(form.id);
 
 		expect(compiled.params).toEqual({ filter: 'author:(Austen)' });
-		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'malformed-output', nodeId: tabs.id, output: 'patt' }));
+		expect(compiled.issues).toContainEqual({ severity: 'warning', message: `Controller for '${tabs.id}' emitted malformed output 'patt'; ignoring it.` });
 	});
 
 	test('active-child contributions preserve nested parent combine modes', () => {

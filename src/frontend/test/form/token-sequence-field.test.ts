@@ -206,7 +206,7 @@ describe('token sequence composite field', () => {
 		const compiled = runtime.compile('explore.ngram');
 
 		expect(compiled.params).not.toHaveProperty('patt');
-		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'controller-error', nodeId: 'explore.ngram.tokens', message: 'embedded child error' }));
+		expect(compiled.issues).toContainEqual({ severity: 'error', message: "Controller for 'explore.ngram.tokens' failed: embedded child error" });
 		expect(compiled.summaries.filter(summary => summary.label === 'Child').map(summary => summary.value)).toEqual(['throw', 'water']);
 	});
 
@@ -220,14 +220,10 @@ describe('token sequence composite field', () => {
 
 		expect(compiled.params).not.toHaveProperty('patt');
 		expect(compiled.params).not.toHaveProperty('filter');
-		expect(compiled.issues).toContainEqual(
-			expect.objectContaining({
-				stage: 'collect',
-				code: 'controller-error',
-				nodeId: 'explore.ngram.tokens',
-				message: "Unexpected 'filter' output from embedded field 'explore.ngram.tokens.token.0.word'.",
-			}),
-		);
+		expect(compiled.issues).toContainEqual({
+			severity: 'error',
+			message: "Controller for 'explore.ngram.tokens' failed: Unexpected 'filter' output from embedded field 'explore.ngram.tokens.token.0.word'.",
+		});
 	});
 
 	test('lays out only the length control horizontally', () => {

@@ -580,7 +580,7 @@ describe('search form system', () => {
 		});
 
 		expect(restored.state[ids.exploreNgramGroupBy()]).toBe('word');
-		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: ids.exploreNgramGroupBy() })]));
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ severity: 'error', message: expect.stringContaining(ids.exploreNgramGroupBy()) })]));
 	});
 
 	test('renders the N-gram length bounds and five active token editors', () => {
@@ -1170,7 +1170,7 @@ describe('search form system', () => {
 		});
 		replacementRuntime.state.replaceState(restored);
 
-		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'query', nodeId: ids.queryField('advanced') })]));
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ severity: 'error', message: expect.stringContaining(ids.queryField('advanced')) })]));
 		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.params.patt });
 		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: 'Austen', caseSensitive: false });
 		expect(replacementRuntime.compile(ids.searchForm('advanced')).params).toMatchObject({

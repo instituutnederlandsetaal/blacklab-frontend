@@ -3,7 +3,6 @@ import { describe, expect, test, vi } from 'vitest';
 import {
 	acceptTargetEmissions,
 	createSearchTarget,
-	diagnoseTargetOutputs,
 	docsSearchTarget,
 	hitsSearchTarget,
 	rawCql,
@@ -47,7 +46,6 @@ function emission<Name extends FormOutputName>(name: Name, value: FormEmission<N
 describe('form output acceptance', () => {
 	test('exports acceptance helpers from the public form API', () => {
 		expect(acceptTargetEmissions).toBeTypeOf('function');
-		expect(diagnoseTargetOutputs).toBeTypeOf('function');
 	});
 
 	test('defensively validates emissions passed through the public acceptance helper', () => {
@@ -65,8 +63,8 @@ describe('form output acceptance', () => {
 
 		expect(accepted).toEqual([emission('patt', rawCql('[word="water"]'))]);
 		expect(issues).toEqual([
-			expect.objectContaining({ stage: 'accept', code: 'malformed-output', output: 'filter' }),
-			expect.objectContaining({ stage: 'accept', code: 'unsupported-output', output: 'collpatt' }),
+			{ severity: 'warning', message: "Ignoring malformed output 'filter'." },
+			{ severity: 'warning', message: "The form target does not accept output 'collpatt'; ignoring it." },
 		]);
 	});
 
@@ -84,9 +82,9 @@ describe('form output acceptance', () => {
 
 		expect(compiled.params).toEqual({ group: 'field:author', patt: '[word="water"]', searchfield: 'contents' });
 		expect(compiled.issues).toEqual([
-			expect.objectContaining({ stage: 'collect', code: 'unknown-output', nodeId: 'search.field.0', output: 'unknown' }),
-			expect.objectContaining({ stage: 'collect', code: 'undeclared-output', nodeId: 'search.field.0', output: 'group' }),
-			expect.objectContaining({ stage: 'collect', code: 'malformed-output', output: 'filter' }),
+			{ severity: 'warning', message: "Controller for 'search.field.0' emitted unknown output 'unknown'; ignoring it." },
+			{ severity: 'warning', message: "Controller for 'search.field.0' emitted undeclared output 'group'." },
+			{ severity: 'warning', message: "Controller for 'search.field.0' emitted malformed output 'filter'; ignoring it." },
 		]);
 	});
 
@@ -98,12 +96,11 @@ describe('form output acceptance', () => {
 		expect(createRuntime(controller).compile('search.form')).toMatchObject({ params: {}, issues: [] });
 	});
 
-	test('reports controller outputs that the reachable form target does not support before they are emitted', () => {
+	test('does not preflight declarations that never emit', () => {
 		const controller = createController(['collpatt'], () => {});
 		const compiled = createRuntime(controller).compile('search.form');
 
-		expect(compiled.params).toEqual({});
-		expect(compiled.issues).toEqual([expect.objectContaining({ stage: 'accept', code: 'unsupported-output', nodeId: 'search.field.0', output: 'collpatt' })]);
+		expect(compiled).toMatchObject({ params: {}, issues: [] });
 	});
 
 	test('catches controller failures and continues with following fields', () => {
@@ -115,7 +112,7 @@ describe('form output acceptance', () => {
 		const compiled = createRuntime(first, second).compile('search.form');
 
 		expect(compiled.params).toEqual({ patt: '[word="water"]', filter: 'author:(Austen)' });
-		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'controller-error', nodeId: 'search.field.0', message: 'broken controller' }));
+		expect(compiled.issues).toContainEqual({ severity: 'error', message: "Controller for 'search.field.0' failed: broken controller" });
 	});
 
 	test('isolates every controller channel and continues with later fields', () => {
@@ -149,7 +146,12 @@ describe('form output acceptance', () => {
 		expect(compiled.params).toEqual({ patt: '[word="water"]', filter: 'author:(Austen)' });
 		expect(compiled.resultPreset).toBe('tokens');
 		expect(compiled.summaries).toContainEqual({ label: 'Partial', value: 'summary', summaryType: ['patt'] });
-		expect(compiled.issues.filter(issue => issue.code === 'controller-error').map(issue => issue.message)).toEqual(['broken collection', 'broken summary', 'broken persistence', 'broken preset']);
+		expect(compiled.issues.filter(issue => issue.severity === 'error').map(issue => issue.message)).toEqual([
+			"Controller for 'search.field.0' failed: broken collection",
+			"Controller for 'search.field.0' failed: broken summary",
+			"Could not persist 'annotation-0' for controller 'search.field.0': broken persistence",
+			"Controller for 'search.field.0' failed: broken preset",
+		]);
 	});
 
 	test('rejects malformed recursive CQL instead of throwing during target compilation', () => {
@@ -159,7 +161,7 @@ describe('form output acceptance', () => {
 		const compiled = createRuntime(controller).compile('search.form');
 
 		expect(compiled.params).toEqual({});
-		expect(compiled.issues).toContainEqual(expect.objectContaining({ stage: 'collect', code: 'malformed-output', output: 'patt' }));
+		expect(compiled.issues).toContainEqual({ severity: 'warning', message: "Controller for 'search.field.0' emitted malformed output 'patt'; ignoring it." });
 	});
 });
 
@@ -193,8 +195,8 @@ describe('search target compilation', () => {
 			withspans: true,
 		});
 		expect(issues).toEqual([
-			expect.objectContaining({ stage: 'target', code: 'conflicting-output', output: 'searchfield' }),
-			expect.objectContaining({ stage: 'target', code: 'conflicting-output', output: 'patt' }),
+			{ severity: 'warning', message: "Ignoring repeated non-empty output 'searchfield'." },
+			{ severity: 'warning', message: "Ignoring repeated non-empty output 'patt'." },
 		]);
 	});
 
@@ -206,13 +208,21 @@ describe('search target compilation', () => {
 		expect(issues).toEqual([]);
 	});
 
+	test('treats repeated withspans as the same idempotent request', () => {
+		const target = createSearchTarget();
+		const issues: FormIssue[] = [];
+
+		expect(target.compile([emission('withspans', true), emission('withspans', true)] as FormEmission<SearchOutputName>[], issues)).toEqual({ withspans: true });
+		expect(issues).toEqual([]);
+	});
+
 	test('applies defaults, reports required normalized outputs, and still publishes a partial bag', () => {
 		const target = createSearchTarget({ defaultSearchfield: ' contents ', requiredOutputs: ['patt', 'filter', 'searchfield'] });
 		const issues: FormIssue[] = [];
 		const params = target.compile([emission('filter', filter('author', 'literal', 'Austen')!)] as FormEmission<SearchOutputName>[], issues);
 
 		expect(params).toEqual({ filter: 'author:(Austen)', searchfield: 'contents' });
-		expect(issues).toEqual([expect.objectContaining({ stage: 'target', code: 'missing-output', output: 'patt' })]);
+		expect(issues).toEqual([{ severity: 'error', message: "Required output 'patt' is missing." }]);
 	});
 
 	test('returns an empty parameter bag and one issue per missing required output', () => {
@@ -220,9 +230,9 @@ describe('search target compilation', () => {
 		const issues: FormIssue[] = [];
 
 		expect(target.compile([], issues)).toEqual({});
-		expect(issues.map(issue => [issue.stage, issue.code, issue.output])).toEqual([
-			['target', 'missing-output', 'patt'],
-			['target', 'missing-output', 'searchfield'],
+		expect(issues).toEqual([
+			{ severity: 'error', message: "Required output 'patt' is missing." },
+			{ severity: 'error', message: "Required output 'searchfield' is missing." },
 		]);
 	});
 
