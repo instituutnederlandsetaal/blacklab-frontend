@@ -39,11 +39,11 @@
 		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li :class="{ active: activeArticleTab === 'content' }"><a href="#content" @click.prevent="activeArticleTab = 'content'">Content</a></li>
 			<li :class="{ active: activeArticleTab === 'metadata' }"><a href="#metadata" @click.prevent="activeArticleTab = 'metadata'">Metadata</a></li>
-			<li v-if="statisticsEnabled" :class="{ active: activeArticleTab === 'statistics' }"><a href="#statistics" @click.prevent="activeArticleTab = 'statistics'">Statistics</a></li>
+			<li :class="{ active: activeArticleTab === 'statistics' }"><a href="#statistics" @click.prevent="activeArticleTab = 'statistics'">Statistics</a></li>
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
 			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
-				<h2 v-if="isParallel" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
+				<h2 v-if="corpus.isParallelCorpus" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
 				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
@@ -105,10 +105,9 @@
 				</HtmlRenderer>
 			</div>
 
-			<div id="statistics" class="tab-pane" :class="{ active: activeArticleTab === 'statistics' }" v-if="statisticsEnabled && activeArticleTab === 'statistics'">
+			<div id="statistics" class="tab-pane" :class="{ active: activeArticleTab === 'statistics' }" v-if="activeArticleTab === 'statistics'">
 				<h4 v-if="!statisticsEnabled" class="text-muted text-center">
-					<!-- TODO i18n -->
-					<em>No statistics have been configured for this corpus.</em>
+					<em>{{ $t('article.statistics.notConfigured') }}</em>
 				</h4>
 				<Spinner v-else-if="statistics.isLoading()" center size="60px" />
 				<div v-else-if="statistics.isError()" class="text-center">
@@ -190,12 +189,7 @@ const metadataFieldsToShow = computed(() =>
 );
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
-const isParallel = computed(() => corpus.value.isParallelCorpus);
 const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value.viewField ?? '']);
-
-watchEffect(() => {
-	if (!statisticsEnabled.value && activeArticleTab.value === 'statistics') activeArticleTab.value = 'content';
-});
 
 watchEffect(() => {
 	if (contents.isLoaded() || contents.isError()) {

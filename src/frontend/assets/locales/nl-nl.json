@@ -342,6 +342,11 @@
 			"spanAttribute": "tag {span}, attribuut {attribute}"
 		}
 	},
+	"article": {
+		"statistics": {
+			"notConfigured": "Er zijn geen statistieken geconfigureerd voor dit corpus."
+		}
+	},
 	"history": {
 		"heading": "Geschiedenis",
 		"results": "Resultaten",

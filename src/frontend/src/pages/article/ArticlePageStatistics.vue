@@ -1,12 +1,6 @@
 <template>
 	<div class="row">
-		<div
-			v-if="statisticsTableData"
-			:class="{
-				'col-xs-12': true,
-				'col-md-6': !!statisticsTableData,
-			}"
-		>
+		<div v-if="statisticsTableData" class="col-xs-12 col-md-6">
 			<table class="table" style="table-layout: auto; width: 100%">
 				<thead>
 					<tr>
@@ -51,7 +45,6 @@ HighchartsBoost(Highcharts);
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { PropType } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
@@ -59,11 +52,11 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 
-const props = defineProps({
-	snippet: { type: Object as PropType<BLTypes.BLHit>, required: true },
-	document: { type: Object as PropType<BLTypes.BLDocument>, required: true },
-	isPaginated: Boolean,
-});
+const props = defineProps<{
+	snippet: BLTypes.BLHit;
+	document: BLTypes.BLDocument;
+	isPaginated?: boolean;
+}>();
 
 const baseColor = computed(ArticleStore.get.baseColor);
 
@@ -94,7 +87,3 @@ const growthData = computed(() => {
 		: null;
 });
 </script>
-
-<style lang="scss">
-// Only contains styles for classes used in the built in xsl files (article_tei.xsl, article_folia.xsl). And some styles for the navigation controls (next hit, next page)
-</style>

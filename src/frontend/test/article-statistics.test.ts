@@ -56,11 +56,6 @@ describe('ArticlePageStatistics', () => {
 		ArticleStore.actions.distributionAnnotation({ id: 'lemma', displayName: 'Lemmas' });
 
 		const wrapper = mountStatistics();
-		expect(wrapper.vm.$options.props).toMatchObject({
-			snippet: { type: Object, required: true },
-			document: { type: Object, required: true },
-			isPaginated: Boolean,
-		});
 		expect(wrapper.getComponent(AnnotationDistributions).props()).toMatchObject({
 			snippet: hit,
 			annotationId: 'lemma',
@@ -108,7 +103,6 @@ describe('article statistic charts', () => {
 		const wrapper = mount(AnnotationDistributions, {
 			props: { snippet, annotationId: 'lemma', chartTitle: 'Lemmas', baseColor: '#337ab7' },
 		});
-		expect(wrapper.vm.$options.props).toMatchObject({ snippet: Object, baseColor: String, annotationId: String, chartTitle: String });
 		const initial = options(wrapper);
 		expect(initial).toMatchObject({
 			title: { text: 'Lemmas' },
@@ -143,12 +137,6 @@ describe('article statistic charts', () => {
 	test('preserves the growth defaults, data transform, color counts, and replacement options', async () => {
 		const wrapper = mount(AnnotationGrowths, {
 			props: { snippet, baseColor: '#337ab7' },
-		});
-		expect(wrapper.vm.$options.props).toMatchObject({
-			snippet: { type: Object, required: true },
-			annotations: Array,
-			chartTitle: { type: String, default: 'Growths' },
-			baseColor: String,
 		});
 		const initial = options(wrapper);
 		expect(initial).toMatchObject({ title: { text: 'Growths' }, colors: ['rgb(0,20,81)'], series: [] });

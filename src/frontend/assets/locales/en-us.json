@@ -342,6 +342,11 @@
 			"spanAttribute": "tag {span}, attribute {attribute}"
 		}
 	},
+	"article": {
+		"statistics": {
+			"notConfigured": "No statistics have been configured for this corpus."
+		}
+	},
 	"history": {
 		"heading": "History",
 		"results": "Results",

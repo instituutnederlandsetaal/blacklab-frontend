@@ -6,18 +6,17 @@
 import * as Highcharts from 'highcharts';
 import { Chart } from 'highcharts-vue';
 import { computed } from 'vue';
-import type { PropType } from 'vue';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import { chartColors } from './chart-colors';
 
-const props = defineProps({
-	snippet: Object as PropType<BLTypes.BLHitInDoc>,
-	baseColor: String,
-	annotationId: String,
-	chartTitle: String,
-});
+const props = defineProps<{
+	snippet?: BLTypes.BLHitInDoc;
+	baseColor?: string;
+	annotationId?: string;
+	chartTitle?: string;
+}>();
 
 const distribution = computed<null | Array<{
 	y: number;
@@ -66,5 +65,3 @@ const chartOptions = computed<null | Highcharts.Options>(() => {
 	};
 });
 </script>
-
-<style lang="scss"></style>

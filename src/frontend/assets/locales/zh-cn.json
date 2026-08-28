@@ -339,6 +339,11 @@
 			"spanAttribute": "标签 {span}，属性 {attribute}"
 		}
 	},
+	"article": {
+		"statistics": {
+			"notConfigured": "此语料库尚未配置统计信息。"
+		}
+	},
 	"history": {
 		"heading": "历史记录",
 		"results": "结果",

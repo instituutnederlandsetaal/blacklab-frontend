@@ -7,23 +7,23 @@ import { stripIndent } from 'common-tags';
 import * as Highcharts from 'highcharts';
 import { Chart } from 'highcharts-vue';
 import { computed } from 'vue';
-import type { PropType } from 'vue';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import { chartColors } from './chart-colors';
 
-const props = defineProps({
-	snippet: { type: Object as PropType<BLTypes.BLHitInDoc>, required: true },
-	annotations: Array as PropType<
-		Array<{
+const props = withDefaults(
+	defineProps<{
+		snippet: BLTypes.BLHitInDoc;
+		annotations?: Array<{
 			id: string;
 			displayName?: string;
-		}>
-	>,
-	chartTitle: { type: String, default: 'Growths' },
-	baseColor: String,
-});
+		}>;
+		chartTitle?: string;
+		baseColor?: string;
+	}>(),
+	{ chartTitle: 'Growths' },
+);
 
 const growth = computed<Highcharts.SeriesLineOptions[]>(() => {
 	if (!props.annotations || props.annotations.length === 0) return [];
