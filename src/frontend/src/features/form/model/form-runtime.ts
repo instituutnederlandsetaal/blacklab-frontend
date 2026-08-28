@@ -1,7 +1,7 @@
 import { markRaw } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { compileFormNode } from '@/features/form/model/persistence';
+import { applyRawOverrides, compileFormNode } from '@/features/form/model/persistence';
 import createFormState, { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { RenderableFormNode } from '@/features/form/ui/renderable-graph';
@@ -36,12 +36,7 @@ export class FormRuntime {
 		const form = this.definition.getForm(formId);
 		if (!form) throw new Error(`Cannot compile unknown form '${formId}'.`);
 		const state = this.state.getReactiveState();
-		const result = compileFormNode(form, state, this.definition.context);
-		const accepted = new Set<string>(form.target.acceptedOutputs);
-		for (const [parameter, value] of Object.entries(state.rawOverrides)) {
-			if (accepted.has(parameter)) (result.params as unknown as Record<string, unknown>)[parameter] = value;
-		}
-		return result;
+		return applyRawOverrides(compileFormNode(form, state, this.definition.context), state.rawOverrides, form.target.acceptedOutputs);
 	}
 
 	public reset() {

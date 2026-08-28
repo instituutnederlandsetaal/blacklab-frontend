@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import {
@@ -38,7 +38,7 @@ import {
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
-import { restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
+import { restoreSearchForm, restoreSearchFormState } from '@/features/search/model/new-form/form-state-bridge';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -205,6 +205,49 @@ describe('scoped form persistence', () => {
 		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.rawOverrides).toEqual({});
 		expect(restored.submittedFormId).toEqual('search.extended');
+	});
+
+	test('reuses the valid scoped restoration compilation', () => {
+		const collect = vi.fn((...args: Parameters<typeof testTextController.collect>) => {
+			testTextController.collect(...args);
+			throw new Error('compile diagnostic');
+		});
+		const controller: FieldController<'restoration-reuse', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'restoration-reuse',
+			collect,
+			getResultPreset: () => 'table',
+		};
+		const builder = createTestBuilder();
+		const field = builder.newField('search.extended.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' });
+		const form = builder.newForm('search.extended', ContainerRenderer, {}).addChildren(field);
+		const runtime = createTestRuntime(builder);
+
+		const restored = restoreSearchForm(runtime, {
+			'f.form': form.id,
+			'f.word': 'water',
+			'f.removed': 'stale',
+			patt: '[word="(?i)fire"]',
+		});
+
+		expect(collect).toHaveBeenCalledTimes(1);
+		expect(restored.submittedResult).toMatchObject({
+			formId: form.id,
+			params: { patt: '[word="(?i)fire"]' },
+			encoded: { 'f.form': form.id, 'f.word': 'water' },
+			summaries: [{ label: 'Word', value: 'water', summaryType: ['patt'] }],
+			resultPreset: 'table',
+		});
+		expect(restored.submittedResult?.issues).toEqual([
+			expect.objectContaining({ stage: 'restore', code: 'invalid-restored-state', key: 'removed' }),
+			expect.objectContaining({ stage: 'collect', code: 'controller-error', nodeId: field.id, message: 'compile diagnostic' }),
+		]);
+
+		collect.mockClear();
+		const formerResult = runtime.compile(form.id);
+		formerResult.issues.unshift(...restored.state.issues);
+		expect(collect).toHaveBeenCalledTimes(1);
+		expect(restored.submittedResult).toEqual(formerResult);
 	});
 
 	test('reports dangling scoped parameters and restores fields accepted by the default form for an unknown selector', () => {

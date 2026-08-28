@@ -2,7 +2,7 @@
 	Helper module for bridging the new form to the stores and URL
 */
 
-import { type CompiledFormResult, type FormBuilder, type FormRuntime, type RestoredFormState, restoreFormState } from '@/features/form';
+import { type CompiledFormResult, type FormBuilder, type FormRuntime, type RestoredFormState, restoreForm } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { extractSearchFormOverrides } from '@/features/search/model/new-form/form-overrides';
 import * as QueryStore from '@/features/search/model/query-state';
@@ -49,18 +49,20 @@ export function handoffCompiledForm(result: CompiledFormResult): boolean {
 	return true;
 }
 
-export function restoreSearchFormState(definition: FormBuilder, query: Record<string, unknown>): RestoredFormState {
+function restoreSearchFormResult(definition: FormBuilder, query: Record<string, unknown>) {
 	const overrides = extractSearchFormOverrides(query, definition.context.corpus.isParallelCorpus !== false);
-	return restoreFormState(definition, query, {
+	return restoreForm(definition, query, {
 		overrideCandidates: overrides,
 		...(overrides.patt ? { legacyPattern: { pattern: overrides.patt, searchfield: overrides.searchfield } } : {}),
 	});
 }
 
+export function restoreSearchFormState(definition: FormBuilder, query: Record<string, unknown>): RestoredFormState {
+	return restoreSearchFormResult(definition, query).state;
+}
+
 export function restoreSearchForm(runtime: FormRuntime, query: Record<string, unknown>): { state: RestoredFormState; submittedResult: CompiledFormResult | null } {
-	const state = restoreSearchFormState(runtime.definition, query);
-	runtime.state.replaceState(state);
-	const submittedResult = state.submittedFormId ? runtime.compile(state.submittedFormId) : null;
-	if (submittedResult) submittedResult.issues.unshift(...state.issues);
-	return { state, submittedResult };
+	const restored = restoreSearchFormResult(runtime.definition, query);
+	runtime.state.replaceState(restored.state);
+	return restored;
 }

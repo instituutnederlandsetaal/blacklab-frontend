@@ -5,7 +5,7 @@ import { expertQueryController, parallelController, restoreCanonicalPatternInPar
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
 import { getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { FormIssue } from '@/features/form/model/types/form-output';
+import type { FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
@@ -27,6 +27,11 @@ export type RestoredFormState = NewFormState & {
 	issues: FormIssue[];
 	/** Scoped form that can be compiled as the submitted query; canonical-only fallback stays null. */
 	submittedFormId: string | null;
+};
+
+export type RestoredForm = {
+	state: RestoredFormState;
+	submittedResult: CompiledFormResult | null;
 };
 
 export type RestoreFormStateOptions = {
@@ -242,7 +247,18 @@ export function compileFormNode(node: FormBoundaryNode, state: NewFormState, con
 	};
 }
 
-export function restoreFormState(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredFormState {
+export function applyRawOverrides(result: CompiledFormResult, rawOverrides: Readonly<FormOverrides>, acceptedOutputs: readonly FormOutputName[]): CompiledFormResult {
+	const accepted = new Set<FormOutputName>(acceptedOutputs);
+	return {
+		...result,
+		params: {
+			...result.params,
+			...Object.fromEntries(Object.entries(rawOverrides).filter(([parameter]) => accepted.has(parameter as FormOutputName))),
+		},
+	};
+}
+
+export function restoreForm(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredForm {
 	if (!definition.formsList.length) throw new Error('Cannot restore form state because the form builder has no form nodes.');
 
 	const scopedParams = decodeScopedFormParams(query);
@@ -272,7 +288,7 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 		code: 'invalid-restored-state',
 	}));
 
-	const finishRestore = (activeForm: FormBoundaryNode, finalSubmittedFormId: string | null, expertFallback: ReturnType<typeof findExpertFallback> = null): RestoredFormState => {
+	const finishRestore = (activeForm: FormBoundaryNode, finalSubmittedFormId: string | null, expertFallback: ReturnType<typeof findExpertFallback> = null): RestoredForm => {
 		const restoredState: NewFormState = {
 			state: {
 				...defaults.state,
@@ -287,14 +303,19 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 			},
 			rawOverrides: {},
 		};
-		const compiledParams = compileFormNode(activeForm, restoredState, definition.context).params as Readonly<Record<string, unknown>>;
+		const compiled = compileFormNode(activeForm, restoredState, definition.context);
+		const compiledParams = compiled.params as Readonly<Record<string, unknown>>;
 		const rawOverrides = Object.fromEntries(Object.entries(overrideCandidates).filter(([parameter, value]) => !Object.hasOwn(compiledParams, parameter) || compiledParams[parameter] !== value));
-
-		return {
+		const state: RestoredFormState = {
 			...restoredState,
 			rawOverrides,
 			issues,
 			submittedFormId: finalSubmittedFormId,
+		};
+
+		return {
+			state,
+			submittedResult: finalSubmittedFormId ? applyRawOverrides({ ...compiled, issues: [...issues, ...compiled.issues] }, rawOverrides, activeForm.target.acceptedOutputs) : null,
 		};
 	};
 
@@ -309,4 +330,9 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 	if (!expertFallback) return finishRestore(scopedForm, submittedFormId);
 
 	return finishRestore(expertFallback.form, null, expertFallback);
+}
+
+/** Restore hydratable state when the provisional submitted result is not needed. */
+export function restoreFormState(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredFormState {
+	return restoreForm(definition, query, options).state;
 }
