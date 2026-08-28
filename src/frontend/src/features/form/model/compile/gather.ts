@@ -63,7 +63,7 @@ function emitValue(context: GatherContext, nodeId: string, sink: Sink, declared:
 function addSummary(summaries: SummaryEntry[], field: FormFieldNode, summary: SummaryInput): void {
 	summaries.push({
 		...summary,
-		summaryType: summary.summaryType ?? field.controller.outputs,
+		summaryType: [...(summary.summaryType ?? field.controller.outputs)],
 	});
 }
 

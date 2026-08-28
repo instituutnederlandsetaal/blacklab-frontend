@@ -35,7 +35,7 @@ describe('form runtime', () => {
 	test('compile detaches nested summaries, encoded tabs, and result presets from later runtime edits', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
-		type SnapshotState = TestTextFieldState & { groupBy: string[]; groupDisplayMode: 'table' | 'tokens'; summaryTypes: readonly ('filter' | 'patt')[] };
+		type SnapshotState = TestTextFieldState & { groupBy: string[]; groupDisplayMode: 'table' | 'tokens'; summaryTypes: Array<'filter' | 'patt'> };
 		const snapshotController: FieldController<'snapshot-text', SnapshotState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'snapshot-text',
@@ -76,7 +76,7 @@ describe('form runtime', () => {
 		callerOwnedState.value = 'fire';
 		callerOwnedState.groupBy[0] = 'fire';
 		callerOwnedState.groupDisplayMode = 'tokens';
-		callerOwnedState.summaryTypes = ['filter'];
+		callerOwnedState.summaryTypes[0] = 'filter';
 		runtime.state.uiState.value[tabs.id] = alternative.id;
 
 		expect(runtime.compile(form.id)).toMatchObject({
