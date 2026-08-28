@@ -69,7 +69,7 @@ function getUiStateForPath(rootNodes: FormNode[], targetId: string): Record<stri
 	return activeContainers;
 }
 
-function inferUiStateFromPersistedFields(definition: FormBuilder, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, keys: ReadonlyMap<FormFieldNode, string>): Record<string, string> {
+function inferUiStateFromPersistedFields(scopedForm: FormBoundaryNode, persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, keys: ReadonlyMap<FormFieldNode, string>): Record<string, string> {
 	type PathEntry = { containerId: string; childId: string };
 	const activeContainers: Record<string, string> = {};
 
@@ -83,9 +83,7 @@ function inferUiStateFromPersistedFields(definition: FormBuilder, persistedField
 		for (const child of node.children) visit(child, [...path, { containerId: node.id, childId: child.id }]);
 	}
 
-	// Prefer the canonical root, then fall back to builder-owned detached graphs.
-	visit(definition.getRoot(), []);
-	for (const container of definition.containerList) visit(container, []);
+	visit(scopedForm, []);
 	return activeContainers;
 }
 
@@ -206,7 +204,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 			},
 			uiState: {
 				...defaults.uiState,
-				...inferUiStateFromPersistedFields(definition, scopedParams.fields, schema.keys),
+				...inferUiStateFromPersistedFields(scopedForm, scopedParams.fields, schema.keys),
 				...persistedTabs.uiState,
 				...getUiStateForPath([definition.getRoot()], activeForm.id),
 			},

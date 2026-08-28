@@ -734,7 +734,7 @@ describe('scoped form persistence', () => {
 		expect(key).toHaveBeenCalledOnce();
 	});
 
-	test('activates persisted fields in forms outside the canonical root graph with one schema resolution', () => {
+	test('activates persisted fields in a detached selected form without activating an unrelated registered path', () => {
 		const key = vi.fn(testTextController.persistence.key);
 		const controller: FieldController<'detached-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
@@ -742,15 +742,17 @@ describe('scoped form persistence', () => {
 			persistence: { ...testTextController.persistence, key },
 		};
 		const builder = createTestBuilder();
-		builder.newForm('search.first', ContainerRenderer, { title: 'First' });
+		const shared = builder.newField('search.shared.word', controller, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		const unrelatedFirst = builder.newContainer('search.first.tabs.first', ContainerRenderer, { title: 'First' });
+		const unrelatedSecond = builder.newContainer('search.first.tabs.second', ContainerRenderer, { title: 'Second' }).addChildren(shared);
+		const unrelatedTabs = builder.newContainer('search.first.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' }).addChildren(unrelatedFirst, unrelatedSecond);
+		builder.newForm('search.first', ContainerRenderer, { title: 'First' }).addChildren(unrelatedTabs);
 		const secondForm = builder.newForm('search.second', ContainerRenderer, { title: 'Second' });
 		const first = builder.newContainer('search.second.tabs.first', ContainerRenderer, { title: 'First' });
-		const second = builder.newContainer('search.second.tabs.second', ContainerRenderer, { title: 'Second' }).addChildren(
-			builder.newField('search.second.tabs.second.word', controller, TestTextField, {
-				annotationId: 'word',
-				displayName: 'Word',
-			}),
-		);
+		const second = builder.newContainer('search.second.tabs.second', ContainerRenderer, { title: 'Second' }).addChildren(shared);
 		const tabs = builder.newContainer('search.second.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' }).addChildren(first, second);
 		secondForm.addChildren(tabs);
 
@@ -758,6 +760,7 @@ describe('scoped form persistence', () => {
 
 		expect(restored.uiState[secondForm.id]).toBe(tabs.id);
 		expect(restored.uiState[tabs.id]).toBe(second.id);
+		expect(restored.uiState[unrelatedTabs.id]).toBe(unrelatedFirst.id);
 		expect(key).toHaveBeenCalledOnce();
 	});
 
