@@ -392,11 +392,6 @@ export type DisplaySettingsForRendering = {
 	requestedRange: { first: number; number: number } | null;
 };
 
-export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir' | 'i18n' | 'specialFields' | 'targetFields' | 'pageSize' | 'first' | 'number' | 'requestedRange'>;
-export type DisplaySettingsForRows = DisplaySettingsCommon & Pick<DisplaySettingsForRendering, 'sourceField' | 'getSummary' | 'getCustomHitInfo' | 'getMatchInfoHighlightStyle' | 'indexId'>;
-export type DisplaySettingsForColumns = DisplaySettingsCommon &
-	Pick<DisplaySettingsForRendering, 'mainAnnotation' | 'otherAnnotations' | 'sortableAnnotations' | 'annotationGroups' | 'metadata' | 'groupDisplayMode' | 'hasCustomHitInfoColumn'>;
-
 /** Helper type, data for which we're computing a hitrow or docrow. */
 type Result<HitType extends BLHitInContext | undefined> = {
 	doc: BLDoc;
@@ -453,7 +448,7 @@ export type DocRowData = {
 };
 
 /** Create the title row for a document, plus - when the document has them - nested rows for the hits in that document. */
-function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequestedResults: number): DocRowData {
+function makeDocRow(p: Result<any>, info: DisplaySettingsForRendering, indexInRequestedResults: number): DocRowData {
 	return {
 		doc: p.doc,
 		href: frontendPaths.documentPage({
@@ -486,7 +481,7 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr' | 'rtl'): 'ltr' | 'rtl' {
 /** Make a row that shows a single snippet context, i.e. a single instance of before/match/after. */
 function makeHitRow(
 	p: Result<BLHitInContext>,
-	info: DisplaySettingsForRows,
+	info: DisplaySettingsForRendering,
 	highlightColors: Record<string, TokenHighlight> | undefined,
 	field: NormalizedAnnotatedField,
 	indexInRequestedResults: number,
@@ -520,7 +515,7 @@ function makeHitRow(
 }
 
 /** Create all rows for hit. For parallel corpora, a 'hit' may represent multiple rows, one for every version of the document it was found it (i.e. dutch + english). */
-function makeRowsForHit(p: Result<BLHitInContext>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight> | undefined, indexInRequestedResults: number): HitRowData[] {
+function makeRowsForHit(p: Result<BLHitInContext>, info: DisplaySettingsForRendering, highlightColors: Record<string, TokenHighlight> | undefined, indexInRequestedResults: number): HitRowData[] {
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
 	p.last_of_hit = false;
@@ -543,12 +538,12 @@ function makeRowsForHit(p: Result<BLHitInContext>, info: DisplaySettingsForRows,
 }
 
 /** For a set of document results, create all rows. */
-function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRowData[] {
+function makeDocRows(results: BLDocResults, info: DisplaySettingsForRendering): DocRowData[] {
 	return results.docs.map((doc, i) => makeDocRow({ doc, query: getSearchParameters(results) } as Result<undefined>, info, i));
 }
 
 /** For a set of hit results, create all rows. */
-function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array<DocRowData | HitRowData> {
+function makeHitRows(results: BLHitResults, info: DisplaySettingsForRendering): Array<DocRowData | HitRowData> {
 	// First, merge the matchInfos from the main hit with the otherFields hits.
 	// This is required to highlight hits in parallel corpora.
 	Highlights.mergeMatchInfos(results);
@@ -572,7 +567,7 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
 
 /** For a set of group results, create all rows. */
-function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: DisplaySettingsForRows): { rows: GroupRowData[]; maxima: Maxima } {
+function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: DisplaySettingsForRendering): { rows: GroupRowData[]; maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
 	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
 	const summarySubcorpus = getSubcorpusSize(results) ?? { documents: 0, tokens: 0 };
@@ -664,7 +659,7 @@ export type Rows = {
 	maxima?: Maxima;
 };
 
-export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
+export function makeRows(results: BLSearchResult, info: DisplaySettingsForRendering): Rows {
 	// Fix: BL sends back all params as strings, but we need numbers for calculations.
 	const params = getSearchParameters(results);
 	params.first = Number(params.first) || 0;
@@ -720,10 +715,10 @@ export type ColumnDefs = {
 	hitColumns: ColumnDefHit[];
 	docColumns: ColumnDefDoc[];
 	groupColumns: ColumnDefGroup[];
-	groupModeOptions: DisplaySettingsForColumns['groupDisplayMode'][];
+	groupModeOptions: GroupDisplayMode[];
 };
 
-export function makeColumns(results: BLSearchResult, info: DisplaySettingsForColumns): ColumnDefs {
+export function makeColumns(results: BLSearchResult, info: DisplaySettingsForRendering): ColumnDefs {
 	const docColumns: ColumnDefDoc[] = [];
 	const hitColumns: ColumnDefHit[] = [];
 	const groupColumns: ColumnDefGroup[] = [];
@@ -885,7 +880,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	if (!isGroups(results)) return { hitColumns, docColumns, groupColumns, groupModeOptions: [] };
 	const groupType = isDocGroups(results) ? 'docs' : 'hits';
 	const groupedBy = getSearchParameters(results).group!.match(/field:|decade/) ? 'metadata' : 'annotation';
-	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as DisplaySettingsForColumns['groupDisplayMode'][];
+	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as GroupDisplayMode[];
 
 	// Hide the relative tokens view when results are filtered based on a cql pattern
 	if (groupType === 'docs' && results.summary.pattern) {

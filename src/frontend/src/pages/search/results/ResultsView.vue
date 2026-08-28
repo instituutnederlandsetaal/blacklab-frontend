@@ -1,5 +1,5 @@
 <template>
-	<div class="results-container" :disabled="request" :style="{ minHeight: request ? '100px' : undefined }">
+	<div ref="root" class="results-container" :disabled="request" :style="{ minHeight: request ? '100px' : undefined }">
 		<Spinner v-if="request" overlay size="75" />
 
 		<template v-if="resultComponentData && cols && renderDisplaySettings">
@@ -110,11 +110,8 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { markRaw } from 'vue';
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
-import type { TranslateResult } from 'vue-i18n';
+<script setup lang="ts">
+import { computed, markRaw, ref, watch } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
@@ -123,7 +120,7 @@ import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
-import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
+import type { DisplaySettingsForRendering } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
@@ -131,8 +128,9 @@ import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parse
 
 import { useBlackLabApi } from '@/shared/api';
 import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import { getTotalAvailableResults, getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
-import debug, { debugLog } from '@/shared/debug/debug';
+import { getSearchParameters, getTotalAvailableResults } from '@/shared/blacklab-helpers/normalize/result-helpers';
+import { debugLog } from '@/shared/debug/debug';
+import { useI18n } from '@/shared/i18n';
 import { localStorageSynced } from '@/shared/utils/localstore';
 import { stableStringify } from '@/shared/utils/stable-stringify';
 
@@ -145,582 +143,368 @@ import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import Pagination from '@/shared/ui/Pagination.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
-export default defineComponent({
-	components: {
-		Pagination,
-		Totals,
-		GroupBy,
-		Sort,
-		BreadCrumbs,
-		Export,
-		Spinner,
-		GenericTable,
-	},
-	props: {
-		/**
-		 * In our case, always 'hits' or 'docs', we don't support adding another ResultsView tab with a different ID.
-		 * Since we use this ID to determine whether we're getting hits or docs from blacklab, and some rendering or logic may depend on it being 'hits' or 'docs' as well.
-		 */
-		id: { type: String as PropType<'hits' | 'docs'>, required: true },
-		active: { type: Boolean, required: true },
+/**
+ * In our case, always 'hits' or 'docs', we don't support adding another ResultsView tab with a different ID.
+ * Since we use this ID to determine whether we're getting hits or docs from BlackLab, rendering and logic can depend on it as well.
+ */
+const { id, active, store } = defineProps<{
+	id: 'hits' | 'docs';
+	active: boolean;
+	store: ResultsStore.ViewModule;
+}>();
 
-		store: { type: Object as PropType<ResultsStore.ViewModule>, required: true },
-	},
-	data: () => ({
-		customizations: useCustomizations(),
-		isDirty: true, // since we don't have any results yet
-		request: null as null | CancelableRequest<BLTypes.BLSearchResult>,
-		results: null as null | BLTypes.BLSearchResult,
-		error: null as null | string,
+const customizations = useCustomizations();
+const blacklab = useBlackLabApi();
+const corpus = useCorpus();
+const translate = useI18n();
+const root = ref<HTMLElement | null>(null);
+const isDirty = ref(true);
+const request = ref<CancelableRequest<BLTypes.BLSearchResult> | null>(null);
+const results = ref<BLTypes.BLSearchResult | null>(null);
+const error = ref<string | null>(null);
+const storedViewGroupName = ref<string | null>(null);
+const paginationResults = ref<BLTypes.BLSearchResult | null>(null);
+// Should we scroll when next results arrive - set when main form submitted
+const scroll = ref(true);
+// Should we clear the results when we begin the next request? - set when main form is submitted.
+const clearResults = ref(false);
+/** When no longer viewing contents of a group, restore the result range and sorting (i.e. user's position in the results). */
+const restoreOnViewGroupLeave = ref<{ first: number; number: number; sort: string | null } | null>(null);
+const showTitles = localStorageSynced('cf/results/showTitles', true);
 
-		storedViewGroupName: null as string | null,
-
-		paginationResults: null as null | BLTypes.BLSearchResult,
-
-		// Should we scroll when next results arrive - set when main form submitted
-		scroll: true,
-		// Should we clear the results when we begin the next request? - set when main form is submitted.
-		clearResults: false,
-
-		/** When no longer viewing contents of a group, restore the result range and sorting (i.e. user's position in the results). */
-		restoreOnViewGroupLeave: null as null | {
-			first: number;
-			number: number;
-			sort: string | null;
-		},
-		showTitles: localStorageSynced('cf/results/showTitles', true),
-
-		debug,
-		blacklab: useBlackLabApi(),
-		corpus: useCorpus(),
-	}),
-	methods: {
-		markDirty() {
-			this.isDirty = true;
-			if (this.request) {
-				debugLog('results', 'cancelling search request');
-				this.request.cancel();
-				this.request = null;
-			}
-			if (this.active) {
-				this.refresh();
-			}
-		},
-		refresh() {
-			this.isDirty = false;
-			debugLog('results', 'this is when the search should be refreshed');
-
-			if (this.request) {
-				debugLog('results', 'cancelling previous search request');
-				this.request.cancel();
-				this.request = null;
-			}
-
-			if (!this.valid) {
-				this.results = null;
-				this.paginationResults = null;
-				this.error = null;
-				this.clearResults = false;
-				return;
-			}
-
-			if (this.clearResults) {
-				this.results = this.error = null;
-				this.clearResults = false;
-			}
-
-			const nonce = this.refreshParameters;
-
-			// If we're querying a parallel corpus, and no sort was chosen yet,
-			// sort by alignments (so aligned hits appear first).
-			const viewModule = ResultsStore.getOrCreateModule('hits');
-			if (this.id === 'hits' && (this.groupBy.length === 0 || this.viewGroup) && this.corpus.isParallelCorpus && viewModule.getState().sort == null) {
-				viewModule.actions.sort('alignments');
-			}
-
-			const params = RootStore.get.blacklabParameters()!;
-			const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
-			debugLog('results', 'starting search', this.id, params);
-			const r = this.id === 'hits' ? this.blacklab.getHits(this.indexId, params, axiosParams) : this.blacklab.getDocs(this.indexId, params, axiosParams);
-			this.request = r;
-
-			setTimeout(() => this.scrollToResults(), 1500);
-
-			r.then(
-				r => {
-					if (nonce === this.refreshParameters) this.setSuccess(r);
-				},
-				e => {
-					if (nonce === this.refreshParameters) {
-						// This happens when grouping on a capture group that no longer exists.
-						// We can only detect it after trying to do so unfortunately.
-						// (Blacklab does not return the group info when calling the parse query endpoint, so we can't check beforehand.)
-						// We simply remove the offending grouping clause and try again.
-						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
-							// remove the group on label.
-							debugLog('results', 'grouping failed, clearing groupBy');
-							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(
-								g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')),
-							);
-							const newGroupBy = serializeSortByOrGroupBy(okayGroups);
-							this.groupBy = newGroupBy;
-						}
-						this.setError(e, !!params.group);
-					}
-				},
-			).finally(() => this.scrollToResults());
-		},
-		setSuccess(data: BLTypes.BLSearchResult) {
-			debugLog('results', 'search results', data);
-			this.clearResults = false;
-			this.error = null;
-			this.request = null;
-			this.results = markRaw(data);
-			this.paginationResults = markRaw(data);
-		},
-		setError(data: ApiError, isGrouped?: boolean) {
-			if (!data.isCancelledRequest) {
-				debugLog('results', 'Request failed: ', data);
-				this.error = this.customizations.formatError(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
-				this.results = null;
-				this.paginationResults = null;
-				this.clearResults = false;
-			}
-			this.request = null;
-		},
-
-		scrollToResults() {
-			if (this.scroll) {
-				this.scroll = false;
-				window.scroll({
-					behavior: 'smooth',
-					top: (this.$el as HTMLElement).offsetTop - 150,
-				});
-			}
-		},
-		leaveViewgroup() {
-			this.viewGroup = null;
-			if (this.restoreOnViewGroupLeave) {
-				this.store.actions.range({
-					first: this.restoreOnViewGroupLeave.first,
-					number: this.restoreOnViewGroupLeave.number,
-				});
-				this.sort = this.restoreOnViewGroupLeave.sort;
-			} else {
-				this.store.actions.range({ first: 0, number: GlobalStore.getState().pageSize });
-				this.sort = null;
-			}
-			this.restoreOnViewGroupLeave = null;
-		},
-		changeViewGroup(groupId: string, groupDisplay: string) {
-			if (this.request) return;
-			const viewState = this.store.getState();
-			this.restoreOnViewGroupLeave = {
-				first: viewState.first,
-				number: viewState.number,
-				sort: this.sort,
-			};
-			this.viewGroup = groupId;
-			this.storedViewGroupName = groupDisplay;
-		},
-	},
-	computed: {
-		groupBy: {
-			get(): string[] {
-				return this.store.getState().groupBy;
-			},
-			set(v: string[]) {
-				this.store.actions.groupBy(v);
-			},
-		},
-		page: {
-			get(): number {
-				return 0; /** page is not always a singular clean number */
-			},
-			set(v: number) {
-				this.store.actions.range({ first: v * this.pageSize, number: this.pageSize });
-			},
-		},
-		sort: {
-			get(): string | null {
-				return this.store.getState().sort;
-			},
-			set(v: string | null) {
-				if (!this.request) this.store.actions.sort(v);
-			},
-		},
-		viewGroup: {
-			get(): string | null {
-				return this.store.getState().viewGroup;
-			},
-			set(v: string | null) {
-				this.store.actions.viewGroup(v);
-			},
-		},
-		groupDisplayMode: {
-			get(): GroupDisplayMode | null {
-				return this.store.getState().groupDisplayMode;
-			},
-			set(v: GroupDisplayMode | null) {
-				this.store.actions.groupDisplayMode(v);
-			},
-		},
-		sourceAnnotatedFieldId(): string {
-			return QueryStore.get.sourceField();
-		},
-		concordanceAnnotationOptions(): NormalizedAnnotation[] {
-			return this.customizations.resultConcordanceAnnotationIdOptions().map(id => this.corpus.allAnnotationsMap[id]);
-		},
-		concordanceAnnotationId: {
-			get(): string {
-				return this.customizations.resultConcordanceAnnotationId();
-			},
-			set(v: string) {
-				this.customizations.setResultConcordanceAnnotationId(v);
-			},
-		},
-
-		sortAnnotations(): string[] {
-			return this.customizations.resultSortAnnotationIds();
-		},
-		sortAnnotationLabels(): boolean {
-			return this.customizations.resultSortAnnotationLabelsVisible();
-		},
-		sortMetadata(): string[] {
-			return this.customizations.resultSortMetadataIds();
-		},
-		sortMetadataLabels(): boolean {
-			return this.customizations.resultSortMetadataLabelsVisible();
-		},
-		exportAnnotations(): string[] | null {
-			return this.customizations.resultDetailedAnnotationIds();
-		},
-		exportMetadata(): string[] | null {
-			return this.customizations.resultDetailedMetadataIds();
-		},
-
-		exportEnabled(): boolean {
-			return this.customizations.resultExportEnabled();
-		},
-
-		refreshParameters(): string {
-			// Refresh only when the request sent to BlackLab changes. The submitted
-			// form snapshot also contains presentation data (localized summaries and
-			// encoded form state), none of which changes the result set.
-			return stableStringify(RootStore.get.blacklabParameters());
-		},
-
-		/** When these change, the form has been resubmitted, so we need to initiate a scroll event */
-		querySettings() {
-			return QueryStore.getState();
-		},
-
-		pageSize(): number {
-			return GlobalStore.getState().pageSize;
-		},
-		/**
-		 * Pagination state for the current view.
-		 *
-		 * Three cases for the shown range [first, first+number):
-		 * 1. Exact page: first % pageSize == 0 && number == pageSize
-		 *    -> Single page active, no range highlighting needed
-		 * 2. Span fits in 1 page: floor(first/pageSize) == floor((first+number-1)/pageSize)
-		 *    -> Single page active (the page containing the span)
-		 * 3. Span crosses pages: startPage != endPage
-		 *    -> Multiple pages active, highlight the range
-		 */
-		pagination(): {
-			/** The primary page to show as current (first page of the shown range) */
-			shownPage: number;
-			shownPage2?: number;
-			/** Maximum page number available */
-			maxShownPage: number;
-		} {
-			// Take care to use this.results for page size, but this.paginationResults for total number of results.
-			// This is because pagination results are requested with a window size of 0!
-			if (!this.results || !this.paginationResults) {
-				return {
-					shownPage: 0,
-					maxShownPage: 0,
-				};
-			}
-
-			const pageSize = this.pageSize;
-			const { first, number } = this.store.getState();
-			const last = first + number - 1;
-
-			// Calculate which pages the shown span overlaps
-			const startPage = Math.floor(first / pageSize);
-			const endPage = Math.floor(last / pageSize);
-
-			// Check if this is an exact page (aligned to page boundaries)
-			const isExactPage = first % pageSize === 0 && number === pageSize;
-
-			const totalResults = getTotalAvailableResults(this.paginationResults);
-
-			// Calculate max page (subtract one if exactly divisible to avoid empty last page)
-			const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize));
-
-			// Determine range highlighting:
-			// - If exact page: no range highlighting needed (null values)
-			// - If span fits in 1 page (startPage == endPage but not exact): still show as single active page
-			// - If span crosses pages: highlight the range
-			const showRange = !isExactPage && startPage !== endPage;
-
-			return {
-				shownPage: startPage,
-				shownPage2: showRange ? endPage : undefined,
-				maxShownPage: Math.max(maxPage, startPage),
-			};
-		},
-
-		valid(): boolean {
-			return this.id !== 'hits' || BLTypes.isHitParams(RootStore.get.blacklabParameters());
-		},
-		loadedResults(): BLTypes.BLSearchResult {
-			return this.results!;
-		},
-		// simple view variables
-		indexId(): string {
-			return this.corpus.id!;
-		},
-		isHits(): boolean {
-			return !!this.results && BLTypes.isHitResults(this.results);
-		},
-		isDocs(): boolean {
-			return !!this.results && BLTypes.isDocResults(this.results);
-		},
-		isGroups(): boolean {
-			return !!this.results && BLTypes.isGroups(this.results);
-		},
-		isParallelCorpus() {
-			return this.corpus.isParallelCorpus;
-		},
-
-		viewGroupName(): string {
-			if (this.viewGroup == null) {
-				return '';
-			}
-			return this.storedViewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':') + 1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
-		},
-
-		breadCrumbs(): Array<{
-			label: TranslateResult;
-			title: TranslateResult;
-			onClick?: () => void;
-		}> {
-			// Labels and titles might look confusing
-			// but, the label is what the uses is currently looking at
-			// the title is what they will look at if they click the link
-			// e.g. hits -> grouped by -> specific group -> sample
-			// if clicking hits -> go to hits
-			// if clicking grouped by -> go to grouped results
-			// if clicking specific group -> go to specific group
-
-			const r: {
-				label: TranslateResult;
-				title: TranslateResult;
-				onClick?: () => void;
-				deactivate: (() => void) | undefined;
-				toggle?: () => void;
-			}[] = [];
-
-			r.push({
-				label: this.id === 'hits' ? this.$t('results.resultsView.navigation.hits') : this.$t('results.resultsView.navigation.documents'),
-				title: this.$t('results.resultsView.navigation.backToUngroupedResults').toString(),
-				deactivate: undefined,
-			});
-			if (this.groupBy.length > 0) {
-				r.push({
-					label: this.$t('results.resultsView.navigation.groupedBy', {
-						group: humanizeSerializedGroupBy(this, this.groupBy, this.corpus.allAnnotationsMap, this.corpus.allMetadataFieldsMap).join(', '),
-					}),
-					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
-					deactivate: () => {
-						this.groupBy = [];
-					},
-				});
-			}
-			if (this.viewGroup != null) {
-				r.push({
-					label: this.$t('results.resultsView.navigation.viewingGroup', { group: this.viewGroupName }),
-					title: '',
-					deactivate: () => this.leaveViewgroup(),
-				});
-			}
-			const { sampleMode, sampleSize } = GlobalStore.getState();
-			if (sampleSize != null) {
-				r.push({
-					label: this.$t('results.resultsView.navigation.randomSample', { sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}` }),
-					title: '',
-					deactivate: () => {
-						GlobalStore.actions.sampleSize(null);
-					},
-				});
-			}
-			if (this.sort) {
-				r.push({
-					label: this.$t('results.resultsView.navigation.sortedBy', {
-						sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), this.corpus.allAnnotationsMap, this.corpus.allMetadataFieldsMap),
-					}),
-					title: '',
-					deactivate: () => (this.sort = null),
-					toggle: () => {
-						this.sort = this.sort?.startsWith('-') ? this.sort!.substring(1) : '-' + this.sort!;
-					},
-				});
-			}
-
-			// Clicking a breadcrumb deactivates all breadcrumbs after it.
-			// So we set up the onClick handlers here.
-			// If a breadcrumb has a toggle() function, and it's the last one, call the toggle instead (onClick takes precedence).
-			for (let i = 0; i < r.length; i++) {
-				const entry = r[i];
-				const isLast = i === r.length - 1;
-
-				if (!isLast) {
-					entry.onClick = () => {
-						for (let j = r.length - 1; j > i; j--) {
-							r[j].deactivate?.();
-						}
-					};
-				} else if (entry.toggle) {
-					entry.onClick = entry.toggle;
-				}
-			}
-
-			return r;
-		},
-
-		resultComponentName(): string {
-			if (this.isGroups) {
-				return 'GroupResults';
-			} else if (this.isHits) {
-				return 'HitResults';
-			} else {
-				return 'DocResults';
-			}
-		},
-
-		resultComponentData(): { cols: ColumnDefs; rows: Rows; info: DisplaySettingsForRendering; query: BLTypes.BLSearchParameters; type: string; sort: string | null; disabled: boolean } | undefined {
-			if (!this.results || !this.cols || !this.rows?.rows.length || !this.renderDisplaySettings) return undefined;
-			return {
-				cols: this.cols,
-				rows: this.rows,
-				info: this.renderDisplaySettings,
-
-				query: getSearchParameters(this.results),
-				type: this.id,
-				sort: this.sort,
-				disabled: !!this.request,
-			};
-		},
-
-		commonDisplaySettings(): DisplaySettingsCommon {
-			const summary = this.results?.summary;
-			const summaryOtherFields = summary?.pattern?.otherFields ?? [];
-			const { first, number, requestedRange } = this.store.getState();
-			return {
-				dir: this.corpus.textDirection,
-				i18n: this,
-				specialFields: this.corpus.fieldInfo,
-				targetFields: summaryOtherFields.map(name => this.corpus.parallelAnnotatedFieldsMap[name]),
-				first,
-				number,
-				requestedRange,
-				pageSize: this.pageSize,
-			};
-		},
-		rowDisplaySettings(): DisplaySettingsForRows {
-			return {
-				...this.commonDisplaySettings,
-				indexId: this.corpus.id!,
-				getSummary: this.customizations.resultDocumentSummary,
-				sourceField: this.corpus.allAnnotatedFieldsMap[QueryStore.get.sourceField()], // if no field, there would be no results...
-				getCustomHitInfo: (hit, field, document) => this.customizations.hitInfoColumnContent(hit, field, document, this),
-				getMatchInfoHighlightStyle: this.customizations.matchInfoHighlightStyle,
-			};
-		},
-		columnDisplaySettings(): DisplaySettingsForColumns {
-			// Parse sort to extract annotation or metadata field being sorted on
-			const parsedSort = this.sort ? parseSortBy(this.sort, this.results ?? undefined) : null;
-			const sortAnnotationId = parsedSort?.type === 'context' ? parsedSort.annotation : undefined;
-			const sortMetadataId = parsedSort?.type === 'metadata' && parsedSort.metadata.type === 'document' ? parsedSort.metadata.field : undefined;
-
-			// Get shown columns and append sort column if not already shown
-			const shownAnnotationIds = this.isHits ? this.customizations.resultShownAnnotationIds() : [];
-			const annotationIdsToShow = sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId) ? shownAnnotationIds.concat(sortAnnotationId) : shownAnnotationIds;
-
-			const shownMetadataIds = this.isHits ? this.customizations.resultShownMetadataIds('hits') : this.isDocs ? this.customizations.resultShownMetadataIds('docs') : [];
-			const metadataIdsToShow = sortMetadataId && !shownMetadataIds.includes(sortMetadataId) ? shownMetadataIds.concat(sortMetadataId) : shownMetadataIds;
-
-			return {
-				...this.commonDisplaySettings,
-				groupDisplayMode: (this.groupDisplayMode as any) || (!!this.results && BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
-				mainAnnotation: this.corpus.allAnnotationsMap[this.concordanceAnnotationId],
-				// If groups, don't show any metadata columns. Automatically append sort column if not already shown.
-				metadata: metadataIdsToShow.map(id => this.corpus.allMetadataFieldsMap[id]),
-				// If groups, don't show any annotation columns. Automatically append sort column if not already shown.
-				otherAnnotations: annotationIdsToShow.map(id => this.corpus.allAnnotationsMap[id]),
-				sortableAnnotations: this.customizations.resultSortAnnotationIds().map(id => this.corpus.allAnnotationsMap[id]),
-				annotationGroups: this.corpus.annotationGroups,
-				hasCustomHitInfoColumn: (results, isParallelCorpus) =>
-					BLTypes.isHitResults(results) || BLTypes.isHitGroups(results) ? this.customizations.hitInfoColumnVisible(results, isParallelCorpus) : false,
-			};
-		},
-		renderDisplaySettings(): DisplaySettingsForRendering {
-			const allAnnotationsMap = this.corpus.allAnnotationsMap;
-			const dependencySettings = this.customizations.resultDependencies();
-			const dependencyAnnotationIds = [
-				...new Set([dependencySettings.lemma, dependencySettings.upos, dependencySettings.xpos, ...(dependencySettings.feats ?? [])].filter((id): id is string => !!id)),
-			];
-			return {
-				...this.rowDisplaySettings,
-				...this.columnDisplaySettings,
-				// Don't show details table in expanded rows when showing groups or hits in docs.
-				detailedAnnotations: this.isHits
-					? (this.customizations.resultDetailedAnnotationIds()?.map(id => allAnnotationsMap[id]) ?? this.corpus.allAnnotations.filter(a => !a.isInternal && a.hasForwardIndex))
-					: [],
-				dependencyAnnotations: dependencyAnnotationIds.map(id => allAnnotationsMap[id]).filter((annotation): annotation is NormalizedAnnotation => !!annotation),
-				dependencyRelationClass: dependencySettings.relationClass,
-				html: this.customizations.resultConcordanceAsHtml(),
-			};
-		},
-
-		cols(): ColumnDefs | null {
-			return this.results && makeColumns(this.results, this.columnDisplaySettings);
-		},
-		rows(): Rows | null {
-			return this.results && makeRows(this.results, this.rowDisplaySettings);
-		},
-	},
-	watch: {
-		querySettings: {
-			deep: true,
-			handler() {
-				this.scroll = true;
-				this.clearResults = true;
-			},
-		},
-		refreshParameters: {
-			handler(cur, prev) {
-				if (this.active) {
-					this.refresh();
-				} else {
-					this.markDirty();
-				}
-			},
-		},
-		active: {
-			handler(active) {
-				if (active && this.isDirty) {
-					this.refresh();
-				}
-			},
-			immediate: true,
-		},
+const groupBy = computed({
+	get: () => store.getState().groupBy,
+	set: (value: string[]) => store.actions.groupBy(value),
+});
+const pageSize = computed(() => GlobalStore.getState().pageSize);
+const page = computed({
+	get: () => 0, // page is not always a singular clean number
+	set: (value: number) => store.actions.range({ first: value * pageSize.value, number: pageSize.value }),
+});
+const sort = computed({
+	get: () => store.getState().sort,
+	set: (value: string | null) => {
+		if (!request.value) store.actions.sort(value);
 	},
 });
+const viewGroup = computed({
+	get: () => store.getState().viewGroup,
+	set: (value: string | null) => store.actions.viewGroup(value),
+});
+const groupDisplayMode = computed({
+	get: () => store.getState().groupDisplayMode,
+	set: (value: GroupDisplayMode | null) => store.actions.groupDisplayMode(value),
+});
+const sourceAnnotatedFieldId = computed(QueryStore.get.sourceField);
+const concordanceAnnotationOptions = computed<NormalizedAnnotation[]>(() => customizations.resultConcordanceAnnotationIdOptions().map(id => corpus.value.allAnnotationsMap[id]));
+const concordanceAnnotationId = computed({
+	get: customizations.resultConcordanceAnnotationId,
+	set: customizations.setResultConcordanceAnnotationId,
+});
+const sortAnnotations = computed(customizations.resultSortAnnotationIds);
+const sortAnnotationLabels = computed(customizations.resultSortAnnotationLabelsVisible);
+const sortMetadata = computed(customizations.resultSortMetadataIds);
+const sortMetadataLabels = computed(customizations.resultSortMetadataLabelsVisible);
+const exportAnnotations = computed(customizations.resultDetailedAnnotationIds);
+const exportMetadata = computed(customizations.resultDetailedMetadataIds);
+const exportEnabled = computed(customizations.resultExportEnabled);
+
+// Refresh only when the request sent to BlackLab changes. The submitted form snapshot also contains
+// presentation data (localized summaries and encoded form state), none of which changes the result set.
+const refreshParameters = computed(() => stableStringify(RootStore.get.blacklabParameters()));
+/** When these change, the form has been resubmitted, so we need to initiate a scroll event */
+const querySettings = computed(QueryStore.getState);
+
+const valid = computed(() => id !== 'hits' || BLTypes.isHitParams(RootStore.get.blacklabParameters()));
+const loadedResults = computed(() => results.value!);
+const indexId = computed(() => corpus.value.id!);
+const isHits = computed(() => !!results.value && BLTypes.isHitResults(results.value));
+const isDocs = computed(() => !!results.value && BLTypes.isDocResults(results.value));
+const isGroups = computed(() => !!results.value && BLTypes.isGroups(results.value));
+const isParallelCorpus = computed(() => corpus.value.isParallelCorpus);
+
+/**
+ * Pagination state for the current view.
+ *
+ * Three cases for the shown range [first, first+number):
+ * 1. Exact page: first % pageSize == 0 && number == pageSize
+ *    -> Single page active, no range highlighting needed
+ * 2. Span fits in 1 page: floor(first/pageSize) == floor((first+number-1)/pageSize)
+ *    -> Single page active (the page containing the span)
+ * 3. Span crosses pages: startPage != endPage
+ *    -> Multiple pages active, highlight the range
+ */
+const pagination = computed(() => {
+	// Use results for page size, but paginationResults for the total because pagination results are requested with a window size of 0.
+	if (!results.value || !paginationResults.value) return { shownPage: 0, maxShownPage: 0 };
+
+	const { first, number } = store.getState();
+	const startPage = Math.floor(first / pageSize.value);
+	const endPage = Math.floor((first + number - 1) / pageSize.value);
+	const isExactPage = first % pageSize.value === 0 && number === pageSize.value;
+	const totalResults = getTotalAvailableResults(paginationResults.value);
+	const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize.value));
+
+	return {
+		shownPage: startPage,
+		shownPage2: !isExactPage && startPage !== endPage ? endPage : undefined,
+		maxShownPage: Math.max(maxPage, startPage),
+	};
+});
+
+function scrollToResults() {
+	if (!scroll.value || !root.value) return;
+	scroll.value = false;
+	window.scroll({ behavior: 'smooth', top: root.value.offsetTop - 150 });
+}
+
+function setSuccess(data: BLTypes.BLSearchResult) {
+	debugLog('results', 'search results', data);
+	clearResults.value = false;
+	error.value = null;
+	request.value = null;
+	results.value = markRaw(data);
+	paginationResults.value = markRaw(data);
+}
+
+function setError(data: ApiError, isGrouped?: boolean) {
+	if (!data.isCancelledRequest) {
+		debugLog('results', 'Request failed: ', data);
+		error.value = customizations.formatError(data, isGrouped ? 'groups' : id);
+		results.value = null;
+		paginationResults.value = null;
+		clearResults.value = false;
+	}
+	request.value = null;
+}
+
+function refresh() {
+	isDirty.value = false;
+	debugLog('results', 'this is when the search should be refreshed');
+
+	if (request.value) {
+		debugLog('results', 'cancelling previous search request');
+		request.value.cancel();
+		request.value = null;
+	}
+
+	if (!valid.value) {
+		results.value = null;
+		paginationResults.value = null;
+		error.value = null;
+		clearResults.value = false;
+		return;
+	}
+
+	if (clearResults.value) {
+		results.value = error.value = null;
+		clearResults.value = false;
+	}
+
+	const nonce = refreshParameters.value;
+
+	// If we're querying a parallel corpus, and no sort was chosen yet, sort by alignments (so aligned hits appear first).
+	const viewModule = ResultsStore.getOrCreateModule('hits');
+	if (id === 'hits' && (groupBy.value.length === 0 || viewGroup.value) && corpus.value.isParallelCorpus && viewModule.getState().sort == null) viewModule.actions.sort('alignments');
+
+	const params = RootStore.get.blacklabParameters()!;
+	const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
+	debugLog('results', 'starting search', id, params);
+	const nextRequest = id === 'hits' ? blacklab.getHits(indexId.value, params, axiosParams) : blacklab.getDocs(indexId.value, params, axiosParams);
+	request.value = nextRequest;
+	setTimeout(scrollToResults, 1500);
+
+	nextRequest
+		.then(
+			data => {
+				if (nonce === refreshParameters.value) setSuccess(data);
+			},
+			(data: ApiError) => {
+				if (nonce !== refreshParameters.value) return;
+				// Grouping on a capture group that no longer exists can only be detected after the request.
+				if (data.title === 'UNKNOWN_MATCH_INFO' && groupBy.value.length > 0) {
+					debugLog('results', 'grouping failed, clearing groupBy');
+					const okayGroups = parseGroupBy(groupBy.value, results.value ?? undefined).filter(
+						group => !((group.type === 'context' && group.context.type === 'label') || (group.type === 'metadata' && group.metadata.type === 'span-attribute')),
+					);
+					groupBy.value = serializeSortByOrGroupBy(okayGroups);
+				}
+				setError(data, !!params.group);
+			},
+		)
+		.finally(scrollToResults);
+}
+
+function markDirty() {
+	isDirty.value = true;
+	if (request.value) {
+		debugLog('results', 'cancelling search request');
+		request.value.cancel();
+		request.value = null;
+	}
+	if (active) refresh();
+}
+
+function leaveViewgroup() {
+	viewGroup.value = null;
+	if (restoreOnViewGroupLeave.value) {
+		store.actions.range(restoreOnViewGroupLeave.value);
+		sort.value = restoreOnViewGroupLeave.value.sort;
+	} else {
+		store.actions.range({ first: 0, number: GlobalStore.getState().pageSize });
+		sort.value = null;
+	}
+	restoreOnViewGroupLeave.value = null;
+}
+
+function changeViewGroup(groupId: string, groupDisplay: string) {
+	if (request.value) return;
+	const { first, number } = store.getState();
+	restoreOnViewGroupLeave.value = { first, number, sort: sort.value };
+	viewGroup.value = groupId;
+	storedViewGroupName.value = groupDisplay;
+}
+
+const viewGroupName = computed(() => {
+	if (viewGroup.value == null) return '';
+	return storedViewGroupName.value ?? viewGroup.value.substring(viewGroup.value.indexOf(':') + 1);
+});
+
+type BreadCrumb = {
+	label: string;
+	title: string;
+	onClick?: () => void;
+	deactivate?: () => void;
+	toggle?: () => void;
+};
+const breadCrumbs = computed<BreadCrumb[]>(() => {
+	const crumbs: BreadCrumb[] = [
+		{
+			label: id === 'hits' ? translate.$t('results.resultsView.navigation.hits') : translate.$t('results.resultsView.navigation.documents'),
+			title: translate.$t('results.resultsView.navigation.backToUngroupedResults'),
+		},
+	];
+	if (groupBy.value.length > 0) {
+		crumbs.push({
+			label: translate.$t('results.resultsView.navigation.groupedBy', {
+				group: humanizeSerializedGroupBy(translate, groupBy.value, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(', '),
+			}),
+			title: translate.$t('results.resultsView.navigation.backToGroupedResults'),
+			deactivate: () => (groupBy.value = []),
+		});
+	}
+	if (viewGroup.value != null) {
+		crumbs.push({
+			label: translate.$t('results.resultsView.navigation.viewingGroup', { group: viewGroupName.value }),
+			title: '',
+			deactivate: leaveViewgroup,
+		});
+	}
+	const { sampleMode, sampleSize } = GlobalStore.getState();
+	if (sampleSize != null) {
+		crumbs.push({
+			label: translate.$t('results.resultsView.navigation.randomSample', { sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}` }),
+			title: '',
+			deactivate: () => GlobalStore.actions.sampleSize(null),
+		});
+	}
+	if (sort.value) {
+		crumbs.push({
+			label: translate.$t('results.resultsView.navigation.sortedBy', {
+				sort: humanizeGroupByOrSortBy(translate, parseSortBy(sort.value), corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap),
+			}),
+			title: '',
+			deactivate: () => (sort.value = null),
+			toggle: () => (sort.value = sort.value?.startsWith('-') ? sort.value.substring(1) : '-' + sort.value),
+		});
+	}
+
+	// Clicking a breadcrumb deactivates all breadcrumbs after it. The final sortable breadcrumb toggles instead.
+	for (let i = 0; i < crumbs.length; i++) {
+		const entry = crumbs[i];
+		if (i < crumbs.length - 1)
+			entry.onClick = () =>
+				crumbs
+					.slice(i + 1)
+					.reverse()
+					.forEach(crumb => crumb.deactivate?.());
+		else if (entry.toggle) entry.onClick = entry.toggle;
+	}
+	return crumbs;
+});
+
+const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
+	const currentResults = results.value;
+	const currentCorpus = corpus.value;
+	const parsedSort = sort.value ? parseSortBy(sort.value, currentResults ?? undefined) : null;
+	const sortAnnotationId = parsedSort?.type === 'context' ? parsedSort.annotation : undefined;
+	const sortMetadataId = parsedSort?.type === 'metadata' && parsedSort.metadata.type === 'document' ? parsedSort.metadata.field : undefined;
+	const shownAnnotationIds = isHits.value ? customizations.resultShownAnnotationIds() : [];
+	const annotationIdsToShow = sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId) ? shownAnnotationIds.concat(sortAnnotationId) : shownAnnotationIds;
+	const shownMetadataIds = isHits.value ? customizations.resultShownMetadataIds('hits') : isDocs.value ? customizations.resultShownMetadataIds('docs') : [];
+	const metadataIdsToShow = sortMetadataId && !shownMetadataIds.includes(sortMetadataId) ? shownMetadataIds.concat(sortMetadataId) : shownMetadataIds;
+	const dependencySettings = customizations.resultDependencies();
+	const dependencyAnnotationIds = [
+		...new Set([dependencySettings.lemma, dependencySettings.upos, dependencySettings.xpos, ...(dependencySettings.feats ?? [])].filter((annotationId): annotationId is string => !!annotationId)),
+	];
+	const { first, number, requestedRange } = store.getState();
+	const allAnnotationsMap = currentCorpus.allAnnotationsMap;
+
+	return {
+		indexId: currentCorpus.id!,
+		mainAnnotation: allAnnotationsMap[concordanceAnnotationId.value],
+		otherAnnotations: annotationIdsToShow.map(annotationId => allAnnotationsMap[annotationId]),
+		detailedAnnotations: isHits.value
+			? (customizations.resultDetailedAnnotationIds()?.map(annotationId => allAnnotationsMap[annotationId]) ??
+				currentCorpus.allAnnotations.filter(annotation => !annotation.isInternal && annotation.hasForwardIndex))
+			: [],
+		dependencyAnnotations: dependencyAnnotationIds.map(annotationId => allAnnotationsMap[annotationId]).filter((annotation): annotation is NormalizedAnnotation => !!annotation),
+		dependencyRelationClass: dependencySettings.relationClass,
+		sortableAnnotations: customizations.resultSortAnnotationIds().map(annotationId => allAnnotationsMap[annotationId]),
+		annotationGroups: currentCorpus.annotationGroups,
+		metadata: metadataIdsToShow.map(metadataId => currentCorpus.allMetadataFieldsMap[metadataId]),
+		sourceField: currentCorpus.allAnnotatedFieldsMap[QueryStore.get.sourceField()],
+		targetFields: (currentResults?.summary.pattern?.otherFields ?? []).map(name => currentCorpus.parallelAnnotatedFieldsMap[name]),
+		specialFields: currentCorpus.fieldInfo,
+		getSummary: customizations.resultDocumentSummary,
+		dir: currentCorpus.textDirection,
+		html: customizations.resultConcordanceAsHtml(),
+		i18n: translate,
+		groupDisplayMode: groupDisplayMode.value || (currentResults && BLTypes.isHitGroups(currentResults) ? 'hits' : 'docs'),
+		hasCustomHitInfoColumn: (searchResults, parallelCorpus) =>
+			BLTypes.isHitResults(searchResults) || BLTypes.isHitGroups(searchResults) ? customizations.hitInfoColumnVisible(searchResults, parallelCorpus) : false,
+		getCustomHitInfo: (hit, field, document) => customizations.hitInfoColumnContent(hit, field, document, translate),
+		getMatchInfoHighlightStyle: customizations.matchInfoHighlightStyle,
+		pageSize: pageSize.value,
+		first,
+		number,
+		requestedRange,
+	};
+});
+
+const cols = computed(() => results.value && makeColumns(results.value, renderDisplaySettings.value));
+const rows = computed(() => results.value && makeRows(results.value, renderDisplaySettings.value));
+const resultComponentData = computed(() => {
+	if (!results.value || !cols.value || !rows.value?.rows.length) return undefined;
+	return { cols: cols.value, rows: rows.value, query: getSearchParameters(results.value), sort: sort.value };
+});
+
+watch(
+	querySettings,
+	() => {
+		scroll.value = true;
+		clearResults.value = true;
+	},
+	{ deep: true },
+);
+watch(refreshParameters, () => (active ? refresh() : markDirty()));
+watch(
+	() => active,
+	value => {
+		if (value && isDirty.value) refresh();
+	},
+	{ immediate: true },
+);
 </script>
 
 <style lang="scss">
