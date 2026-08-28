@@ -136,7 +136,7 @@ describe('compiled-form result handoff', () => {
 	test('applies a changed result preset without resetting query view state', () => {
 		resetStores();
 		const params = { group: 'field:submitted', sort: 'field:submitted' };
-		expect(handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }))).toBe(true);
+		handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }));
 		const view = ViewStore.getOrCreateModule('docs');
 		view.actions.groupBy(['field:live']);
 		view.actions.sort('field:live');
@@ -148,7 +148,7 @@ describe('compiled-form result handoff', () => {
 			resultPreset: 'tokens',
 		});
 
-		expect(handoffCompiledForm(submitted)).toBe(false);
+		handoffCompiledForm(submitted);
 
 		expect(view.getState()).toMatchObject({
 			groupBy: ['field:live'],
@@ -164,13 +164,13 @@ describe('compiled-form result handoff', () => {
 	test('applies a changed target view without resetting view state', () => {
 		resetStores();
 		const params = { patt: '[word="water"]' };
-		expect(handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }))).toBe(true);
+		handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }));
 		const hits = ViewStore.getOrCreateModule('hits');
 		hits.actions.viewGroup('field:live');
 		hits.actions.range({ first: 30, number: 10 });
 		hits.actions.setRequestedRange({ first: 30, number: 10 });
 
-		expect(handoffCompiledForm(snapshot(params, { targetView: 'hits', resultPreset: 'table' }))).toBe(false);
+		handoffCompiledForm(snapshot(params, { targetView: 'hits', resultPreset: 'table' }));
 
 		expect(InterfaceStore.get.viewedResults()).toBe('hits');
 		expect(hits.getState()).toMatchObject({
@@ -184,11 +184,11 @@ describe('compiled-form result handoff', () => {
 
 	test('applies form-owned settings again when compiled params change', () => {
 		resetStores();
-		expect(handoffCompiledForm(snapshot({ group: 'field:first' }, { targetView: 'docs' }))).toBe(true);
+		handoffCompiledForm(snapshot({ group: 'field:first' }, { targetView: 'docs' }));
 		const view = ViewStore.getOrCreateModule('docs');
 		view.actions.groupBy(['field:live']);
 
-		expect(handoffCompiledForm(snapshot({ group: 'field:second' }, { targetView: 'docs' }))).toBe(true);
+		handoffCompiledForm(snapshot({ group: 'field:second' }, { targetView: 'docs' }));
 
 		expect(view.getState().groupBy).toEqual(['field:second']);
 	});

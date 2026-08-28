@@ -2,7 +2,7 @@
 	Helper module for bridging the new form to the stores and URL
 */
 
-import { type CompiledFormResult, type FormBuilder, type FormRuntime, type RestoredFormState, restoreForm } from '@/features/form';
+import { type CompiledFormResult, type FormRuntime, type RestoredFormState, restoreForm } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { extractSearchFormOverrides } from '@/features/search/model/new-form/form-overrides';
 import * as QueryStore from '@/features/search/model/query-state';
@@ -20,22 +20,23 @@ function prepareViews(): void {
 	}
 }
 
-export function handoffCompiledForm(result: CompiledFormResult): boolean {
+export function handoffCompiledForm(result: CompiledFormResult): void {
 	const current = QueryStore.getState();
 	const isCurrentForm = current.form === 'new';
 	const queryChanged = !isCurrentForm || stableStringify(current.state.params) !== stableStringify(result.params);
-	const presentationChanged = !isCurrentForm || current.state.targetView !== result.targetView || current.state.resultPreset !== result.resultPreset;
-	QueryStore.actions.search({ form: 'new', state: result });
 
 	const viewName = result.targetView ?? (result.params.patt ? 'hits' : 'docs');
 	if (!queryChanged) {
+		const presentationChanged = current.state.targetView !== result.targetView || current.state.resultPreset !== result.resultPreset;
+		QueryStore.actions.search({ form: 'new', state: result });
 		if (presentationChanged) {
 			InterfaceStore.actions.viewedResults(viewName);
 			if (result.resultPreset !== undefined) ViewStore.getOrCreateModule(viewName).actions.groupDisplayMode(result.resultPreset);
 		}
-		return false;
+		return;
 	}
 
+	QueryStore.actions.search({ form: 'new', state: result });
 	prepareViews();
 	InterfaceStore.actions.viewedResults(viewName);
 	const view = ViewStore.getOrCreateModule(viewName);
@@ -46,19 +47,14 @@ export function handoffCompiledForm(result: CompiledFormResult): boolean {
 	}
 	if (Object.hasOwn(result.params, 'sort')) view.actions.sort(result.params.sort ?? null);
 	if (result.resultPreset !== undefined) view.actions.groupDisplayMode(result.resultPreset);
-	return true;
-}
-
-function restoreSearchFormResult(definition: FormBuilder, query: Record<string, unknown>) {
-	const overrides = extractSearchFormOverrides(query, definition.context.corpus.isParallelCorpus !== false);
-	return restoreForm(definition, query, {
-		overrideCandidates: overrides,
-		...(overrides.patt ? { legacyPattern: { pattern: overrides.patt, searchfield: overrides.searchfield } } : {}),
-	});
 }
 
 export function restoreSearchForm(runtime: FormRuntime, query: Record<string, unknown>): { state: RestoredFormState; submittedResult: CompiledFormResult | null } {
-	const restored = restoreSearchFormResult(runtime.definition, query);
+	const overrides = extractSearchFormOverrides(query, runtime.definition.context.corpus.isParallelCorpus !== false);
+	const restored = restoreForm(runtime.definition, query, {
+		overrideCandidates: overrides,
+		...(overrides.patt ? { legacyPattern: { pattern: overrides.patt, searchfield: overrides.searchfield } } : {}),
+	});
 	runtime.state.replaceState(restored.state);
 	return restored;
 }
