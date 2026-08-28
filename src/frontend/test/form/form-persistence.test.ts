@@ -166,14 +166,14 @@ describe('scoped form persistence', () => {
 		const fixture = createSingleTextForm();
 		const query = Object.assign(Object.create(null), { 'f.form': 'search.extended' }) as Record<string, unknown>;
 
-		expect(restoreFormState(fixture.definition, query).submittedFormId).toBe('search.extended');
+		expect(restoreForm(fixture.definition, query).submittedResult?.formId).toBe('search.extended');
 	});
 
 	test('ignores properties from modified object prototype', () => {
 		const fixture = createSingleTextForm();
 		const query = Object.create({ 'f.form': 'search.extended' }) as Record<string, unknown>;
 
-		expect(restoreFormState(fixture.definition, query).submittedFormId).toBeNull();
+		expect(restoreForm(fixture.definition, query).submittedResult).toBeNull();
 	});
 
 	test('encodes form and field state under readable scoped keys', () => {
@@ -203,7 +203,6 @@ describe('scoped form persistence', () => {
 		expect(restored.issues).toEqual([]);
 		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.rawOverrides).toEqual({});
-		expect(restored.submittedFormId).toEqual('search.extended');
 	});
 
 	test('reuses the valid scoped restoration compilation', () => {
@@ -449,7 +448,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreFormState(fixture.definition, { patt: '[word="water"]' });
 
-		expect(restored.submittedFormId).toBeNull();
 		expect(restored.uiState.search).toBe('search.expert');
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
@@ -474,7 +472,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreFormState(builder, { patt: '[word="water"]' });
 
-		expect(restored.submittedFormId).toBeNull();
 		expect(restored.uiState.search).toBe(expert.id);
 		expect(restored.state[parallelField.id]).toEqual({
 			source: 'contents__en',
@@ -495,7 +492,6 @@ describe('scoped form persistence', () => {
 			patt: '[word="water"]',
 		});
 
-		expect(restored.submittedFormId).toBeNull();
 		expect(restored.uiState.search).toBe(fixture.expert.id);
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
@@ -511,7 +507,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreFormState(fixture.definition, { 'f.form': fixture.simple.id, patt: '[word="water"]' });
 
-		expect(restored.submittedFormId).toBeNull();
 		expect(restored.uiState.search).toBe(fixture.expert.id);
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
@@ -534,7 +529,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreFormState(fixture.definition, { 'f.word': 'water', patt: '[word="fire"]' });
 
-		expect(restored.submittedFormId).toBeNull();
 		expect(restored.uiState.search).toBe(fixture.simple.id);
 		expect(restored.state[fixture.simpleField.id]).toEqual({ value: 'water' });
 		expect(restored.state[fixture.rawField.id]).toBe('');
@@ -546,7 +540,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreFormState(fixture.definition, { 'f.form': fixture.simple.id, 'f.word': 'water', patt: '[word="fire"]' });
 
-		expect(restored.submittedFormId).toBe(fixture.simple.id);
 		expect(restored.state[fixture.simpleField.id]).toEqual({ value: 'water' });
 		expect(restored.rawOverrides).toEqual({ patt: '[word="fire"]' });
 	});

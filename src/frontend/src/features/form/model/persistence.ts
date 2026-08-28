@@ -12,8 +12,6 @@ import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/
 
 export type RestoredFormState = NewFormState & {
 	issues: FormIssue[];
-	/** Scoped form that can be compiled as the submitted query; canonical-only fallback stays null. */
-	submittedFormId: string | null;
 };
 
 export type RestoredForm = {
@@ -222,7 +220,6 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 			...restoredState,
 			rawOverrides,
 			issues,
-			submittedFormId: finalSubmittedFormId,
 		};
 
 		return {

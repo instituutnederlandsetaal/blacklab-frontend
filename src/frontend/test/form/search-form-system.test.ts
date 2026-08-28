@@ -514,7 +514,6 @@ describe('search form system', () => {
 		});
 		runtime.state.replaceState(restored);
 
-		expect(restored.submittedFormId).toBe(ids.exploreForm('corpora'));
 		expect(runtime.state.state.value[ids.exploreCorporaGroupBy()]).toBe('field:genre');
 		expect(runtime.state.state.value[ids.exploreCorporaGroupDisplayMode()]).toBe('docs');
 		expect(restored.rawOverrides).toEqual({ filter: 'author:Austen' });
@@ -1323,7 +1322,6 @@ describe('search form system', () => {
 		definition.state.replaceState(restored);
 
 		expect(restored.issues).toEqual([]);
-		expect(restored.submittedFormId).toBe(ids.searchForm('extended'));
 		expect(definition.state.state.value[ids.annotationField('extended', 'contents', 'word_or_lemma')]).toEqual({
 			value: 'schip',
 			caseSensitive: false,
