@@ -49,12 +49,6 @@ export const DateUtils = {
 		const { y, m, d } = date;
 		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 	},
-	// luceneToDisplayString(date: string): string {
-	// 	const match = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/);
-	// 	if (!match) return date;
-	// 	const [, y, m, d] = match;
-	// 	return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-	// },
 	normalizeBoundaryDate(date?: DateValue | Date | string): DateValue | null {
 		if (!date) return null;
 		if (date instanceof Date) return this.dateToValue(date);

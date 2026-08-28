@@ -35,9 +35,9 @@
 				</div>
 			</div>
 
-			<div v-if="!lockedMode && range" :class="['btn-group', field.buttonGroupClass]">
+			<div v-if="!mode && range" :class="['btn-group', field.buttonGroupClass]">
 				<button
-					v-for="mode in modes"
+					v-for="mode in modeOptions ?? rawRangeModeOptions"
 					type="button"
 					:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
 					:key="mode.value"
@@ -59,7 +59,7 @@ import { computed } from 'vue';
 
 import { useFieldPresentation } from '../field-presentation';
 import { DateUtils, type DateFieldComponentProps, type DateFieldState } from './date-field';
-import { rawRangeModeOptions, type RangeMode } from './range-mode';
+import { rawRangeModeOptions } from './range-mode';
 
 import { optionLabel, optionText } from '@/shared/utils/options';
 
@@ -80,55 +80,26 @@ const minYear = computed(() => minDate.value?.y);
 const maxYear = computed(() => maxDate.value?.y);
 const startMonthLength = computed(() => DateUtils.dateValueToString({ ...props.modelValue.startDate, d: '' }, 'end').substring(6, 8));
 const endMonthLength = computed(() => DateUtils.dateValueToString({ ...props.modelValue.endDate, d: '' }, 'end').substring(6, 8));
-const lockedMode = computed(() => props.mode ?? null);
-const modes = computed(() => props.modeOptions ?? rawRangeModeOptions);
 
-const yearFrom = computed({
-	get: () => props.modelValue.startDate.y,
-	set: (y: string) => updateStartDate({ y }),
-});
-const monthFrom = computed({
-	get: () => props.modelValue.startDate.m,
-	set: (m: string) => updateStartDate({ m }),
-});
-const dayFrom = computed({
-	get: () => props.modelValue.startDate.d,
-	set: (d: string) => updateStartDate({ d }),
-});
-const yearTo = computed({
-	get: () => props.modelValue.endDate.y,
-	set: (y: string) => updateEndDate({ y }),
-});
-const monthTo = computed({
-	get: () => props.modelValue.endDate.m,
-	set: (m: string) => updateEndDate({ m }),
-});
-const dayTo = computed({
-	get: () => props.modelValue.endDate.d,
-	set: (d: string) => updateEndDate({ d }),
-});
-
-function updateStartDate(next: Partial<DateFieldState['startDate']>) {
-	emit('update:modelValue', {
-		...props.modelValue,
-		startDate: {
-			...props.modelValue.startDate,
-			...next,
-		},
+function dateModel(boundary: 'startDate' | 'endDate', part: keyof DateFieldState['startDate']) {
+	return computed({
+		get: () => props.modelValue[boundary][part],
+		set: (value: string) =>
+			emit('update:modelValue', {
+				...props.modelValue,
+				[boundary]: { ...props.modelValue[boundary], [part]: value },
+			}),
 	});
 }
 
-function updateEndDate(next: Partial<DateFieldState['endDate']>) {
-	emit('update:modelValue', {
-		...props.modelValue,
-		endDate: {
-			...props.modelValue.endDate,
-			...next,
-		},
-	});
-}
+const yearFrom = dateModel('startDate', 'y');
+const monthFrom = dateModel('startDate', 'm');
+const dayFrom = dateModel('startDate', 'd');
+const yearTo = dateModel('endDate', 'y');
+const monthTo = dateModel('endDate', 'm');
+const dayTo = dateModel('endDate', 'd');
 
-function updateMode(mode: RangeMode) {
+function updateMode(mode: DateFieldState['mode']) {
 	emit('update:modelValue', {
 		...props.modelValue,
 		mode,
