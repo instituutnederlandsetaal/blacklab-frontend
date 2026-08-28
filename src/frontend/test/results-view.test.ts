@@ -274,9 +274,6 @@ describe('ResultsView', () => {
 			dir: 'ltr',
 			html: true,
 			groupDisplayMode: 'docs',
-			pageSize: 20,
-			first: 15,
-			number: 30,
 			requestedRange: { first: 15, number: 30 },
 		});
 		expect(settings).toEqual(
@@ -297,6 +294,8 @@ describe('ResultsView', () => {
 		totals.vm.$emit('update', result('counted', 205));
 		await nextTick();
 		expect(wrapper.findAllComponents({ name: 'Pagination' })[0].props('maxPage')).toBe(10);
+		expect(mock.makeRows).toHaveBeenCalledOnce();
+		expect(table.props('rows')).toBe(rows);
 
 		expect(wrapper.findComponent({ name: 'Export' }).props()).toMatchObject({ results: currentResult, annotations: ['word'], metadata: ['title'], type: 'hits', disabled: false });
 		expect(window.scroll).toHaveBeenCalledWith({ behavior: 'smooth', top: 170 });

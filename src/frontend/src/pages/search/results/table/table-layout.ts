@@ -327,7 +327,7 @@ export function snippetParts(hit: BLHitInContext, colors: Record<string, TokenHi
 function isOutsideRequestedResults(indexInRequestedResults: number, requestedRange: { first: number; number: number } | null, firstFromBlackLab: number | undefined): boolean {
 	if (requestedRange == null) return false;
 
-	const globalIndex = indexInRequestedResults + (firstFromBlackLab ?? 0);
+	const globalIndex = indexInRequestedResults + (Number(firstFromBlackLab) || 0);
 	const isOutsideUrlRange = globalIndex < requestedRange.first || globalIndex >= requestedRange.first + requestedRange.number;
 	return isOutsideUrlRange;
 }
@@ -382,12 +382,6 @@ export type DisplaySettingsForRendering = {
 	getCustomHitInfo: (hit: BLHitInContext, annotatedField: NormalizedAnnotatedField, doc: BLDoc) => string | null;
 	getMatchInfoHighlightStyle: Parameters<typeof Highlights.getHighlightSections>[1];
 
-	/** User's configured page size (global store) */
-	pageSize: number;
-	/** First result requested based on URL (results view store) - not necessarily what was sent to BlackLab) */
-	first: number;
-	/** Number of results requested based on URL (results view store) - not necessarily what was sent to BlackLab) */
-	number: number;
 	/** If set, original range requested via shared URL for this active view. */
 	requestedRange: { first: number; number: number } | null;
 };
@@ -660,11 +654,6 @@ export type Rows = {
 };
 
 export function makeRows(results: BLSearchResult, info: DisplaySettingsForRendering): Rows {
-	// Fix: BL sends back all params as strings, but we need numbers for calculations.
-	const params = getSearchParameters(results);
-	params.first = Number(params.first) || 0;
-	params.number = Number(params.number) || 10;
-
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) };
 	else if (isHitResults(results)) return { rows: makeHitRows(results, info) };
 	else return makeGroupRows(results, info);

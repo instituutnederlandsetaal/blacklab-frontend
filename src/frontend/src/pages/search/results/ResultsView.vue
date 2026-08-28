@@ -161,9 +161,9 @@ const root = ref<HTMLElement | null>(null);
 const isDirty = ref(true);
 const request = ref<CancelableRequest<BLTypes.BLSearchResult> | null>(null);
 const results = ref<BLTypes.BLSearchResult | null>(null);
+const paginationResults = ref<BLTypes.BLSearchResult | null>(null);
 const error = ref<string | null>(null);
 const storedViewGroupName = ref<string | null>(null);
-const paginationResults = ref<BLTypes.BLSearchResult | null>(null);
 // Should we scroll when next results arrive - set when main form submitted
 const scroll = ref(true);
 // Should we clear the results when we begin the next request? - set when main form is submitted.
@@ -235,7 +235,6 @@ const isParallelCorpus = computed(() => corpus.value.isParallelCorpus);
  *    -> Multiple pages active, highlight the range
  */
 const pagination = computed(() => {
-	// Use results for page size, but paginationResults for the total because pagination results are requested with a window size of 0.
 	if (!results.value || !paginationResults.value) return { shownPage: 0, maxShownPage: 0 };
 
 	const { first, number } = store.getState();
@@ -263,16 +262,14 @@ function setSuccess(data: BLTypes.BLSearchResult) {
 	clearResults.value = false;
 	error.value = null;
 	request.value = null;
-	results.value = markRaw(data);
-	paginationResults.value = markRaw(data);
+	results.value = paginationResults.value = markRaw(data);
 }
 
 function setError(data: ApiError, isGrouped?: boolean) {
 	if (!data.isCancelledRequest) {
 		debugLog('results', 'Request failed: ', data);
 		error.value = customizations.formatError(data, isGrouped ? 'groups' : id);
-		results.value = null;
-		paginationResults.value = null;
+		results.value = paginationResults.value = null;
 		clearResults.value = false;
 	}
 	request.value = null;
@@ -289,15 +286,15 @@ function refresh() {
 	}
 
 	if (!valid.value) {
-		results.value = null;
-		paginationResults.value = null;
+		results.value = paginationResults.value = null;
 		error.value = null;
 		clearResults.value = false;
 		return;
 	}
 
 	if (clearResults.value) {
-		results.value = error.value = null;
+		results.value = paginationResults.value = null;
+		error.value = null;
 		clearResults.value = false;
 	}
 
@@ -447,7 +444,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 	const dependencyAnnotationIds = [
 		...new Set([dependencySettings.lemma, dependencySettings.upos, dependencySettings.xpos, ...(dependencySettings.feats ?? [])].filter((annotationId): annotationId is string => !!annotationId)),
 	];
-	const { first, number, requestedRange } = store.getState();
+	const { requestedRange } = store.getState();
 	const allAnnotationsMap = currentCorpus.allAnnotationsMap;
 
 	return {
@@ -475,9 +472,6 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 			BLTypes.isHitResults(searchResults) || BLTypes.isHitGroups(searchResults) ? customizations.hitInfoColumnVisible(searchResults, parallelCorpus) : false,
 		getCustomHitInfo: (hit, field, document) => customizations.hitInfoColumnContent(hit, field, document, translate),
 		getMatchInfoHighlightStyle: customizations.matchInfoHighlightStyle,
-		pageSize: pageSize.value,
-		first,
-		number,
 		requestedRange,
 	};
 });

@@ -7,7 +7,7 @@
 						<span class="fa fa-angle-double-left"></span> {{ $t('results.table.viewDetailedConcordances') }}
 					</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-						<template v-if="concordances.loading"><Spinner :inline="true" /> {{ $t('results.table.loading') }} HOI</template>
+						<template v-if="concordances.loading"><Spinner :inline="true" /> {{ $t('results.table.loading') }}</template>
 						<template v-else>{{ $t('results.table.loadMoreConcordances') }}</template>
 					</button>
 
@@ -27,7 +27,7 @@
 						<span class="fa fa-angle-double-left"></span> {{ $t('results.table.viewDetailedConcordances') }}
 					</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-						<template v-if="concordances.loading"><Spinner inline /> {{ $t('results.table.loading') }} HOI</template>
+						<template v-if="concordances.loading"><Spinner inline /> {{ $t('results.table.loading') }}</template>
 						<template v-else>{{ $t('results.table.loadMoreConcordances') }}</template>
 					</button>
 				</div>

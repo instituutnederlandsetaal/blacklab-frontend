@@ -88,7 +88,6 @@ import type { ColumnDef, ColumnDefs, DisplaySettingsForRendering, DocRowData, Gr
 import { definitions } from '@/pages/search/results/table/table-layout';
 import type { BLSearchParameters } from '@/types/blacklabtypes';
 
-import '@/pages/search/results/table/TableHeader.vue';
 import DocRow from '@/pages/search/results/table/DocRow.vue';
 import DocRowDetails from '@/pages/search/results/table/DocRowDetails.vue';
 import GroupRow from '@/pages/search/results/table/GroupRow.vue';

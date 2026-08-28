@@ -74,6 +74,9 @@ const props = defineProps<{
 	indexId: string;
 	annotatedFieldId: string;
 }>();
+const emit = defineEmits<{
+	update: [results: BLTypes.BLSearchResult];
+}>();
 
 const blacklab = useBlackLabApi();
 const { $t } = useI18n();
@@ -116,6 +119,9 @@ const percentOfSearchSpaceClarification = computed(
 
 watch(totals, (current, previous) => {
 	if (current !== previous) previous?.dispose();
+});
+watch(value, current => {
+	if (current && current.results !== props.initialResults) emit('update', current.results);
 });
 
 onUnmounted(() => totals.value.dispose());

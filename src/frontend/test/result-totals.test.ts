@@ -2,7 +2,9 @@
 
 import { shallowMount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { nextTick, ref } from 'vue';
 
+import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
 import ResultTotals from '@/pages/search/results/ResultTotals.vue';
@@ -14,6 +16,8 @@ const mock = vi.hoisted(() => ({
 		continueCounting: ReturnType<typeof vi.fn>;
 		dispose: ReturnType<typeof vi.fn>;
 		input: unknown;
+		fail: () => void;
+		publish: (value: TotalsOutput) => void;
 	}>,
 }));
 
@@ -23,19 +27,52 @@ vi.mock('@/shared/api', () => ({
 
 vi.mock('@/api/async/logic/result-count/result-count-from-query', () => ({
 	IterativeResultCountLoader: class {
+		private current = ref<TotalsOutput>();
+		private failed = ref(false);
 		continueCounting = vi.fn();
 		dispose = vi.fn();
-		isError = () => false;
-		isLoaded = () => false;
+		isError = () => this.failed.value;
+		isLoaded = () => this.current.value != null && !this.failed.value;
+
+		get value() {
+			return this.current.value;
+		}
+		get error() {
+			return this.failed.value ? { message: 'error' } : undefined;
+		}
 
 		constructor(
 			public input: unknown,
 			public api: unknown,
 		) {
+			this.current.value = totalsOutput((input as { results: BLSearchResult }).results);
 			mock.loaders.push(this);
+		}
+
+		publish(value: TotalsOutput) {
+			this.failed.value = false;
+			this.current.value = value;
+		}
+		fail() {
+			this.current.value = undefined;
+			this.failed.value = true;
 		}
 	},
 }));
+
+function totalsOutput(results: BLSearchResult): TotalsOutput {
+	return {
+		results,
+		docsRetrieved: 1,
+		docsCounted: 1,
+		hitsRetrieved: 1,
+		hitsCounted: 1,
+		searchTime: 1,
+		tokensInMatchingDocuments: 1,
+		numberOfMatchingDocuments: 1,
+		state: 'counting',
+	};
+}
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -81,5 +118,38 @@ describe('ResultTotals', () => {
 		wrapper.unmount();
 		expect(current.dispose).toHaveBeenCalledOnce();
 		for (const replaced of mock.loaders.slice(0, -1)) expect(replaced.dispose).toHaveBeenCalledOnce();
+	});
+
+	test('emits later loaded results but not initial, errored, or stale loader values', async () => {
+		const initialResults = {} as BLSearchResult;
+		const wrapper = shallowMount(ResultTotals, {
+			props: { annotatedFieldId: 'contents', indexId: 'first', initialResults, type: 'hits' },
+		});
+		const initialLoader = mock.loaders[0];
+		expect(wrapper.emitted('update')).toBeUndefined();
+
+		const firstPoll = {} as BLSearchResult;
+		initialLoader.publish(totalsOutput(firstPoll));
+		await nextTick();
+		const secondPoll = {} as BLSearchResult;
+		initialLoader.publish(totalsOutput(secondPoll));
+		await nextTick();
+		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll]]);
+
+		initialLoader.fail();
+		await nextTick();
+		expect(wrapper.emitted('update')).toHaveLength(2);
+
+		const replacementResults = {} as BLSearchResult;
+		await wrapper.setProps({ initialResults: replacementResults });
+		expect(wrapper.emitted('update')).toHaveLength(2);
+		initialLoader.publish(totalsOutput({} as BLSearchResult));
+		await nextTick();
+		expect(wrapper.emitted('update')).toHaveLength(2);
+
+		const replacementPoll = {} as BLSearchResult;
+		mock.loaders.at(-1)!.publish(totalsOutput(replacementPoll));
+		await nextTick();
+		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll], [replacementPoll]]);
 	});
 });
