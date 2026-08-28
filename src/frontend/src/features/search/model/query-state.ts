@@ -26,7 +26,7 @@ import { reactive } from 'vue';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import type { CompiledFormResult, ScopedFormQuery } from '@/features/form';
+import { formatSummaryEntries, type CompiledFormResult, type ScopedFormQuery } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -134,12 +134,7 @@ const get = {
 	/** Human-readable version of the query for use in history, summaries, etc. */
 	patternSummary: (): string | undefined => {
 		if (state.form === 'new') {
-			return (
-				state.state.summaries
-					.filter(s => !s.summaryType || s.summaryType.includes('patt'))
-					.map(summary => `${summary.label}: ${summary.value}`)
-					.join(', ') || undefined
-			);
+			return formatSummaryEntries(state.state.summaries, 'patt', { includeUntyped: true });
 		}
 		const formState = {
 			[state.subForm as string]: state.formState,
@@ -167,12 +162,7 @@ const get = {
 		if (!state.form) return undefined;
 
 		if (state.form === 'new') {
-			return (
-				state.state.summaries
-					.filter(s => !s.summaryType?.length || s.summaryType.includes('filter'))
-					.map(summary => `${summary.label}: ${summary.value}`)
-					.join(', ') || undefined
-			);
+			return formatSummaryEntries(state.state.summaries, 'filter', { includeUntyped: true });
 		}
 
 		return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));

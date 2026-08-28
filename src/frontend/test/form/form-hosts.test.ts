@@ -620,6 +620,33 @@ describe('builtin view hosts', () => {
 		expect(harness.wrapper.text()).not.toContain('water');
 	});
 
+	test('excludes untyped summaries and accepts multi-type summaries when filtered', () => {
+		const runtime = {
+			compileSummary: () => ({
+				params: {},
+				summaries: [
+					{ label: 'Untyped', value: 'missing' },
+					{ label: 'Empty', summaryType: [], value: 'empty' },
+					{ label: 'Pattern only', summaryType: ['patt'], value: 'pattern' },
+					{ label: 'Multi-type', summaryType: ['patt', 'filter'], value: 'shared' },
+				],
+			}),
+		} as unknown as FormRuntime;
+		const Host = defineComponent({
+			setup() {
+				provideFormSystemRuntime(shallowRef(runtime));
+				provideParentForm(ref('harness.form'));
+				return () => h(SummaryView, { summaryType: 'filter' });
+			},
+		});
+		const wrapper = mount(Host);
+
+		expect(wrapper.text()).toContain('Multi-type');
+		expect(wrapper.text()).not.toContain('Untyped');
+		expect(wrapper.text()).not.toContain('Empty');
+		expect(wrapper.text()).not.toContain('Pattern only');
+	});
+
 	test('updates live subcorpus totals from the compiled filter state', async () => {
 		const { harness, update } = mountTotalsSummaryHarness();
 		expect(update).toHaveBeenLastCalledWith({ filter: undefined, searchfield: 'contents__en' });
