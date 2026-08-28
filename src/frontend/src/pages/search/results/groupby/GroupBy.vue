@@ -171,9 +171,8 @@
 	</div>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent, nextTick } from 'vue';
+<script setup lang="ts">
+import { computed, nextTick, ref, watch } from 'vue';
 import Slider from 'vue-3-slider-component';
 
 import * as SearchModule from '@/app/state/root-store';
@@ -196,6 +195,7 @@ import { useBlackLabApi } from '@/shared/api';
 import { getMetadataSubset, getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import debug from '@/shared/debug/debug';
+import { useI18n } from '@/shared/i18n';
 import { findOption, optionText, type OptGroup, type Option, type Options } from '@/shared/utils/options';
 import { stableStringify } from '@/shared/utils/stable-stringify';
 
@@ -220,765 +220,464 @@ function splitSpanAttributeOptionValue(value: string): { name: string; attrName:
 	throw `Not a span attribute option value: ${value}`;
 }
 
-export default defineComponent({
-	components: {
-		SelectPicker,
-		Slider,
-		Tabs,
-	},
-	props: {
-		type: { type: String as PropType<'hits' | 'docs'>, required: true }, // grouping hits or docs?
-		disabled: Boolean,
-		results: {
-			type: [Object, null] as PropType<BLSearchResult | null>,
-			default: null,
-		},
-	},
-	data: () => ({
-		customizations: useCustomizations(),
-		/** The criteria the user has added to group on */
-		addedCriteria: [] as GroupBy[],
-		/** which of the addedCriteria is currently selected (to be edited on the right side) */
-		selectedCriteriumIndex: 0,
+const {
+	type,
+	disabled = false,
+	results = null,
+} = defineProps<{
+	type: 'hits' | 'docs';
+	disabled?: boolean;
+	results?: BLSearchResult | null;
+}>();
 
-		/** micro optimization: whether to skip next parse since the new value came from us anyway. */
-		storeValueUpdateIsOurs: false,
+const customizations = useCustomizations();
+const blacklab = useBlackLabApi();
+const corpus = useCorpus();
+const translate = useI18n();
+const addedCriteria = ref<GroupBy[]>([]);
+const selectedCriteriumIndex = ref(0);
+const storeValueUpdateIsOurs = ref(false);
+const hits = ref<BLHitResults>();
+const active = ref(false);
 
-		/** For the preview. Results from props can also be grouped, so we need to request these ourselves. */
-		hits: undefined as undefined | BLHitResults,
+const storeModule = computed<ResultsStore.ViewModule>(() => ResultsStore.getOrCreateModule(type));
+/** This may contain grouping criteria this corpus doesn't support. On page load, it comes directly from the URL. */
+const storeValue = computed(() => storeModule.value.getState().groupBy);
+const defaultAnnotation = computed(() => {
+	const concordanceAnnotation = customizations.resultConcordanceAnnotationId();
+	const allowedAnnotations = customizations.resultGroupAnnotationIds();
+	return allowedAnnotations.includes(concordanceAnnotation) ? concordanceAnnotation : (allowedAnnotations[0] ?? '');
+});
 
-		active: false,
-		blacklab: useBlackLabApi(),
-		corpus: useCorpus(),
-	}),
-	computed: {
-		storeModule(): ResultsStore.ViewModule {
-			return ResultsStore.getOrCreateModule(this.type);
-		},
-		/** NOTE: this may contain grouping criteria this corpus doesn't support! On page load, it comes directly from the URL! */
-		storeValue(): string[] {
-			return this.storeModule.getState().groupBy;
-		},
+const metadataDropdownOptions = computed<Options>(() =>
+	(
+		getMetadataSubset(
+			customizations.resultGroupMetadataIds(),
+			corpus.value.metadataGroups,
+			corpus.value.allMetadataFieldsMap,
+			'Group',
+			translate,
+			debug.value,
+			customizations.resultGroupMetadataLabelsVisible(),
+			id => customizations.resultMetadataField(corpus.value.allMetadataFieldsMap[id]),
+		) as OptGroup[]
+	)
+		.concat(tagAttributes.value)
+		.map(group => customizations.groupOptionGroup(group, translate))
+		.flatMap<Options[number]>(group => (optionText(group.label) ? group : group.options)),
+);
+const annotationDropdownOptions = computed<Options>(() =>
+	getAnnotationSubset(
+		customizations.resultGroupAnnotationIds(),
+		corpus.value.annotationGroups,
+		corpus.value.allAnnotationsMap,
+		'Search',
+		translate,
+		debug.value,
+		customizations.resultGroupAnnotationLabelsVisible(),
+	)
+		.flatMap(group => customizations.groupOptionGroup(group, translate))
+		.flatMap<Options[number]>(group => (optionText(group.label) ? group : group.options)),
+);
+const tabs = computed<Option[]>(() =>
+	addedCriteria.value.map((criterium, index) => ({
+		label: humanizeGroupByOrSortBy(translate, criterium, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap),
+		value: index.toString(),
+		class: isValidGroupBy(criterium) ? '' : 'text-muted',
+	})),
+);
 
-		metadataGroups() {
-			return this.corpus.metadataGroups;
-		},
-		metadataFieldsMap() {
-			return this.corpus.allMetadataFieldsMap;
-		},
-		annotationGroups() {
-			return this.corpus.annotationGroups;
-		},
-		annotationsMap() {
-			return this.corpus.allAnnotationsMap;
-		},
-		defaultAnnotation(): string {
-			// sometimes grouping by the shown annotation itself isn't allowed (e.g. when it contains inline HTML)
-			// in which case usually the corpus allows grouping on the plain version of that annotation.
-			// so check if this one's allowed, and if not, find the first allowed one.
-			const concordanceAnnotation = this.customizations.resultConcordanceAnnotationId();
-			const allowedAnnotations = this.customizations.resultGroupAnnotationIds();
-			return allowedAnnotations.includes(concordanceAnnotation) ? concordanceAnnotation : allowedAnnotations.length > 0 ? allowedAnnotations[0] : '';
-		},
+const firstHitPreviewQuery = computed<BLSearchParameters | undefined>(() => {
+	const current = SearchModule.get.blacklabParameters();
+	if (!isHitParams(current)) return undefined;
 
-		metadataDropdownOptions(): Options {
-			return (
-				getMetadataSubset(
-					this.customizations.resultGroupMetadataIds(),
-					this.metadataGroups,
-					this.metadataFieldsMap,
-					'Group',
-					this,
-					debug.value, // is debug enabled - i.e. show debug labels in dropdown
-					this.customizations.resultGroupMetadataLabelsVisible(),
-					id => this.customizations.resultMetadataField(this.corpus.allMetadataFieldsMap[id]),
-				) as OptGroup[]
-			)
-				.concat(this.tagAttributes)
-				.map(optGroup => this.customizations.groupOptionGroup(optGroup, this))
-				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
-		},
-		annotationDropdownOptions(): Options {
-			return getAnnotationSubset(
-				this.customizations.resultGroupAnnotationIds(),
-				this.annotationGroups,
-				this.annotationsMap,
-				'Search',
-				this,
-				debug.value, // is debug enabled - i.e. show debug labels in dropdown
-				this.customizations.resultGroupAnnotationLabelsVisible(),
-			)
-				.flatMap(optGroup => this.customizations.groupOptionGroup(optGroup, this))
-				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
-		},
+	const params = { ...current };
+	if (!params.viewgroup) delete params.group;
+	delete params.subcorpussize;
+	delete params.listvalues;
+	const sort = (params.sort?.split(',') ?? []).filter(sort => sort !== 'numhits' && sort !== '-numhits' && (!corpus.value.isParallelCorpus || (sort !== 'alignments' && sort !== '-alignments')));
+	if (corpus.value.isParallelCorpus) sort.unshift('alignments');
+	if (sort.length) params.sort = sort.join(',');
+	else delete params.sort;
+	params.listmetadatavalues = '__nothing__';
+	params.first = 0;
+	params.number = 1;
+	params.waitfortotal = false;
+	return params;
+});
+const firstHitPreviewQueryHash = computed(() => (active.value ? stableStringify(firstHitPreviewQuery.value) : ''));
+const contextsize = computed(() => {
+	const params = SearchModule.get.blacklabParameters();
+	if (!isHitParams(params)) return 5;
+	const globalContext = GlobalSearchSettingsStore.getState().context;
+	return typeof params.context === 'number' ? params.context : typeof globalContext === 'number' ? globalContext : 5;
+});
 
-		tabs(): Option[] {
-			return this.addedCriteria.map((c, i) => ({
-				label: humanizeGroupByOrSortBy(this, c, this.annotationsMap, this.metadataFieldsMap),
-				value: i.toString(),
-				class: isValidGroupBy(c) ? '' : 'text-muted',
-			}));
-		},
+const mainSearchField = computed(() => QueryStore.get.sourceField());
+const selectedCriterium = computed(() => addedCriteria.value[selectedCriteriumIndex.value]);
+const selectedCriteriumAsContext = computed(() => (selectedCriterium.value?.type === 'context' ? (selectedCriterium.value as GroupByContext<ContextLabel | ContextPositional>) : undefined));
+const selectedCriteriumAsLabel = computed(() =>
+	selectedCriterium.value?.type === 'context' && selectedCriterium.value.context.type === 'label' ? (selectedCriterium.value as GroupByContext<ContextLabel>) : undefined,
+);
+const selectedCriteriumAsPositional = computed(() =>
+	selectedCriterium.value?.type === 'context' && selectedCriterium.value.context.type === 'positional' ? (selectedCriterium.value as GroupByContext<ContextPositional>) : undefined,
+);
+const selectedCriteriumAsSlider = computed(() => (selectedCriteriumAsPositional.value?.context.whichTokens === 'specific' ? selectedCriteriumAsPositional.value : undefined));
 
-		firstHitPreviewQuery(): BLSearchParameters | undefined {
-			let params = SearchModule.get.blacklabParameters();
-			if (!isHitParams(params)) return undefined; // can't get hits without a query
+const captures = computed(() => {
+	const matchInfos = hits.value?.summary?.pattern?.matchInfos;
+	return Object.entries(matchInfos || {})
+		.filter(([, matchInfo]) => matchInfo.type === 'span' && (matchInfo.fieldName ?? mainSearchField.value) === (selectedCriteriumAsContext.value?.fieldName ?? mainSearchField.value))
+		.map(([name, matchInfo]) => ({ name, label: name, targetField: matchInfo.fieldName }));
+});
+const relations = computed(() =>
+	Object.entries(hits.value?.summary?.pattern?.matchInfos || {}).flatMap(([name, matchInfo]) =>
+		matchInfo.type === 'relation' && (relationSourceInThisField(matchInfo) || relationTargetInThisField(matchInfo))
+			? [{ name, label: name, targetField: selectedCriteriumAsPositional.value?.fieldName }]
+			: [],
+	),
+);
 
-			params = { ...params }; // make a copy before modifying
-			if (!params.viewgroup) delete params.group;
-			delete params.subcorpussize;
-			delete params.listvalues;
-			// Only available for doc queries, remove it if present
-			if (params.sort && params.sort.includes('numhits'))
-				params.sort
-					.split(',')
-					.filter(s => s != 'numhits')
-					.join(',');
-			params.listmetadatavalues = '__nothing__';
-			params.first = 0;
-			params.number = 10; // not 1 but 10 because for parallel corpus we need a hit with otherFields (hopefully we'll get one)
-			params.waitfortotal = false;
-			return params;
-		},
-		firstHitPreviewQueryHash(): string {
-			return this.active ? stableStringify(this.firstHitPreviewQuery) : '';
-		},
-		contextsize(): number {
-			let params = SearchModule.get.blacklabParameters();
-			if (!isHitParams(params)) return 5; // default
-			return typeof params.context === 'number'
-				? (params.context as number) // use actual value from query if set
-				: typeof GlobalSearchSettingsStore.getState().context === 'number'
-					? (GlobalSearchSettingsStore.getState().context as number) // use global default if set
-					: 5; // use default
-		},
-
-		captures(): { name: string; label: string; targetField: string | undefined }[] {
-			const mi = this.hits?.summary?.pattern?.matchInfos;
-			const sourceField = this.mainSearchField;
-			return Object.entries(mi || {})
-				.filter(([k, v]) => v.type === 'span' && (v.fieldName ?? sourceField) === (this.selectedCriteriumAsContext?.fieldName ?? sourceField))
-				.map(([k, v]) => {
-					return {
-						name: k,
-						label: k,
-						targetField: v.fieldName,
-					};
-				});
-		},
-		relations() {
-			const mi = this.hits?.summary?.pattern?.matchInfos;
-			const result: { name: string; label: string; targetField: string | undefined }[] = [];
-			Object.entries(mi || {})
-				.filter(([k, v]) => v.type === 'relation')
-				.forEach(([k, v]) => {
-					const sourceInThisField = this.relationSourceInThisField(v);
-					const targetInThisField = this.relationTargetInThisField(v);
-					if (sourceInThisField || targetInThisField) {
-						result.push({
-							label: k,
-							name: k,
-							targetField: this.selectedCriteriumAsPositional?.fieldName,
-						});
-					}
-				});
-			return result;
-		},
-		tagAttributes(): OptGroup[] {
-			/** Check if we should add this tag+attr option, and if so, add it. */
-			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
-				// Check custom method to see if we should include this attribute
-				// (or if that returns null, we will fall back to default behaviour)
-				let shouldInclude = this.customizations.groupingSpanAttribute({
-					elementName: tagName,
-					attributeName,
-				});
-				const filterId = spanFilterId(tagName, attributeName);
-				const filter = FilterModule.getState().filters[filterId];
-				if (shouldInclude === null) {
-					// By default, you may group on any span attribute for which a
-					// span filter exists, or which occurs in the within widget.
-					const isSpanFilter = filter ? (getValueFunctions(filter)?.isSpanFilter ?? null) : false;
-					const isWithinAttr = this.customizations.legacyShouldIncludeWithinSpan(tagName) && this.customizations.legacyShouldIncludeWithinAttribute(tagName, attributeName);
-					shouldInclude = isSpanFilter || isWithinAttr;
-				}
-				if (shouldInclude) {
-					const value = spanAttributeOptionValue(tagName, attributeName, listName);
-					options.push({
-						label: `${this.$t('results.table.groupBy', {
-							field: filter ? this.$tMetaDisplayName(filter) : this.$tWithinAttributeDisplayName(tagName, attributeName),
-						})}`,
-						value,
-					});
-				}
-			};
-
-			// Check if we have a list of matches (e.g. from withspans=true)
-			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
-			const listEntry = Object.entries(matchInfos).find(([name, mi]) => mi.type === 'list');
-			let options: { label?: string; value: string; title?: string }[];
-			const optGroups: OptGroup[] = [];
-			if (listEntry) {
-				// We capture lists of tags, but we don't know all the captured tags at this point.
-				// Offer all span filters as grouping options, with a reference to the list,
-				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
-				const listName = listEntry[0];
-				if (this.corpus.relations.spans) {
-					Object.entries(this.corpus.relations.spans!).forEach(([tagName, spanInfo]) => {
-						if (spanInfo.attributes) {
-							options = [];
-							const attr = Object.keys(spanInfo.attributes);
-							attr.forEach(attributeName => {
-								optAdd(tagName, attributeName, listName);
-							});
-							if (options.length > 0) {
-								optGroups.push({
-									label: this.groupLabelTag(tagName),
-									options: options,
-								});
-							}
-						}
-					});
-				}
-			} else {
-				// We don't capture any lists. Only (possibly) include the tags we know we've captured.
-				Object.entries(matchInfos)
-					.filter(([_, matchInfo]) => matchInfo.type === 'tag')
-					.forEach(([tagName, matchInfo]) => {
-						const sourceInThisField = this.relationSourceInThisField(matchInfo);
-						if (sourceInThisField) {
-							options = [];
-							const spanInfo = this.corpus.relations.spans![tagName];
-							const attr = Object.keys(spanInfo?.attributes ?? {});
-							attr.forEach(attributeName => {
-								optAdd(tagName, attributeName);
-							});
-							if (options.length > 0) {
-								optGroups.push({
-									label: this.groupLabelTag(tagName), //this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
-									options: options,
-								});
-							}
-						}
-					});
-			}
-			return optGroups;
-		},
-		relationNames(): string[] {
-			return this.relations.map(c => c.name);
-		},
-		showRelationPartWidget(): boolean {
-			return this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'label' && this.relationNames.includes(this.selectedCriterium.context.label);
-		},
-
-		mainSearchField(): string {
-			return QueryStore.get.sourceField();
-		},
-
-		colors(): Record<string, TokenHighlight> {
-			return this.hits ? getHighlightColors(this.hits.summary) : {};
-		},
-
-		selectedCriterium(): GroupBy | undefined {
-			return this.addedCriteria[this.selectedCriteriumIndex];
-		},
-		// Some utils to cast the current group to a specific type.
-		// so we can use it in computeds for the template.
-		/** When grouping on either: capture group, or relation source/target. */
-		selectedCriteriumAsContext(): undefined | GroupByContext<ContextLabel | ContextPositional> {
-			if (this.selectedCriterium?.type === 'context') return this.selectedCriterium as GroupByContext<ContextLabel | ContextPositional>;
-			return undefined;
-		},
-		selectedCriteriumAsLabel(): undefined | GroupByContext<ContextLabel> {
-			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'label') return this.selectedCriterium as GroupByContext<ContextLabel>;
-			return undefined;
-		},
-		selectedCriteriumAsPositional(): undefined | GroupByContext<ContextPositional> {
-			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional') return this.selectedCriterium as GroupByContext<ContextPositional>;
-			return undefined;
-		},
-		selectedCriteriumAsSlider(): undefined | GroupByContext<ContextPositional> {
-			if (this.selectedCriteriumAsPositional?.context.whichTokens === 'specific') return this.selectedCriteriumAsPositional;
-			return undefined;
-		},
-		showCaseSensitive(): boolean {
-			return this.selectedCriterium?.type === 'metadata' && this.selectedCriterium.metadata.type === 'document';
-		},
-
-		sliderVisible(): boolean {
-			return !!this.selectedCriteriumAsSlider;
-		},
-		sliderInverted(): boolean {
-			const p = this.selectedCriteriumAsSlider?.context.position;
-			return p === 'E' || p === 'B';
-		},
-		sliderLabels(): any[] {
-			return Array.from({ length: this.contextsize }, (_, i) => i + 1).map(i => ({ value: i, label: i }));
-		},
-		sliderValue: {
-			get(): [number, number] {
-				return [this.selectedCriteriumAsSlider?.context.start ?? 1, this.selectedCriteriumAsSlider?.context.end ?? 1];
-			},
-			set(v: [number, number]) {
-				if (this.selectedCriteriumAsSlider) {
-					this.selectedCriteriumAsSlider.context.start = v[0];
-					this.selectedCriteriumAsSlider.context.end = v[1];
-				}
-			},
-		},
-
-		preview(): {
-			active: boolean;
-			word: string;
-			wordAsHtml: boolean;
-			selectedAnnotation: string;
-			selectedAnnotationAsHtml: boolean;
-			punct: string;
-			style: object;
-			captureAndRelation: CaptureAndRelation[] | undefined;
-		}[][] {
-			if (this.selectedCriterium?.type !== 'context' || !isHitResults(this.hits) || !this.hits.hits.length) {
-				return [];
-			}
-
-			const wordAnnotation = this.customizations.resultConcordanceAnnotationId();
-			const wordAsHtml = this.customizations.resultConcordanceAsHtml();
-
-			const firstHit = this.hits.hits.find(v => !!v.otherFields) ?? this.hits.hits[0];
-			const targetField = this.selectedCriterium?.fieldName;
-			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
-			const { annotation, context } = this.selectedCriterium;
-
-			const snippet = snippetParts(hitInField, this.colors, this.customizations.matchInfoHighlightStyle);
-
-			// Don't highlight the list of relations matchInfo; it doesn't make sense to group on those
-			const removeListMatchInfo = (t: HitToken) => (t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0));
-			snippet.before.forEach(removeListMatchInfo);
-			snippet.match.forEach(removeListMatchInfo);
-			snippet.after.forEach(removeListMatchInfo);
-
-			const position = context.type === 'positional' ? context.position : undefined;
-
-			// Now extract the indices of the tokens that are active (i.e. being grouped on).
-			// start and end here are INCLUSIVE and 0-indexed. While start + end in the GroupBy object are 1-indexed.
-			// If we're not grouping on a specific word, we'll just show the entire snippet without anything highlighted.
-			let start = Number.MAX_SAFE_INTEGER;
-			let end = -Number.MAX_SAFE_INTEGER;
-			if (context.type === 'positional') {
-				const whichTokens = context.whichTokens;
-				if (whichTokens === 'all') {
-					start = 0;
-					end = Number.MAX_SAFE_INTEGER;
-				} else if (whichTokens === 'first') {
-					start = 0;
-					end = 0;
-				} else {
-					start = context.start! - 1;
-					end = context.end! - 1;
-				}
-
-				// left/before context ('B') and hit-from-end context ('E') use inverted index in BlackLab, mimic this.
-				if (position === 'E' || position === 'B') {
-					const sectionLength = position === 'E' ? snippet.match.length : snippet.before.length;
-					// subtract 1 because array.length is 1 more than the last index.
-					const tmp = start;
-					start = sectionLength - end - 1;
-					end = sectionLength - tmp - 1;
-				}
-			}
-
-			const isActiveIndex = (i: number): boolean => i >= start && i <= end;
-
-			const isActiveRelationOrCapture = (t: HitToken): boolean => {
-				/** might be null if not grouping on a capture at the moment */
-				const currentlyGroupedOnCaptureOrRelation = t.captureAndRelation?.find(c => c.key === this.selectedCriteriumAsLabel?.context.label);
-				if (!currentlyGroupedOnCaptureOrRelation) return false;
-
-				if (this.selectedCriteriumAsLabel?.context.relation === 'source') {
-					return currentlyGroupedOnCaptureOrRelation.isSource;
-				} else if (this.selectedCriteriumAsLabel?.context.relation === 'target') {
-					return currentlyGroupedOnCaptureOrRelation.isTarget;
-				} else return true;
-			};
-
-			const getPreviewStyle = (t: HitToken): object => {
-				return t.captureAndRelation?.length
-					? {
-							background: `linear-gradient(90deg, ${t.captureAndRelation.map((c, i) => `${c.highlight.color} ${(i / t.captureAndRelation!.length) * 100}%, ${c.highlight.color} ${((i + 1) / t.captureAndRelation!.length) * 100}%`)})`,
-							color: t.captureAndRelation[0].highlight.textcolor,
-							textShadow: `0 0 1.25px ${t.captureAndRelation[0].highlight.textcolorcontrast},`.repeat(10).replace(/,$/, ''),
-							cursor: 'pointer',
-						}
-					: {};
-			};
-
-			return [
-				snippet.before.map((t, i) => ({
-					word: (t.punctBefore || '') + t.annotations[wordAnnotation] || '·',
-					wordAsHtml,
-					selectedAnnotation: t.annotations[annotation!] || '·',
-					selectedAnnotationAsHtml: annotation === wordAnnotation ? wordAsHtml : false,
-					punct: t.punct,
-					active: (position === 'B' && isActiveIndex(i)) || isActiveRelationOrCapture(t),
-					style: getPreviewStyle(t),
-					captureAndRelation: t.captureAndRelation,
-				})),
-				snippet.match.map((t, i) => ({
-					word: (t.punctBefore || '') + t.annotations[wordAnnotation] || '·',
-					wordAsHtml,
-					selectedAnnotation: t.annotations[annotation!] || '·',
-					selectedAnnotationAsHtml: annotation === wordAnnotation ? wordAsHtml : false,
-					punct: t.punct,
-					active: ((position === 'H' || position === 'E') && isActiveIndex(i)) || isActiveRelationOrCapture(t),
-					style: getPreviewStyle(t),
-					captureAndRelation: t.captureAndRelation,
-				})),
-				snippet.after.map((t, i) => ({
-					word: (t.punctBefore || '') + t.annotations[wordAnnotation] || '·',
-					wordAsHtml,
-					selectedAnnotation: t.annotations[annotation!] || '·',
-					selectedAnnotationAsHtml: annotation === wordAnnotation ? wordAsHtml : false,
-					punct: t.punct,
-					active: (position === 'A' && isActiveIndex(i)) || isActiveRelationOrCapture(t),
-					style: getPreviewStyle(t),
-					captureAndRelation: t.captureAndRelation,
-				})),
-			];
-		},
-
-		contextOptions(): Options {
-			return [
-				{
-					label: this.$t('results.groupBy.some_words.theFirstWord').toString(),
-					value: 'first',
-				},
-				{
-					label: this.$t('results.groupBy.some_words.allWords').toString(),
-					value: 'all',
-				},
-				{
-					label: this.$t('results.groupBy.some_words.specificWords').toString(),
-					value: 'specific',
-				},
-				{
-					label: this.$t('results.groupBy.some_words.captureGroupsLabel').toString(),
-					options: [
-						...this.relations.map(c => ({
-							label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> relation ${c.name}`,
-							value: c.name,
-						})),
-						...this.captures.map(c => ({
-							label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> capture ${c.name}`,
-							value: c.name,
-						})),
-					],
-				},
-			];
-		},
-		fieldName: {
-			get(): string {
-				return this.selectedCriteriumAsContext?.fieldName ?? this.mainSearchField;
-			},
-			set(v: string) {
-				if (this.selectedCriteriumAsContext) {
-					this.selectedCriteriumAsContext.fieldName = v;
-					if (this.selectedCriteriumAsContext.context.type === 'label') {
-						const selectedContext = this.selectedCriteriumAsContext.context as ContextLabel;
-						const selectedLabel = selectedContext.label;
-						// When contextOptions has updated, we need to check if the selected label is still in the list.
-						// The reason we need to do this is that when the user selects a different field
-						// The relations might not be available in the new field.
-						// So we need to clear the value
-						// We can't rely on the Selectpicker component to do this
-						// because if we would make that reject unknown values
-						// it would clear the value when results are still pending
-						// (as the relations are not available yet)
-						nextTick(() => {
-							const opt = findOption(this.contextOptions, selectedLabel);
-							if (opt) {
-								// Option is still in the list after changing field
-								const relPart = this.getInitialRelationPartValue(selectedLabel);
-								if (relPart) {
-									// There's only one relation part in the selected field; so set it.
-									selectedContext.relation = relPart;
-								}
-							} else {
-								// Option is no longer in this list after changing field;
-								// set to "all words".
-								selectedContext.label = 'all';
-							}
-						});
-					}
-				}
-			},
-		},
-		contextValue: {
-			/** The string value is when grouping on a capture group or relation. */
-			get(): 'first' | 'all' | 'context' | string {
-				// if grouping on a label: return the label, if grouping on a position: return the position.
-				// Otherwise blank.
-				if (this.selectedCriterium?.type !== 'context') return '';
-				else if (this.selectedCriterium.context.type === 'label') return this.selectedCriterium.context.label;
-				else return this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
-			},
-			/** The string value is when grouping on a capture group or relation. */
-			set(v: 'first' | 'all' | 'specific' | string) {
-				if (this.selectedCriterium?.type !== 'context') return;
-
-				// should never happen we receive one of these options when type is not 'positional'
-				// but make typescript happy.
-				if (v === 'first' || v === 'all' || v === 'specific') {
-					if (this.selectedCriteriumAsPositional) {
-						this.selectedCriteriumAsPositional.context.whichTokens = v;
-					} else {
-						// update context object as we're currently grouping on a label.
-						this.selectedCriterium.context = {
-							type: 'positional',
-							position: 'H',
-							whichTokens: v,
-							start: 1,
-							end: this.contextsize,
-						};
-					}
-					// if we're grouping on the entire hit, we can't group from the end. (blacklab limitation)
-					if (v === 'all' && this.selectedCriteriumAsPositional?.context.position === 'E') {
-						this.selectedCriteriumAsPositional.context.position = 'H';
-					}
-				} else {
-					// update context object as we're currently grouping on a label.
-					this.selectedCriterium.context = {
-						type: 'label',
-						label: v,
-						relation: this.relationNames?.includes(v) ? this.getInitialRelationPartValue(v) : undefined,
-					};
-				}
-			},
-		},
-		selectedMetadataCriterium: {
-			get(): string {
-				if (this.selectedCriterium?.type === 'metadata') {
-					const meta = this.selectedCriterium.metadata;
-					if (meta.type === 'document') return meta.field;
-					else return spanAttributeOptionValue(meta.spanName, meta.attributeName);
-				}
-				return '';
-			},
-			set(v: string) {
-				if (v && this.selectedCriterium?.type === 'metadata') {
-					const isSpanAttr = v.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE);
-					if (!isSpanAttr) {
-						this.selectedCriterium.metadata = {
-							type: 'document',
-							field: v,
-						};
-					} else {
-						const { name, attrName } = splitSpanAttributeOptionValue(v);
-						this.selectedCriterium.metadata = {
-							type: 'span-attribute',
-							spanName: name,
-							attributeName: attrName,
-						};
-					}
-				}
-			},
-		},
-
-		positionOptions(): Options {
-			if (!(this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional')) return [];
-
-			return [
-				{ label: this.$t('results.groupBy.in_this_location.beforeTheHit').toString(), value: 'B' },
-				{ label: this.$t('results.groupBy.in_this_location.inTheHit').toString(), value: 'H' },
-				// grouping from the end of the hit when grouping on entire hit is not possible (causes an exception in BlackLab)
-				...(this.selectedCriterium?.context.whichTokens !== 'all' ? [{ label: this.$t('results.groupBy.in_this_location.fromTheEnd').toString(), value: 'E' }] : []),
-				{ label: this.$t('results.groupBy.in_this_location.afterTheHit').toString(), value: 'A' },
-			];
-		},
-		positionValue: {
-			get(): 'B' | 'H' | 'E' | 'A' {
-				return this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional' ? this.selectedCriterium.context.position : 'H';
-			},
-			set(v: 'B' | 'H' | 'E' | 'A') {
-				if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional') this.selectedCriterium.context.position = v;
-			},
-		},
-
-		isParallel(): boolean {
-			return this.corpus.isParallelCorpus ?? false;
-		},
-
-		parallelVersionOptions(): Option[] {
-			// NOTE: we look at results.summary.pattern, not the QueryStore, so this also works
-			//       with Expert queries where the target version is not selected
-			//       in the GUI but part of the query.
-			const summary = this.results?.summary;
-			const patt = hasPatternInfo(summary) ? summary.pattern : undefined;
-			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
-			return fields
-				.map(fieldName => this.corpus.parallelAnnotatedFieldsMap[fieldName])
-				.map(field => ({
-					value: field.id,
-					label: this.$tAnnotatedFieldDisplayName(field),
-				}));
-		},
-	},
-	methods: {
-		groupLabelTag(tagName: string): string {
-			return this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
-		},
-		apply() {
-			this.storeValueUpdateIsOurs = true;
-			this.storeModule.actions.groupBy(serializeSortByOrGroupBy(this.addedCriteria.filter(isValidGroupBy)));
-
-			// JN disabled next line; a tabbed interface with no tab selected is
-			//    normally impossible in a GUI and looks confusing/broken.
-			//    (maybe this was done to show that the search is being carried out?
-			//     maybe figure a better way of signalling this, i.e. scroll to results?)
-			//this.selectedCriteriumIndex = -1;
-		},
-
-		isEmptyGroup(group: GroupBy) {
-			return (
-				(group.type === 'context' && !group.annotation) ||
-				(group.type === 'metadata' &&
-					((group.metadata.type === 'document' && !group.metadata.field) || (group.metadata.type === 'span-attribute' && !group.metadata.spanName && !group.metadata.attributeName)))
-			);
-		},
-		isInvalidGroup(group: GroupBy) {
-			return !this.isEmptyGroup(group) && !isValidGroupBy(group);
-		},
-		removeGroup(i: number) {
-			if (this.selectedCriteriumIndex >= i) this.selectedCriteriumIndex--;
-			this.addedCriteria.splice(i, 1);
-		},
-		clear() {
-			this.addedCriteria = [];
-			this.selectedCriteriumIndex = -1;
-			this.active = false;
-			if (this.storeValue.length > 0) this.apply(); // only when actually removing something, otherwise we reset the results for no reason.
-		},
-		addAnnotation() {
-			this.addedCriteria.push({
-				type: 'context',
-				fieldName: this.mainSearchField,
-				annotation: this.defaultAnnotation,
-				context: {
-					type: 'positional',
-					position: 'H',
-					whichTokens: 'all',
-					start: 1,
-					end: this.contextsize,
-				},
-				caseSensitive: false,
+const tagAttributes = computed<OptGroup[]>(() => {
+	let options: Option[] = [];
+	const optGroups: OptGroup[] = [];
+	const addOption = (tagName: string, attributeName: string, listName?: string) => {
+		let shouldInclude = customizations.groupingSpanAttribute({ elementName: tagName, attributeName });
+		const filter = FilterModule.getState().filters[spanFilterId(tagName, attributeName)];
+		if (shouldInclude === null) {
+			const isSpanFilter = filter ? (getValueFunctions(filter)?.isSpanFilter ?? null) : false;
+			shouldInclude = isSpanFilter || (customizations.legacyShouldIncludeWithinSpan(tagName) && customizations.legacyShouldIncludeWithinAttribute(tagName, attributeName));
+		}
+		if (shouldInclude) {
+			options.push({
+				label: translate.$t('results.table.groupBy', {
+					field: filter ? translate.$tMetaDisplayName(filter) : translate.$tWithinAttributeDisplayName(tagName, attributeName),
+				}),
+				value: spanAttributeOptionValue(tagName, attributeName, listName),
 			});
-			this.selectedCriteriumIndex = this.addedCriteria.length - 1;
-		},
-		addMetadata() {
-			this.addedCriteria.push({
-				type: 'metadata',
-				caseSensitive: false,
-				metadata: {
-					type: 'document',
-					field: '',
-				},
+		}
+	};
+
+	const matchInfos = hits.value?.summary?.pattern?.matchInfos || {};
+	const listEntry = Object.entries(matchInfos).find(([, matchInfo]) => matchInfo.type === 'list');
+	if (listEntry) {
+		const listName = listEntry[0];
+		Object.entries(corpus.value.relations.spans ?? {}).forEach(([tagName, spanInfo]) => {
+			if (!spanInfo.attributes) return;
+			options = [];
+			Object.keys(spanInfo.attributes).forEach(attributeName => addOption(tagName, attributeName, listName));
+			if (options.length) optGroups.push({ label: translate.$td(`index.spans.${tagName}`, `Tag ${tagName}`), options });
+		});
+	} else {
+		Object.entries(matchInfos)
+			.filter(([, matchInfo]) => matchInfo.type === 'tag')
+			.forEach(([tagName, matchInfo]) => {
+				if (!relationSourceInThisField(matchInfo)) return;
+				options = [];
+				Object.keys(corpus.value.relations.spans?.[tagName]?.attributes ?? {}).forEach(attributeName => addOption(tagName, attributeName));
+				if (options.length) optGroups.push({ label: translate.$td(`index.spans.${tagName}`, `Tag ${tagName}`), options });
 			});
-			this.selectedCriteriumIndex = this.addedCriteria.length - 1;
-		},
-		/**
-		 * When a highlighted word in the preview is clicked, retrieve what it represents (a capture group, or relation source/target)
-		 * And update the current grouping criterium to be that.
-		 *
-		 * When a word has multiple things it represents, use the position of the click to determine which one was clicked.
-		 * When a relation is clicked and it's already the current relation, toggle between source/target and full context.
-		 */
-		handlePreviewClick(event: MouseEvent, section: number, index: number) {
-			const preview = this.preview[section][index];
-			if (!preview.captureAndRelation?.length || this.selectedCriterium?.type !== 'context') return;
+	}
+	return optGroups;
+});
 
-			const elementRect = (event.target as HTMLElement).getBoundingClientRect();
-			const elementLeftBorder = elementRect.left + window.scrollX;
-			const clickPositionInElement = event.pageX - elementLeftBorder;
-			const elementWidth = elementRect.width;
-
-			// sometimes a click slightly outside the element can cause a negative or overflow value, so clamp it.
-			const relationIndex = Math.max(0, Math.min(Math.floor((clickPositionInElement / elementWidth) * preview.captureAndRelation.length), preview.captureAndRelation.length - 1));
-			const relation = preview.captureAndRelation[relationIndex];
-
-			this.selectedCriterium.context = {
-				type: 'label',
-				label: relation.key,
-				relation: relation.isSource ? 'source' : relation.isTarget ? 'target' : undefined,
-			};
-		},
-		relationPartByClass(part: 'source' | 'target' | 'label'): string {
-			const relName = this.selectedCriteriumAsLabel?.context.label;
-			const relation = relName ? (this.hits?.hits[0].matchInfos?.[relName] as BLMatchInfoRelation) : null;
-			const relClass = relation?.relClass ?? null;
-			if (relClass) {
-				// Get the specific name for this relClass;
-				// i.e. 'head' instead of 'source' for the 'dep' relationClass (dependency relations)
-				const key = `results.groupBy.relationPartByClass.${relClass}.${part}`;
-				if (this.$te(key)) return this.$t(key).toString();
-			}
-			// No specific name for this relation class; fall back to the default relation part name.
-			return this.$t(`results.groupBy.relationPartByClass.default.${part}`).toString();
-		},
-		relationSourceInThisField(v: BLSummaryMatchInfo) {
-			const field = v.fieldName ?? this.mainSearchField;
-			return !this.selectedCriteriumAsContext?.fieldName || field === this.selectedCriteriumAsContext?.fieldName;
-		},
-		relationTargetInThisField(v: BLSummaryMatchInfo) {
-			const field = v.targetField ?? this.mainSearchField;
-			return !this.selectedCriteriumAsContext?.fieldName || field === this.selectedCriteriumAsContext?.fieldName;
-		},
-		relationMatchInfoDefByLabel(label: string): BLSummaryMatchInfo {
-			const mi = this.hits?.summary?.pattern?.matchInfos ?? {};
-			return mi[label] ?? { type: 'span' };
-		},
-		// If relation only has source or target in this field, select that by default
-		getInitialRelationPartValue(relationName: string) {
-			const matchInfoDef = this.relationMatchInfoDefByLabel(relationName);
-			const source = this.relationSourceInThisField(matchInfoDef);
-			const target = this.relationTargetInThisField(matchInfoDef);
-			return source == target ? undefined : source ? 'source' : 'target';
-		},
-	},
-	watch: {
-		storeValue: {
-			immediate: true,
-			handler() {
-				if (this.storeValueUpdateIsOurs) {
-					this.storeValueUpdateIsOurs = false;
-					return;
-				}
-				this.addedCriteria = parseGroupBy(this.storeValue, this.results ?? undefined);
-				this.active = this.active || this.addedCriteria.length > 0;
-				if (this.selectedCriteriumIndex >= this.addedCriteria.length) {
-					this.selectedCriteriumIndex = this.addedCriteria.length - 1;
-				}
-			},
-		},
-		// Watch the hash since the query params object itself can update even if it's the same (such as when paginating)
-		firstHitPreviewQueryHash: {
-			immediate: true,
-			handler() {
-				if (!this.active) return;
-
-				this.hits = undefined;
-				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					this.blacklab.getHits(this.corpus.id!, this.firstHitPreviewQuery).request.then(r => {
-						const data = r as BLHitResults;
-						if (isHitResults(data)) {
-							// Make sure the target hits (otherFields) 'know' they are the target of a relation.
-							mergeMatchInfos(data);
-						}
-						this.hits = data;
-					});
-				}
-			},
-		},
+const relationNames = computed(() => relations.value.map(c => c.name));
+const showRelationPartWidget = computed(
+	() => selectedCriterium.value?.type === 'context' && selectedCriterium.value.context.type === 'label' && relationNames.value.includes(selectedCriterium.value.context.label),
+);
+const colors = computed<Record<string, TokenHighlight>>(() => (hits.value ? getHighlightColors(hits.value.summary) : {}));
+const showCaseSensitive = computed(() => selectedCriterium.value?.type === 'metadata' && selectedCriterium.value.metadata.type === 'document');
+const sliderVisible = computed(() => !!selectedCriteriumAsSlider.value);
+const sliderInverted = computed(() => selectedCriteriumAsSlider.value?.context.position === 'E' || selectedCriteriumAsSlider.value?.context.position === 'B');
+const sliderLabels = computed(() => Array.from({ length: contextsize.value }, (_, i) => ({ value: i + 1, label: i + 1 })));
+const sliderValue = computed<[number, number]>({
+	get: (): [number, number] => [selectedCriteriumAsSlider.value?.context.start ?? 1, selectedCriteriumAsSlider.value?.context.end ?? 1],
+	set: ([start, end]: [number, number]) => {
+		if (!selectedCriteriumAsSlider.value) return;
+		selectedCriteriumAsSlider.value.context.start = start;
+		selectedCriteriumAsSlider.value.context.end = end;
 	},
 });
+
+type PreviewToken = {
+	active: boolean;
+	word: string;
+	wordAsHtml: boolean;
+	selectedAnnotation: string;
+	selectedAnnotationAsHtml: boolean;
+	punct: string;
+	style: object;
+	captureAndRelation: CaptureAndRelation[] | undefined;
+};
+
+const preview = computed<PreviewToken[][]>(() => {
+	const criterium = selectedCriterium.value;
+	if (criterium?.type !== 'context' || !isHitResults(hits.value) || !hits.value.hits.length) return [];
+
+	const wordAnnotation = customizations.resultConcordanceAnnotationId();
+	const wordAsHtml = customizations.resultConcordanceAsHtml();
+	const firstHit = hits.value.hits.find(v => !!v.otherFields) ?? hits.value.hits[0];
+	const targetField = criterium.fieldName;
+	const hitInField = targetField && targetField !== mainSearchField.value && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
+	const { annotation, context } = criterium;
+	const snippet = snippetParts(hitInField, colors.value, customizations.matchInfoHighlightStyle);
+
+	const removeListMatchInfo = (token: HitToken) => (token.captureAndRelation = token.captureAndRelation?.filter(c => !c.key.includes('[')));
+	snippet.before.forEach(removeListMatchInfo);
+	snippet.match.forEach(removeListMatchInfo);
+	snippet.after.forEach(removeListMatchInfo);
+
+	const position = context.type === 'positional' ? context.position : undefined;
+	let start = Number.MAX_SAFE_INTEGER;
+	let end = -Number.MAX_SAFE_INTEGER;
+	if (context.type === 'positional') {
+		if (context.whichTokens === 'all') {
+			start = 0;
+			end = Number.MAX_SAFE_INTEGER;
+		} else if (context.whichTokens === 'first') {
+			start = end = 0;
+		} else {
+			start = context.start! - 1;
+			end = context.end! - 1;
+		}
+
+		if (position === 'E' || position === 'B') {
+			const sectionLength = position === 'E' ? snippet.match.length : snippet.before.length;
+			[start, end] = [sectionLength - end - 1, sectionLength - start - 1];
+		}
+	}
+
+	const isActiveIndex = (index: number) => index >= start && index <= end;
+	const isActiveRelationOrCapture = (token: HitToken) => {
+		const grouped = token.captureAndRelation?.find(c => c.key === selectedCriteriumAsLabel.value?.context.label);
+		if (!grouped) return false;
+		return selectedCriteriumAsLabel.value?.context.relation === 'source' ? grouped.isSource : selectedCriteriumAsLabel.value?.context.relation === 'target' ? grouped.isTarget : true;
+	};
+	const getPreviewStyle = (token: HitToken): object =>
+		token.captureAndRelation?.length
+			? {
+					background: `linear-gradient(90deg, ${token.captureAndRelation.map((capture, i) => `${capture.highlight.color} ${(i / token.captureAndRelation!.length) * 100}%, ${capture.highlight.color} ${((i + 1) / token.captureAndRelation!.length) * 100}%`)})`,
+					color: token.captureAndRelation[0].highlight.textcolor,
+					textShadow: `0 0 1.25px ${token.captureAndRelation[0].highlight.textcolorcontrast},`.repeat(10).replace(/,$/, ''),
+					cursor: 'pointer',
+				}
+			: {};
+	const mapSection = (tokens: HitToken[], isActive: (token: HitToken, index: number) => boolean) =>
+		tokens.map((token, index) => ({
+			word: (token.punctBefore || '') + token.annotations[wordAnnotation] || '·',
+			wordAsHtml,
+			selectedAnnotation: token.annotations[annotation!] || '·',
+			selectedAnnotationAsHtml: annotation === wordAnnotation && wordAsHtml,
+			punct: token.punct,
+			active: isActive(token, index),
+			style: getPreviewStyle(token),
+			captureAndRelation: token.captureAndRelation,
+		}));
+
+	return [
+		mapSection(snippet.before, (token, index) => (position === 'B' && isActiveIndex(index)) || isActiveRelationOrCapture(token)),
+		mapSection(snippet.match, (token, index) => ((position === 'H' || position === 'E') && isActiveIndex(index)) || isActiveRelationOrCapture(token)),
+		mapSection(snippet.after, (token, index) => (position === 'A' && isActiveIndex(index)) || isActiveRelationOrCapture(token)),
+	];
+});
+
+const contextOptions = computed<Options>(() => [
+	{ label: translate.$t('results.groupBy.some_words.theFirstWord'), value: 'first' },
+	{ label: translate.$t('results.groupBy.some_words.allWords'), value: 'all' },
+	{ label: translate.$t('results.groupBy.some_words.specificWords'), value: 'specific' },
+	{
+		label: translate.$t('results.groupBy.some_words.captureGroupsLabel'),
+		options: [
+			...relations.value.map(c => ({ label: `<span class="color-ball" style="background-color: ${colors.value[c.label].color};">&nbsp;</span> relation ${c.name}`, value: c.name })),
+			...captures.value.map(c => ({ label: `<span class="color-ball" style="background-color: ${colors.value[c.label].color};">&nbsp;</span> capture ${c.name}`, value: c.name })),
+		],
+	},
+]);
+
+const fieldName = computed({
+	get: () => selectedCriteriumAsContext.value?.fieldName ?? mainSearchField.value,
+	set: (value: string) => {
+		const selected = selectedCriteriumAsContext.value;
+		if (!selected) return;
+		selected.fieldName = value;
+		if (selected.context.type !== 'label') return;
+
+		const selectedContext = selected.context as ContextLabel;
+		const selectedLabel = selectedContext.label;
+		nextTick(() => {
+			if (!findOption(contextOptions.value, selectedLabel)) {
+				selectedContext.label = 'all';
+				return;
+			}
+			const relationPart = getInitialRelationPartValue(selectedLabel);
+			if (relationPart) selectedContext.relation = relationPart;
+		});
+	},
+});
+
+const contextValue = computed({
+	get: () => {
+		if (selectedCriterium.value?.type !== 'context') return '';
+		return selectedCriterium.value.context.type === 'label' ? selectedCriterium.value.context.label : selectedCriterium.value.context.whichTokens;
+	},
+	set: (value: string) => {
+		const selected = selectedCriterium.value;
+		if (selected?.type !== 'context') return;
+		if (value === 'first' || value === 'all' || value === 'specific') {
+			if (selectedCriteriumAsPositional.value) {
+				selectedCriteriumAsPositional.value.context.whichTokens = value;
+			} else {
+				selected.context = { type: 'positional', position: 'H', whichTokens: value, start: 1, end: contextsize.value };
+			}
+			if (value === 'all' && selectedCriteriumAsPositional.value?.context.position === 'E') selectedCriteriumAsPositional.value.context.position = 'H';
+		} else {
+			selected.context = { type: 'label', label: value, relation: relationNames.value.includes(value) ? getInitialRelationPartValue(value) : undefined };
+		}
+	},
+});
+
+const selectedMetadataCriterium = computed({
+	get: () => {
+		if (selectedCriterium.value?.type !== 'metadata') return '';
+		const metadata = selectedCriterium.value.metadata;
+		return metadata.type === 'document' ? metadata.field : spanAttributeOptionValue(metadata.spanName, metadata.attributeName);
+	},
+	set: (value: string) => {
+		if (!value || selectedCriterium.value?.type !== 'metadata') return;
+		if (!value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE)) {
+			selectedCriterium.value.metadata = { type: 'document', field: value };
+		} else {
+			const { name, attrName } = splitSpanAttributeOptionValue(value);
+			selectedCriterium.value.metadata = { type: 'span-attribute', spanName: name, attributeName: attrName };
+		}
+	},
+});
+
+const positionOptions = computed<Options>(() => {
+	if (!selectedCriteriumAsPositional.value) return [];
+	return [
+		{ label: translate.$t('results.groupBy.in_this_location.beforeTheHit'), value: 'B' },
+		{ label: translate.$t('results.groupBy.in_this_location.inTheHit'), value: 'H' },
+		...(selectedCriteriumAsPositional.value.context.whichTokens !== 'all' ? [{ label: translate.$t('results.groupBy.in_this_location.fromTheEnd'), value: 'E' }] : []),
+		{ label: translate.$t('results.groupBy.in_this_location.afterTheHit'), value: 'A' },
+	];
+});
+const positionValue = computed({
+	get: (): 'B' | 'H' | 'E' | 'A' => selectedCriteriumAsPositional.value?.context.position ?? 'H',
+	set: (value: 'B' | 'H' | 'E' | 'A') => {
+		if (selectedCriteriumAsPositional.value) selectedCriteriumAsPositional.value.context.position = value;
+	},
+});
+
+const isParallel = computed(() => corpus.value.isParallelCorpus ?? false);
+const parallelVersionOptions = computed<Option[]>(() => {
+	const summary = results?.summary;
+	const pattern = hasPatternInfo(summary) ? summary.pattern : undefined;
+	return (pattern ? [pattern.fieldName, ...(pattern.otherFields ?? [])] : []).map(fieldName => {
+		const field = corpus.value.parallelAnnotatedFieldsMap[fieldName];
+		return { value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) };
+	});
+});
+
+function apply() {
+	storeValueUpdateIsOurs.value = true;
+	storeModule.value.actions.groupBy(serializeSortByOrGroupBy(addedCriteria.value.filter(isValidGroupBy)));
+}
+/** Remove a tab while keeping the selected criterium aligned with its predecessor. */
+function removeGroup(index: number) {
+	if (selectedCriteriumIndex.value >= index) selectedCriteriumIndex.value--;
+	addedCriteria.value.splice(index, 1);
+}
+function clear() {
+	addedCriteria.value = [];
+	selectedCriteriumIndex.value = -1;
+	active.value = false;
+	if (storeValue.value.length) apply();
+}
+function addAnnotation() {
+	addedCriteria.value.push({
+		type: 'context',
+		fieldName: mainSearchField.value,
+		annotation: defaultAnnotation.value,
+		context: { type: 'positional', position: 'H', whichTokens: 'all', start: 1, end: contextsize.value },
+		caseSensitive: false,
+	});
+	selectedCriteriumIndex.value = addedCriteria.value.length - 1;
+}
+function addMetadata() {
+	addedCriteria.value.push({ type: 'metadata', caseSensitive: false, metadata: { type: 'document', field: '' } });
+	selectedCriteriumIndex.value = addedCriteria.value.length - 1;
+}
+function handlePreviewClick(event: MouseEvent, section: number, index: number) {
+	const token = preview.value[section][index];
+	if (!token.captureAndRelation?.length || selectedCriterium.value?.type !== 'context') return;
+
+	const elementRect = (event.target as HTMLElement).getBoundingClientRect();
+	const clickPosition = event.pageX - (elementRect.left + window.scrollX);
+	const relationIndex = Math.max(0, Math.min(Math.floor((clickPosition / elementRect.width) * token.captureAndRelation.length), token.captureAndRelation.length - 1));
+	const relation = token.captureAndRelation[relationIndex];
+	selectedCriterium.value.context = {
+		type: 'label',
+		label: relation.key,
+		relation: relation.isSource ? 'source' : relation.isTarget ? 'target' : undefined,
+	};
+}
+function relationPartByClass(part: 'source' | 'target' | 'label') {
+	const relationName = selectedCriteriumAsLabel.value?.context.label;
+	const relation = relationName ? (hits.value?.hits[0].matchInfos?.[relationName] as BLMatchInfoRelation) : null;
+	if (relation?.relClass) {
+		const translated = translate.$td(`results.groupBy.relationPartByClass.${relation.relClass}.${part}`, null);
+		if (translated !== null) return translated;
+	}
+	return translate.$t(`results.groupBy.relationPartByClass.default.${part}`);
+}
+function relationSourceInThisField(matchInfo: BLSummaryMatchInfo) {
+	const field = matchInfo.fieldName ?? mainSearchField.value;
+	return !selectedCriteriumAsContext.value?.fieldName || field === selectedCriteriumAsContext.value.fieldName;
+}
+function relationTargetInThisField(matchInfo: BLSummaryMatchInfo) {
+	const field = matchInfo.targetField ?? mainSearchField.value;
+	return !selectedCriteriumAsContext.value?.fieldName || field === selectedCriteriumAsContext.value.fieldName;
+}
+function relationMatchInfoDefByLabel(label: string): BLSummaryMatchInfo {
+	return hits.value?.summary?.pattern?.matchInfos?.[label] ?? { type: 'span' };
+}
+function getInitialRelationPartValue(relationName: string) {
+	const matchInfo = relationMatchInfoDefByLabel(relationName);
+	const source = relationSourceInThisField(matchInfo);
+	const target = relationTargetInThisField(matchInfo);
+	return source === target ? undefined : source ? 'source' : 'target';
+}
+
+watch(
+	storeValue,
+	value => {
+		if (storeValueUpdateIsOurs.value) {
+			storeValueUpdateIsOurs.value = false;
+			return;
+		}
+		addedCriteria.value = parseGroupBy(value, results ?? undefined);
+		active.value ||= addedCriteria.value.length > 0;
+		if (selectedCriteriumIndex.value >= addedCriteria.value.length) selectedCriteriumIndex.value = addedCriteria.value.length - 1;
+	},
+	{ immediate: true },
+);
+// The parameters object can change without changing the request, such as when paginating.
+watch(
+	firstHitPreviewQueryHash,
+	() => {
+		if (!active.value) return;
+		hits.value = undefined;
+		if (firstHitPreviewQuery.value && type === 'hits') {
+			blacklab.getHits(corpus.value.id!, firstHitPreviewQuery.value).request.then(response => {
+				const data = response as BLHitResults;
+				if (isHitResults(data)) mergeMatchInfos(data);
+				hits.value = data;
+			});
+		}
+	},
+	{ immediate: true },
+);
 </script>
 
 <style lang="scss">
@@ -1044,7 +743,6 @@ export default defineComponent({
 	}
 
 	.word > .main {
-		white-space: pre;
 		white-space: nowrap;
 	}
 
@@ -1065,7 +763,6 @@ export default defineComponent({
 		margin: 0 0.5em;
 		background: #555;
 		border-radius: 2px;
-		flex: none;
 	}
 
 	.active {
