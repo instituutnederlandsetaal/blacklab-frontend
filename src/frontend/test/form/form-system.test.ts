@@ -200,14 +200,13 @@ describe('form system integration', () => {
 		expect(tabId('parent', 'child')).not.toBe(tabId('parent', 'parent.child'));
 	});
 
-	test('container setup rejects unknown active children without corrupting UI state', () => {
+	test('container setup resolves configured, unavailable, and replacement children', async () => {
 		const builder = createTestBuilder();
 		builder
 			.newContainer('root.tabs', ContainerRenderer, { variant: 'tabs' })
 			.addChildren(builder.newContainer('root.tabs.first', ContainerRenderer, {}), builder.newContainer('root.tabs.second', ContainerRenderer, {}));
 		const runtime = createTestRuntime(builder);
 		const containerProps = runtime.renderableGraph('root.tabs')!.props;
-		const warn = vi.spyOn(console, 'warn');
 		const Probe = defineComponent({
 			props: { value: { type: Object, required: true } },
 			setup(props, { expose }) {
@@ -224,14 +223,28 @@ describe('form system integration', () => {
 		});
 		const wrapper = mount(Host);
 		const exposed = wrapper.findComponent(Probe).vm.$.exposed!;
-		const initialActiveChild = runtime.state.uiState.value['root.tabs'];
-
-		exposed.activeChildId.value = 'missing';
-		expect(warn).toHaveBeenCalledWith(expect.stringContaining('no such child exists'));
-		expect(runtime.state.uiState.value['root.tabs']).toBe(initialActiveChild);
+		expect(exposed.activeChild.value.props.id).toBe('root.tabs.first');
 
 		exposed.activeChildId.value = 'root.tabs.second';
 		expect(runtime.state.uiState.value['root.tabs']).toBe('root.tabs.second');
+		expect(exposed.activeChild.value.props.id).toBe('root.tabs.second');
+
+		runtime.state.uiState.value['root.tabs'] = 'missing';
+		await nextTick();
+		expect(exposed.activeChildId.value).toBe('missing');
+		expect(exposed.activeChild.value).toBeNull();
+
+		const [, secondChild] = containerProps.children as Array<unknown>;
+		containerProps.children = [secondChild];
+		runtime.state.uiState.value['root.tabs'] = 'root.tabs.second';
+		await nextTick();
+		expect(exposed.activeChild.value.props.id).toBe('root.tabs.second');
+
+		containerProps.children = [];
+		delete runtime.state.uiState.value['root.tabs'];
+		await nextTick();
+		expect(exposed.activeChildId.value).toBeNull();
+		expect(exposed.activeChild.value).toBeNull();
 	});
 
 	test('can render a selected root form from a shared definition', () => {

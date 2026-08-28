@@ -8,35 +8,22 @@ export default function containerRendererSetup(props: ImplicitContainerComponent
 	const runtime = useFormSystemRuntime();
 
 	const presentation = computed(() => decodeVariants(props.variant));
-	const childrenById = computed(() =>
-		props.children.reduce<Record<string, (typeof props)['children'][number]>>((acc, child) => {
-			acc[child.props.id] = child;
-			return acc;
-		}, {}),
-	);
 
 	const activeChildId = computed({
 		get(): string | null {
 			return runtime.value.state.uiState.value[props.id] ?? props.children[0]?.props.id ?? null;
 		},
 		set(value: string) {
-			const child = childrenById.value[value];
-			if (!child) {
-				console.warn(`Attempted to activate child with id ${value} in container ${props.id}, but no such child exists.`);
-				return;
-			}
-
 			runtime.value.state.uiState.value[props.id] = value;
 		},
 	});
 
-	const activeChild = computed(() => (activeChildId.value ? childrenById.value[activeChildId.value] : null));
+	const activeChild = computed(() => props.children.find(child => child.props.id === activeChildId.value) ?? null);
 
 	return {
 		runtime,
 		presentation,
 		activeChildId,
 		activeChild,
-		activeTab: activeChildId,
 	};
 }
