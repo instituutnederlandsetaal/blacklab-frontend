@@ -25,11 +25,10 @@ type Encoded = string | null;
 type DefaultValue<T, Context> = T | ((context: Context) => T);
 // Placement only has meaning when this codec is used as an object property.
 type Placement = { kind: 'key'; key?: string } | { kind: 'root' };
-type CodecMeta = { placement: Placement; scope?: string };
 
 type CodecFunctions<T, Context> = {
-	encode: (value: T, context: Context, meta: CodecMeta) => Encoded;
-	decode: (payload: Encoded, context: Context, meta: CodecMeta) => T;
+	encode: (value: T, context: Context) => Encoded;
+	decode: (payload: Encoded, context: Context) => T;
 };
 
 function codecError(message: string): never {
@@ -158,73 +157,60 @@ function decodeEmbedded<T, Context>(codec: PersistenceCodec<T, Context>, payload
 
 export class PersistenceCodec<T, Context = any> {
 	/** @internal Composition metadata used by parent codecs. */
-	readonly _meta: CodecMeta;
+	readonly _placement: Placement;
 	/** @internal Whether this codec needs braces when embedded in another codec. */
 	readonly _structured: boolean;
 	private readonly functions: CodecFunctions<T, Context>;
 	private readonly defaultValue?: DefaultValue<T, Context>;
 	private readonly omitPredicate?: (value: T, context: Context) => boolean;
-	private readonly restFactory?: (codec: PersistenceCodec<any, Context>) => PersistenceCodec<any, Context>;
 
 	constructor(
 		functions: CodecFunctions<T, Context>,
 		options: {
-			meta?: CodecMeta;
+			placement?: Placement;
 			defaultValue?: DefaultValue<T, Context>;
 			omitPredicate?: (value: T, context: Context) => boolean;
-			restFactory?: (codec: PersistenceCodec<any, Context>) => PersistenceCodec<any, Context>;
 			structured?: boolean;
 		} = {},
 	) {
 		this.functions = functions;
-		this._meta = options.meta ?? { placement: { kind: 'key' } };
+		this._placement = options.placement ?? { kind: 'key' };
 		this._structured = options.structured ?? false;
 		this.defaultValue = options.defaultValue;
 		this.omitPredicate = options.omitPredicate;
-		this.restFactory = options.restFactory;
 	}
 
 	private copy<Next = T>(
 		options: {
 			functions?: CodecFunctions<Next, Context>;
-			meta?: CodecMeta;
+			placement?: Placement;
 			defaultValue?: DefaultValue<Next, Context>;
 			omitPredicate?: (value: Next, context: Context) => boolean;
-			restFactory?: (codec: PersistenceCodec<any, Context>) => PersistenceCodec<any, Context>;
 			structured?: boolean;
 		} = {},
 	): PersistenceCodec<Next, Context> {
 		// All fluent modifiers are immutable: a base codec can safely be reused in
 		// several shapes with different defaults, placements, or refinements.
 		return new PersistenceCodec<Next, Context>(options.functions ?? (this.functions as unknown as CodecFunctions<Next, Context>), {
-			meta: options.meta ?? this._meta,
+			placement: options.placement ?? this._placement,
 			defaultValue: options.defaultValue,
 			omitPredicate: options.omitPredicate,
-			restFactory: options.restFactory ?? this.restFactory,
 			structured: options.structured ?? this._structured,
 		});
 	}
 
 	encode(value: T, context: Context): Encoded {
-		return this.encodeWithMeta(value, context, this._meta);
-	}
-
-	private encodeWithMeta(value: T, context: Context, meta: CodecMeta): Encoded {
 		// `null` means "omit this value", never an encoded null literal.
 		if (this.defaultValue !== undefined) {
 			const fallback = resolveDefault(this.defaultValue, context);
 			if (equalPlain(value, fallback) || this.omitPredicate?.(value, context)) return null;
 		}
-		return this.functions.encode(value, context, meta);
+		return this.functions.encode(value, context);
 	}
 
 	decode(payload: Encoded, context: Context): T {
-		return this.decodeWithMeta(payload, context, this._meta);
-	}
-
-	private decodeWithMeta(payload: Encoded, context: Context, meta: CodecMeta): T {
 		if (payload == null && this.defaultValue !== undefined) return resolveDefault(this.defaultValue, context);
-		return this.functions.decode(payload, context, meta);
+		return this.functions.decode(payload, context);
 	}
 
 	default(value: DefaultValue<T, Context>): PersistenceCodec<T, Context> {
@@ -243,40 +229,34 @@ export class PersistenceCodec<T, Context = any> {
 	at(key: string): PersistenceCodec<T, Context> {
 		// Rename this property on the wire without changing its state-object key.
 		validateKey(key, 'Persistence key');
-		return this.copy({ defaultValue: this.defaultValue, omitPredicate: this.omitPredicate, meta: { ...this._meta, placement: { kind: 'key', key } } });
+		return this.copy({ defaultValue: this.defaultValue, omitPredicate: this.omitPredicate, placement: { kind: 'key', key } });
 	}
 
 	atRoot(): PersistenceCodec<T, Context> {
 		// Store this property as the object's unnamed leading value. Object codecs
 		// allow at most one root property.
-		return this.copy({ defaultValue: this.defaultValue, omitPredicate: this.omitPredicate, meta: { ...this._meta, placement: { kind: 'root' } } });
-	}
-
-	scoped(prefix: string): PersistenceCodec<T, Context> {
-		// Prefix an object's wire keys; a root property becomes the prefix itself.
-		validateKey(prefix, 'Persistence scope');
-		return this.copy({ defaultValue: this.defaultValue, omitPredicate: this.omitPredicate, meta: { ...this._meta, scope: prefix } });
+		return this.copy({ defaultValue: this.defaultValue, omitPredicate: this.omitPredicate, placement: { kind: 'root' } });
 	}
 
 	transform<Outer>(mapping: { encode: (value: Outer, context: Context) => T; decode: (value: T, context: Context) => Outer }): PersistenceCodec<Outer, Context> {
 		// Preserve the inner codec's placement and framing while exposing another
 		// state type to callers.
-		const encodeInner = this.encodeWithMeta.bind(this);
-		const decodeInner = this.decodeWithMeta.bind(this);
+		const encodeInner = this.encode.bind(this);
+		const decodeInner = this.decode.bind(this);
 		return new PersistenceCodec<Outer, Context>(
 			{
-				encode: (value, context, meta) => encodeInner(mapping.encode(value, context), context, meta),
-				decode: (payload, context, meta) => mapping.decode(decodeInner(payload, context, meta), context),
+				encode: (value, context) => encodeInner(mapping.encode(value, context), context),
+				decode: (payload, context) => mapping.decode(decodeInner(payload, context), context),
 			},
-			{ meta: this._meta, structured: this._structured },
+			{ placement: this._placement, structured: this._structured },
 		);
 	}
 
 	refine(check: (value: T, context: Context) => boolean | string | void): PersistenceCodec<T, Context> {
 		// Validate on both encode and decode so invalid runtime state cannot produce
 		// a URL that this same codec would reject when restored.
-		const encodeInner = this.encodeWithMeta.bind(this);
-		const decodeInner = this.decodeWithMeta.bind(this);
+		const encodeInner = this.encode.bind(this);
+		const decodeInner = this.decode.bind(this);
 		const validate = (value: T, context: Context) => {
 			const result = check(value, context);
 			if (result === false) codecError('Persisted value failed validation.');
@@ -285,10 +265,10 @@ export class PersistenceCodec<T, Context = any> {
 		};
 		return new PersistenceCodec<T, Context>(
 			{
-				encode: (value, context, meta) => encodeInner(validate(value, context), context, meta),
-				decode: (payload, context, meta) => validate(decodeInner(payload, context, meta), context),
+				encode: (value, context) => encodeInner(validate(value, context), context),
+				decode: (payload, context) => validate(decodeInner(payload, context), context),
 			},
-			{ meta: this._meta, structured: this._structured },
+			{ placement: this._placement, structured: this._structured },
 		);
 	}
 
@@ -313,44 +293,6 @@ export class PersistenceCodec<T, Context = any> {
 		});
 	}
 
-	mapKeys<const Map extends Readonly<Record<string, string>>, Value>(
-		this: PersistenceCodec<Record<string, Value>, Context>,
-		mapping: Map,
-	): PersistenceCodec<Partial<Record<keyof Map & string, Value>>, Context> {
-		// mapKeys is the record-key counterpart of mapped(); both reject ambiguous
-		// reverse mappings at construction time.
-		const reverse = new Map<string, keyof Map & string>();
-		for (const [input, output] of Object.entries(mapping)) {
-			if (reverse.has(output)) codecError(`Persistence key mapping is not bijective: '${output}' is mapped more than once.`);
-			reverse.set(output, input);
-		}
-		return this.transform<Partial<Record<keyof Map & string, Value>>>({
-			encode(value) {
-				const encoded: Record<string, Value> = {};
-				for (const [key, child] of Object.entries(value) as Array<[keyof Map & string, Value]>) {
-					const mapped = mapping[key];
-					if (mapped == null) codecError(`Cannot encode unmapped key '${key}'.`);
-					encoded[mapped] = child;
-				}
-				return encoded;
-			},
-			decode(value) {
-				const decoded: Partial<Record<keyof Map & string, Value>> = {};
-				for (const [key, child] of Object.entries(value) as Array<[string, Value]>) {
-					const mapped = reverse.get(key);
-					if (mapped == null) codecError(`Cannot decode unmapped key '${key}'.`);
-					decoded[mapped] = child;
-				}
-				return decoded;
-			},
-		});
-	}
-
-	restProperties<Value>(codec: PersistenceCodec<Value, Context>): PersistenceCodec<T & Record<string, Value>, Context> {
-		// Fixed object properties keep precedence; this codec handles every other key.
-		if (!this.restFactory) codecError('restProperties() is only supported by object codecs.');
-		return this.restFactory(codec) as PersistenceCodec<T & Record<string, Value>, Context>;
-	}
 }
 
 type CodecState<Codec> = Codec extends PersistenceCodec<infer State, any> ? State : never;
@@ -457,16 +399,13 @@ export function record<Value, Context = any>(valueCodec: PersistenceCodec<Value,
 	); // Records require framing when nested because they own `;` and `:`.
 }
 
-type RestConfig<Context> = { codec: PersistenceCodec<any, Context> } | undefined;
-
-function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest: RestConfig<Context>): PersistenceCodec<ShapeState<Shape>, Context> {
+function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape): PersistenceCodec<ShapeState<Shape>, Context> {
 	// Validate the shape once at construction instead of rediscovering collisions
 	// during every encode/decode operation.
-	const knownStateKeys = new Set(Object.keys(shape));
 	const wireKeys = new Set<string>();
 	let rootProperties = 0;
 	for (const [stateKey, child] of Object.entries(shape)) {
-		const placement = child._meta.placement;
+		const placement = child._placement;
 		if (placement.kind === 'root') {
 			rootProperties += 1;
 			continue;
@@ -478,28 +417,16 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest
 	}
 	if (rootProperties > 1) codecError('An object codec can only define one root property.');
 	const functions: CodecFunctions<ShapeState<Shape>, Context> = {
-		encode(value, context, meta) {
+		encode(value, context) {
 			if (!value || Array.isArray(value) || typeof value !== 'object') codecError('Expected an object value.');
 			const entries: Array<{ root: boolean; key?: string; value: string; codec: PersistenceCodec<any, Context> }> = [];
 			for (const [stateKey, child] of Object.entries(shape)) {
 				const encoded = child.encode((value as Record<string, unknown>)[stateKey], context);
 				if (encoded == null) continue;
-				const placement = child._meta.placement;
+				const placement = child._placement;
 				const root = placement.kind === 'root';
 				const childKey = placement.kind === 'key' ? (placement.key ?? stateKey) : undefined;
-				const key = meta.scope ? (root ? meta.scope : `${meta.scope}.${childKey}`) : childKey;
-				entries.push({ root: root && !meta.scope, key, value: encoded, codec: child });
-			}
-			if (rest) {
-				for (const [stateKey, stateValue] of Object.entries(value)) {
-					if (knownStateKeys.has(stateKey)) continue;
-					if (!stateKey) codecError('Rest property key cannot be empty.');
-					if (wireKeys.has(stateKey)) codecError(`Rest property key '${stateKey}' collides with a fixed object persistence key.`);
-					const encoded = rest.codec.encode(stateValue, context);
-					if (encoded == null) continue;
-					const key = meta.scope ? `${meta.scope}.${escapeBoundary(stateKey, ';={}')}` : escapeBoundary(stateKey, ';={}');
-					entries.push({ root: false, key, value: encoded, codec: rest.codec });
-				}
+				entries.push({ root, key: childKey, value: encoded, codec: child });
 			}
 			const rootEntries = entries.filter(entry => entry.root);
 			if (rootEntries.length > 1) codecError('An object codec can only encode one root property.');
@@ -508,7 +435,7 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest
 				.map(entry => (entry.root ? encodeEmbedded(entry.codec, entry.value, ';=') : `${entry.key}=${encodeEmbedded(entry.codec, entry.value, ';')}`))
 				.join(';');
 		},
-		decode(payload, context, meta) {
+		decode(payload, context) {
 			if (payload == null) codecError('Missing required object value.');
 			const named = new Map<string, string>();
 			let root: string | null = null;
@@ -533,37 +460,25 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape, rest
 			const consumed = new Set<string>();
 			let acceptsRoot = false;
 			for (const [stateKey, child] of Object.entries(shape)) {
-				const placement = child._meta.placement;
+				const placement = child._placement;
 				const isRoot = placement.kind === 'root';
-				acceptsRoot ||= isRoot && !meta.scope;
+				acceptsRoot ||= isRoot;
 				const childKey = placement.kind === 'key' ? (placement.key ?? stateKey) : undefined;
-				const key = meta.scope ? (isRoot ? meta.scope : `${meta.scope}.${childKey}`) : childKey;
-				const childPayload = isRoot && !meta.scope ? root : named.get(key!);
+				const key = childKey;
+				const childPayload = isRoot ? root : named.get(key!);
 				if (key && named.has(key)) consumed.add(key);
-				result.set(stateKey, decodeEmbedded(child, childPayload ?? null, context, isRoot && !meta.scope ? ';=' : ';'));
+				result.set(stateKey, decodeEmbedded(child, childPayload ?? null, context, isRoot ? ';=' : ';'));
 			}
 			if (root != null && !acceptsRoot) codecError('Object contains an unsupported root value.');
-			for (const [key, value] of named) {
-				if (consumed.has(key)) continue;
-				const restPrefix = meta.scope ? `${meta.scope}.` : '';
-				if (!rest || (restPrefix && !key.startsWith(restPrefix))) codecError(`Unsupported object key '${key}'.`);
-				const stateKey = restPrefix ? key.slice(restPrefix.length) : key;
-				if (!stateKey) codecError(`Unsupported object key '${key}'.`);
-				if (knownStateKeys.has(stateKey) || wireKeys.has(stateKey)) codecError(`Rest property key '${stateKey}' collides with a fixed object property.`);
-				result.set(stateKey, decodeEmbedded(rest.codec, value, context, ';'));
-			}
+			for (const key of named.keys()) if (!consumed.has(key)) codecError(`Unsupported object key '${key}'.`);
 			return Object.fromEntries(result) as ShapeState<Shape>;
 		},
 	};
-	return new PersistenceCodec(functions, {
-		// Keep the original fixed shape when restProperties() adds a catch-all codec.
-		restFactory: codec => createObjectCodec(shape, { codec }),
-		structured: true,
-	});
+	return new PersistenceCodec(functions, { structured: true });
 }
 
 export function object<Shape extends CodecShape, Context = any>(shape: Shape): PersistenceCodec<ShapeState<Shape>, Context> {
-	return createObjectCodec(shape, undefined);
+	return createObjectCodec(shape);
 }
 
 export function variant<State, Context = any>(

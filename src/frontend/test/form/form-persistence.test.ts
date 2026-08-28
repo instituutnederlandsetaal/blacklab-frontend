@@ -993,16 +993,16 @@ describe('controller persistence codecs', () => {
 	const restore = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, payload: string | string[], config: FieldControllerProps<Extra>) =>
 		restoreControllerState(controller, payload, config, context);
 
-	test('scoped object codecs omit defaults and round-trip escaped record values', () => {
+	test('object codecs omit defaults and round-trip escaped record values', () => {
 		const codec = object({
 			value: scalar().default('').atRoot(),
 			caseSensitive: bool().default(false).at('c'),
 			values: record(scalar()).default({}).at('v'),
-		}).scoped('r');
+		});
 		const state = { value: '', caseSensitive: true, values: { a: 'b', c: 'd;e', escaped: 'x\\y' } };
 		const encoded = codec.encode(state, undefined);
 
-		expect(encoded).toBe('r.c=1;r.v={a:b;c:d\\;e;escaped:x\\\\y}');
+		expect(encoded).toBe('c=1;v={a:b;c:d\\;e;escaped:x\\\\y}');
 		expect(codec.decode(encoded, undefined)).toEqual(state);
 	});
 
@@ -1017,45 +1017,6 @@ describe('controller persistence codecs', () => {
 	test('mapped scalar codecs decode values and reject ambiguous mappings', () => {
 		expect(scalar().mapped({ strict: 's', permissive: 'p' }).decode('p', undefined)).toBe('permissive');
 		expect(() => scalar().mapped({ one: 'x', two: 'x' })).toThrow("Persistence value mapping is not bijective: 'x' is mapped more than once.");
-	});
-
-	test('mapped record keys round-trip and reject unknown wire keys', () => {
-		const keyCodec = record(scalar()).mapKeys({ firstName: 'f', lastName: 'l' });
-		expect(keyCodec.encode({ firstName: 'Ada', lastName: 'Lovelace' }, undefined)).toBe('f:Ada;l:Lovelace');
-		expect(keyCodec.decode('f:Ada;l:Lovelace', undefined)).toEqual({ firstName: 'Ada', lastName: 'Lovelace' });
-		expect(() => keyCodec.decode('unknown:value', undefined)).toThrow("Cannot decode unmapped key 'unknown'.");
-	});
-
-	test('object rest properties decode fixed and additional keys', () => {
-		const codec = object({ known: scalar().default('').at('k') }).restProperties(scalar());
-		expect(codec.decode('k=yes;extra=value', undefined)).toEqual({ known: 'yes', extra: 'value' });
-	});
-
-	test('object rest properties safely round-trip escaped and prototype-like keys', () => {
-		const codec = object({ known: scalar().default('').at('k') }).restProperties(scalar());
-		const unusualKeys = Object.fromEntries([
-			['known', 'yes'],
-			['semi;key', 'semicolon'],
-			['brace{key}', 'braces'],
-			['equals=key', 'equals'],
-			['slash\\key', 'slash'],
-			['__proto__', 'prototype'],
-		]) as { known: string } & Record<string, string>;
-		const unusualPayload = codec.encode(unusualKeys, undefined);
-		const restoredUnusualKeys = codec.decode(unusualPayload, undefined);
-		expect(restoredUnusualKeys).toEqual(unusualKeys);
-		expect(Object.getPrototypeOf(restoredUnusualKeys)).toBe(Object.prototype);
-		expect(Object.hasOwn(restoredUnusualKeys, '__proto__')).toBe(true);
-		const scopedRestCodec = object({ known: scalar().default('').at('k') })
-			.restProperties(scalar())
-			.scoped('r');
-		expect(scopedRestCodec.decode(scopedRestCodec.encode(unusualKeys, undefined), undefined)).toEqual(unusualKeys);
-	});
-
-	test('object rest properties reject collisions with fixed keys', () => {
-		const codec = object({ known: scalar().default('').at('k') }).restProperties(scalar());
-		expect(() => codec.encode({ known: 'yes', k: 'collision' }, undefined)).toThrow("Rest property key 'k' collides with a fixed object persistence key.");
-		expect(() => codec.decode('k=yes;known=collision', undefined)).toThrow("Rest property key 'known' collides with a fixed object property.");
 	});
 
 	test('record codecs preserve an own __proto__ property without mutating the prototype', () => {
@@ -1086,13 +1047,6 @@ describe('controller persistence codecs', () => {
 		const contextual = scalar<{ fallback: string }>().default(({ fallback }) => fallback);
 		expect(contextual.encode('configured', { fallback: 'configured' })).toBeNull();
 		expect(contextual.decode(null, { fallback: 'configured' })).toBe('configured');
-	});
-
-	test('object transforms preserve an outer persistence scope', () => {
-		const transformedScope = object({ value: scalar().at('v') })
-			.transform<{ value: string }>({ encode: value => value, decode: value => value })
-			.scoped('r');
-		expect(transformedScope.encode({ value: 'yes' }, undefined)).toBe('r.v=yes');
 	});
 
 	test('strict object codecs reject duplicate and unsupported keys', () => {
