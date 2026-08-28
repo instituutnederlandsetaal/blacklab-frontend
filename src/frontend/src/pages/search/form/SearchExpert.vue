@@ -63,14 +63,12 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
 import AlignBy from '@/pages/search/form/AlignBy.vue';
-import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
 		SelectPicker,
-		MultiValuePicker,
 		AlignBy,
 	},
 	props: {
@@ -88,11 +86,8 @@ export default defineComponent({
 		},
 
 		// If this is a parallel corpus: the target queries
-		targetQueries: {
-			get() {
-				return PatternStore.getState().expert.targetQueries;
-			},
-			set: PatternStore.actions.expert.targetQueries,
+		targetQueries() {
+			return PatternStore.getState().expert.targetQueries;
 		},
 	},
 	methods: {

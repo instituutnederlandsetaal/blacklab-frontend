@@ -59,8 +59,6 @@ import { mapReduce } from '@/shared/utils/array-utils';
 import { escapeRegex } from '@/shared/utils/string-utils';
 import useUid from '@/shared/utils/uid';
 
-import SelectPicker from '@/shared/ui/SelectPicker.vue';
-
 type LexiconLemmaIdResponse = {
 	message: 'OK';
 	lemmata_list: Array<{
@@ -95,7 +93,6 @@ type WordOption = {
 };
 
 export default defineComponent({
-	components: { SelectPicker },
 	inheritAttrs: false,
 	emits: ['update:modelValue'],
 	props: {
@@ -109,13 +106,11 @@ export default defineComponent({
 	data: () => ({
 		uid: useUid(),
 		input$: new Observable.BehaviorSubject<string>(''),
-		subscriptions: [] as Observable.Subscription[],
+		subscription: null as Observable.Subscription | null,
 
 		wordOptions: [] as null | WordOption[],
 
 		posOptions: {} as Record<string, boolean>,
-
-		displayValue: '',
 
 		blacklab: useBlackLabApi(),
 		customizations: useCustomizations(),
@@ -263,15 +258,13 @@ export default defineComponent({
 
 		const results$ = Observable.merge(clearResults$, suggestions$);
 
-		this.subscriptions.push(
-			results$.subscribe(r => {
-				this.posOptions = r ? r.posOptions : {};
-				this.wordOptions = r ? r.wordList.sort((a, b) => ((a.count === 0) !== (b.count === 0) ? (a.count === 0 ? 1 : -1) : 0)) : null;
-			}),
-		);
+		this.subscription = results$.subscribe(r => {
+			this.posOptions = r ? r.posOptions : {};
+			this.wordOptions = r ? r.wordList : null;
+		});
 	},
 	unmounted() {
-		this.subscriptions.forEach(s => s.unsubscribe());
+		this.subscription?.unsubscribe();
 	},
 	watch: {
 		selectedWords(v: WordOption[], prev: WordOption[]) {

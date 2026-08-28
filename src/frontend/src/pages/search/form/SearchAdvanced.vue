@@ -50,7 +50,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import { CqlGenerator } from '@/features/cql-query-builder/model';
@@ -63,14 +62,12 @@ import { useBlackLabApi } from '@/shared/api';
 
 import CqlQueryBuilder from '@/features/cql-query-builder/CqlQueryBuilder.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
-import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
 		SelectPicker,
-		MultiValuePicker,
 		AlignBy,
 		CqlQueryBuilder,
 	},
@@ -79,7 +76,6 @@ export default defineComponent({
 	},
 	data: () => ({
 		blacklab: useBlackLabApi(),
-		corpus: useCorpus(),
 		customizations: useCustomizations(),
 	}),
 	computed: {

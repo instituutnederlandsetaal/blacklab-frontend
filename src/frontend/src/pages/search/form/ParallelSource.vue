@@ -16,18 +16,15 @@ import { defineComponent } from 'vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
-import AlignBy from '@/pages/search/form/AlignBy.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
 		SelectPicker,
-		AlignBy,
 	},
 	props: {
 		block: { default: false, type: Boolean },
-		lg: { default: false, type: Boolean },
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 });

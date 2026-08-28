@@ -39,16 +39,6 @@ const BaseParallelInfo = defineComponent({
 			return opt.sort((a, b) => a.label.localeCompare(b.label));
 		},
 		/** For rendering, contains the localized display name as label and the field's id as value. */
-		pSource(): Option | undefined {
-			const sourceField = this.corpus.parallelAnnotatedFieldsMap[this.pSourceValue!];
-			return (
-				sourceField && {
-					value: sourceField.id,
-					label: this.$tAnnotatedFieldDisplayName(sourceField),
-				}
-			);
-		},
-		/** For rendering, contains the localized display name as label and the field's id as value. */
 		pTargets(): Option[] {
 			const parallelFields = this.corpus.parallelAnnotatedFieldsMap;
 			return this.pTargetValue.map(targetFieldId => ({
@@ -82,9 +72,6 @@ const BaseParallelInfo = defineComponent({
 		},
 		removeTarget(targetAnnotatedFieldId: string) {
 			PatternStore.actions.shared.removeTarget(targetAnnotatedFieldId);
-		},
-		setSource(sourceAnnotatedFieldId: string) {
-			PatternStore.actions.shared.sourceField(sourceAnnotatedFieldId);
 		},
 	},
 });

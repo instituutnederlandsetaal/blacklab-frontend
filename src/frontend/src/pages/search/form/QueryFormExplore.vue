@@ -53,7 +53,7 @@
 					<div class="form-group" v-if="isParallelCorpus">
 						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
 						<div class="col-xs-8">
-							<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+							<ParallelSource block :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 						</div>
 					</div>
 					<div class="form-group">
@@ -123,7 +123,7 @@
 				<div class="form-horizontal">
 					<div v-if="isParallelCorpus" class="form-group form-group-lg" style="margin: 0">
 						<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>
-						<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+						<ParallelSource block :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					</div>
 					<div class="form-group form-group-lg" style="margin: 0">
 						<label for="frequency-type" class="control-label">{{ $t('explore.frequency.frequencyType') }}</label>
@@ -168,7 +168,6 @@ export default defineComponent({
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	data: () => ({
-		debug,
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
 		customizations: useCustomizations(),
