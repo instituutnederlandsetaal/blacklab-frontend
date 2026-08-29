@@ -336,7 +336,10 @@
 			"tokens": "tokens"
 		},
 		"sort": {
-			"sortBy": "Sorteer op…"
+			"sortBy": "Sorteer op…",
+			"groups": "Groepen",
+			"parallelCorpus": "Parallel corpus",
+			"documents": "Documenten"
 		},
 		"shared": {
 			"spanAttribute": "tag {span}, attribuut {attribute}"

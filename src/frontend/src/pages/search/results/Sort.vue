@@ -23,7 +23,7 @@ import type { NormalizedIndex } from '@/types/apptypes';
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
 import { useI18n } from '@/shared/i18n';
-import type { OptGroup } from '@/shared/utils/options';
+import type { OptGroup, Option } from '@/shared/utils/options';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
@@ -53,31 +53,23 @@ const {
 const model = defineModel<string | null>({ default: null });
 const customizations = useCustomizations();
 const translate = useI18n();
+function sortPair(field: string, value: string): Option[] {
+	return [
+		{ label: translate.$t('results.table.sortBy', { field }), value },
+		{
+			label: translate.$t('results.table.sortByDescending', { field }),
+			value: `-${value}`, // BlackLab inverts numeric direction for size/numhits: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
+		},
+	];
+}
 const sortOptions = computed<OptGroup[]>(() => {
 	const options: OptGroup[] = [];
 	const addGroups = (...groups: OptGroup[]) => options.push(...groups.map(customizations.sortOptionGroup));
 
 	if (groups) {
 		addGroups({
-			label: 'Groups',
-			options: [
-				{
-					label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_groupName') }),
-					value: 'identity',
-				},
-				{
-					label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_groupName') }),
-					value: '-identity',
-				},
-				{
-					label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_groupSize') }),
-					value: 'size',
-				},
-				{
-					label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_groupSize') }),
-					value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
-				},
-			],
+			label: translate.$t('results.sort.groups'),
+			options: [...sortPair(translate.$t('results.table.sort_groupName'), 'identity'), ...sortPair(translate.$t('results.table.sort_groupSize'), 'size')],
 		});
 	}
 
@@ -86,33 +78,15 @@ const sortOptions = computed<OptGroup[]>(() => {
 
 		if (parallelCorpus) {
 			addGroups({
-				label: 'Parallel Corpus',
-				options: [
-					{
-						label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_alignments') }),
-						value: 'alignments',
-					},
-					{
-						label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_alignments') }),
-						value: '-alignments',
-					},
-				],
+				label: translate.$t('results.sort.parallelCorpus'),
+				options: sortPair(translate.$t('results.table.sort_alignments'), 'alignments'),
 			});
 		}
 	}
 	if (docs) {
 		addGroups({
-			label: 'Documents',
-			options: [
-				{
-					label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_numberOfHits') }),
-					value: 'numhits',
-				},
-				{
-					label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_numberOfHits') }),
-					value: '-numhits', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
-				},
-			],
+			label: translate.$t('results.sort.documents'),
+			options: sortPair(translate.$t('results.table.sort_numberOfHits'), 'numhits'),
 		});
 	}
 

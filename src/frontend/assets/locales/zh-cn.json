@@ -333,7 +333,10 @@
 			"tokens": "Tokens"
 		},
 		"sort": {
-			"sortBy": "分类依据"
+			"sortBy": "分类依据",
+			"groups": "分组",
+			"parallelCorpus": "平行语料库",
+			"documents": "文档"
 		},
 		"shared": {
 			"spanAttribute": "标签 {span}，属性 {attribute}"
