@@ -3,7 +3,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 import type { LoadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 import AboutPage from '@/pages/about/AboutPage.vue';
@@ -11,18 +11,19 @@ import HelpPage from '@/pages/help/HelpPage.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 
 const mock = vi.hoisted(() => ({
+	corpusId: { value: 'test-corpus' },
 	getAbout: vi.fn(),
 	getHelp: vi.fn(),
 	markSettled: vi.fn(),
 }));
 
 vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: mock.markSettled }) }));
-vi.mock('@/navigation/page-context', () => ({ useCorpusId: () => ({ value: 'test-corpus' }) }));
+vi.mock('@/navigation/page-context', () => ({ useCorpusId: () => mock.corpusId }));
 vi.mock('@/shared/api', () => ({ useFrontendApi: () => ({ getAbout: mock.getAbout, getHelp: mock.getHelp }) }));
 
 function deferredRequest() {
 	let resolve!: (value: string) => void;
-	let reject!: (error: ApiError) => void;
+	let reject!: (error: unknown) => void;
 	const cancel = vi.fn();
 	const request = new CancelableRequest(
 		new Promise<string>((resolvePromise, rejectPromise) => {
@@ -35,6 +36,7 @@ function deferredRequest() {
 }
 
 beforeEach(() => {
+	mock.corpusId.value = 'test-corpus';
 	mock.getAbout.mockReset();
 	mock.getHelp.mockReset();
 	mock.markSettled.mockReset();
@@ -51,6 +53,7 @@ describe.each([
 		const content = wrapper.getComponent(HtmlRenderer).props('content') as LoadableFromStream<string>;
 
 		expect(mock[endpoint]).toHaveBeenCalledWith('test-corpus');
+		expect(wrapper.getComponent(HtmlRenderer).props()).toMatchObject({ executeScripts: true, parseStringAsHtml: true });
 		expect(content.isLoading()).toBe(true);
 		expect(wrapper.find('.cf-spinner').exists()).toBe(true);
 		expect(mock.markSettled).not.toHaveBeenCalled();
@@ -70,7 +73,7 @@ describe.each([
 		mock[endpoint].mockReturnValue(pending.request);
 		const wrapper = mount(Page);
 
-		pending.reject(new ApiError('Failure', 'Could not load page.', 'Server Error', 500));
+		pending.reject(new Error('Could not load page.'));
 		await flushPromises();
 
 		expect(wrapper.get('.text-danger').text()).toBe('Could not load page.');
@@ -87,4 +90,24 @@ describe.each([
 
 		expect(pending.cancel).toHaveBeenCalledOnce();
 	});
+});
+
+test('snapshots the corpus and keeps the two endpoint lifecycles independent', () => {
+	const aboutRequest = deferredRequest();
+	const helpRequest = deferredRequest();
+	mock.getAbout.mockReturnValue(aboutRequest.request);
+	mock.getHelp.mockReturnValue(helpRequest.request);
+
+	mock.corpusId.value = 'first-corpus';
+	const about = mount(AboutPage);
+	mock.corpusId.value = 'second-corpus';
+	const help = mount(HelpPage);
+
+	expect(mock.getAbout).toHaveBeenCalledWith('first-corpus');
+	expect(mock.getHelp).toHaveBeenCalledWith('second-corpus');
+	about.unmount();
+	expect(aboutRequest.cancel).toHaveBeenCalledOnce();
+	expect(helpRequest.cancel).not.toHaveBeenCalled();
+	help.unmount();
+	expect(helpRequest.cancel).toHaveBeenCalledOnce();
 });

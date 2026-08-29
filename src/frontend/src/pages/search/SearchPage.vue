@@ -16,15 +16,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import { usePageBootstrap } from '@/navigation/page-bootstrap';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
 
+const pageBootstrap = usePageBootstrap();
 const resultsVisible = computed(() => InterfaceStore.getState().viewedResults != null);
 const debugQuery = computed(RootStore.get.blacklabParameters);
+onMounted(() => pageBootstrap.markSettled());
 </script>
