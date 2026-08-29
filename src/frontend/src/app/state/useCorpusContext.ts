@@ -76,43 +76,32 @@ function useCorpus(_?: { IAcknowledgeItCanBeUndefined?: true }): Ref<Corpus | un
 }
 
 function createCorpusValue(index: NormalizedIndex): Corpus {
-	const allAnnotatedFields = index ? Object.values(index.annotatedFields) : [];
-	const allAnnotatedFieldsMap = index?.annotatedFields ?? {};
-	const mainAnnotatedField = index?.mainAnnotatedField ?? 'contents';
+	const allAnnotatedFields = Object.values(index.annotatedFields);
 	const parallelAnnotatedFields = allAnnotatedFields.filter((field): field is NormalizedAnnotatedFieldParallel => field.isParallel);
-	const allAnnotations = index ? Object.values(index.annotatedFields[index.mainAnnotatedField]?.annotations ?? {}) : [];
-	const allAnnotationsMap = mapReduce(allAnnotations, 'id');
-	const allMetadataFields = index ? Object.values(index.metadataFields) : [];
-	const firstMainAnnotation = allAnnotations.find(field => field.isMainAnnotation)!;
+	const allAnnotations = Object.values(index.annotatedFields[index.mainAnnotatedField]?.annotations ?? {});
 
 	return {
 		...index,
 		allAnnotatedFields,
-		allAnnotatedFieldsMap,
-		mainAnnotatedField,
+		allAnnotatedFieldsMap: index.annotatedFields,
 		isParallelCorpus: parallelAnnotatedFields.length > 0,
 		parallelAnnotatedFields,
 		parallelAnnotatedFieldsMap: mapReduce(parallelAnnotatedFields, 'id'),
 		parallelFieldPrefix: parallelAnnotatedFields[0]?.prefix ?? '',
 		allAnnotations,
-		allAnnotationsMap,
-		allMetadataFields,
-		allMetadataFieldsMap: index?.metadataFields ?? {},
-		firstMainAnnotation,
-		metadataGroups: index
-			? index.metadataFieldGroups.map(group => ({
-					...group,
-					fields: group.entries.map(id => index.metadataFields[id]),
-				}))
-			: [],
-		annotationGroups: index
-			? index.annotationGroups.map(group => ({
-					...group,
-					fields: group.entries.map(id => index.annotatedFields[group.annotatedFieldId].annotations[id]),
-				}))
-			: [],
-		textDirection: index?.textDirection ?? 'ltr',
-		hasRelations: index?.relations.relations != null,
+		allAnnotationsMap: mapReduce(allAnnotations, 'id'),
+		allMetadataFields: Object.values(index.metadataFields),
+		allMetadataFieldsMap: index.metadataFields,
+		firstMainAnnotation: allAnnotations.find(field => field.isMainAnnotation)!,
+		metadataGroups: index.metadataFieldGroups.map(group => ({
+			...group,
+			fields: group.entries.map(id => index.metadataFields[id]),
+		})),
+		annotationGroups: index.annotationGroups.map(group => ({
+			...group,
+			fields: group.entries.map(id => index.annotatedFields[group.annotatedFieldId].annotations[id]),
+		})),
+		hasRelations: index.relations.relations != null,
 	};
 }
 
