@@ -196,47 +196,36 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 	const restoredFields = restorePersistedFields(schema.keys, scopedParams.fields, definition.context);
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
 	const issues: FormIssue[] = [...formSelectorIssues, ...schema.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
-
-	const finishRestore = (activeForm: FormBoundaryNode, finalSubmittedFormId: string | null, expertFallback: ReturnType<typeof findExpertFallback> = null): RestoredForm => {
-		const restoredState: NewFormState = {
-			state: {
-				...defaults.state,
-				...restoredFields.state,
-				...(expertFallback ? { [expertFallback.fieldId]: expertFallback.state } : {}),
-			},
-			uiState: {
-				...defaults.uiState,
-				...inferUiStateFromPersistedFields(scopedForm, scopedParams.fields, schema.keys),
-				...persistedTabs.uiState,
-				...getUiStateForPath(definition.getRoot(), activeForm.id),
-			},
-			rawOverrides: {},
-		};
-		const activeSchema = activeForm === scopedForm ? schema : resolvePersistenceSchema(activeForm, definition.context);
-		const compiled = compileFormNode(activeForm, restoredState, definition.context, activeSchema);
-		const compiledParams = compiled.params as Readonly<Record<string, unknown>>;
-		const rawOverrides = Object.fromEntries(Object.entries(overrideCandidates).filter(([parameter, value]) => !Object.hasOwn(compiledParams, parameter) || compiledParams[parameter] !== value));
-		const state: RestoredFormState = {
-			...restoredState,
-			rawOverrides,
-			issues,
-		};
-
-		return {
-			state,
-			submittedResult: finalSubmittedFormId ? applyRawOverrides({ ...compiled, issues: [...issues, ...compiled.issues] }, rawOverrides, activeForm.target.acceptedOutputs) : null,
-		};
+	const hasScopedState = Object.keys(restoredFields.state).length > 0 || Object.keys(persistedTabs.uiState).length > 0;
+	const expertFallback = !hasScopedState && options.legacyPattern?.pattern ? findExpertFallback(definition, options.legacyPattern.pattern, options.legacyPattern.searchfield) : null;
+	const activeForm = expertFallback?.form ?? scopedForm;
+	const finalSubmittedFormId = expertFallback ? null : submittedFormId;
+	const restoredState: NewFormState = {
+		state: {
+			...defaults.state,
+			...restoredFields.state,
+			...(expertFallback ? { [expertFallback.fieldId]: expertFallback.state } : {}),
+		},
+		uiState: {
+			...defaults.uiState,
+			...inferUiStateFromPersistedFields(scopedForm, scopedParams.fields, schema.keys),
+			...persistedTabs.uiState,
+			...getUiStateForPath(definition.getRoot(), activeForm.id),
+		},
+		rawOverrides: {},
+	};
+	const activeSchema = activeForm === scopedForm ? schema : resolvePersistenceSchema(activeForm, definition.context);
+	const compiled = compileFormNode(activeForm, restoredState, definition.context, activeSchema);
+	const compiledParams = compiled.params as Readonly<Record<string, unknown>>;
+	const rawOverrides = Object.fromEntries(Object.entries(overrideCandidates).filter(([parameter, value]) => !Object.hasOwn(compiledParams, parameter) || compiledParams[parameter] !== value));
+	const state: RestoredFormState = {
+		...restoredState,
+		rawOverrides,
+		issues,
 	};
 
-	// Restored fields or tabs make the scoped form authoritative.
-	if (Object.keys(restoredFields.state).length > 0 || Object.keys(persistedTabs.uiState).length > 0) return finishRestore(scopedForm, submittedFormId);
-
-	// Without a canonical pattern, there is nothing to restore into an expert field.
-	if (!options.legacyPattern?.pattern) return finishRestore(scopedForm, submittedFormId);
-
-	// Canonical-only URLs use an expert form when the definition has a compatible field.
-	const expertFallback = findExpertFallback(definition, options.legacyPattern.pattern, options.legacyPattern.searchfield);
-	if (!expertFallback) return finishRestore(scopedForm, submittedFormId);
-
-	return finishRestore(expertFallback.form, null, expertFallback);
+	return {
+		state,
+		submittedResult: finalSubmittedFormId ? applyRawOverrides({ ...compiled, issues: [...issues, ...compiled.issues] }, rawOverrides, activeForm.target.acceptedOutputs) : null,
+	};
 }
