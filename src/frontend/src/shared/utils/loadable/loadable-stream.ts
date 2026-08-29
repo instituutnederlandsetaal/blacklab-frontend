@@ -292,7 +292,7 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 				next: v => {
 					this.state = v.state;
 					if (!isLoading(v)) this.value = v.value;
-					if (!isError(v)) this.error = v.error;
+					this.error = v.error;
 				},
 				error: e => {
 					this.state = LoadableState.error;

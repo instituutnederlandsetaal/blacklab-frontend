@@ -456,6 +456,59 @@ describe('InteractiveLoadable', () => {
 
 		loadable.dispose();
 	});
+
+	test('stores emitted errors and retries the latest input', () => {
+		let fail = true;
+		const emittedError = new ApiError('Failed', 'Try again', 'Server error', 500);
+		const loadable = new InteractiveLoadable<number, number>(input$ => input$.pipe(map(value => (fail ? Loadable.LoadingError(emittedError) : Loadable.Loaded(value)))), { debounce: 0 });
+
+		loadable.next(7);
+		expect(loadable.isError()).toBe(true);
+		expect(loadable.error).toBe(emittedError);
+
+		fail = false;
+		loadable.retry();
+		expect(loadable.isLoaded()).toBe(true);
+		expect(loadable.value).toBe(7);
+		expect(loadable.error).toBeUndefined();
+
+		loadable.dispose();
+	});
+
+	test('preserves old values while loading but clears them on emitted errors', () => {
+		const output$ = new Subject<Loadable<number>>();
+		const loadable = new InteractiveLoadable<number, number>(() => output$, { clearOnError: false, debounce: 0 });
+		const emittedError = new ApiError('Failed', 'Try again', 'Server error', 500);
+
+		output$.next(Loadable.Loaded(1));
+		output$.next(Loadable.Loading());
+		expect(loadable.isLoading()).toBe(true);
+		expect(loadable.value).toBe(1);
+
+		output$.next(Loadable.LoadingError(emittedError));
+		expect(loadable.isError()).toBe(true);
+		expect(loadable.value).toBeUndefined();
+		expect(loadable.error).toBe(emittedError);
+
+		loadable.dispose();
+	});
+
+	test.each([
+		{ clearOnError: false, expectedValue: 1 },
+		{ clearOnError: true, expectedValue: undefined },
+	])('applies clearOnError=$clearOnError to raw observable errors', ({ clearOnError, expectedValue }) => {
+		const output$ = new Subject<Loadable<number>>();
+		const loadable = new InteractiveLoadable<number, number>(() => output$, { clearOnError, debounce: 0 });
+		const rawError = new ApiError('Failed', 'Try again', 'Server error', 500);
+
+		output$.next(Loadable.Loaded(1));
+		output$.error(rawError);
+		expect(loadable.isError()).toBe(true);
+		expect(loadable.value).toBe(expectedValue);
+		expect(loadable.error).toEqual(rawError);
+
+		loadable.dispose();
+	});
 });
 
 describe('promiseFromLoadableStream', () => {

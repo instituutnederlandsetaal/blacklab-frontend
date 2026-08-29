@@ -1,4 +1,4 @@
-import { concat, EMPTY, expand, filter, lastValueFrom, of, switchMap, takeUntil, timer } from 'rxjs';
+import { concatWith, defer, EMPTY, expand, filter, of, switchMap, takeUntil, tap, timer } from 'rxjs';
 
 import { type BLSearchResult } from '@/types/blacklabtypes';
 
@@ -7,7 +7,7 @@ import { getTotals, type TotalsOutput } from './result-count-helpers';
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable-core';
-import { InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-stream';
+import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
 
 export type TotalsInput = {
 	indexId: string;
@@ -36,6 +36,7 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 			switchMap(({ indexId, operation, results }) => {
 				// Override some settings from the original search, we're not interested in the results, but we need the totals.
 				const params = { ...getSearchParameters(results), number: 0, first: 0, subcorpussize: true };
+				let latest: Loadable<TotalsOutput> | undefined;
 				const recursiveTotal$ = of(Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
 					expand((cur: Loadable<TotalsOutput>) => {
 						// Expand is recursive: called for each input + each of its own outputs.
@@ -57,26 +58,11 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 						);
 					}),
 					filter(v => !v.isLoading()), // remove loading values. We always want a value or an error in the output.
-
-					// abort the recursive stream if the timeout is reached.
+					tap(v => (latest = v)),
 					takeUntil(timer(typeof timeoutMs === 'function' ? timeoutMs() : timeoutMs)),
 				);
 
-				// We want to end with a paused state if the timer hits and the last value we fetched didn't have all results yet.
-				// But we can't use the endWith operator, as that needs the value upfront, and we need the last value (which doesn't exist yet).
-				// So we use lastValueFrom to get the most recent value from the recursive stream.
-				const pausedOrFinishedState = lastValueFrom(
-					recursiveTotal$.pipe(
-						filter(v => v.isLoaded()),
-						// Only emit a paused state if we're not finished...
-						mapLoaded((v): TotalsOutput => (this.isDone(v) ? v : { ...v, state: 'paused' })),
-					),
-				);
-
-				// Finally return the stream that emits the recursive totals,
-				// and when it completes, emit the most recent value as the paused state.
-				// prevent duplicate output of last value, once from the recursive stream and once from the mostRecentUnfinishedAsPaused.
-				return concat(recursiveTotal$, pausedOrFinishedState);
+				return recursiveTotal$.pipe(concatWith(defer(() => (latest?.isLoaded() && !this.isDone(latest.value) ? of(Loaded<TotalsOutput>({ ...latest.value, state: 'paused' })) : EMPTY))));
 			}),
 			{ debounce: 0 },
 		);
