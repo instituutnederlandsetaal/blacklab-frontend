@@ -151,24 +151,21 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
 			let indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true, listvalues: '*' } : undefined, requestParameters);
-			// BlackLab 4 does not support a wildcard, so enumerate the forward-index annotations.
-			if (version === '4') {
-				indexRequest = (indexRequest as CancelableRequest<BLIndexMetadataV4>).then(i => {
-					const annots = Object.entries(i.annotatedFields[i.mainAnnotatedField].annotations)
-						.filter(([k, v]) => v.hasForwardIndex)
-						.map(([k]) => k)
-						.join(',');
-					return endpoint.getCancelable<BLIndexMetadataV4>(paths.index(id), { listvalues: annots }, requestParameters);
-				});
-			}
-
 			const corpusRequest =
 				version === '4'
 					? (() => {
+							let cancelled = false;
+							// BlackLab 4 does not support a wildcard, so enumerate the forward-index annotations.
+							indexRequest = (indexRequest as CancelableRequest<BLIndexMetadataV4>).then(i => {
+								if (cancelled) throw ApiError.CANCELLED;
+								const annotations = i.annotatedFields[i.mainAnnotatedField].annotations;
+								const ids = Object.keys(annotations).filter(id => annotations[id].hasForwardIndex);
+								return (indexRequest = endpoint.getCancelable<BLIndexMetadataV4>(paths.index(id), { listvalues: ids.join(',') }, requestParameters));
+							});
 							const relationsRequest = api.getRelations(id, requestParameters);
 							return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
-								indexRequest.cancel();
-								relationsRequest.cancel();
+								cancelled = true;
+								[indexRequest, relationsRequest].forEach(request => request.cancel());
 							}).then(([index, relations]) => normalizeIndex(index, relations));
 						})()
 					: indexRequest.then(index => {
