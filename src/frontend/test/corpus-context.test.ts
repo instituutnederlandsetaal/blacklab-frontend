@@ -6,15 +6,21 @@ import { createCorpusContext } from '@/app/state/useCorpusContext';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
+import { LoadableState } from '@/shared/utils/loadable/loadable-core';
 
 function createDeferredRequest<T>() {
 	let resolve!: (value: T) => void;
-	const promise = new Promise<T>(resolvePromise => {
+	let reject!: (reason: unknown) => void;
+	const cancel = vi.fn();
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
 		resolve = resolvePromise;
+		reject = rejectPromise;
 	});
 	return {
-		request: new CancelableRequest(promise, vi.fn()),
+		request: new CancelableRequest(promise, cancel),
 		resolve,
+		reject,
+		cancel,
 	};
 }
 
@@ -206,5 +212,119 @@ describe('corpus context publication', () => {
 			['second', { headers: { 'Cache-Control': 'no-cache' } }],
 		]);
 		expect(getTagset).toHaveBeenCalledTimes(2);
+	});
+
+	test('uses global configuration without corpus requests for a null corpus id', async () => {
+		const corpusId = ref<string | null>(null);
+		const publishedIds: Array<string | undefined> = [];
+		const getCorpus = vi.fn((id: string) => resolvedRequest(createIndex(id)));
+		const getConfig = vi.fn(() => resolvedRequest(createConfig()));
+		const getTagset = vi.fn(() => resolvedRequest(undefined));
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus }), createMockFrontendApi({ getConfig, getTagset }), corpusId);
+		state.beforePublish(context => publishedIds.push(context.index?.id));
+
+		await settleReactivity();
+		expect(state.contextLoader.isLoaded()).toBe(true);
+		expect(state.contextLoader.value?.index).toBeUndefined();
+		expect(state.config.value.displayName).toBe('New configuration');
+		expect(getCorpus).not.toHaveBeenCalled();
+		expect(getTagset).not.toHaveBeenCalled();
+		expect(getConfig).toHaveBeenCalledWith(null, { headers: { 'Cache-Control': 'no-cache' } });
+		expect(publishedIds).toEqual([undefined]);
+
+		corpusId.value = 'first';
+		await settleReactivity();
+		expect(state.corpus.value?.id).toBe('first');
+		expect(publishedIds).toEqual([undefined, 'first']);
+	});
+
+	test('retry creates fresh transports after failed and fulfilled same-id generations', async () => {
+		const corpusRequests = [createDeferredRequest<NormalizedIndex>(), createDeferredRequest<NormalizedIndex>(), createDeferredRequest<NormalizedIndex>()];
+		const configRequests = [createDeferredRequest<CFPageConfig>(), createDeferredRequest<CFPageConfig>(), createDeferredRequest<CFPageConfig>()];
+		const tagsetRequests = [createDeferredRequest<undefined>(), createDeferredRequest<undefined>(), createDeferredRequest<undefined>()];
+		let corpusAttempt = 0;
+		let configAttempt = 0;
+		let tagsetAttempt = 0;
+		const getCorpus = vi.fn(() => corpusRequests[corpusAttempt++].request);
+		const getConfig = vi.fn(() => configRequests[configAttempt++].request);
+		const getTagset = vi.fn(() => tagsetRequests[tagsetAttempt++].request);
+		const publications = vi.fn();
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus }), createMockFrontendApi({ getConfig, getTagset }), 'same-id');
+		state.beforePublish(publications);
+
+		expect(state.contextLoader.state).toBe(LoadableState.empty);
+		corpusRequests[0].reject(new Error('first attempt failed'));
+		configRequests[0].resolve(createConfig());
+		tagsetRequests[0].resolve(undefined);
+		await settleReactivity();
+		expect(state.contextLoader.isError()).toBe(true);
+		expect(publications).not.toHaveBeenCalled();
+
+		state.contextLoader.retry();
+		await nextTick();
+		expect(state.contextLoader.state).toBe(LoadableState.empty);
+		expect([getCorpus, getConfig, getTagset].map(fn => fn.mock.calls.length)).toEqual([2, 2, 2]);
+		corpusRequests[1].resolve(createIndex('same-id'));
+		configRequests[1].resolve(createConfig());
+		tagsetRequests[1].resolve(undefined);
+		await settleReactivity();
+		expect(state.contextLoader.isLoaded()).toBe(true);
+		expect(publications).toHaveBeenCalledTimes(1);
+
+		state.contextLoader.retry();
+		await nextTick();
+		expect(state.contextLoader.state).toBe(LoadableState.empty);
+		expect([getCorpus, getConfig, getTagset].map(fn => fn.mock.calls.length)).toEqual([3, 3, 3]);
+		corpusRequests[2].resolve(createIndex('same-id'));
+		configRequests[2].resolve(createConfig());
+		tagsetRequests[2].resolve(undefined);
+		await settleReactivity();
+		expect(publications).toHaveBeenCalledTimes(2);
+
+		state.contextLoader.stop();
+		for (const requests of [corpusRequests, configRequests, tagsetRequests]) expect(requests.map(request => request.cancel.mock.calls.length)).toEqual([1, 1, 1]);
+	});
+
+	test('cancels an old corpus generation and ignores all of its late results', async () => {
+		const corpusId = ref('first');
+		const first = {
+			corpus: createDeferredRequest<NormalizedIndex>(),
+			config: createDeferredRequest<CFPageConfig>(),
+			tagset: createDeferredRequest<undefined>(),
+		};
+		const second = {
+			corpus: createDeferredRequest<NormalizedIndex>(),
+			config: createDeferredRequest<CFPageConfig>(),
+			tagset: createDeferredRequest<undefined>(),
+		};
+		const requests = { first, second };
+		const state = createCorpusContext(
+			createMockBlackLabApi({ getCorpus: id => requests[id as keyof typeof requests].corpus.request }),
+			createMockFrontendApi({
+				getConfig: id => requests[id as keyof typeof requests].config.request,
+				getTagset: id => requests[id as keyof typeof requests].tagset.request,
+			}),
+			corpusId,
+		);
+		const publishedIds: string[] = [];
+		state.beforePublish(context => publishedIds.push(context.index!.id));
+
+		corpusId.value = 'second';
+		await nextTick();
+		expect([first.corpus, first.config, first.tagset].map(request => request.cancel.mock.calls.length)).toEqual([1, 1, 1]);
+		expect(state.contextLoader.state).toBe(LoadableState.empty);
+
+		first.corpus.resolve(createIndex('first'));
+		first.config.resolve(createConfig());
+		first.tagset.resolve(undefined);
+		await settleReactivity();
+		expect(publishedIds).toEqual([]);
+
+		second.corpus.resolve(createIndex('second'));
+		second.config.resolve(createConfig());
+		second.tagset.resolve(undefined);
+		await settleReactivity();
+		expect(state.corpus.value?.id).toBe('second');
+		expect(publishedIds).toEqual(['second']);
 	});
 });

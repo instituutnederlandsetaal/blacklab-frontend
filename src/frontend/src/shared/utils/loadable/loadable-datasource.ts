@@ -1,6 +1,6 @@
 import { tryOnScopeDispose } from '@vueuse/core';
 import axios from 'axios';
-import { ref, toRef, toValue, watch, type DebuggerOptions, type MaybeRef } from 'vue';
+import { ref } from 'vue';
 
 import { LoadableState } from './loadable-core';
 import { loadableReactive, type ControlledLoadable } from './loadable-reactive';
@@ -59,11 +59,4 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 
 	retry(); // initial request.
 	return loadableReactive(state, value, error, { retry, stop });
-}
-
-export function loadableFromComputedRequest<T>(request: MaybeRef<CancelableRequest<T>>, debuggerOptions?: DebuggerOptions): LoadableFromRequest<T> {
-	request = toRef(request);
-	const inner = loadableFromRequest(() => toValue(request));
-	watch(request, _ => inner.retry(), debuggerOptions); // not immediate! inner has already started
-	return inner;
 }

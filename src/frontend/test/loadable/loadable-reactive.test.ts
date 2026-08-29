@@ -1,11 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
-import { nextTick, reactive, ref, shallowRef, watch, type Ref } from 'vue';
+import { nextTick, reactive, ref, watch, type Ref } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { combine, combineOptional, mapLoadedValue, flatMapLoadedValue } from '@/shared/utils/loadable/loadable-combine';
 import { combineLoadables, unwrapLoadableRefs } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
-import { loadableFromComputedRequest, loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import {
 	flatMapEmptyReactive,
 	flatMapErrorReactive,
@@ -649,31 +649,6 @@ describe('loadableFromRequest', () => {
 		await flushPromises();
 		expect(loadable.state).toBe(LoadableState.error);
 		expect(loadable.error?.message).toBe('current failed');
-	});
-});
-
-describe('loadableFromComputedRequest', () => {
-	test('clears the previous generation and retries when the request ref changes', async () => {
-		const first = createDeferredRequest<number>();
-		const second = createDeferredRequest<number>();
-		const request = shallowRef(first.request);
-		const loadable = loadableFromComputedRequest(request);
-
-		first.resolve(1);
-		await flushPromises();
-		expect(loadable.value).toBe(1);
-
-		request.value = second.request;
-		await nextTick();
-
-		expect(first.cancel).toHaveBeenCalledTimes(1);
-		expect(loadable.state).toBe(LoadableState.empty);
-		expect(loadable.value).toBeUndefined();
-
-		second.resolve(2);
-		await flushPromises();
-		expect(loadable.state).toBe(LoadableState.loaded);
-		expect(loadable.value).toBe(2);
 	});
 });
 

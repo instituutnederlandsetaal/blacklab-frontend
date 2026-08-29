@@ -1,4 +1,4 @@
-import { computed, hasInjectionContext, toValue, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
+import { computed, hasInjectionContext, toValue, watch, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CFPageConfig, Corpus, NormalizedAnnotatedFieldParallel, NormalizedIndex, Tagset } from '@/types/apptypes';
@@ -7,7 +7,7 @@ import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/l
 import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
-import { loadableFromComputedRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import { tapLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
@@ -116,18 +116,18 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	// These loadables retain their identity for the lifetime of the context. A corpus
 	// id change replaces only their request, so downstream combiners never have to
 	// subscribe to computed factories that create and discard reactive loadables.
-	const corpusLoadable = loadableFromComputedRequest(
-		computed(() => {
-			const id = toValue(corpusId);
-			return (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined)).then(index => (index ? createCorpusValue(index) : undefined));
-		}),
-	);
-	const configLoadable = loadableFromComputedRequest(computed(() => getConfig(toValue(corpusId))));
-	const tagsetLoadable = loadableFromComputedRequest(
-		computed(() => {
-			const id = toValue(corpusId);
-			return id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined);
-		}),
+	const corpusLoadable = loadableFromRequest(() => {
+		const id = toValue(corpusId);
+		return (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined)).then(index => (index ? createCorpusValue(index) : undefined));
+	});
+	const configLoadable = loadableFromRequest(() => getConfig(toValue(corpusId)));
+	const tagsetLoadable = loadableFromRequest(() => {
+		const id = toValue(corpusId);
+		return id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined);
+	});
+	watch(
+		() => toValue(corpusId),
+		() => [corpusLoadable, configLoadable, tagsetLoadable].forEach(loadable => loadable.retry()),
 	);
 	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable });
 	const publishedContext = tapLoadedReactive(loadedContext, context => {
