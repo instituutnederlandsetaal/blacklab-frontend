@@ -15,29 +15,25 @@
 				<tr v-for="f in formats">
 					<td>{{ f.shortId }}</td>
 					<td>{{ f.displayName }}</td>
-					<td><a role="button" class="fa fa-fw fa-pencil" :title="`Edit format '${f.displayName}'`" @click="$emit('edit', f.id)"></a></td>
-					<td><a role="button" class="fa fa-fw fa-trash" :title="`Delete format '${f.displayName}'`" @click="$emit('delete', f.id)"></a></td>
+					<td><a role="button" class="fa fa-fw fa-pencil" :title="`Edit format '${f.displayName}'`" @click="emit('edit', f.id)"></a></td>
+					<td><a role="button" class="fa fa-fw fa-trash" :title="`Delete format '${f.displayName}'`" @click="emit('delete', f.id)"></a></td>
 				</tr>
 			</tbody>
 		</table>
-		<button type="button" class="btn btn-lg btn-default" @click="$emit('create')">New format</button>
+		<button type="button" class="btn btn-lg btn-default" @click="emit('create')">New format</button>
 	</div>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
-
+<script setup lang="ts">
 import type { NormalizedFormat } from '@/types/apptypes';
 
 import Spinner from '@/shared/ui/Spinner.vue';
-export default defineComponent({
-	components: { Spinner },
-	props: {
-		formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
-		loading: Boolean,
-	},
-});
+defineProps<{ formats: NormalizedFormat[]; loading?: boolean }>();
+const emit = defineEmits<{
+	create: [];
+	edit: [id: string];
+	delete: [id: string];
+}>();
 </script>
 
 <style>

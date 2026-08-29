@@ -27,7 +27,8 @@
 						</td>
 						<td class="corpus-name">
 							<router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`"
-								>{{ corpusDisplayName(corpus) }} {{ corpus.statusText }}</router-link
+								>{{ withExtraInfo.some(c => c.id !== corpus.id && c.displayName === corpus.displayName) ? `${corpus.displayName} (${corpus.id})` : corpus.displayName }}
+								{{ corpus.statusText }}</router-link
 							>
 						</td>
 						<debug
@@ -40,14 +41,14 @@
 									role="button"
 									:title="`Upload documents to the '${corpus.displayName}' corpus`"
 									:class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex ? 'disabled' : ''}`"
-									@click="$emit('upload', corpus.id)"
+									@click="emit('upload', corpus.id)"
 								></a>
 							</td>
 							<td>
-								<a role="button" :title="`Share the '${corpus.displayName}' corpus`" class="icon fa fa-fw fa-user-plus" @click="$emit('share', corpus.id)"></a>
+								<a role="button" :title="`Share the '${corpus.displayName}' corpus`" class="icon fa fa-fw fa-user-plus" @click="emit('share', corpus.id)"></a>
 							</td>
 							<td>
-								<a role="button" :title="`Delete the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-trash ${!corpus.canIndex ? 'disabled' : ''}`" @click="$emit('delete', corpus.id)"></a>
+								<a role="button" :title="`Delete the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-trash ${!corpus.canIndex ? 'disabled' : ''}`" @click="emit('delete', corpus.id)"></a>
 							</td>
 						</template>
 						<td>
@@ -55,12 +56,12 @@
 						</td>
 					</tr>
 					<tr v-if="details[corpus.id]">
-						<td :colspan="(isPrivate ? 7 : 4) + (debug ? 1 : 0)">
+						<td :colspan="(isPrivate ? 7 : 4) + (debugEnabled ? 1 : 0)">
 							<table>
 								<tbody>
-									<tr :title="corpus.timeModifiedFull">
+									<tr :title="corpus.timeModified">
 										<th>Last modified</th>
-										<td>{{ corpus.timeModified }}</td>
+										<td>{{ dateOnly(corpus.timeModified) }}</td>
 									</tr>
 									<!-- If the corpus has a format and the format is in the list, corpus.format != null, and the format is ours. (blacklab only returns our own formats.) -->
 									<tr v-if="isPrivate">
@@ -89,7 +90,7 @@
 			</tbody>
 		</table>
 		<div v-if="isPrivate">
-			<button v-if="canCreateCorpus" class="btn btn-default btn-lg" id="create-corpus" type="button" @click="$emit('create')">New corpus</button>
+			<button v-if="canCreateCorpus" class="btn btn-default btn-lg" id="create-corpus" type="button" @click="emit('create')">New corpus</button>
 			<div v-else class="text-danger" style="padding-left: 8px">
 				<em>You have reached the private corpora limit.<br />You will have to delete one of your corpora before you may create another.</em>
 			</div>
@@ -97,13 +98,12 @@
 	</div>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, reactive } from 'vue';
 
 import { type NormalizedFormat, type NormalizedIndexBase } from '@/types/apptypes';
 
-import debug from '@/shared/debug/debug';
+import debugEnabled from '@/shared/debug/debug';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 
@@ -111,102 +111,65 @@ type IndexWithExtraInfo = NormalizedIndexBase & {
 	canSearch: boolean;
 	canIndex: boolean;
 	format: NormalizedFormat | undefined;
-	searchUrl: string;
 	sizeString: string;
 	statusText: string;
-	timeModified: string;
-	timeModifiedFull: string;
 };
 
-export default defineComponent({
-	components: { Spinner },
-	props: {
-		corpora: { type: Array as PropType<NormalizedIndexBase[]>, required: true },
-		formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
-		title: String,
-		isPrivate: Boolean,
-		canCreateCorpus: Boolean,
-		loading: Boolean,
-	},
-	data: () => ({
-		details: {} as Record<string, boolean>,
+const props = defineProps<{
+	corpora: NormalizedIndexBase[];
+	formats: NormalizedFormat[];
+	title?: string;
+	isPrivate?: boolean;
+	canCreateCorpus?: boolean;
+	loading?: boolean;
+}>();
+const emit = defineEmits<{
+	upload: [id: string];
+	share: [id: string];
+	delete: [id: string];
+	create: [];
+}>();
+const details = reactive<Record<string, boolean>>({});
+
+function abbrNumber(n: number | null | undefined) {
+	if (n == null) return '';
+	let unit = '';
+	if (n >= 1e9) {
+		n = Math.round(n / 1e8) / 10;
+		unit = 'G';
+	} else if (n >= 1e6) {
+		n = Math.round(n / 1e5) / 10;
+		unit = 'M';
+	} else if (n >= 1e3) {
+		n = Math.round(n / 1e2) / 10;
+		unit = 'K';
+	}
+	return String(n).replace(/\./, ',') + unit;
+}
+
+/** Format a BlackLab timestamp as day-month-year. */
+function dateOnly(dateTimeString: string) {
+	return dateTimeString ? dateTimeString.replace(/^(\d+)-(\d+)-(\d+) .*$/, '$3-$2-$1') : '01-01-1970';
+}
+
+const withExtraInfo = computed<IndexWithExtraInfo[]>(() =>
+	props.corpora.map(corpus => {
+		let statusText: string = corpus.status;
+		if (statusText === 'indexing') {
+			statusText = ` (indexing) - ${corpus.indexProgress!.filesProcessed} files, ${corpus.indexProgress!.docsDone} documents, and ${corpus.indexProgress!.tokensProcessed} tokens indexed so far...`;
+		} else {
+			statusText = corpus.status === 'available' ? '' : ` (${statusText})`;
+		}
+		return {
+			...corpus,
+			canSearch: corpus.status === 'available',
+			canIndex: corpus.status !== 'indexing' && corpus.status !== 'opening',
+			format: props.formats.find(f => f.id === corpus.documentFormat),
+			sizeString: abbrNumber(corpus.tokenCount),
+			statusText,
+		};
 	}),
-	computed: {
-		debug(): boolean {
-			return debug.value;
-		},
-		withExtraInfo(): IndexWithExtraInfo[] {
-			// generate some data we need for rendering
-			return this.corpora.map<IndexWithExtraInfo>(corpus => {
-				let statusText: string = corpus.status;
-				if (statusText === 'indexing') {
-					statusText =
-						' (indexing) - ' +
-						corpus.indexProgress!.filesProcessed +
-						' files, ' +
-						corpus.indexProgress!.docsDone +
-						' documents, and ' +
-						corpus.indexProgress!.tokensProcessed +
-						' tokens indexed so far...';
-				} else if (corpus.status !== 'available') {
-					statusText = ' (' + statusText + ')';
-				} else {
-					statusText = '';
-				}
-
-				const format = this.formats.find(f => f.id === corpus.documentFormat)!;
-
-				return {
-					...corpus,
-					canSearch: corpus.status === 'available',
-					canIndex: corpus.status !== 'indexing' && corpus.status !== 'opening',
-					format,
-					searchUrl: CONTEXT_URL + '/' + corpus.id + '/search/',
-					sizeString: this.abbrNumber(corpus.tokenCount),
-					statusText,
-					timeModified: this.dateOnly(corpus.timeModified),
-					timeModifiedFull: corpus.timeModified,
-				};
-			});
-		},
-	},
-	methods: {
-		corpusDisplayName(corpus: IndexWithExtraInfo) {
-			// Check if corpus displayName is unique
-			const otherCorpora = this.withExtraInfo.filter(c => c.id !== corpus.id);
-			const isUnique = otherCorpora.every(c => c.displayName !== corpus.displayName);
-			return isUnique ? corpus.displayName : corpus.displayName + ' (' + corpus.id + ')';
-		},
-		// 2695798 becomes 2,6M, etc.
-		abbrNumber(n: number | null | undefined) {
-			if (n == null) {
-				return '';
-			}
-			let unit = '';
-			if (n >= 1e9) {
-				n = Math.round(n / 1e8) / 10;
-				unit = 'G';
-			} else if (n >= 1e6) {
-				n = Math.round(n / 1e5) / 10;
-				unit = 'M';
-			} else if (n >= 1e3) {
-				n = Math.round(n / 1e2) / 10;
-				unit = 'K';
-			}
-			return String(n).replace(/\./, ',') + unit;
-		},
-		// Return only the date part of a date/time string,
-		// and flip it around, e.g.:
-		// "1970-02-01 00:00:00" becomes "01-02-1970"
-		dateOnly(dateTimeString: string) {
-			if (dateTimeString) {
-				return dateTimeString.replace(/^(\d+)-(\d+)-(\d+) .*$/, '$3-$2-$1');
-			} else {
-				return '01-01-1970';
-			}
-		},
-	},
-});
+);
 </script>
 
 <style lang="scss">
