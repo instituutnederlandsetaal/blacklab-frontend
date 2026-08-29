@@ -26,13 +26,10 @@ function findUnavailableAnnotation(group: CqlAttributeGroupData, config: QueryBu
 
 function validateRepeatBounds(token: QueryBuilderFieldState['tokens'][number]): string | undefined {
 	const { minRepeats, maxRepeats } = token.properties;
-	for (const [name, value] of [
-		['minimum', minRepeats],
-		['maximum', maxRepeats],
-	] as const) {
-		if (!Number.isNaN(value) && (!Number.isInteger(value) || value < 0)) return `Querybuilder repeat ${name} must be a non-negative integer.`;
-	}
-	if (!Number.isNaN(minRepeats) && !Number.isNaN(maxRepeats) && minRepeats > maxRepeats) return 'Querybuilder repeat minimum cannot exceed its maximum.';
+	const invalid =
+		!Number.isNaN(minRepeats) && (!Number.isInteger(minRepeats) || minRepeats < 0) ? 'minimum' : !Number.isNaN(maxRepeats) && (!Number.isInteger(maxRepeats) || maxRepeats < 0) ? 'maximum' : null;
+	if (invalid) return `Querybuilder repeat ${invalid} must be a non-negative integer.`;
+	if (minRepeats > maxRepeats) return 'Querybuilder repeat minimum cannot exceed its maximum.';
 }
 
 function attributeToPredicate(attribute: CqlAttributeData): CqlAnnotationNode | null {
@@ -47,12 +44,8 @@ function attributeToPredicate(attribute: CqlAttributeData): CqlAnnotationNode | 
 	});
 }
 
-function groupEntryToPredicate(entry: CqlGroupEntry): CqlAnnotationNode | null {
-	return isCqlAttributeData(entry) ? attributeToPredicate(entry) : groupToPredicate(entry);
-}
-
 function groupToPredicate(group: CqlAttributeGroupData): CqlAnnotationNode | null {
-	const children = group.entries.map(groupEntryToPredicate).filter((child): child is CqlAnnotationNode => child != null);
+	const children = group.entries.map(entry => (isCqlAttributeData(entry) ? attributeToPredicate(entry) : groupToPredicate(entry))).filter((child): child is CqlAnnotationNode => child != null);
 	if (!children.length) return null;
 	if (children.length === 1) return children[0];
 	return booleanNode(group.operator === '|' ? 'or' : 'and', children);
@@ -122,17 +115,17 @@ const entryCodec: PersistenceCodec<CqlGroupEntry> = lazy(() =>
 	),
 );
 
-const groupCodec: PersistenceCodec<CqlAttributeGroupData> = lazy(() =>
-	object({
-		operator: operatorCodec.default('&').at('o'),
-		entries: array(entryCodec).default([]).at('e'),
-	}).transform<CqlAttributeGroupData>({
-		encode: group => ({ operator: group.operator, entries: group.entries }),
-		decode: group => ({ ...group, id: restoredId('group') }),
-	}),
-);
+const groupCodec: PersistenceCodec<CqlAttributeGroupData> = object({
+	operator: operatorCodec.default('&').at('o'),
+	entries: array(entryCodec).default([]).at('e'),
+}).transform<CqlAttributeGroupData>({
+	encode: group => ({ operator: group.operator, entries: group.entries }),
+	decode: group => ({ ...group, id: restoredId('group') }),
+});
 
-const repeatCodec = number().default(1).omitWhen(Number.isNaN);
+const repeatCodec = number()
+	.transform<number>({ encode: value => (Number.isNaN(value) ? -1 : value), decode: value => (value === -1 ? Number.NaN : value) })
+	.default(1);
 const tokenCodec = object({
 	optional: bool().default(false).at('o'),
 	minRepeats: repeatCodec.at('n'),

@@ -36,8 +36,9 @@ import {
 	type FieldControllerProps,
 	type FormEmission,
 } from '@/features/form';
+import { compileCql } from '@/features/form/model/compile/query-artifact';
 import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
-import { filter } from '@/features/form/model/types/form-query-ir';
+import { filter, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 
@@ -943,6 +944,28 @@ describe('controller persistence codecs', () => {
 			},
 		],
 	};
+	function repeatState(minRepeats: number, maxRepeats: number, optional = false): CqlQueryBuilderData {
+		return {
+			tokens: [
+				{
+					id: 'repeat_token',
+					properties: { optional, minRepeats, maxRepeats, beginOfSentence: false, endOfSentence: false },
+					rootAttributeGroup: {
+						id: 'repeat_group',
+						operator: '&',
+						entries: [{ id: 'repeat_attribute', annotationId: 'word', comparator: '=', values: ['water'], caseSensitive: false }],
+					},
+				},
+			],
+		};
+	}
+
+	function compileQueryBuilderState(state: CqlQueryBuilderData): string | null {
+		const emissions: FormEmission[] = [];
+		queryBuilderController.collect(queryBuilderConfig, context, state, (name, value) => emissions.push({ name, value } as FormEmission));
+		const pattern = emissions.find(emission => emission.name === 'patt')?.value as CqlPatternNode | undefined;
+		return pattern ? compileCql(pattern) : null;
+	}
 
 	function stripQueryBuilderIds(value: CqlQueryBuilderData): CqlQueryBuilderData {
 		return {
@@ -1198,6 +1221,29 @@ describe('controller persistence codecs', () => {
 		expect(stripQueryBuilderIds(restored)).toEqual(stripQueryBuilderIds(queryBuilderState));
 	});
 
+	test.each([
+		{ name: 'default', min: 1, max: 1, optional: false, cql: '[word="water"]' },
+		{ name: 'exact', min: 2, max: 2, optional: false, cql: '[word="water"]{2}' },
+		{ name: 'finite range', min: 2, max: 4, optional: false, cql: '[word="water"]{2,4}' },
+		{ name: 'open minimum', min: Number.NaN, max: 4, optional: false, cql: '[word="water"]{,4}' },
+		{ name: 'open maximum', min: 2, max: Number.NaN, optional: false, cql: '[word="water"]{2,}' },
+		{ name: 'both open', min: Number.NaN, max: Number.NaN, optional: false, cql: '[word="water"]' },
+		{ name: 'optional open', min: Number.NaN, max: Number.NaN, optional: true, cql: '[word="water"]?' },
+		{ name: 'optional finite', min: 2, max: 4, optional: true, cql: '[word="water"]{2,4}?' },
+	])('round-trips $name repeat bounds and CQL', ({ min, max, optional, cql }) => {
+		const state = repeatState(min, max, optional);
+		const encoded = encode(queryBuilderController, state, queryBuilderConfig)!;
+		const restored = restore(queryBuilderController, encoded, queryBuilderConfig) as CqlQueryBuilderData;
+		const restoredProperties = restored.tokens[0].properties;
+
+		expect(compileQueryBuilderState(state)).toBe(cql);
+		expect(compileQueryBuilderState(restored)).toBe(cql);
+		expect(Object.is(restoredProperties.minRepeats, min)).toBe(true);
+		expect(Object.is(restoredProperties.maxRepeats, max)).toBe(true);
+		expect(encoded.includes('n=-1')).toBe(Number.isNaN(min));
+		expect(encoded.includes('x=-1')).toBe(Number.isNaN(max));
+	});
+
 	test('query-builder restoration regenerates runtime ids', () => {
 		const encoded = encode(queryBuilderController, queryBuilderState, queryBuilderConfig);
 		const restored = restore(queryBuilderController, encoded!, queryBuilderConfig) as CqlQueryBuilderData;
@@ -1224,13 +1270,20 @@ describe('controller persistence codecs', () => {
 	});
 
 	test.each([
-		{ persistedMaximum: '-1', expected: 'Querybuilder repeat maximum must be a non-negative integer.' },
+		{ persistedMaximum: '-2', expected: 'Querybuilder repeat maximum must be a non-negative integer.' },
 		{ persistedMaximum: '1.5', expected: 'Querybuilder repeat maximum must be a non-negative integer.' },
 		{ persistedMaximum: '0', expected: 'Querybuilder repeat minimum cannot exceed its maximum.' },
 	])('query-builder restoration rejects repeat maximum $persistedMaximum', ({ persistedMaximum, expected }) => {
 		const encoded = encode(queryBuilderController, queryBuilderState, queryBuilderConfig)!;
 
 		expect(() => restore(queryBuilderController, encoded.replace('x=3', `x=${persistedMaximum}`), queryBuilderConfig)).toThrow(expected);
+	});
+
+	test.each([
+		{ min: -1, max: 2, bound: 'minimum' },
+		{ min: 0, max: -1, bound: 'maximum' },
+	])('query-builder persistence rejects a negative runtime $bound', ({ min, max, bound }) => {
+		expect(() => encode(queryBuilderController, repeatState(min, max), queryBuilderConfig)).toThrow(`Querybuilder repeat ${bound} must be a non-negative integer.`);
 	});
 
 	test('query-builder persistence omits its default state', () => {
