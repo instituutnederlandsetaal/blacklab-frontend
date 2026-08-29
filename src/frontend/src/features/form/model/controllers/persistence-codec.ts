@@ -398,7 +398,7 @@ export function record<Value, Context = any>(valueCodec: PersistenceCodec<Value,
 	); // Records require framing when nested because they own `;` and `:`.
 }
 
-function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape): PersistenceCodec<ShapeState<Shape>, Context> {
+export function object<Shape extends CodecShape, Context = any>(shape: Shape): PersistenceCodec<ShapeState<Shape>, Context> {
 	// Validate the shape once at construction instead of rediscovering collisions
 	// during every encode/decode operation.
 	const wireKeys = new Set<string>();
@@ -427,8 +427,6 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape): Per
 				const childKey = placement.kind === 'key' ? (placement.key ?? stateKey) : undefined;
 				entries.push({ root, key: childKey, value: encoded, codec: child });
 			}
-			const rootEntries = entries.filter(entry => entry.root);
-			if (rootEntries.length > 1) codecError('An object codec can only encode one root property.');
 			return entries
 				.sort((left, right) => Number(right.root) - Number(left.root))
 				.map(entry => (entry.root ? encodeEmbedded(entry.codec, entry.value, ';=') : `${entry.key}=${encodeEmbedded(entry.codec, entry.value, ';')}`))
@@ -457,27 +455,20 @@ function createObjectCodec<Shape extends CodecShape, Context>(shape: Shape): Per
 			// missing, and unsupported keys deterministic regardless of shape order.
 			const result = new Map<string, unknown>();
 			const consumed = new Set<string>();
-			let acceptsRoot = false;
 			for (const [stateKey, child] of Object.entries(shape)) {
 				const placement = child._placement;
 				const isRoot = placement.kind === 'root';
-				acceptsRoot ||= isRoot;
-				const childKey = placement.kind === 'key' ? (placement.key ?? stateKey) : undefined;
-				const key = childKey;
+				const key = placement.kind === 'key' ? (placement.key ?? stateKey) : undefined;
 				const childPayload = isRoot ? root : named.get(key!);
 				if (key && named.has(key)) consumed.add(key);
 				result.set(stateKey, decodeEmbedded(child, childPayload ?? null, context, isRoot ? ';=' : ';'));
 			}
-			if (root != null && !acceptsRoot) codecError('Object contains an unsupported root value.');
+			if (root != null && rootProperties === 0) codecError('Object contains an unsupported root value.');
 			for (const key of named.keys()) if (!consumed.has(key)) codecError(`Unsupported object key '${key}'.`);
 			return Object.fromEntries(result) as ShapeState<Shape>;
 		},
 	};
 	return new PersistenceCodec(functions, { structured: true });
-}
-
-export function object<Shape extends CodecShape, Context = any>(shape: Shape): PersistenceCodec<ShapeState<Shape>, Context> {
-	return createObjectCodec(shape);
 }
 
 export function variant<State, Context = any>(

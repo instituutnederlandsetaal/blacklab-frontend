@@ -1013,6 +1013,14 @@ describe('controller persistence codecs', () => {
 		expect(codec.decode(encoded, undefined)).toEqual(state);
 	});
 
+	test('object codecs encode a root property before named properties regardless of shape order', () => {
+		const codec = object({ named: scalar().at('n'), root: scalar().atRoot() });
+		const state = { named: 'named', root: 'root' };
+
+		expect(codec.encode(state, undefined)).toBe('root;n=named');
+		expect(codec.decode('root;n=named', undefined)).toEqual(state);
+	});
+
 	test('escaped arrays round-trip reserved characters successfully', () => {
 		const codec = array(scalar());
 		const state = ['plain', 'comma,value', 'semi;value', 'equals=value', 'brace{value}', 'slash\\value'];
@@ -1059,6 +1067,8 @@ describe('controller persistence codecs', () => {
 	test('strict object codecs reject duplicate and unsupported keys', () => {
 		expect(() => object({ value: scalar().at('v') }).decode('v=one;v=two', undefined)).toThrow("Duplicate object key 'v'.");
 		expect(() => object({ first: scalar().at('v'), second: scalar().at('v') })).toThrow("Object persistence key 'v' is mapped more than once.");
+		expect(() => object({ first: scalar().atRoot(), second: scalar().atRoot() })).toThrow('An object codec can only define one root property.');
+		expect(() => object({ value: scalar().atRoot() }).decode('one;two', undefined)).toThrow('Duplicate root object value.');
 		expect(() => object({ value: scalar().at('v') }).decode('v=one;unknown=one', undefined)).toThrow("Unsupported object key 'unknown'.");
 	});
 
