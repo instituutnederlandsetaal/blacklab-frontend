@@ -133,7 +133,7 @@ import { computed, ref, watch } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations, type ResultHitAddon } from '@/customization-api/internal/internal-api';
-import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
+import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 
@@ -154,8 +154,7 @@ const blacklab = useBlackLabApi();
 const corpus = useCorpus();
 const customizations = useCustomizations();
 
-defineOptions({ name: 'HitRowDetails' });
-const props = withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
+const props = defineProps<IRowProps<HitRowData>>();
 
 const sentenceRequest = ref<CancelableRequest<BLTypes.BLHit> | null>(null);
 const sentence = ref<BLTypes.BLHit | null>(null);

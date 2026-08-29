@@ -43,7 +43,7 @@ import { computed, watch } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
-import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
+import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { makeRows } from '@/pages/search/results/table/table-layout';
 import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
@@ -53,8 +53,7 @@ import { useBlackLabApi } from '@/shared/api';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
-defineOptions({ name: 'GroupRowDetails' });
-const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);
+const props = defineProps<IRowProps<GroupRowData>>();
 
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();

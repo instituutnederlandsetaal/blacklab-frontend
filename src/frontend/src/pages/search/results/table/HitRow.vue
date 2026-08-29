@@ -30,14 +30,13 @@
 </template>
 
 <script setup lang="ts">
-import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
+import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { HitRowData } from '@/pages/search/results/table/table-layout';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 
-defineOptions({ name: 'HitRow' });
-withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
+defineProps<IRowProps<HitRowData>>();
 const emit = defineEmits<{
 	hover: [relationKeys: string[]];
 	unhover: [];

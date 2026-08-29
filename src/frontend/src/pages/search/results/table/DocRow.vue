@@ -15,12 +15,11 @@
 </template>
 
 <script setup lang="ts">
-import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
+import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { DocRowData } from '@/pages/search/results/table/table-layout';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
-defineOptions({ name: 'DocRow' });
-withDefaults(defineProps<IRowProps<DocRowData>>(), IRowDefaultProps);
+defineProps<IRowProps<DocRowData>>();
 </script>
 
 <style lang="scss">

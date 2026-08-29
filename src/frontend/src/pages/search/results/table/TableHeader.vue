@@ -35,7 +35,6 @@ import type { ColumnDef } from '@/pages/search/results/table/table-layout';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-defineOptions({ name: 'TableHeader' });
 defineProps<{
 	disabled: boolean;
 	col: ColumnDef;

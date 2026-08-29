@@ -10,11 +10,10 @@
 </template>
 
 <script setup lang="ts">
-import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
+import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { DocRowData } from '@/pages/search/results/table/table-layout';
 
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
-defineOptions({ name: 'DocRowDetails' });
-const props = withDefaults(defineProps<IRowProps<DocRowData>>(), IRowDefaultProps);
+defineProps<IRowProps<DocRowData>>();
 </script>

@@ -96,9 +96,6 @@ import HitRow from '@/pages/search/results/table/HitRow.vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
 
-defineOptions({
-	name: 'GenericTable',
-});
 const emit = defineEmits<{
 	viewgroup: [id: string, displayname: string];
 	changeSort: [sortProp: string];

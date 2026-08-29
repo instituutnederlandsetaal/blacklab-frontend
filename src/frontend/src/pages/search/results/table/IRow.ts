@@ -21,6 +21,3 @@ export type IRowProps<T> = {
 	hoverMatchInfos?: string[];
 	row: T;
 };
-export const IRowDefaultProps = {
-	hoverMatchInfos: () => [],
-} satisfies Partial<{ [K in keyof IRowProps<any>]: () => IRowProps<any>[K] }>;
