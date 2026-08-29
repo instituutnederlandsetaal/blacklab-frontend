@@ -39,12 +39,12 @@ export function startCustomizationInterop() {
 		}),
 	);
 
-	const js = useCustomJs(
+	useCustomJs(
 		computed(() => {
+			if (!pageBootstrap.settled.value) return [];
 			const js = context.value?.config.customJs ?? {};
 			return sortCustomizationEntries([...(js[''] ?? []), ...(pageName.value ? (js[pageName.value] ?? []) : [])]);
 		}),
-		{ immediate: false },
 	);
 
 	useFavicon(
@@ -56,11 +56,4 @@ export function startCustomizationInterop() {
 			rel: 'icon',
 		},
 	);
-
-	watchEffect(() => {
-		// wait for rendering of page to complete before inserting js (if required)
-		// Otherwise, the js may miss things in the page.
-		if (pageBootstrap.settled.value) js.enable();
-		else js.disable();
-	});
 }

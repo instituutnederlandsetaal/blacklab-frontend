@@ -29,17 +29,13 @@ function stopWaitingForCss(link: HTMLLinkElement) {
 function _useInsertableContent<T>(p: { insert: (content: T[]) => void; remove: () => void; content: MaybeRefOrGetter<T[]>; immediate?: boolean }) {
 	const enabled = ref(p.immediate ?? true);
 	watch(
-		() => toValue(p.content),
-		content => {
-			if (!enabled.value) return;
+		[enabled, () => toValue(p.content)],
+		([enabled, content]) => {
 			p.remove();
-			p.insert(content);
+			if (enabled) p.insert(content);
 		},
+		{ immediate: true },
 	);
-	watch(enabled, enabled => {
-		if (!enabled) p.remove();
-		else p.insert(toValue(p.content));
-	});
 
 	onScopeDispose(p.remove);
 

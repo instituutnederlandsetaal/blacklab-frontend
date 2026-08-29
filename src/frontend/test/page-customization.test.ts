@@ -15,6 +15,50 @@ describe('page customization', () => {
 		document.head.querySelectorAll('[data-page-customization-css]').forEach(element => element.remove());
 	});
 
+	test('inserts initial static and prepopulated content', () => {
+		const scope = effectScope();
+		scope.run(() => {
+			useCustomCss([{ index: 0, attributes: { href: '/initial.css', ref: 'stylesheet' } }]);
+			useCustomJs(ref([{ index: 0, attributes: { src: '/initial.js' } }]));
+		});
+
+		try {
+			expect(document.head.querySelector('link[data-page-customization-css]')?.getAttribute('href')).toBe('/initial.css');
+			expect(document.body.querySelector('script[data-page-customization-js]')?.getAttribute('src')).toBe('/initial.js');
+		} finally {
+			scope.stop();
+		}
+	});
+
+	test('inserts once when content and enablement change in the same tick', async () => {
+		const entries = ref<CFCustomJsEntry[]>([]);
+		const scope = effectScope();
+		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		const appendChild = vi.spyOn(document.body, 'appendChild');
+
+		try {
+			entries.value = [{ index: 0, attributes: { src: '/enabled.js' } }];
+			customJs.enable();
+			await nextTick();
+
+			expect(appendChild).toHaveBeenCalledOnce();
+			expect(document.body.querySelector('script[data-page-customization-js]')?.getAttribute('src')).toBe('/enabled.js');
+
+			customJs.disable();
+			entries.value = [{ index: 0, attributes: { src: '/latest.js' } }];
+			await nextTick();
+			expect(document.body.querySelectorAll('script[data-page-customization-js]')).toHaveLength(0);
+
+			customJs.enable();
+			await nextTick();
+			expect(appendChild).toHaveBeenCalledTimes(2);
+			expect(document.body.querySelector('script[data-page-customization-js]')?.getAttribute('src')).toBe('/latest.js');
+		} finally {
+			appendChild.mockRestore();
+			scope.stop();
+		}
+	});
+
 	test('notifies once after all custom stylesheets settle', async () => {
 		const entries = ref<CFCustomCssEntry[]>([]);
 		const listener = vi.fn();
