@@ -2,11 +2,11 @@
 	<Modal
 		title="New import format"
 		:closeEnabled="!uploading"
-		:confirmEnabled="!uploading"
+		:confirmEnabled="!uploading && !downloading"
 		:confirmMessage="uploading ? 'Saving...' : dirty ? 'Save*' : 'Save'"
 		fullscreen
 		@confirm="uploadFormat"
-		@close="$emit('close')"
+		@close="emit('close')"
 	>
 		<div style="display: flex; flex-direction: column; height: 100%; position: relative; gap: 15px" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
 			<!-- Drag overlay -->
@@ -57,7 +57,8 @@
 								allowHtml
 								data-menu-width="auto"
 								container="body"
-								v-model="formatPresetName"
+								:modelValue="formatPresetName"
+								@update:modelValue="replacePreset"
 							/>
 							<button @click="downloadFormat" :disabled="!formatPresetName || downloading" class="btn btn-primary" style="border-top-left-radius: 0; border-bottom-left-radius: 0">Load</button>
 						</div>
@@ -70,7 +71,7 @@
 				{{ error }}
 			</div>
 
-			<MonacoEditor style="flex-grow: 1" :options="editorOptions" :language="formatLanguage" :filename="fullFormatName" v-model="formatContents" @update:modelValue="dirty = true" />
+			<MonacoEditor style="flex-grow: 1" :options="editorOptions" :language="formatLanguage" :filename="fullFormatName" v-model="formatContents" @update:modelValue="markLocalEdit" />
 		</div>
 		<template #footer>
 			<h5 class="pull-left">
@@ -81,171 +82,171 @@
 	</Modal>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { defineComponent } from 'vue';
-import type { PropType } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, ref } from 'vue';
 
 import type { NormalizedFormat } from '@/types/apptypes';
+import type { BLFormatContent } from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
-import type { ApiError } from '@/shared/api/lib/api-types';
+import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import type { Option, Options } from '@/shared/utils/options';
 
 import Modal from '@/shared/ui/Modal.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-export default defineComponent({
-	components: {
-		Modal,
-		SelectPicker,
-		// this causes the monaco editor to become its own js bundle, nice, since it's literally bigger than all of our other code combined
-		MonacoEditor: () => import('@/shared/ui/MonacoEditor.vue'),
-	},
-	props: {
-		/** When clicking the pencil to edit an existing format. */
-		format: { type: Object as PropType<undefined | NormalizedFormat | null>, required: false },
-		publicFormats: { type: Array as PropType<NormalizedFormat[]>, required: true },
-		privateFormats: { type: Array as PropType<NormalizedFormat[]>, required: true },
-		loading: { type: Boolean, required: true },
-	},
-	data: () => ({
-		formatName: '',
-		formatPresetName: '',
-		formatContents: '',
-		formatLanguage: 'json',
-		// during upload
-		error: '',
-		uploading: false,
-		downloading: false,
-		dirty: false,
+const props = defineProps<{
+	/** When clicking the pencil to edit an existing format. */
+	format?: NormalizedFormat | null;
+	publicFormats: NormalizedFormat[];
+	privateFormats: NormalizedFormat[];
+}>();
+const emit = defineEmits<{ close: []; create: []; success: [message: string] }>();
+const blacklab = useBlackLabApi();
+// This causes the Monaco editor to become its own bundle, since it is bigger than the rest of the application code combined.
+const MonacoEditor = defineAsyncComponent(() => import('@/shared/ui/MonacoEditor.vue'));
 
-		formatTypes: [
-			{
-				label: 'JSON',
-				value: 'json',
+const formatName = ref('');
+const formatPresetName = ref('');
+const formatContents = ref('');
+const formatLanguage = ref<'json' | 'yaml'>('json');
+const error = ref('');
+const uploading = ref(false);
+const downloading = ref(false);
+const dirty = ref(false);
+const dragActive = ref(false);
+let downloadRequest: CancelableRequest<BLFormatContent> | null = null;
+
+const formatTypes: Option[] = [
+	{ label: 'JSON', value: 'json' },
+	{ label: 'YAML', value: 'yaml' },
+];
+const editorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
+	automaticLayout: true,
+	minimap: { autohide: true },
+};
+const fullFormatName = computed(() => `${formatName.value || 'my-custom-format'}.blf.${formatLanguage.value}`);
+const formatOptions = computed<Options>(() => [
+	...(props.privateFormats.length ? [{ label: 'Custom', options: props.privateFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) }] : []),
+	...(props.publicFormats.length ? [{ label: 'Public', options: props.publicFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) }] : []),
+]);
+
+function cancelDownload() {
+	const request = downloadRequest;
+	downloadRequest = null;
+	request?.cancel();
+	if (request) downloading.value = false;
+}
+
+function replacePreset(value: string | string[] | null) {
+	cancelDownload();
+	formatPresetName.value = typeof value === 'string' ? value : '';
+}
+
+function downloadFormat() {
+	cancelDownload();
+	const presetName = formatPresetName.value;
+	if (!presetName) return;
+	downloading.value = true;
+	const request = (downloadRequest = blacklab.getFormatContent(presetName));
+	request
+		.then(
+			data => {
+				if (downloadRequest !== request) return;
+				const configFileType = data.configFileType.toLowerCase();
+				formatLanguage.value = (configFileType === 'yml' ? 'yaml' : configFileType) as typeof formatLanguage.value;
+				formatContents.value = data.configFile;
+				if (!formatName.value) formatName.value = presetName.split(':')[1] || presetName;
+				dirty.value = false;
 			},
-			{
-				label: 'YAML',
-				value: 'yaml',
+			(cause: ApiError) => {
+				if (downloadRequest === request) error.value = cause.message;
 			},
-		] as Option[],
-		dragActive: false,
-	}),
-	computed: {
-		fullFormatName(): string {
-			return `${this.formatName || 'my-custom-format'}.blf.${this.formatLanguage}`;
-		},
-		editorOptions(): monaco.editor.IStandaloneEditorConstructionOptions {
-			return {
-				automaticLayout: true,
-				minimap: { autohide: true },
-			};
-		},
-		formatOptions(): Options {
-			const r: Options = [];
-			if (this.privateFormats.length) r.push({ label: 'Custom', options: this.privateFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) });
-			if (this.publicFormats.length) r.push({ label: 'Public', options: this.publicFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) });
-			return r;
-		},
-	},
-	methods: {
-		downloadFormat() {
-			if (!this.formatPresetName) {
-				return;
+		)
+		.finally(() => {
+			if (downloadRequest === request) {
+				downloadRequest = null;
+				downloading.value = false;
 			}
-			const presetName = this.formatPresetName;
-			this.downloading = true;
+		});
+}
 
-			useBlackLabApi()
-				.getFormatContent(this.formatPresetName)
-				.then(data => {
-					let configFileType = data.configFileType.toLowerCase();
-					if (configFileType === 'yml') {
-						configFileType = 'yaml';
-					}
-					this.formatLanguage = configFileType;
-					this.formatContents = data.configFile;
+function markLocalEdit() {
+	cancelDownload();
+	dirty.value = true;
+}
 
-					if (!this.formatName) this.formatName = presetName.split(':')[1] || presetName; // default to the preset name
-					this.dirty = false;
-				})
-				.catch((e: ApiError) => (this.error = e.message))
-				.finally(() => (this.downloading = false));
-		},
-		loadFormatFromDisk(e: Event) {
-			const input = e.target as HTMLInputElement;
-			if (!input.files || !input.files.length) return;
-			const file = input.files[0];
-			const reader = new FileReader();
-			reader.onload = () => {
-				this.dirty = true;
-				this.formatContents = reader.result as string;
-				const parsedLanguage = file.name.split('.').pop()!.toLowerCase();
-				if (this.formatTypes.find(t => t.value === parsedLanguage)) this.formatLanguage = parsedLanguage;
+function readFile(file: File, loaded: () => void) {
+	const reader = new FileReader();
+	reader.onload = () => {
+		markLocalEdit();
+		formatContents.value = reader.result as string;
+		loaded();
+	};
+	reader.readAsText(file);
+}
 
-				this.formatName = file.name.split('.').shift()!;
-			};
-			reader.readAsText(file);
-			input.value = '';
-		},
-		onDragOver(e: DragEvent) {
-			if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length) {
-				const item = e.dataTransfer.items[0];
-				if (item.kind === 'file') {
-					this.dragActive = true;
-				}
-			}
-		},
-		onDragLeave(e: DragEvent) {
-			this.dragActive = false;
-		},
-		onDrop(e: DragEvent) {
-			this.dragActive = false;
-			if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
-			const file = e.dataTransfer.files[0];
-			const validExts = ['.yaml', '.yml', '.txt', '.text', '.json'];
-			const name = file.name.toLowerCase();
-			const isValid = validExts.some(ext => name.endsWith(ext));
-			if (!isValid) {
-				this.error = `File type not supported. Please drop a ${validExts.join(', ')} file.`;
-				return;
-			}
-			if (file.size > 100 * 1024) {
-				// 100kb
-				this.error = 'File is too large (max 100kb).';
-				return;
-			}
-			const reader = new FileReader();
-			reader.onload = () => {
-				this.dirty = true;
-				this.formatContents = reader.result as string;
-				// Set language based on extension
-				if (name.endsWith('.json')) this.formatLanguage = 'json';
-				else if (name.endsWith('.yaml') || name.endsWith('.yml')) this.formatLanguage = 'yaml';
-				else this.formatLanguage = 'json';
-				// Set name (strip extension)
-				this.formatName = file.name.replace(/\.(blf\.yaml|blf\.yml|yaml|yml|json|txt|text)$/i, '');
-			};
-			reader.readAsText(file);
-		},
-		uploadFormat() {
-			this.uploading = true;
-			useBlackLabApi()
-				.postFormat(`${this.formatName}.blf.${this.formatLanguage.toLowerCase()}`, this.formatContents)
-				.then(data => {
-					this.$emit('create');
-					this.$emit('success', data.status.message);
-					this.dirty = false;
-					this.error = '';
-				})
-				.catch((e: ApiError) => (this.error = e.message))
-				.finally(() => (this.uploading = false));
-		},
-	},
-	created() {
-		this.formatPresetName = this.format?.id ?? '';
-		this.downloadFormat();
-	},
-});
+function loadFormatFromDisk(event: Event) {
+	const input = event.target as HTMLInputElement;
+	if (!input.files?.length) return;
+	const file = input.files[0];
+	readFile(file, () => {
+		const parsedLanguage = file.name.split('.').pop()!.toLowerCase();
+		if (formatTypes.find(type => type.value === parsedLanguage)) formatLanguage.value = parsedLanguage as typeof formatLanguage.value;
+		formatName.value = file.name.split('.').shift()!;
+	});
+	input.value = '';
+}
+
+function onDragOver(event: DragEvent) {
+	const item = event.dataTransfer?.items?.[0];
+	if (item?.kind === 'file') dragActive.value = true;
+}
+
+function onDragLeave() {
+	dragActive.value = false;
+}
+
+function onDrop(event: DragEvent) {
+	dragActive.value = false;
+	if (!event.dataTransfer?.files.length) return;
+	const file = event.dataTransfer.files[0];
+	const validExts = ['.yaml', '.yml', '.txt', '.text', '.json'];
+	const name = file.name.toLowerCase();
+	if (!validExts.some(ext => name.endsWith(ext))) {
+		error.value = `File type not supported. Please drop a ${validExts.join(', ')} file.`;
+		return;
+	}
+	if (file.size > 100 * 1024) {
+		error.value = 'File is too large (max 100kb).';
+		return;
+	}
+	readFile(file, () => {
+		formatLanguage.value = name.endsWith('.yaml') || name.endsWith('.yml') ? 'yaml' : 'json';
+		formatName.value = file.name.replace(/\.(blf\.yaml|blf\.yml|yaml|yml|json|txt|text)$/i, '');
+	});
+}
+
+function uploadFormat() {
+	uploading.value = true;
+	blacklab
+		.postFormat(`${formatName.value}.blf.${formatLanguage.value.toLowerCase()}`, formatContents.value)
+		.then(
+			data => {
+				emit('create');
+				emit('success', data.status.message);
+				dirty.value = false;
+				error.value = '';
+			},
+			(cause: ApiError) => (error.value = cause.message),
+		)
+		.finally(() => (uploading.value = false));
+}
+
+onBeforeUnmount(cancelDownload);
+if (props.format) {
+	formatPresetName.value = props.format.id;
+	downloadFormat();
+}
 </script>

@@ -40,17 +40,7 @@
 			<FormatsTable v-if="serverInfo.user.loggedIn" :formats="privateFormats" :loading="loadingFormats" @create="doCreateFormat" @edit="doEditFormat" @delete="doDeleteFormat" />
 
 			<!-- Modals -->
-			<ModalCreateFormat
-				v-if="modal === 'create-format'"
-				:publicFormats="publicFormats"
-				:privateFormats="privateFormats"
-				:loading="loadingFormats"
-				:format="format"
-				@create="refreshFormats"
-				@success="success"
-				@error="error"
-				@close="close"
-			/>
+			<ModalCreateFormat v-if="modal === 'create-format'" :publicFormats="publicFormats" :privateFormats="privateFormats" :format="format" @create="refreshFormats" @success="success" @close="close" />
 			<ModalCreateCorpus
 				v-if="modal === 'create-corpus'"
 				:publicFormats="publicFormats"
