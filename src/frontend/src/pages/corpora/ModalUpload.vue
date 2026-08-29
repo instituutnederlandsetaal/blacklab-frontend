@@ -1,5 +1,5 @@
 <template>
-	<Modal confirmMessage="Upload" :closeEnabled="!uploading || indexing" :confirmEnabled="canUpload" @confirm="upload" @close="$emit('close')">
+	<Modal confirmMessage="Upload" :closeEnabled="!uploading || indexing" :confirmEnabled="canUpload" @confirm="upload" @close="emit('close')">
 		<template #title
 			>Upload new data to corpus <em>{{ corpus.displayName }}</em></template
 		>
@@ -48,9 +48,8 @@
 		</div>
 	</Modal>
 </template>
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
 
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
@@ -59,97 +58,65 @@ import type { ApiError } from '@/shared/api/lib/api-types';
 
 import Modal from '@/shared/ui/Modal.vue';
 
-export default defineComponent({
-	components: { Modal },
-	props: {
-		corpus: { type: Object as PropType<NormalizedIndexBase>, required: true },
-		formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
-	},
-	data: () => ({
-		uploadProgress: 0,
-		uploadProgressMessage: '',
-		uploading: false,
-		indexing: false,
-		uploadError: '',
+const props = defineProps<{ corpus: NormalizedIndexBase; formats: NormalizedFormat[] }>();
+const emit = defineEmits<{ close: []; indexing: [corpusId: string]; success: [message: string] }>();
+const blacklab = useBlackLabApi();
 
-		documentFiles: null as FileList | null,
-		metadataFiles: null as FileList | null,
-	}),
-	computed: {
-		format(): NormalizedFormat | undefined {
-			return this.formats.find(f => f.id === this.corpus.documentFormat);
-		},
-		fileLabel(): string {
-			if (this.documentFiles?.length) {
-				return this.documentFiles.length == 1 ? this.documentFiles[0].name : this.documentFiles.length + ' document file(s)';
-			} else {
-				return 'Select documents';
-			}
-		},
-		metadataFileLabel(): string {
-			if (this.metadataFiles?.length) {
-				return this.metadataFiles.length == 1 ? this.metadataFiles[0].name : this.metadataFiles.length + ' linked file(s)';
-			} else {
-				return 'Select linked files';
-			}
-		},
-		canUpload(): boolean {
-			return !!this.documentFiles?.length && !this.uploading;
-		},
-		indexProgressMessage(): string | null {
-			const corpus = this.corpus;
-			if (corpus && corpus.status === 'indexing') {
-				const { filesProcessed: files, docsDone: docs, tokensProcessed: tokens } = corpus.indexProgress!;
-				return `${files} files, ' ${docs} documents, and ${tokens} tokens indexed so far...`;
-			}
-			return null;
-		},
-	},
-	methods: {
-		upload() {
-			const corpus = this.corpus;
+const uploadProgress = ref(0);
+const uploadProgressMessage = ref('');
+const uploading = ref(false);
+const indexing = ref(false);
+const uploadError = ref('');
+const documentFiles = ref<FileList | null>(null);
+const metadataFiles = ref<FileList | null>(null);
 
-			this.uploading = true;
-			this.uploadError = '';
-			this.uploadProgress = 0;
-			this.uploadProgressMessage = 'Connecting...';
-
-			// Uploads are a little annoying, the request "hangs" until indexing is complete.
-			// So what we do, we start the upload, once the progress hits 100% we start polling the index status.
-			// Then once the original request succeeds, we stop polling and show the success message.
-			const { request } = useBlackLabApi().postDocuments(corpus.id, Array.from(this.documentFiles || []), Array.from(this.metadataFiles || []), progress => this.handleUploadProgress(progress));
-
-			request
-				.then(r => {
-					// But if it does, close our model and pop a success message.
-					// do one more refresh, sometimes the regular refresh actually happens _before_ the indexing begins
-					this.$emit('indexing', this.corpus.id);
-					this.$emit('success', 'Data added to ' + this.corpus.displayName);
-					this.$emit('close');
-				})
-				.catch((e: ApiError) => {
-					const msg = e.message;
-					this.uploadError = msg;
-				})
-				.finally(() => {
-					this.uploading = false;
-					this.indexing = false;
-				});
-		},
-		handleUploadProgress(event: number): void {
-			const progress = event;
-			this.uploadProgressMessage = `Uploading... (${Math.floor(progress)}%)`;
-			this.uploadProgress = progress;
-
-			if (event === 100) {
-				this.uploadProgress = 100;
-				this.uploadProgressMessage = 'Upload complete, indexing...';
-				this.indexing = true;
-				this.$emit('indexing', this.corpus.id);
-			}
-		},
-	},
+const format = computed(() => props.formats.find(value => value.id === props.corpus.documentFormat));
+const fileLabel = computed(() =>
+	documentFiles.value?.length ? (documentFiles.value.length === 1 ? documentFiles.value[0].name : documentFiles.value.length + ' document file(s)') : 'Select documents',
+);
+const metadataFileLabel = computed(() =>
+	metadataFiles.value?.length ? (metadataFiles.value.length === 1 ? metadataFiles.value[0].name : metadataFiles.value.length + ' linked file(s)') : 'Select linked files',
+);
+const canUpload = computed(() => !!documentFiles.value?.length && !uploading.value);
+const indexProgressMessage = computed(() => {
+	const progress = props.corpus.status === 'indexing' ? props.corpus.indexProgress : null;
+	return progress ? `${progress.filesProcessed} files, ${progress.docsDone} documents, and ${progress.tokensProcessed} tokens indexed so far...` : null;
 });
+
+function upload() {
+	if (!canUpload.value) return;
+	uploading.value = true;
+	uploadError.value = '';
+	uploadProgress.value = 0;
+	uploadProgressMessage.value = 'Connecting...';
+
+	// The upload request settles only after indexing completes. Poll from upload completion so progress remains visible in the meantime.
+	blacklab
+		.postDocuments(props.corpus.id, Array.from(documentFiles.value || []), Array.from(metadataFiles.value || []), handleUploadProgress)
+		.then(
+			() => {
+				// Refresh once more because the first poll can run before indexing begins.
+				emit('indexing', props.corpus.id);
+				emit('success', 'Data added to ' + props.corpus.displayName);
+				emit('close');
+			},
+			(error: ApiError) => (uploadError.value = error.message),
+		)
+		.finally(() => {
+			uploading.value = false;
+			indexing.value = false;
+		});
+}
+
+function handleUploadProgress(progress: number) {
+	uploadProgress.value = progress;
+	uploadProgressMessage.value = `Uploading... (${Math.floor(progress)}%)`;
+	if (progress === 100) {
+		uploadProgressMessage.value = 'Upload complete, indexing...';
+		indexing.value = true;
+		emit('indexing', props.corpus.id);
+	}
+}
 </script>
 
 <style>
