@@ -1,36 +1,27 @@
 <template>
-	<div class="querysummary" ref="root">
+	<div class="querysummary">
 		{{ $t('results.querySummary.heading') }}<span class="small text-muted content" :title="summary">{{ summary.substr(0, 1000) }}</span>
 	</div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 
 import * as QueryStore from '@/features/search/model/query-state';
 
-export default defineComponent({
-	computed: {
-		pattern: QueryStore.get.patternSummary,
-		filters: QueryStore.get.filterSummary,
-		summary(): string {
-			if (!this.pattern && !this.filters) {
-				return this.$t('results.querySummary.allDocuments') as string;
-			}
+import { useI18n } from '@/shared/i18n';
 
-			let ret = '';
-			if (this.pattern) {
-				ret += this.pattern + ' ' + this.$t('results.querySummary.within') + ' ';
-			}
-			if (this.filters) {
-				ret += this.$t('results.querySummary.documentsWhere') + ' ' + this.filters;
-			} else {
-				ret += this.$t('results.querySummary.allDocuments');
-			}
+const translate = useI18n();
+const summary = computed(() => {
+	const pattern = QueryStore.get.patternSummary();
+	const filters = QueryStore.get.filterSummary();
+	if (!pattern && !filters) return translate.$t('results.querySummary.allDocuments');
 
-			return ret;
-		},
-	},
+	let ret = '';
+	if (pattern) ret += pattern + ' ' + translate.$t('results.querySummary.within') + ' ';
+	if (filters) ret += translate.$t('results.querySummary.documentsWhere') + ' ' + filters;
+	else ret += translate.$t('results.querySummary.allDocuments');
+	return ret;
 });
 </script>
 

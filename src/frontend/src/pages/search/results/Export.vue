@@ -20,28 +20,12 @@
 			<template v-if="downloadInProgress">&nbsp;<span class="fa fa-spinner fa-spin"></span>&nbsp;</template>
 			{{ $t('results.export.exportExcel') }}
 		</button>
-		<!-- <button type="button"  class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
-			<span class="caret"></span>
-		</button> -->
-		<!-- <ul class="dropdown-menu dropdown-menu-right" @click.stop>
-			<li><a class="checkbox" title="Adds a header describing the query used to generate these results.">
-				<label><input type="checkbox" v-model="exportSummary">Include summary</label></a>
-			</li>
-			<li><a class="checkbox"
-				title="Adds a header line declaring that the file is comma-separated,
-				for some versions of microsoft excel this is required to correctly display the file."
-			><label><input type="checkbox" v-model="exportSeparator">Export for excel</label></a></li>
-			<li v-if="isHits"><a class="checkbox"
-				title="Also export document metadata. Warning: this might result in very large exports!"
-			><label><input type="checkbox" v-model="exportHitMetadata">Export metadata</label></a></li>
-		</ul> -->
 	</div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import cloneDeep from 'clone-deep';
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
@@ -52,71 +36,61 @@ import { useBlackLabApi } from '@/shared/api';
 import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { ensureCompleteFieldName } from '@/shared/blacklab-helpers/parallel-helper';
 import { debugLog } from '@/shared/debug/debug';
+import { useI18n } from '@/shared/i18n';
 
-export default defineComponent({
-	props: {
-		results: { type: [Object, null] as PropType<BLSearchResult | null>, default: null },
-		type: { type: String as PropType<'hits' | 'docs'>, required: true },
-		annotations: { type: [Array, null] as PropType<string[] | null>, default: null },
-		metadata: { type: [Array, null] as PropType<string[] | null>, default: null },
+const {
+	results = null,
+	type,
+	annotations = null,
+	metadata = null,
+	disabled = false,
+} = defineProps<{
+	results?: BLSearchResult | null;
+	type: 'hits' | 'docs';
+	annotations?: string[] | null;
+	metadata?: string[] | null;
+	disabled?: boolean;
+}>();
+const corpus = useCorpus();
+const blacklab = useBlackLabApi();
+const customizations = useCustomizations();
+const translate = useI18n();
+const downloadInProgress = ref(false);
+const spanAttributesToExport = computed(() =>
+	Object.entries(corpus.value.relations.spans || {}).flatMap(([spanName, spanInfo]) =>
+		Object.keys(spanInfo.attributes || {})
+			.map(attrName => [spanName, attrName])
+			.filter(([elementName, attributeName]) => customizations.exportSpanAttribute({ elementName, attributeName }))
+			.map(([elementName, attributeName]) => `${elementName}.${attributeName}`),
+	),
+);
 
-		disabled: Boolean,
-	},
-	data: () => ({
-		corpus: useCorpus(),
-		blacklab: useBlackLabApi(),
-		customizations: useCustomizations(),
-		downloadInProgress: false,
-	}),
-	computed: {
-		spanAttributesToExport(): string[] {
-			const spans = Object.entries(this.corpus.relations.spans || {});
-			return spans.flatMap(([spanName, spanInfo]) =>
-				Object.keys(spanInfo.attributes || {})
-					.map(attrName => [spanName, attrName])
-					.filter(([spanName, attrName]) =>
-						this.customizations.exportSpanAttribute({
-							elementName: spanName,
-							attributeName: attrName,
-						}),
-					)
-					.map(([spanName, attrName]) => `${spanName}.${attrName}`),
-			);
-		},
-	},
-	methods: {
-		downloadCsv(excel: boolean) {
-			if (this.downloadInProgress || !this.results) {
-				return;
-			}
-			this.downloadInProgress = true;
-			const apiCall = this.type === 'hits' ? this.blacklab.getHitsCsv : this.blacklab.getDocsCsv;
-			const params = cloneDeep(getSearchParameters(this.results));
-			if (this.annotations) params.listvalues = this.annotations!.join(',');
-			if (this.metadata) params.listmetadatavalues = this.metadata.join(',');
-			params.listspanattributes = this.spanAttributesToExport.join(',');
-			(params as any).csvsepline = !!excel;
-			(params as any).csvsummary = true;
-			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
-				const summary = this.results?.summary;
-				const defaultField = (summary && hasPatternInfo(summary) ? summary.pattern.fieldName : undefined) ?? this.corpus.mainAnnotatedField;
-				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
-				const field = this.corpus.allAnnotatedFieldsMap[name];
-				return this.$tAnnotatedFieldDisplayName(field);
-			};
-			(params as any).csvdescription = this.customizations.exportDescription(this.results.summary, fieldDisplayName) || '';
+function downloadCsv(excel: boolean) {
+	if (downloadInProgress.value || !results) return;
+	downloadInProgress.value = true;
+	const apiCall = type === 'hits' ? blacklab.getHitsCsv : blacklab.getDocsCsv;
+	const params = cloneDeep(getSearchParameters(results));
+	if (annotations) params.listvalues = annotations.join(',');
+	if (metadata) params.listmetadatavalues = metadata.join(',');
+	params.listspanattributes = spanAttributesToExport.value.join(',');
+	(params as any).csvsepline = !!excel;
+	(params as any).csvsummary = true;
+	const fieldDisplayName = (name: string) => {
+		const defaultField = (hasPatternInfo(results.summary) ? results.summary.pattern.fieldName : undefined) ?? corpus.value.mainAnnotatedField;
+		name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
+		return translate.$tAnnotatedFieldDisplayName(corpus.value.allAnnotatedFieldsMap[name]);
+	};
+	(params as any).csvdescription = customizations.exportDescription(results.summary, fieldDisplayName) || '';
 
-			debugLog('export', 'starting csv download', this.type, params);
-			apiCall(this.corpus.id!, params)
-				.request.then(
-					async blob => {
-						const { saveAs } = await import('file-saver');
-						saveAs(blob, 'data.csv');
-					},
-					error => debugLog('export', 'Error downloading csv file', error),
-				)
-				.finally(() => (this.downloadInProgress = false));
-		},
-	},
-});
+	debugLog('export', 'starting csv download', type, params);
+	apiCall(corpus.value.id!, params)
+		.request.then(
+			async blob => {
+				const { saveAs } = await import('file-saver');
+				saveAs(blob, 'data.csv');
+			},
+			error => debugLog('export', 'Error downloading csv file', error),
+		)
+		.finally(() => (downloadInProgress.value = false));
+}
 </script>

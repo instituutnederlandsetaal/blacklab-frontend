@@ -15,8 +15,8 @@
 	<Results v-show="resultsVisible" id="results" class="container" />
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
@@ -25,17 +25,6 @@ import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
 
-export default defineComponent({
-	components: {
-		QueryForm,
-		QuerySummary,
-		Results,
-	},
-	computed: {
-		resultsVisible(): boolean {
-			return InterfaceStore.getState().viewedResults != null;
-		},
-		debugQuery: RootStore.get.blacklabParameters,
-	},
-});
+const resultsVisible = computed(() => InterfaceStore.getState().viewedResults != null);
+const debugQuery = computed(RootStore.get.blacklabParameters);
 </script>

@@ -14,135 +14,116 @@
 	/>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { NormalizedIndex } from '@/types/apptypes';
 
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
+import { useI18n } from '@/shared/i18n';
 import type { OptGroup } from '@/shared/utils/options';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-export default defineComponent({
-	components: {
-		SelectPicker,
-	},
-	props: {
-		hits: Boolean,
-		docs: Boolean,
-		groups: Boolean,
-		parallelCorpus: Boolean,
+const {
+	hits = false,
+	docs = false,
+	groups = false,
+	parallelCorpus = false,
+	corpus,
+	annotations,
+	annotationGroupLabels = false,
+	metadata,
+	metadataGroupLabels = false,
+	disabled = false,
+} = defineProps<{
+	hits?: boolean;
+	docs?: boolean;
+	groups?: boolean;
+	parallelCorpus?: boolean;
+	corpus: NormalizedIndex;
+	annotations: string[];
+	annotationGroupLabels?: boolean;
+	metadata: string[];
+	metadataGroupLabels?: boolean;
+	disabled?: boolean;
+}>();
+const model = defineModel<string | null>({ default: null });
+const customizations = useCustomizations();
+const translate = useI18n();
+const sortOptions = computed<OptGroup[]>(() => {
+	const options: OptGroup[] = [];
+	const addGroups = (...groups: OptGroup[]) => options.push(...groups.map(customizations.sortOptionGroup));
 
-		modelValue: { type: [String, null] as PropType<string | null>, default: null },
+	if (groups) {
+		addGroups({
+			label: 'Groups',
+			options: [
+				{
+					label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_groupName') }),
+					value: 'identity',
+				},
+				{
+					label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_groupName') }),
+					value: '-identity',
+				},
+				{
+					label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_groupSize') }),
+					value: 'size',
+				},
+				{
+					label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_groupSize') }),
+					value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
+				},
+			],
+		});
+	}
 
-		corpus: { type: Object as PropType<NormalizedIndex>, required: true },
-		annotations: { type: Array as PropType<string[]>, required: true },
-		annotationGroupLabels: Boolean,
-		metadata: { type: Array as PropType<string[]>, required: true },
-		metadataGroupLabels: Boolean,
-		disabled: Boolean,
-	},
-	data: () => ({ customizations: useCustomizations() }),
-	computed: {
-		model: {
-			get(): string | null {
-				return this.modelValue;
-			},
-			set(v: string | null) {
-				this.$emit('update:modelValue', v);
-			},
-		},
-		sortOptions(): OptGroup[] {
-			const options = [] as OptGroup[];
+	if (hits) {
+		addGroups(...getAnnotationSubset(annotations, corpus.annotationGroups, corpus.annotatedFields[corpus.mainAnnotatedField].annotations, 'Sort', translate, debug.value, annotationGroupLabels));
 
-			/** Customize and add one or more groups */
-			const addGroups = (...optGroups: OptGroup[]) => {
-				options.push(...optGroups.map(this.customizations.sortOptionGroup));
-			};
+		if (parallelCorpus) {
+			addGroups({
+				label: 'Parallel Corpus',
+				options: [
+					{
+						label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_alignments') }),
+						value: 'alignments',
+					},
+					{
+						label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_alignments') }),
+						value: '-alignments',
+					},
+				],
+			});
+		}
+	}
+	if (docs) {
+		addGroups({
+			label: 'Documents',
+			options: [
+				{
+					label: translate.$t('results.table.sortBy', { field: translate.$t('results.table.sort_numberOfHits') }),
+					value: 'numhits',
+				},
+				{
+					label: translate.$t('results.table.sortByDescending', { field: translate.$t('results.table.sort_numberOfHits') }),
+					value: '-numhits', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
+				},
+			],
+		});
+	}
 
-			if (this.groups) {
-				addGroups({
-					label: 'Groups',
-					options: [
-						{
-							label: this.$t('results.table.sortBy', { field: this.$t('results.table.sort_groupName') }).toString(),
-							value: 'identity',
-						},
-						{
-							label: this.$t('results.table.sortByDescending', { field: this.$t('results.table.sort_groupName') }).toString(),
-							value: '-identity',
-						},
-						{
-							label: this.$t('results.table.sortBy', { field: this.$t('results.table.sort_groupSize') }).toString(),
-							value: 'size',
-						},
-						{
-							label: this.$t('results.table.sortByDescending', { field: this.$t('results.table.sort_groupSize') }).toString(),
-							value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
-						},
-					],
-				});
-			}
+	if (!groups) {
+		addGroups(
+			...getMetadataSubset(metadata, corpus.metadataFieldGroups, corpus.metadataFields, 'Sort', translate, debug.value, metadataGroupLabels, id =>
+				customizations.resultMetadataField(corpus.metadataFields[id]),
+			),
+		);
+	}
 
-			if (this.hits) {
-				addGroups(
-					...getAnnotationSubset(
-						this.annotations,
-						this.corpus.annotationGroups,
-						this.corpus.annotatedFields[this.corpus.mainAnnotatedField].annotations,
-						'Sort',
-						this,
-						debug.value,
-						this.annotationGroupLabels,
-					),
-				);
-
-				if (this.parallelCorpus) {
-					addGroups({
-						label: 'Parallel Corpus',
-						options: [
-							{
-								label: this.$t('results.table.sortBy', { field: this.$t('results.table.sort_alignments') }).toString(),
-								value: 'alignments',
-							},
-							{
-								label: this.$t('results.table.sortByDescending', { field: this.$t('results.table.sort_alignments') }).toString(),
-								value: '-alignments',
-							},
-						],
-					});
-				}
-			}
-			if (this.docs) {
-				addGroups({
-					label: 'Documents',
-					options: [
-						{
-							label: this.$t('results.table.sortBy', { field: this.$t('results.table.sort_numberOfHits') }).toString(),
-							value: 'numhits',
-						},
-						{
-							label: this.$t('results.table.sortByDescending', { field: this.$t('results.table.sort_numberOfHits') }).toString(),
-							value: '-numhits', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
-						},
-					],
-				});
-			}
-
-			if (!this.groups) {
-				addGroups(
-					...getMetadataSubset(this.metadata, this.corpus.metadataFieldGroups, this.corpus.metadataFields, 'Sort', this, debug.value, this.metadataGroupLabels, id =>
-						this.customizations.resultMetadataField(this.corpus.metadataFields[id]),
-					),
-				);
-			}
-
-			return options;
-		},
-	},
+	return options;
 });
 </script>
