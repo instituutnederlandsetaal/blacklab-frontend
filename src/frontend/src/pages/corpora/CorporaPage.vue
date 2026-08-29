@@ -53,7 +53,7 @@
 				@close="close"
 			/>
 			<ModalUpload v-if="modal === 'upload' && corpus" :corpus="corpus" :formats="formats" @indexing="refreshCorpus" @success="success" @error="error" @close="close" />
-			<ModalShareCorpus v-if="modal === 'share-corpus' && corpus" :corpus="corpus" @success="success" @error="error" @close="close" />
+			<ModalShareCorpus v-if="modal === 'share-corpus' && corpus" :corpus="corpus" @success="success" @close="close" />
 			<Modal v-if="modal === 'confirm'" closeMessage="Cancel" confirmMessage="Delete" confirmClass="btn-danger" @confirm="confirmAction" @close="close">
 				<template #title><h4 v-html="confirmTitle" class="modal-title"></h4></template>
 				<p v-html="confirmMessage"></p>

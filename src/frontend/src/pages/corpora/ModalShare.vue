@@ -1,5 +1,5 @@
 <template>
-	<Modal confirmMessage="Save" @confirm="save" @close="$emit('close')" :confirmEnabled="!loading">
+	<Modal confirmMessage="Save" :confirmEnabled="ready && !loading" @confirm="save" @close="emit('close')">
 		<template #title
 			>Sharing options for corpus <em>{{ corpus.displayName }}</em></template
 		>
@@ -14,9 +14,8 @@
 	</Modal>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { onBeforeUnmount, ref } from 'vue';
 
 import type { NormalizedIndexBase } from '@/types/apptypes';
 
@@ -24,36 +23,35 @@ import { useBlackLabApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
 
 import Modal from '@/shared/ui/Modal.vue';
-export default defineComponent({
-	components: { Modal },
-	props: {
-		corpus: { type: Object as PropType<NormalizedIndexBase>, required: true },
-	},
-	data: () => ({
-		content: '',
-		loading: false,
-		error: '',
-	}),
-	methods: {
-		save() {
-			this.loading = true;
-			useBlackLabApi()
-				.postShares(this.corpus.id, this.content.split('\n'))
-				.then(r => {
-					this.$emit('success', r.status.message);
-					this.$emit('close');
-				})
-				.catch((e: ApiError) => (this.error = `Could not save shares for corpus "${this.corpus.displayName}": ${e.message}`))
-				.finally(() => (this.loading = false));
-		},
-	},
-	created() {
-		this.loading = true;
-		useBlackLabApi()
-			.getShares(this.corpus.id)
-			.then(shares => (this.content = shares.join('\n')))
-			.catch((e: ApiError) => (this.error = `Could not retrieve share list for corpus "${this.corpus.displayName}": ${e.message}`))
-			.finally(() => (this.loading = false));
-	},
-});
+
+const { corpus } = defineProps<{ corpus: NormalizedIndexBase }>();
+const emit = defineEmits<{ close: []; success: [message: string] }>();
+const blacklab = useBlackLabApi();
+const content = ref('');
+const error = ref('');
+const loading = ref(true);
+const ready = ref(false);
+
+const loadRequest = blacklab.getShares(corpus.id);
+loadRequest
+	.then(shares => {
+		content.value = shares.join('\n');
+		ready.value = true;
+	})
+	.catch((e: ApiError) => (error.value = `Could not retrieve share list for corpus "${corpus.displayName}": ${e.message}`))
+	.finally(() => (loading.value = false));
+onBeforeUnmount(loadRequest.cancel);
+
+function save() {
+	if (!ready.value || loading.value) return;
+	loading.value = true;
+	blacklab
+		.postShares(corpus.id, content.value.split('\n'))
+		.then(r => {
+			emit('success', r.status.message);
+			emit('close');
+		})
+		.catch((e: ApiError) => (error.value = `Could not save shares for corpus "${corpus.displayName}": ${e.message}`))
+		.finally(() => (loading.value = false));
+}
 </script>
