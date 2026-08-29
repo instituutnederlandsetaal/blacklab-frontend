@@ -749,7 +749,7 @@ describe('search form system', () => {
 		expect(runtime.compile(ids.searchForm('expert')).params.withspans).toBeUndefined();
 		runtime.state.state.value[rangeFieldId] = { low: ' 1 ', high: '', mode: 'strict' };
 		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
-			params: { patt: '([lemma="water"]) within <p n=in[1,]/>', withspans: true },
+			params: { patt: '([lemma="water"]) within <p n=in[1,9999]/>', withspans: true },
 		});
 		runtime.state.state.value[rangeFieldId] = { low: '', high: '', mode: 'strict' };
 		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };

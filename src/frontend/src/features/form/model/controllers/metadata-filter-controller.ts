@@ -147,27 +147,24 @@ export const filterRadioController = defineFieldController<'metadata-filter-radi
 	},
 });
 
+function normalizeRangeBound(value: string, fallback: string) {
+	const trimmed = value.trim();
+	return trimmed && /^\d+$/.test(trimmed) ? trimmed.padStart(4, '0') : trimmed || fallback;
+}
+
 export const filterRangeController = defineFieldController<'metadata-filter-range', RangeFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>({
 	kind: 'metadata-filter-range',
 	createDefaultState: createDefaultRangeFieldState,
 	persistence: { key: metadataPersistKey, codec: rangePersistenceCodec },
 	outputs: ['filter'],
 	collect(config, _runtime, state, emit) {
-		if (!state.low && !state.high) return;
-
-		const lowPadded = state.low ? state.low.padStart(4, '0') : '0';
-		const highPadded = state.high ? state.high.padStart(4, '0') : '9999';
-
-		if (isBiFieldConfig(config)) {
-			const filterNode = booleanNode((config.mode ?? state.mode) === 'permissive' ? 'or' : 'and', [
-				filterRange(config.fromField, lowPadded, highPadded)!,
-				filterRange(config.toField, lowPadded, highPadded)!,
-			]);
-			emit('filter', filterNode as LuceneNode);
-			return;
-		}
-
-		const node = filterRange(config.metadataFieldId, state.low || '0', state.high || '9999');
+		if (!state.low.trim() && !state.high.trim()) return;
+		const bounds = [normalizeRangeBound(state.low, '0'), normalizeRangeBound(state.high, '9999')] as const;
+		const fields = isBiFieldConfig(config) ? [config.fromField, config.toField] : [config.metadataFieldId];
+		const node = booleanNode(
+			(config.mode ?? state.mode) === 'permissive' ? 'or' : 'and',
+			fields.map(field => filterRange(field, ...bounds)!),
+		);
 		if (node) emit('filter', node);
 	},
 	summarize(config, _runtime, state, emit) {

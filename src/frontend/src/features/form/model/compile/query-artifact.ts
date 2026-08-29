@@ -122,7 +122,7 @@ function simplifyWrapperAttribute(value: WrapperAttribute): WrapperAttribute | n
 }
 
 function simplifyPredicateValue(value: PredicateValueNode): PredicateValueNode | null {
-	if (value.valueType === 'range') return value.low || value.high ? value : null;
+	if (value.valueType === 'range') return value;
 	return value.value.trim() ? value : null;
 }
 
@@ -181,7 +181,7 @@ function simplifyFilter(filter: LuceneNode | null): LuceneNode | null {
 	return simplifyBooleanNode(
 		filter,
 		leaf => {
-			if (leaf.valueType === 'range') return leaf.low || leaf.high ? leaf : null;
+			if (leaf.valueType === 'range') return leaf;
 			return leaf.value.trim() ? leaf : null;
 		},
 		(operator, leaf) => (operator === 'or' && leaf.valueType !== 'range' && leaf.valueType !== 'regex' ? leaf.field : null),
@@ -276,10 +276,7 @@ function emitWithinAttributeExpression(name: string, attribute: WrapperAttribute
 		if (clauses.length === 1) return clauses[0];
 		return `(${clauses.join(operator)})`;
 	}
-	if (attribute.valueType === 'range') {
-		if (!attribute.low && !attribute.high) return null;
-		return `${name}=in[${attribute.low ?? '0'},${attribute.high ?? '9999'}]`;
-	}
+	if (attribute.valueType === 'range') return `${name}=in[${attribute.low},${attribute.high}]`;
 	const value = predicateValueToRegex(attribute);
 	return value ? `${name}="${value.replace(/"/g, '\\"')}"` : null;
 }
@@ -335,7 +332,7 @@ function emitRequiredFilter(filter: LuceneNode): string {
 		const operator = filter.type === 'and' ? ' AND ' : ' OR ';
 		return `(${filter.children.map(emitRequiredFilter).join(operator)})`;
 	}
-	if (filter.valueType === 'range') return `${filter.field}:[${filter.low || '*'} TO ${filter.high || '*'}]`;
+	if (filter.valueType === 'range') return `${filter.field}:[${filter.low} TO ${filter.high}]`;
 	return `${filter.field}:(${emitLucenePredicateValue(filter)})`;
 }
 

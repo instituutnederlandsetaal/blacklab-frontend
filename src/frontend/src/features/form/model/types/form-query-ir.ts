@@ -74,8 +74,8 @@ export type PredicateTextNode = {
 export const textPredicate = (valueType: TextValueType, value: string): PredicateTextNode => ({ valueType, value });
 type PredicateRangeNode = {
 	valueType: 'range';
-	low?: string;
-	high?: string;
+	low: string;
+	high: string;
 };
 type RangeInput = { low?: string | null; high?: string | null };
 export type PredicateValueNode = PredicateTextNode | PredicateRangeNode;
@@ -162,7 +162,7 @@ export const withinAttribute = (attribute: string, valueType: TextValueType, val
 	return value ? { [attribute]: value } : {};
 };
 /** Build one range-valued attribute constraint for a within wrapper. */
-export const withinAttributeRange = (attribute: string, v: { low?: string; high?: string }): Record<string, PredicateAttributeNode> => {
+export const withinAttributeRange = (attribute: string, v: { low: string; high: string }): Record<string, PredicateAttributeNode> => {
 	return { [attribute]: { valueType: 'range', low: v.low, high: v.high } };
 };
 export type CqlWrapperNodeContaining = CqlBaseNode<'containing'> & { element: string; attributes: Record<string, PredicateAttributeNode> };
@@ -185,7 +185,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isPredicateValueNode(value: unknown): value is PredicateValueNode {
 	if (!isRecord(value)) return false;
-	if (value.valueType === 'range') return (value.low === undefined || typeof value.low === 'string') && (value.high === undefined || typeof value.high === 'string');
+	if (value.valueType === 'range') return typeof value.low === 'string' && typeof value.high === 'string';
 	return (value.valueType === 'literal' || value.valueType === 'regex' || value.valueType === 'wildcard') && typeof value.value === 'string';
 }
 
@@ -250,7 +250,7 @@ export const filter = (field: string, valueType: TextValueType, values: Values):
 		'or',
 		valuesToArray(values).map(value => ({ type: 'lucene-field', field, valueType, value })),
 	);
-export const filterRange = (field: string, low?: string, high?: string): LuceneNode | null => ({
+export const filterRange = (field: string, low: string, high: string): LuceneNode | null => ({
 	type: 'lucene-field',
 	field,
 	valueType: 'range',

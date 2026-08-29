@@ -65,9 +65,9 @@ export const withinAttributeRangeController = defineFieldController<'within-attr
 	persistence: { key: withinAttributePersistKey, codec: rangePersistenceCodec },
 	outputs: ['patt', 'withspans'],
 	collect(config, _runtime, state: RangeFieldState, emit) {
-		const normalizedState = { ...state, low: state.low.trim(), high: state.high.trim() };
-		if (!normalizedState.low && !normalizedState.high) return;
-		emit('patt', within(config.elementName, withinAttributeRange(config.attributeName, normalizedState)));
+		const bounds = { low: state.low.trim(), high: state.high.trim() };
+		if (!bounds.low && !bounds.high) return;
+		emit('patt', within(config.elementName, withinAttributeRange(config.attributeName, { low: bounds.low || '0', high: bounds.high || '9999' })));
 		emit('withspans', true);
 	},
 	summarize(config, _runtime, state: RangeFieldState, emit) {

@@ -6,8 +6,10 @@ import { describe, expect, test } from 'vitest';
 import {
 	annotationTextController,
 	filterDateController,
+	filterRangeController,
 	filterTextController,
 	parallelController,
+	withinAttributeRangeController,
 	type FieldController,
 	type FieldControllerProps,
 	type FormEmission,
@@ -82,6 +84,48 @@ describe('semantic query compilation', () => {
 		expect(node).toEqual(booleanNode('or', [filterRange('start', '20200101', '20211231')!, filterRange('end', '20200101', '20211231')!]));
 	});
 
+	test.each([
+		['empty', ' ', '\t', null, null],
+		['low only', ' 7 ', '', ['0007', '9999'], 'year:[0007 TO 9999]'],
+		['high only', '', ' 9 ', ['0', '0009'], 'year:[0 TO 0009]'],
+		['both', '12', '345', ['0012', '0345'], 'year:[0012 TO 0345]'],
+		['already padded and longer', '0007', '12345', ['0007', '12345'], 'year:[0007 TO 12345]'],
+		['signed and decimal', '-2', '3.5', ['-2', '3.5'], 'year:[-2 TO 3.5]'],
+		['text', 'N/A', 'unknown', ['N/A', 'unknown'], 'year:[N/A TO unknown]'],
+	] as const)('normalizes %s metadata range bounds', (_name, low, high, expected, compiled) => {
+		const node = lucene(filterRangeController, { kind: 'field', id: 'year', displayName: 'Year', metadataFieldId: 'year' }, { low, high, mode: 'strict' });
+		expect(node).toEqual(expected ? { type: 'lucene-field', field: 'year', valueType: 'range', low: expected[0], high: expected[1] } : null);
+		expect(node ? compileFilter(node) : null).toBe(compiled);
+	});
+
+	test.each([
+		['strict', 'and', '(start:[0007 TO 0012] AND end:[0007 TO 0012])'],
+		['permissive', 'or', '(start:[0007 TO 0012] OR end:[0007 TO 0012])'],
+	] as const)('uses %s mode only to combine identical bifield range bounds', (mode, operator, compiled) => {
+		const node = lucene(filterRangeController, { kind: 'field', id: 'period', displayName: 'Period', fromField: 'start', toField: 'end' }, { low: ' 7 ', high: '12', mode });
+		expect(node).toEqual({
+			type: operator,
+			children: [
+				{ type: 'lucene-field', field: 'start', valueType: 'range', low: '0007', high: '0012' },
+				{ type: 'lucene-field', field: 'end', valueType: 'range', low: '0007', high: '0012' },
+			],
+		});
+		expect(compileFilter(node!)).toBe(compiled);
+	});
+
+	test.each([
+		['low', { low: ' 3 ', high: '', mode: 'strict' as const }, { low: '3', high: '9999' }, '<p n=in[3,9999]/>'],
+		['high', { low: '', high: ' 5 ', mode: 'strict' as const }, { low: '0', high: '5' }, '<p n=in[0,5]/>'],
+	] as const)('defaults the missing %s-side within range bound without padding', (_name, state, bounds, expected) => {
+		const pattern = patt(withinAttributeRangeController, { kind: 'field', id: 'n', displayName: 'Number', elementName: 'p', attributeName: 'n' }, state);
+		expect(pattern).toEqual({
+			type: 'cql-within',
+			element: 'p',
+			attributes: { n: { valueType: 'range', low: bounds.low, high: bounds.high } },
+		});
+		expect(pattern && compileCql(pattern)).toBe(expected);
+	});
+
 	test('and/or composition folds compatible token predicates', () => {
 		const word = annotation('word', 'wildcard', 'water')!;
 		const lemma = annotation('lemma', 'wildcard', 'water')!;
@@ -115,17 +159,17 @@ describe('semantic query compilation', () => {
 	});
 
 	test('multiple within nodes merge matching elements and overlap distinct elements', () => {
-		const lowOnlyRange = { low: '3', high: '', mode: 'strict' as const };
+		const range = { low: '3', high: '9999' };
 		const pattern = combineCqlPatterns(
 			[
 				rawCql('[word="water"]'),
 				within('speech', { person: textPredicate('wildcard', 'Alice*') }),
 				within('speech', { role: textPredicate('literal', 'host') }),
-				within('p', withinAttributeRange('n', lowOnlyRange)),
+				within('p', withinAttributeRange('n', range)),
 			],
 			'and',
 		)!;
-		expect(compileCql(pattern)).toBe('([word="water"]) within <speech person="Alice.*" role="host"/> overlap <p n=in[3,]/>');
+		expect(compileCql(pattern)).toBe('([word="water"]) within <speech person="Alice.*" role="host"/> overlap <p n=in[3,9999]/>');
 	});
 
 	test('text fields preserve escaped wildcards and backslashes', () => {
@@ -187,11 +231,10 @@ describe('semantic query compilation', () => {
 		expect(compileFilter(lucene)).toBe('(author:(alice) AND title:(water) AND year:(2020))');
 	});
 
-	test('emits escaped wrapper values, open ranges, and empty tags', () => {
+	test('emits escaped wrapper values, complete ranges, and empty tags', () => {
 		const people = booleanNode('or', [textPredicate('wildcard', 'A"B'), textPredicate('wildcard', 'C?')])!;
-		const highOnlyRange = { low: '', high: '5', mode: 'strict' as const };
-		const pattern = combineCqlPatterns([within('speech', { person: people }), within('p', withinAttributeRange('n', highOnlyRange)), within('div')], 'and')!;
-		expect(compileCql(pattern)).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[,5]/> overlap <div/>`);
+		const pattern = combineCqlPatterns([within('speech', { person: people }), within('p', withinAttributeRange('n', { low: '0', high: '5' })), within('div')], 'and')!;
+		expect(compileCql(pattern)).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[0,5]/> overlap <div/>`);
 	});
 
 	test('keeps explicit regex wrapper predicates separate from escaped values', () => {
