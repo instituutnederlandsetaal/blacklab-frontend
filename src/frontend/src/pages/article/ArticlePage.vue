@@ -127,12 +127,12 @@
 
 <script setup lang="ts">
 import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
-import { computed, defineAsyncComponent, onUnmounted, ref, useTemplateRef, watch, watchEffect } from 'vue';
+import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect } from 'vue';
 
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as ArticleStore from '@/features/article/model/article-state';
-import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
+import createTooltips from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { useArticleRoute } from '@/navigation/router';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
@@ -175,7 +175,6 @@ const hits = loadableFromStream(hits$);
 const hitToHighlight = loadableFromStream(hitToHighlight$);
 const validPaginationInfo = loadableFromStream(validPaginationParameters$);
 const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet$, metadata$] as const));
-const streamLoadables = [metadata, contents, hits, hitToHighlight, validPaginationInfo, statistics];
 
 watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
 
@@ -236,27 +235,23 @@ watch(
 	{ immediate: true },
 );
 
-const tooltipContext = ref<TooltipContext | null>(null);
 watch(
 	() => contents.value,
-	c => {
-		if (tooltipContext.value) {
-			tooltipContext.value();
-			tooltipContext.value = null;
-		}
+	(c, _, onCleanup) => {
 		if (c?.html) {
-			tooltipContext.value = createTooltips({
+			const tooltipContext = createTooltips({
 				mode: 'attributes',
 				contentAttribute: 'data-tooltip-content',
 				previewAttribute: 'data-tooltip-preview',
 			});
+			onCleanup(tooltipContext);
 			createTooltips(
 				{
 					mode: 'title',
 					excludeAttributes: ['toggle', 'tooltip-content', 'tooltip-preview'],
 					tooltippableSelector: '.word[data-toggle="tooltip"]',
 				},
-				tooltipContext.value,
+				tooltipContext,
 			);
 		}
 	},
@@ -274,11 +269,6 @@ const viewport = useWindowSize();
 watchEffect(() => {
 	paginationDraggable.x.value = draggablePosition.value.x = clamp(paginationDraggable.x.value, 0, viewport.width.value - 150);
 	paginationDraggable.y.value = draggablePosition.value.y = clamp(paginationDraggable.y.value, 50, viewport.height.value - 50);
-});
-
-onUnmounted(() => {
-	tooltipContext.value?.();
-	streamLoadables.forEach(loadable => loadable.stop());
 });
 </script>
 

@@ -18,6 +18,7 @@ enableAutoUnmount(afterEach);
 const mock = vi.hoisted(() => ({
 	articleRoute: undefined as unknown,
 	corpus: undefined as unknown,
+	createTooltips: vi.fn(() => vi.fn()),
 	streams: undefined as unknown,
 }));
 
@@ -34,7 +35,7 @@ vi.mock('@/app/state/useCorpusContext', () => ({
 vi.mock('@/customization-api/internal/internal-api', () => ({
 	useCustomizations: () => ({ resultDetailedMetadataIds: () => [] }),
 }));
-vi.mock('@/modules/expandable-tooltips', () => ({ default: vi.fn(() => vi.fn()) }));
+vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
 vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: vi.fn() }) }));
 vi.mock('@/navigation/router', () => ({
 	useArticleRoute: () => ({ articleRoute: ref(mock.articleRoute), updateArticleQuery: vi.fn() }),
@@ -57,6 +58,8 @@ function createStreams() {
 }
 
 beforeEach(() => {
+	mock.createTooltips.mockReset();
+	mock.createTooltips.mockImplementation(() => vi.fn());
 	ArticleStore.actions.distributionAnnotation(null);
 	ArticleStore.actions.growthAnnotations(null);
 	ArticleStore.actions.statisticsTableFn(null);
@@ -93,4 +96,24 @@ describe('ArticlePage statistics tab', () => {
 		expect(wrapper.get('#statistics').text()).not.toContain('No statistics have been configured for this corpus.');
 		expect((mock.streams as ReturnType<typeof createStreams>).retrieveSnippetToggle$.value).toBe(true);
 	});
+});
+
+test('replaces and disposes tooltip contexts with article contents', async () => {
+	const firstCleanup = vi.fn();
+	const secondCleanup = vi.fn();
+	mock.createTooltips.mockReturnValueOnce(firstCleanup).mockReturnValueOnce(firstCleanup).mockReturnValueOnce(secondCleanup).mockReturnValueOnce(secondCleanup);
+	const wrapper = shallowMount(ArticlePage);
+	const contents$ = (mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>;
+
+	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));
+	await nextTick();
+	expect(mock.createTooltips).toHaveBeenNthCalledWith(2, expect.objectContaining({ mode: 'title' }), firstCleanup);
+
+	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));
+	await nextTick();
+	expect(firstCleanup).toHaveBeenCalledOnce();
+	expect(mock.createTooltips).toHaveBeenNthCalledWith(4, expect.objectContaining({ mode: 'title' }), secondCleanup);
+
+	wrapper.unmount();
+	expect(secondCleanup).toHaveBeenCalledOnce();
 });
