@@ -51,9 +51,7 @@ const actions = {
 	baseColor: (payload: string) => (state.baseColor = payload),
 };
 
-const init = (state: CorpusContext) => {
-	if (!state.index) Object.assign(getState(), initialState);
-};
+const init = (_state: CorpusContext) => Object.assign(state, initialState);
 
 export { actions, get, getState, init };
 export type { ModuleRootState };

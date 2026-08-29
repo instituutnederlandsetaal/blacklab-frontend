@@ -19,16 +19,18 @@
 		</div>
 
 		<AnnotationDistributions
-			v-if="distributionData"
+			v-if="distributionAnnotation"
 			:class="{
 				'col-xs-12': true,
 				'col-md-6': !!statisticsTableData,
 			}"
 			:snippet
-			v-bind="distributionData"
+			:annotation-id="distributionAnnotation.id"
+			:chart-title="distributionAnnotation.displayName"
+			:base-color
 		/>
 
-		<AnnotationGrowths v-if="growthData" class="col-xs-12" :snippet v-bind="growthData" />
+		<AnnotationGrowths v-if="growthAnnotations" class="col-xs-12" :snippet :annotations="growthAnnotations.annotations" :chart-title="growthAnnotations.displayName" :base-color />
 	</div>
 </template>
 
@@ -44,7 +46,7 @@ HighchartsBoost(Highcharts);
 </script>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toRefs } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
@@ -55,35 +57,9 @@ import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 const props = defineProps<{
 	snippet: BLTypes.BLHit;
 	document: BLTypes.BLDocument;
-	isPaginated?: boolean;
+	isPaginated: boolean;
 }>();
 
-const baseColor = computed(ArticleStore.get.baseColor);
-
-const statisticsTableData = computed(() => {
-	const fn = ArticleStore.get.statisticsTableFn();
-	return fn && fn(props.document, props.snippet);
-});
-
-const distributionData = computed(() => {
-	const data = ArticleStore.get.distributionAnnotation();
-	return data
-		? {
-				annotationId: data.id,
-				chartTitle: data.displayName,
-				baseColor: baseColor.value,
-			}
-		: null;
-});
-
-const growthData = computed(() => {
-	const data = ArticleStore.get.growthAnnotations();
-	return data
-		? {
-				annotations: data.annotations,
-				chartTitle: data.displayName,
-				baseColor: baseColor.value,
-			}
-		: null;
-});
+const { baseColor, distributionAnnotation, growthAnnotations, statisticsTableFn } = toRefs(ArticleStore.getState());
+const statisticsTableData = computed(() => statisticsTableFn.value?.(props.document, props.snippet));
 </script>

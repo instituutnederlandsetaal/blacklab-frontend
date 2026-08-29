@@ -12,10 +12,10 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import { chartColors } from './chart-colors';
 
 const props = defineProps<{
-	snippet?: BLTypes.BLHitInDoc;
-	baseColor?: string;
-	annotationId?: string;
-	chartTitle?: string;
+	snippet: BLTypes.BLHitInDoc;
+	baseColor: string;
+	annotationId: string;
+	chartTitle: string;
 }>();
 
 const distribution = computed<null | Array<{
@@ -24,7 +24,7 @@ const distribution = computed<null | Array<{
 	color?: string;
 }>>(() => {
 	if (!props.annotationId) return null;
-	const values = props.snippet?.match[props.annotationId];
+	const values = props.snippet.match[props.annotationId];
 	if (!values?.length) {
 		console.warn(`[Distribution Pie-Chart] - No values found for annotation ID: ${props.annotationId}`);
 		return null;

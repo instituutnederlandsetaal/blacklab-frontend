@@ -3,8 +3,9 @@
 import { mount, shallowMount, type VueWrapper } from '@vue/test-utils';
 import type * as Highcharts from 'highcharts';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 
@@ -36,8 +37,8 @@ const snippet = {
 const hit = { ...snippet, docPid: 'doc', start: 0, end: 3 } satisfies BLTypes.BLHit;
 const document = { docPid: 'doc' } as BLTypes.BLDocument;
 
-function mountStatistics() {
-	return shallowMount(ArticlePageStatistics, { props: { snippet: hit, document } });
+function mountStatistics(isPaginated = false) {
+	return shallowMount(ArticlePageStatistics, { props: { snippet: hit, document, isPaginated } });
 }
 
 function options(wrapper: VueWrapper): Highcharts.Options {
@@ -52,6 +53,35 @@ beforeEach(() => {
 });
 
 describe('ArticlePageStatistics', () => {
+	test.each([
+		[false, false],
+		[true, true],
+	])('shows the current-page label when pagination is %s', (isPaginated, showsLabel) => {
+		ArticleStore.actions.statisticsTableFn(() => ({ Tokens: '3' }));
+		expect(mountStatistics(isPaginated).text().includes('(current page)')).toBe(showsLabel);
+	});
+
+	test('resets statistics configuration on every corpus publication', () => {
+		const configure = () => {
+			ArticleStore.actions.statisticsTableFn(() => ({ Tokens: '3' }));
+			ArticleStore.actions.distributionAnnotation({ id: 'lemma', displayName: 'Lemmas' });
+			ArticleStore.actions.growthAnnotations({ annotations: [{ id: 'pos', displayName: 'POS' }], displayName: 'Growth' });
+			ArticleStore.actions.baseColor('#ff0000');
+		};
+
+		for (const id of ['corpus-b', 'corpus-c']) {
+			configure();
+			ArticleStore.init({ index: { id } } as unknown as CorpusContext);
+			expect(ArticleStore.get.statisticsEnabled()).toBe(false);
+			expect(ArticleStore.getState()).toMatchObject({
+				statisticsTableFn: null,
+				distributionAnnotation: null,
+				growthAnnotations: null,
+				baseColor: '#337ab7',
+			});
+		}
+	});
+
 	test('renders distribution statistics from article configuration', () => {
 		ArticleStore.actions.distributionAnnotation({ id: 'lemma', displayName: 'Lemmas' });
 
@@ -79,8 +109,9 @@ describe('ArticlePageStatistics', () => {
 		expect(wrapper.findComponent(AnnotationDistributions).exists()).toBe(false);
 	});
 
-	test('renders the table and both charts, and reacts to article color changes', async () => {
-		const statistics = vi.fn(() => ({ Tokens: '3' }));
+	test('renders the table and both charts, and reacts to customization changes', async () => {
+		const tableLabel = ref('Tokens');
+		const statistics = vi.fn(() => ({ [tableLabel.value]: '3' }));
 		ArticleStore.actions.statisticsTableFn(statistics);
 		ArticleStore.actions.distributionAnnotation({ id: 'lemma', displayName: 'Lemmas' });
 		ArticleStore.actions.growthAnnotations({ annotations: [{ id: 'pos', displayName: 'POS' }], displayName: 'Growth' });
@@ -95,6 +126,22 @@ describe('ArticlePageStatistics', () => {
 		await nextTick();
 		expect(wrapper.getComponent(AnnotationDistributions).props('baseColor')).toBe('#ff0000');
 		expect(wrapper.getComponent(AnnotationGrowths).props('baseColor')).toBe('#ff0000');
+		tableLabel.value = 'Words';
+		await nextTick();
+		expect(wrapper.text()).toContain('Words');
+		expect(wrapper.text()).not.toContain('Tokens');
+
+		const replacementStatistics = vi.fn(() => ({ Sentences: '1' }));
+		ArticleStore.actions.statisticsTableFn(replacementStatistics);
+		ArticleStore.actions.distributionAnnotation({ id: 'pos', displayName: 'Parts of speech' });
+		ArticleStore.actions.growthAnnotations({ annotations: [{ id: 'lemma', displayName: 'Lemma' }], displayName: 'Vocabulary' });
+		await nextTick();
+
+		expect(wrapper.text()).toContain('Sentences');
+		expect(wrapper.text()).not.toContain('Tokens');
+		expect(replacementStatistics).toHaveBeenCalledWith(document, hit);
+		expect(wrapper.getComponent(AnnotationDistributions).props()).toMatchObject({ annotationId: 'pos', chartTitle: 'Parts of speech' });
+		expect(wrapper.getComponent(AnnotationGrowths).props()).toMatchObject({ annotations: [{ id: 'lemma', displayName: 'Lemma' }], chartTitle: 'Vocabulary' });
 	});
 });
 
@@ -134,15 +181,12 @@ describe('article statistic charts', () => {
 		expect(cappedColors?.[19]).toBe('rgb(255,255,255)');
 	});
 
-	test('preserves the growth defaults, data transform, color counts, and replacement options', async () => {
+	test('preserves the growth data transform, color counts, and replacement options', async () => {
 		const wrapper = mount(AnnotationGrowths, {
-			props: { snippet, baseColor: '#337ab7' },
+			props: { snippet, annotations: [], chartTitle: 'Growths', baseColor: '#337ab7' },
 		});
 		const initial = options(wrapper);
-		expect(initial).toMatchObject({ title: { text: 'Growths' }, colors: ['rgb(0,20,81)'], series: [] });
-
-		await wrapper.setProps({ annotations: [] });
-		expect(options(wrapper)).toMatchObject({ colors: [], series: [] });
+		expect(initial).toMatchObject({ title: { text: 'Growths' }, colors: [], series: [] });
 
 		await wrapper.setProps({
 			chartTitle: 'Growth',
@@ -176,6 +220,17 @@ describe('article statistic charts', () => {
 					['V', 2, 50, 1, 50],
 					['N', 3, 75, 2, 100],
 				],
+			},
+		]);
+
+		await wrapper.setProps({ annotations: [{ id: 'missing', displayName: 'Missing' }] });
+		expect(options(wrapper).series).toEqual([
+			{
+				type: 'line',
+				name: 'Missing',
+				boostThreshold: 250,
+				keys: ['name', 'x', 'x2', 'y', 'y2'],
+				data: [],
 			},
 		]);
 	});

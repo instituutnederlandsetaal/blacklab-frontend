@@ -1,6 +1,4 @@
-<template>
-	<Chart v-if="snippet" :options="chartOptions" />
-</template>
+<template><Chart :options="chartOptions" /></template>
 
 <script setup lang="ts">
 import { stripIndent } from 'common-tags';
@@ -12,27 +10,22 @@ import type * as BLTypes from '@/types/blacklabtypes';
 
 import { chartColors } from './chart-colors';
 
-const props = withDefaults(
-	defineProps<{
-		snippet: BLTypes.BLHitInDoc;
-		annotations?: Array<{
-			id: string;
-			displayName?: string;
-		}>;
-		chartTitle?: string;
-		baseColor?: string;
-	}>(),
-	{ chartTitle: 'Growths' },
-);
+const props = defineProps<{
+	snippet: BLTypes.BLHitInDoc;
+	annotations: Array<{
+		id: string;
+		displayName?: string;
+	}>;
+	chartTitle: string;
+	baseColor: string;
+}>();
 
 const growth = computed<Highcharts.SeriesLineOptions[]>(() => {
-	if (!props.annotations || props.annotations.length === 0) return [];
-
 	return props.annotations.map((annot): Highcharts.SeriesLineOptions => {
 		let uniques = 0;
 		const seen = {} as { [key: string]: boolean };
 
-		const values = props.snippet.match[annot.id];
+		const values = props.snippet.match[annot.id] ?? [];
 		const invLength = 100 / (values.length + 1);
 
 		return {
@@ -52,7 +45,7 @@ const growth = computed<Highcharts.SeriesLineOptions[]>(() => {
 
 const chartOptions = computed<Highcharts.Options>(() => ({
 	title: {
-		text: props.chartTitle || '',
+		text: props.chartTitle,
 	},
 	boost: {
 		useGPUTranslations: true,
@@ -62,7 +55,7 @@ const chartOptions = computed<Highcharts.Options>(() => ({
 		animation: false,
 		zoomType: 'x',
 	},
-	colors: chartColors(props.baseColor, props.annotations ? props.annotations.length : 1),
+	colors: chartColors(props.baseColor, props.annotations.length),
 	tooltip: {
 		animation: false,
 		shadow: false,
