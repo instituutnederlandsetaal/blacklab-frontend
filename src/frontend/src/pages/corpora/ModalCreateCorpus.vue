@@ -1,5 +1,5 @@
 <template>
-	<Modal title="Create new Corpus" @close="$emit('close')" @confirm="createCorpus" closeMessage="Cancel">
+	<Modal title="Create new Corpus" @close="emit('close')" @confirm="createCorpus" closeMessage="Cancel">
 		<div v-if="errorMessage" class="alert alert-danger">
 			<a href="#" class="close" aria-label="close" @click="errorMessage = ''">×</a>
 			{{ errorMessage }}
@@ -30,8 +30,8 @@
 		</div>
 	</Modal>
 </template>
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
 
 import type { NormalizedFormat } from '@/types/apptypes';
 import type { BLUser } from '@/types/blacklabtypes';
@@ -43,52 +43,48 @@ import type { Options } from '@/shared/utils/options';
 import Modal from '@/shared/ui/Modal.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-export default defineComponent({
-	components: { Modal, SelectPicker },
-	props: {
-		publicFormats: Array as () => NormalizedFormat[],
-		privateFormats: Array as () => NormalizedFormat[],
-		loading: Boolean,
-		user: Object as () => BLUser,
-	},
-	data: () => ({
-		corpusName: '',
-		documentType: '',
-		errorMessage: '',
-	}),
-	computed: {
-		selectedFormat(): NormalizedFormat | undefined {
-			return this.publicFormats?.find(f => f.id === this.documentType) || this.privateFormats?.find(f => f.id === this.documentType);
-		},
-		formatOptions(): Options {
-			const r: Options = [];
-			if (this.privateFormats) r.push({ label: 'Custom', options: this.privateFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) });
-			if (this.publicFormats) r.push({ label: 'Public', options: this.publicFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) });
-			return r;
-		},
-	},
-	methods: {
-		createCorpus() {
-			if (!this.corpusName) return (this.errorMessage = 'Please enter a name for the corpus.');
-			if (!this.documentType) return (this.errorMessage = 'Please select a document format.');
-			if (!this.user?.loggedIn || !this.user?.id) {
-				console.error('user not logged in - cannot create corpus (!?)');
-				return;
-			}
+const props = defineProps<{
+	publicFormats: NormalizedFormat[];
+	privateFormats: NormalizedFormat[];
+	loading: boolean;
+	user: BLUser;
+}>();
+const emit = defineEmits<{
+	close: [];
+	create: [];
+	error: [message: string];
+	success: [message: string];
+}>();
 
-			// Prefix the user name because it's a private index
-			const indexName = this.user.id + ':' + this.corpusName.replace(/[\s\\/:]+/g, '_');
-			const displayName = this.corpusName;
+const blacklab = useBlackLabApi();
+const corpusName = ref('');
+const documentType = ref('');
+const errorMessage = ref('');
+const selectedFormat = computed(() => props.publicFormats.find(f => f.id === documentType.value) || props.privateFormats.find(f => f.id === documentType.value));
+const formatOptions = computed<Options>(() => [
+	{ label: 'Custom', options: props.privateFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) },
+	{ label: 'Public', options: props.publicFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) },
+]);
 
-			useBlackLabApi()
-				.postCorpus(indexName, displayName, this.documentType)
-				.then(() => {
-					this.$emit('create');
-					this.$emit('success', `Corpus "${displayName}" created.`);
-				})
-				.catch((e: ApiError) => this.$emit('error', `Could not create corpus "${displayName}": ${e.message}`))
-				.finally(() => this.$emit('close'));
-		},
-	},
-});
+function createCorpus() {
+	if (!corpusName.value) return (errorMessage.value = 'Please enter a name for the corpus.');
+	if (!documentType.value) return (errorMessage.value = 'Please select a document format.');
+	if (!props.user.loggedIn || !props.user.id) {
+		console.error('user not logged in - cannot create corpus (!?)');
+		return;
+	}
+
+	// Prefix the user name because it's a private index
+	const indexName = props.user.id + ':' + corpusName.value.replace(/[\s\\/:]+/g, '_');
+	const displayName = corpusName.value;
+
+	blacklab
+		.postCorpus(indexName, displayName, documentType.value)
+		.then(() => {
+			emit('create');
+			emit('success', `Corpus "${displayName}" created.`);
+		})
+		.catch((e: ApiError) => emit('error', `Could not create corpus "${displayName}": ${e.message}`))
+		.finally(() => emit('close'));
+}
 </script>
