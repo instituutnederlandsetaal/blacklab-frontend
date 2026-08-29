@@ -121,7 +121,7 @@ function simplifyWrapperAttribute(value: WrapperAttribute): WrapperAttribute | n
 	);
 }
 
-function simplifyPredicateValue(value: PredicateValueNode): PredicateValueNode | null {
+function simplifyPredicateValue<T extends PredicateValueNode>(value: T): T | null {
 	if (value.valueType === 'range') return value;
 	return value.value.trim() ? value : null;
 }
@@ -180,10 +180,7 @@ function simplifyFilter(filter: LuceneNode | null): LuceneNode | null {
 	if (!filter) return null;
 	return simplifyBooleanNode(
 		filter,
-		leaf => {
-			if (leaf.valueType === 'range') return leaf;
-			return leaf.value.trim() ? leaf : null;
-		},
+		simplifyPredicateValue,
 		(operator, leaf) => (operator === 'or' && leaf.valueType !== 'range' && leaf.valueType !== 'regex' ? leaf.field : null),
 		leaves => mergeTextValues(leaves as Array<LuceneLeaf & PredicateTextNode>),
 	);

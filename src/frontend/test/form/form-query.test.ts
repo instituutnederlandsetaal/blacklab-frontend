@@ -143,6 +143,11 @@ describe('semantic query compilation', () => {
 		expect(compileFilter(node)).toBe('(author:(Austen) AND year:(1813))');
 	});
 
+	test('drops empty Lucene text while retaining a complete range', () => {
+		const node = booleanNode('and', [filter('author', 'literal', ' ')!, filterRange('year', '1800', '1900')!])!;
+		expect(compileFilter(node)).toBe('year:[1800 TO 1900]');
+	});
+
 	test('normalizes compatible CQL and Lucene alternatives', () => {
 		const cql = booleanNode('or', [annotation('word', 'literal', 'a*')!, annotation('lemma', 'literal', 'c')!, annotation('word', 'wildcard', 'b*')!])!;
 		const lucene = booleanNode('or', [filter('author', 'literal', 'A*')!, filter('title', 'literal', 'C')!, filter('author', 'wildcard', 'B*')!])!;
