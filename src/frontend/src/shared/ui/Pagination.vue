@@ -22,13 +22,13 @@
 			<template v-if="editable && !hasPageRange">
 				<input
 					type="number"
+					step="1"
 					class="form-control"
 					:value="page + 1"
 					:disabled="disabled"
 					@keypress.enter.prevent="commitPageInput($event)"
 					@keyup.esc.prevent="resetPageInput($event)"
 					@change.prevent="commitPageInput($event)"
-					ref="maincontrol"
 				/>
 				<span v-if="editable" class="fa fa-pencil"></span>
 			</template>
@@ -51,144 +51,86 @@
 	</ul>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 
-/** Renders pagination controls, inputs are 0-based, meaning page === 0 will render as 1 on the label */
-export default defineComponent({
-	emits: ['change', 'active'],
-	props: {
-		/** 0-indexed. The interface will display this number + 1 */
-		page: { type: Number, required: true },
-		page2: {
-			type: Number,
-			required: false,
-		},
-		pageActive: {
-			type: Boolean,
-			default: true,
-		},
-		/** 0-indexed. The interface will display this number + 1 */
-		maxPage: {
-			type: Number,
-			default: Number.MAX_VALUE,
-		},
-		/** 0-indexed. The interface will display this number + 1 */
-		minPage: {
-			type: Number,
-			default: 0,
-		},
-		disabled: Boolean,
-		editable: {
-			type: Boolean,
-			default: true,
-		},
-		showOffsets: {
-			type: Boolean,
-			default: true,
-		},
-		/** Show e.g. 1/10 instead of just '1' in the centre button. Only has an effect when editable is false. */
-		showTotal: {
-			type: Boolean,
-			default: false,
-		},
-	},
-	data: () => ({
-		focus: false,
-	}),
-	computed: {
-		/** Whether we're showing a range of pages (from a shared URL with different page size) */
-		hasPageRange(): boolean {
-			return this.page2 != null && this.page2 !== this.page;
-		},
-		currentPageLabel(): string {
-			const baseRangeString = this.hasPageRange ? `${(this.boundedLowerPage + 1).toLocaleString()} - ${(this.boundedUpperPage + 1).toLocaleString()}` : (this.boundedLowerPage + 1).toLocaleString();
-			return this.showTotal ? `${baseRangeString}/${(this.maxPage + 1).toLocaleString()}` : baseRangeString;
-		},
+/** Inputs are zero-based; labels are one-based. */
+const {
+	page,
+	page2,
+	pageActive = true,
+	maxPage = Number.MAX_VALUE,
+	minPage = 0,
+	disabled = false,
+	editable = true,
+	showOffsets = true,
+	showTotal = false,
+} = defineProps<{
+	page: number;
+	page2?: number;
+	pageActive?: boolean;
+	maxPage?: number;
+	minPage?: number;
+	disabled?: boolean;
+	editable?: boolean;
+	showOffsets?: boolean;
+	/** Show e.g. 1/10 instead of just 1 in the centre button. */
+	showTotal?: boolean;
+}>();
+const emit = defineEmits<{ change: [page: number]; active: [page: number] }>();
 
-		lowerPages(): number[] {
-			return this.calcOffsets(this.boundedLowerPage - this.minPage)
-				.reverse()
-				.map(o => this.boundedLowerPage - o);
-		},
-		higherPages(): number[] {
-			return this.calcOffsets(this.maxPage - this.boundedUpperPage).map(o => this.boundedUpperPage + o);
-		},
-		nextEnabled(): boolean {
-			return this.boundedUpperPage < this.maxPage;
-		},
-		prevEnabled(): boolean {
-			return this.boundedLowerPage > this.minPage;
-		},
-
-		boundedLowerPage(): number {
-			return Math.max(this.minPage, Math.min(this.page, this.maxPage));
-		},
-		boundedUpperPage(): number {
-			return Math.max(this.minPage, Math.min(this.page2 ?? this.page, this.maxPage));
-		},
-	},
-	methods: {
-		commitPageInput(event: Event) {
-			const target = event.target as HTMLInputElement | null;
-			if (!target) {
-				return;
-			}
-
-			const nextPage = Number(target.value) - 1;
-			if (this.isValid(nextPage)) {
-				this.changePage(nextPage);
-				return;
-			}
-
-			target.value = String(this.page + 1);
-		},
-		resetPageInput(event: Event) {
-			const target = event.target as HTMLInputElement | null;
-			if (!target) {
-				return;
-			}
-
-			target.value = String(this.page + 1);
-			target.blur();
-		},
-		calcOffsets(range: number) {
-			if (range <= 0) return [];
-			if (range <= 1) return [1];
-			if (range <= 2) return [1, 2];
-			if (range <= 5) return [1, 2, range];
-			if (range <= 10) return [1, 2, 5, range];
-			return [1, 2, 3, 5, 10];
-		},
-		isValid(page: any): page is number {
-			return (
-				typeof page === 'number' &&
-				!isNaN(page) &&
-				(page !== this.page || !this.pageActive) && // emit event for current page if the page is not active (i.e. is page is just center of the pagination, but not the "current" page)
-				page >= this.minPage &&
-				page <= this.maxPage
-			);
-		},
-		changePage(page: any) {
-			if (!this.disabled && this.isValid(page)) {
-				this.$emit('change', page);
-			}
-		},
-		activatePage() {
-			if (!this.disabled) {
-				this.$emit('active', this.page);
-			}
-		},
-	},
-	beforeUpdate() {
-		this.focus = document.activeElement === this.$refs.maincontrol;
-	},
-	updated() {
-		if (this.focus) {
-			(this.$refs.maincontrol as HTMLInputElement).focus();
-		}
-	},
+const hasPageRange = computed(() => page2 != null && page2 !== page);
+const boundedLowerPage = computed(() => Math.max(minPage, Math.min(page, maxPage)));
+const boundedUpperPage = computed(() => Math.max(minPage, Math.min(page2 ?? page, maxPage)));
+const currentPageLabel = computed(() => {
+	const label = hasPageRange.value ? `${(boundedLowerPage.value + 1).toLocaleString()} - ${(boundedUpperPage.value + 1).toLocaleString()}` : (boundedLowerPage.value + 1).toLocaleString();
+	return showTotal ? `${label}/${(maxPage + 1).toLocaleString()}` : label;
 });
+
+function calcOffsets(range: number) {
+	if (range <= 0) return [];
+	if (range <= 1) return [1];
+	if (range <= 2) return [1, 2];
+	if (range <= 5) return [1, 2, range];
+	if (range <= 10) return [1, 2, 5, range];
+	return [1, 2, 3, 5, 10];
+}
+
+const lowerPages = computed(() =>
+	calcOffsets(boundedLowerPage.value - minPage)
+		.reverse()
+		.map(offset => boundedLowerPage.value - offset),
+);
+const higherPages = computed(() => calcOffsets(maxPage - boundedUpperPage.value).map(offset => boundedUpperPage.value + offset));
+const nextEnabled = computed(() => boundedUpperPage.value < maxPage);
+const prevEnabled = computed(() => boundedLowerPage.value > minPage);
+
+function isValid(candidate: unknown): candidate is number {
+	return typeof candidate === 'number' && Number.isFinite(candidate) && Number.isInteger(candidate) && (candidate !== page || !pageActive) && candidate >= minPage && candidate <= maxPage;
+}
+
+function changePage(candidate: unknown) {
+	if (!disabled && isValid(candidate)) emit('change', candidate);
+}
+
+function commitPageInput(event: Event) {
+	const target = event.target as HTMLInputElement | null;
+	if (!target) return;
+	const nextPage = Number(target.value) - 1;
+	if (target.value !== '' && isValid(nextPage)) changePage(nextPage);
+	else target.value = String(page + 1);
+}
+
+function resetPageInput(event: Event) {
+	const target = event.target as HTMLInputElement | null;
+	if (!target) return;
+	target.value = String(page + 1);
+	target.blur();
+}
+
+function activatePage() {
+	if (!disabled) emit('active', page);
+}
 </script>
 
 <style lang="scss" scoped>
