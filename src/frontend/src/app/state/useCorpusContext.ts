@@ -33,9 +33,7 @@ const defaultConfig = {
 };
 
 const [_corpusLoadableKey, provideCorpusContextLoader, _useCorpusContextLoader] = useInjectable<LoadableFromRequest<CorpusContext>>('corpus_context_loader');
-const [_corpusStateKey, provideCorpusContext, _useCorpusContext] = useInjectable<Ref<CorpusContext>>('corpus_context');
 const [_cfPageConfigKey, provideCfPageConfig, _useCfPageConfig] = useInjectable<Ref<CFPageConfig>>('cf_page_config');
-const [_tagsetKey, provideTagset, _useTagset] = useInjectable<Ref<Tagset | undefined>>('tagset');
 const [_corpusKey, provideCorpus, _useCorpus] = useInjectable<Ref<Corpus>>('corpus');
 
 let installedCorpus: Ref<Corpus> | undefined;
@@ -146,14 +144,12 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	// behind the data source being loaded
 	// this makes makes it easier to use the data in various components where it's guaranteed we'll have the data available
 	// In practice, the corpusPage component guards the loading and error state
-	const combinedValue: Ref<CorpusContext> = computed(() => publishedContext.value!);
 	const corpusValue: Ref<Corpus | undefined> = computed(() => publishedContext.value?.index);
 	const configValue: Ref<CFPageConfig> = computed(() => publishedContext.value?.config ?? defaultConfig);
 	const tagsetValue: Ref<Tagset | undefined> = computed(() => publishedContext.value?.tagset);
 
 	return {
 		contextLoader: publishedContext,
-		context: combinedValue,
 		corpus: corpusValue,
 		config: configValue,
 		tagset: tagsetValue,
@@ -162,9 +158,7 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 		},
 		install: (app => {
 			provideCorpusContextLoader(app, publishedContext);
-			provideCorpusContext(app, combinedValue);
 			provideCfPageConfig(app, configValue);
-			provideTagset(app, tagsetValue);
 			// The value can be undefined in reality, so this is a lie, but usage is supposed to be gated to where the corpus is loaded.
 			installedCorpus = corpusValue as Ref<Corpus>;
 			provideCorpus(app, corpusValue as Ref<Corpus>);
