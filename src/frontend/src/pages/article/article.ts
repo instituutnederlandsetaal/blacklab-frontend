@@ -1,5 +1,5 @@
 import type { Observable } from 'rxjs';
-import { BehaviorSubject, combineLatest, distinctUntilChanged, map, mergeMap, of, ReplaySubject, shareReplay } from 'rxjs';
+import { BehaviorSubject, combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
 
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 
@@ -181,7 +181,7 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	);
 
 	const currentPageSnippet$ = combineLatest([validPaginationParameters$, retrieveSnippetToggle$] as const).pipe(
-		mergeMap(([pagination, enabled]) => (enabled ? of(pagination) : of(Loadable.Empty()))),
+		map(([pagination, enabled]) => (enabled ? pagination : Loadable.Empty())),
 		switchMapLoaded(pagination => blacklab.getSnippet(pagination.indexId, pagination.docId, pagination.viewField, pagination.wordstart, pagination.wordend, 0).toObservable()),
 		shareReplay(1),
 	);
@@ -233,27 +233,15 @@ function getValidfindhit(findhit: number | undefined | null, hits?: [number, num
 	return hitIndex >= 0 ? findhit : undefined;
 }
 
-/** Given a set of unvalidated pagination parameters, return a set of validated pagination parameters. */
-function fixPagination({ wordstart, wordend, pageSize, findhit, docLength }: { wordstart: number; wordend: number; pageSize: number; findhit?: number; docLength: number }): {
-	wordstart: number;
-	wordend: number;
-} {
-	if (findhit == null || (findhit >= wordstart && findhit < wordend)) return { wordstart, wordend };
-	const newPageStart = Math.floor(findhit / pageSize) * pageSize;
-	return {
-		wordstart: newPageStart,
-		wordend: clamp(newPageStart + pageSize, 0, docLength),
-	};
-}
-
 function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPaginationAndDocDisplayParameters {
 	const docLength = getDocumentLength(doc.docInfo, input.viewField ?? undefined);
 	let { wordstart, wordend } = getDefaultPagination(input, docLength);
 	const findhit = getValidfindhit(input.findhit, hits);
 	const pageSize = getValidPageSize(input.pageSize);
 
-	if (pageSize != null) {
-		({ wordstart, wordend } = fixPagination({ wordstart, wordend, pageSize, findhit, docLength }));
+	if (pageSize != null && findhit != null && (findhit < wordstart || findhit >= wordend)) {
+		wordstart = Math.floor(findhit / pageSize) * pageSize;
+		wordend = clamp(wordstart + pageSize, 0, docLength);
 	}
 
 	return {

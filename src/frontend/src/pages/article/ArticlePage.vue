@@ -175,6 +175,7 @@ const hits = loadableFromStream(hits$);
 const hitToHighlight = loadableFromStream(hitToHighlight$);
 const validPaginationInfo = loadableFromStream(validPaginationParameters$);
 const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet$, metadata$] as const));
+const streamLoadables = [metadata, contents, hits, hitToHighlight, validPaginationInfo, statistics];
 
 watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
 
@@ -277,12 +278,7 @@ watchEffect(() => {
 
 onUnmounted(() => {
 	tooltipContext.value?.();
-	metadata.stop();
-	contents.stop();
-	hits.stop();
-	hitToHighlight.stop();
-	validPaginationInfo.stop();
-	statistics.stop();
+	streamLoadables.forEach(loadable => loadable.stop());
 });
 </script>
 
