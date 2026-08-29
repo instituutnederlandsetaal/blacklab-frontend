@@ -45,7 +45,6 @@ export type SearchFilterTab = {
 	query?: Record<string, string[]>;
 };
 
-export type ResultView = UIStore.CustomView;
 export type ResultHitAddon = ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>;
 
 function activeResultCustomizations(registry: CustomizationRegistry) {

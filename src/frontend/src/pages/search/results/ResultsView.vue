@@ -75,14 +75,21 @@
 					:groups="isGroups"
 					:parallelCorpus="isParallelCorpus"
 					:corpus="corpus"
-					:annotations="sortAnnotations"
-					:annotationGroupLabels="sortAnnotationLabels"
-					:metadata="sortMetadata"
-					:metadataGroupLabels="sortMetadataLabels"
+					:annotations="customizations.resultSortAnnotationIds()"
+					:annotationGroupLabels="customizations.resultSortAnnotationLabelsVisible()"
+					:metadata="customizations.resultSortMetadataIds()"
+					:metadataGroupLabels="customizations.resultSortMetadataLabelsVisible()"
 					:disabled="!!request"
 				/>
 
-				<Export v-if="exportEnabled" :results="results" :type="id" :disabled="!!request" :annotations="exportAnnotations" :metadata="exportMetadata" />
+				<Export
+					v-if="customizations.resultExportEnabled()"
+					:results="results"
+					:type="id"
+					:disabled="!!request"
+					:annotations="customizations.resultDetailedAnnotationIds()"
+					:metadata="customizations.resultDetailedMetadataIds()"
+				/>
 			</div>
 		</template>
 		<div v-else-if="error != null" class="no-results-found">
@@ -201,13 +208,6 @@ const concordanceAnnotationId = computed({
 	get: customizations.resultConcordanceAnnotationId,
 	set: customizations.setResultConcordanceAnnotationId,
 });
-const sortAnnotations = computed(customizations.resultSortAnnotationIds);
-const sortAnnotationLabels = computed(customizations.resultSortAnnotationLabelsVisible);
-const sortMetadata = computed(customizations.resultSortMetadataIds);
-const sortMetadataLabels = computed(customizations.resultSortMetadataLabelsVisible);
-const exportAnnotations = computed(customizations.resultDetailedAnnotationIds);
-const exportMetadata = computed(customizations.resultDetailedMetadataIds);
-const exportEnabled = computed(customizations.resultExportEnabled);
 
 // Refresh only when the request sent to BlackLab changes. The submitted form snapshot also contains
 // presentation data (localized summaries and encoded form state), none of which changes the result set.

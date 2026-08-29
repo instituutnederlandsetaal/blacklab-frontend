@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { createApp, ref } from 'vue';
+import { computed, createApp, isReactive, nextTick, reactive, ref, watchEffect } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations, useCustomizations } from '@/customization-api/internal/internal-api';
@@ -54,6 +54,52 @@ describe('customization registry corpus lifecycle', () => {
 
 		corpus.value = createCorpus('first');
 		expect(app.runWithContext(useCustomizations).searchWithSpans).toBe(customizations.searchWithSpans);
+	});
+
+	test('tracks reactive state read through stable customization functions', async () => {
+		const corpus = createCorpus('first');
+		const registry = createCustomizationRegistry(corpus);
+		const uiState = reactive({ results: { customViews: [{ id: 'first' as string }] } });
+		const customizations = createCustomizations(registry, corpus, uiState as never, () => {});
+		const app = createApp({});
+		app.use(customizations);
+		const injected = app.runWithContext(useCustomizations);
+		const { resultViews } = injected;
+		const observed: string[][] = [];
+		const stop = watchEffect(() => observed.push(resultViews().map(view => view.id)));
+
+		expect(isReactive(injected)).toBe(false);
+		expect(resultViews).toBe(injected.resultViews);
+		uiState.results.customViews = [{ id: 'second' }];
+		await nextTick();
+
+		expect(observed).toEqual([['first'], ['second']]);
+		stop();
+	});
+
+	test('tracks replacement of functions delegated through the customization API', () => {
+		const corpus = createCorpus('first');
+		const registry = createCustomizationRegistry(corpus);
+		const uiState = reactive({ global: { errorMessage: (): string => 'first' } });
+		const customizations = createCustomizations(registry, corpus, uiState as never, () => {});
+		const message = computed(() => customizations.formatError({} as never, 'hits'));
+
+		expect(message.value).toBe('first');
+		uiState.global.errorMessage = () => 'second';
+		expect(message.value).toBe('second');
+	});
+
+	test('recomputes result resolvers when typed customizations are registered and removed', () => {
+		const corpus = createCorpus('first');
+		const registry = createCustomizationRegistry(corpus);
+		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
+		const withSpans = computed(() => customizations.searchWithSpans('[]'));
+
+		expect(withSpans.value).toBeNull();
+		const unregister = registry.registerResults({ withSpans: true });
+		expect(withSpans.value).toBe(true);
+		unregister();
+		expect(withSpans.value).toBeNull();
 	});
 
 	test('resolves filter tabs using current corpus and legacy customization behavior', () => {
