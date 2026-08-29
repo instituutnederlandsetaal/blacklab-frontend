@@ -8,47 +8,36 @@
 		<template v-else>
 			<div v-for="c in corpora" :key="c.id">
 				{{ c.id }}
-				<router-link :to="{ name: 'corpus', params: { id: c.id } }">go!</router-link>
+				<router-link :to="{ name: 'tagset builder', params: { corpus: c.id } }">go!</router-link>
 			</div>
 		</template>
 	</div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { ref } from 'vue';
 
-import type { NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
+import type { NormalizedIndexBase } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
 
-import CorpusConfig from './CorpusConfig.vue';
+const api = useBlackLabApi();
+const loading = ref(false);
+const error = ref<string | null>(null);
+const corpora = ref<NormalizedIndexBase[]>([]);
 
-export default defineComponent({
-	components: {
-		CorpusConfig,
-	},
-	data: () => ({
-		loading: false,
-		error: null as null | string,
-		corpora: null as null | NormalizedIndexBase[],
-		corpus: null as null | NormalizedIndex,
-	}),
-	methods: {
-		load() {
-			if (this.loading) {
-				return;
-			}
-			this.loading = true;
+async function load() {
+	if (loading.value) return;
+	loading.value = true;
+	error.value = null;
+	try {
+		corpora.value = await api.getCorpora();
+	} catch (e) {
+		error.value = e instanceof Error ? e.message : String(e);
+	} finally {
+		loading.value = false;
+	}
+}
 
-			useBlackLabApi()
-				.getCorpora()
-				.then(c => (this.corpora = c))
-				.catch(e => (this.error = e.message))
-				.finally(() => (this.loading = false));
-		},
-	},
-	created() {
-		this.load();
-	},
-});
+void load();
 </script>

@@ -88,14 +88,13 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 				component: () => import('@/pages/about/AboutPage.vue'),
 			},
 			{
-				name: 'global-configwizard',
 				path: '/configwizard',
 				meta: { name: 'configwizard' },
 				component: () => import('@/pages/config/ConfigPage.vue'),
-				// todo make this make sense.
 				children: [
 					{
-						path: '/:pathMatch(.*)*',
+						name: 'global-configwizard',
+						path: '',
 						component: () => import('@/pages/config/CorpusPicker.vue'),
 					},
 				],
@@ -136,11 +135,7 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 						path: 'configwizard',
 						meta: { name: 'configwizard' },
 						component: () => import('@/pages/config/CorpusConfig.vue'),
-						props: route => ({
-							id: route.params.id,
-							activeTab: route.params.tab,
-							tabs: ['tagset builder', 'interface'],
-						}),
+						redirect: to => ({ name: 'tagset builder', params: { corpus: to.params.corpus } }),
 						children: [
 							{
 								path: 'pos',
