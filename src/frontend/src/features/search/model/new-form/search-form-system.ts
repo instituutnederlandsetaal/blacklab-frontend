@@ -30,7 +30,6 @@ import {
 	searchTarget,
 	tokenSequenceController,
 	withinController,
-	type BaseFieldNode,
 	type FormFieldNode,
 	type FormNode,
 	type SummaryTotalsController,
@@ -54,36 +53,33 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
-const SIMPLE_SEARCH_VARIANT: NonNullable<BaseFieldNode['variant']> = ['large', 'simple'];
 const EXPLORE_NGRAM_MAX_SIZE = 5;
 
-function createSearchFormTotalsFactory(corpus: Corpus, blacklab: BlackLabApi): () => SummaryTotalsController {
-	return () => {
-		const loader = new FilteredResultCountLoader();
-		const state = computed<SummaryTotalsState>(() => {
-			if (loader.isError()) return { status: 'error', message: loader.error?.message ?? 'Could not load result totals.' };
-			if (!loader.isLoaded()) return { status: 'loading' };
-
-			return {
-				status: 'loaded',
-				documents: loader.value.numberOfMatchingDocuments,
-				tokens: loader.value.tokensInMatchingDocuments,
-				totalDocuments: loader.value.totalDocsInIndex,
-				totalTokens: loader.value.totalTokensInIndex,
-			};
-		});
+function createSearchFormTotals(corpus: Corpus, blacklab: BlackLabApi): SummaryTotalsController {
+	const loader = new FilteredResultCountLoader();
+	const state = computed<SummaryTotalsState>(() => {
+		if (loader.isError()) return { status: 'error', message: loader.error?.message ?? 'Could not load result totals.' };
+		if (!loader.isLoaded()) return { status: 'loading' };
 
 		return {
-			state,
-			update: ({ filter, searchfield }) =>
-				loader.next({
-					index: corpus,
-					filter,
-					annotatedFieldId: searchfield || corpus.mainAnnotatedField,
-					blacklab,
-				}),
-			dispose: () => loader.dispose(),
+			status: 'loaded',
+			documents: loader.value.numberOfMatchingDocuments,
+			tokens: loader.value.tokensInMatchingDocuments,
+			totalDocuments: loader.value.totalDocsInIndex,
+			totalTokens: loader.value.totalTokensInIndex,
 		};
+	});
+
+	return {
+		state,
+		update: ({ filter, searchfield }) =>
+			loader.next({
+				index: corpus,
+				filter,
+				annotatedFieldId: searchfield || corpus.mainAnnotatedField,
+				blacklab,
+			}),
+		dispose: () => loader.dispose(),
 	};
 }
 
@@ -158,7 +154,7 @@ function createSharedFilters(context: BuildContext): FormNode | null {
 		builder.newView(ids.sharedFiltersHeading(), HeadingView, { title: () => translate.$t('filter.heading') }),
 		filters,
 		builder.newView(ids.sharedFiltersSummary(), SummaryView, {
-			createTotals: createSearchFormTotalsFactory(corpus, blacklabApi),
+			createTotals: () => createSearchFormTotals(corpus, blacklabApi),
 		}),
 	);
 }
@@ -467,15 +463,10 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 	watchEffect(
 		() => {
 			const corpus = options.corpus.value;
-			if (!corpus) {
-				runtime.value = null;
-				return;
-			}
-
 			// Localized graph values are deferred getters. Keep locale and debug out of
 			// the structural dependencies so they update labels without replacing the
 			// live form session and all of its state.
-			runtime.value = new FormRuntime(createSearchFormDefinition(corpus, options.tagset.value, options.blacklabApi, options.translate, options.customizations));
+			runtime.value = corpus ? new FormRuntime(createSearchFormDefinition(corpus, options.tagset.value, options.blacklabApi, options.translate, options.customizations)) : null;
 		},
 		{ flush: 'sync' },
 	);
@@ -555,7 +546,7 @@ function createSimplePatternForm(context: BuildContext, annotation: NormalizedAn
 	const simpleQuery = wrapParallel(
 		context,
 		'simple',
-		context.nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: queryFieldId(context, 'simple'), variant: SIMPLE_SEARCH_VARIANT }),
+		context.nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: queryFieldId(context, 'simple'), variant: ['large', 'simple'] }),
 	);
 	simpleForm.addChildren(simpleQuery);
 	return simpleForm;

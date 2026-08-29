@@ -4,8 +4,9 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
+import { customRef, effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
 
+import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
@@ -24,9 +25,10 @@ import {
 	type ParallelFieldState,
 	type TokenSequenceFieldState,
 } from '@/features/form';
+import type { SummaryViewConfig } from '@/features/form/model/views/summary-view';
 import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
-import type { Corpus, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
+import type { Corpus, NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import debug from '@/shared/debug/debug';
 import { findOption, optionLabel, optionText, optionTitle, optionValues, type Options, type OptionText } from '@/shared/utils/options';
@@ -60,6 +62,25 @@ function metadataField(id: string, overrides: Partial<NormalizedMetadataField> =
 		id,
 		uiType: 'text',
 		...overrides,
+	};
+}
+
+function countedRef<T>(initialValue: T) {
+	let reads = 0;
+	let value = initialValue;
+	return {
+		reads: () => reads,
+		value: customRef<T>((track, trigger) => ({
+			get() {
+				track();
+				reads++;
+				return value;
+			},
+			set(nextValue) {
+				value = nextValue;
+				trigger();
+			},
+		})),
 	};
 }
 
@@ -355,6 +376,54 @@ afterEach(() => {
 enableAutoUnmount(afterEach);
 
 describe('search form system', () => {
+	test('tracks tagset and customization dependencies only while a corpus is loaded', () => {
+		const corpus = countedRef<Corpus | undefined>(undefined);
+		const tagset = countedRef<Tagset | undefined>(undefined);
+		const system = createScopedSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			corpus: corpus.value,
+			tagset: tagset.value,
+			translate: createMockTranslate(),
+		});
+		let configurationRuns = 0;
+		const unregisterPresent = customizationRegistry.registerForm(() => configurationRuns++);
+		let unregisterAbsent = () => {};
+
+		try {
+			expect(system.runtime.value).toBeNull();
+			expect(corpus.reads()).toBe(1);
+			expect(tagset.reads()).toBe(0);
+
+			tagset.value.value = {} as Tagset;
+			expect(corpus.reads()).toBe(1);
+			expect(tagset.reads()).toBe(0);
+
+			corpus.value.value = createCorpus();
+			const initialRuntime = system.runtime.value;
+			expect(initialRuntime).not.toBeNull();
+			expect(tagset.reads()).toBe(1);
+			expect(configurationRuns).toBe(1);
+
+			tagset.value.value = undefined;
+			expect(system.runtime.value).not.toBe(initialRuntime);
+			expect(tagset.reads()).toBe(2);
+
+			unregisterPresent();
+			corpus.value.value = undefined;
+			expect(system.runtime.value).toBeNull();
+			const readsAfterTeardown = corpus.reads();
+			const tagsetReadsAfterTeardown = tagset.reads();
+
+			tagset.value.value = {} as Tagset;
+			unregisterAbsent = customizationRegistry.registerForm(() => configurationRuns++);
+			expect(corpus.reads()).toBe(readsAfterTeardown);
+			expect(tagset.reads()).toBe(tagsetReadsAfterTeardown);
+		} finally {
+			unregisterPresent();
+			unregisterAbsent();
+		}
+	});
+
 	test('updates deferred Explore option and selector text when locale changes', () => {
 		const { annotationOption, locale, metadataOption, tokenSequence } = createLocalizedSearchSystem();
 		expect(optionLabel(annotationOption)).toContain('en:word');
@@ -461,6 +530,26 @@ describe('search form system', () => {
 		expect(onlyGroup?.title).toBeUndefined();
 		expect(onlyGroup?.variant).toBe('list');
 		expect(runtime.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
+	});
+
+	test('creates and disposes an independent totals controller for each summary', () => {
+		const summary = createDefinition().definition.getView(ids.sharedFiltersSummary()) as unknown as SummaryViewConfig;
+		const dispose = vi.spyOn(FilteredResultCountLoader.prototype, 'dispose');
+		const first = summary.createTotals();
+		const second = summary.createTotals();
+
+		expect(first).not.toBe(second);
+		expect(first.state).not.toBe(second.state);
+		first.update({});
+		expect(toValue(first.state).status).toBe('loaded');
+		expect(toValue(second.state).status).toBe('loading');
+
+		first.dispose?.();
+		second.update({});
+		expect(toValue(second.state).status).toBe('loaded');
+		second.dispose?.();
+		expect(dispose.mock.contexts).toHaveLength(2);
+		expect(dispose.mock.contexts[0]).not.toBe(dispose.mock.contexts[1]);
 	});
 
 	test('uses tagset labels for POS field configuration', () => {
