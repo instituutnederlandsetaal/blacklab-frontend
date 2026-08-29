@@ -6,7 +6,8 @@ import { createDefaultRadioFieldState, type RadioFieldDefinition } from '@/featu
 import { createDefaultRangeFieldState, type RangeFieldDefinition } from '@/features/form/fields/generic/range-field';
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
-import { array, bool, object, scalar, stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { object, scalar, stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { rangeModePersistenceCodec, rangePersistenceCodec, selectionPersistenceCodec, textPersistenceCodec } from '@/features/form/model/controllers/shared-persistence-codecs';
 import { booleanNode, filter, filterRange, summary, type LuceneNode } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
@@ -29,31 +30,9 @@ function metadataPersistKey(config: MetadataFilterControllerConfig | BiMetadataF
 	return isBiFieldConfig(config) ? `${config.fromField}-${config.toField}` : config.metadataFieldId;
 }
 
-const textPersistenceCodec = object({
-	value: scalar().default('').atRoot(),
-	caseSensitive: bool().default(false).at('c'),
-})
-	.default({ value: '', caseSensitive: false })
-	.omitWhen(state => !state.value.trim() && !state.caseSensitive);
-
-const selectionPersistenceCodec = array(scalar())
-	.default([])
-	.refine((values, { config }) => {
-		const unknown = values.filter(value => !findOption(config.options, value));
-		return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
-	});
-
 const radioPersistenceCodec = stringPersistenceCodec<FieldPersistenceContext<MetadataFilterRadioConfig>>().refine((value, { config }) =>
 	!value || findOption(config.options, value) ? undefined : `Cannot restore values no longer present in the current options: ${value}.`,
 );
-
-const modeCodec = scalar().mapped({ strict: 's', permissive: 'p' });
-
-const rangePersistenceCodec = object({
-	low: scalar().default('').at('l'),
-	high: scalar().default('').at('h'),
-	mode: modeCodec.default(({ config }) => config.mode ?? 'strict').at('m'),
-}).default(({ config }) => ({ low: '', high: '', mode: config.mode ?? 'strict' }));
 
 const datePartCodec = scalar()
 	.refine(value => (value.split('-').length <= 3 ? undefined : `Cannot restore date value '${value}' with more than three components.`))
@@ -69,7 +48,7 @@ const datePartCodec = scalar()
 const datePersistenceCodec = object({
 	startDate: datePartCodec.at('s'),
 	endDate: datePartCodec.at('e'),
-	mode: modeCodec.default(({ config }) => config.mode ?? 'strict').at('m'),
+	mode: rangeModePersistenceCodec.default(({ config }) => config.mode ?? 'strict').at('m'),
 })
 	.transform<DateFieldState>({
 		encode: (state, { config }) => ({

@@ -31,6 +31,7 @@ import {
 	record,
 	scalar,
 	withinController,
+	withinAttributeRangeController,
 	type FieldController,
 	type FieldControllerProps,
 	type FormEmission,
@@ -1070,6 +1071,18 @@ describe('controller persistence codecs', () => {
 	test('range persistence decodes compact bounds', () => {
 		const rangeConfig = { kind: 'field' as const, id: 'range', displayName: 'Range', metadataFieldId: 'range' };
 		expect(restore(filterRangeController, 'l=10;h=20', rangeConfig)).toEqual({ low: '10', high: '20', mode: 'strict' });
+	});
+
+	test('shared range persistence resolves configured modes per field', () => {
+		const metadataConfig = { kind: 'field' as const, id: 'metadata-range', displayName: 'Range', metadataFieldId: 'range', mode: 'permissive' as const };
+		const withinConfig = { kind: 'field' as const, id: 'within-range', displayName: 'Range', elementName: 's', attributeName: 'length', mode: 'permissive' as const };
+		const state = { low: '10', high: '', mode: 'permissive' as const };
+
+		expect(encode(filterRangeController, state, metadataConfig)).toBe('l=10');
+		expect(restore(filterRangeController, 'l=10', metadataConfig)).toEqual(state);
+		expect(encode(withinAttributeRangeController, state, withinConfig)).toBe('l=10');
+		expect(restore(withinAttributeRangeController, 'l=10', withinConfig)).toEqual(state);
+		expect(restore(filterRangeController, 'l=10', { ...metadataConfig, mode: 'strict' })).toEqual({ ...state, mode: 'strict' });
 	});
 
 	test('range persistence rejects an unstructured scalar', () => {

@@ -3,11 +3,10 @@ import { toValue } from 'vue';
 import { createDefaultRangeFieldState, type RangeFieldDefinition, type RangeFieldState } from '@/features/form/fields/generic/range-field';
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
-import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
+import { rangePersistenceCodec, selectionPersistenceCodec, textPersistenceCodec } from '@/features/form/model/controllers/shared-persistence-codecs';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
 import { summary, within, withinAttribute, withinAttributeRange } from '@/features/form/model/types/form-query-ir';
 
-import { findOption } from '@/shared/utils/options';
 import { tokenizedStringValues } from '@/shared/utils/string-utils';
 
 /** Configuration shared by controls that constrain an attribute of a CQL within clause. */
@@ -15,28 +14,6 @@ export type WithinAttributeControllerConfig = {
 	elementName: string;
 	attributeName: string;
 };
-
-const textPersistenceCodec = object({
-	value: scalar().default('').atRoot(),
-	caseSensitive: bool().default(false).at('c'),
-})
-	.default({ value: '', caseSensitive: false })
-	.omitWhen(state => !state.value.trim() && !state.caseSensitive);
-
-const selectionPersistenceCodec = array(scalar())
-	.default([])
-	.refine((values, { config }) => {
-		const unknown = values.filter(value => !findOption(config.options, value));
-		return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
-	});
-
-const modeCodec = scalar().mapped({ strict: 's', permissive: 'p' });
-
-const rangePersistenceCodec = object({
-	low: scalar().default('').at('l'),
-	high: scalar().default('').at('h'),
-	mode: modeCodec.default(({ config }) => config.mode ?? 'strict').at('m'),
-}).default(({ config }) => ({ low: '', high: '', mode: config.mode ?? 'strict' }));
 
 function withinAttributePersistKey(config: WithinAttributeControllerConfig) {
 	return `within:${config.elementName}:${config.attributeName}`;
