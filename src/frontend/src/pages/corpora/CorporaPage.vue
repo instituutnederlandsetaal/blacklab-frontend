@@ -2,7 +2,7 @@
 	<div class="container">
 		<Spinner v-if="loadingServerInfo" lg center />
 
-		<div v-if="!busy && !serverInfo && errorMessage" class="alert alert-danger">
+		<div v-if="!loadingFormats && !loadingCorpora && !loadingServerInfo && !serverInfo && errorMessage" class="alert alert-danger">
 			Error loading BlackLab info, try refreshing the page.
 			<p>{{ errorMessage }}</p>
 		</div>
@@ -16,7 +16,7 @@
 		</div>
 
 		<template v-if="serverInfo">
-			<div v-if="!publicCorpora.length && !loadingCorpora && !canCreateCorpus" class="cf-panel cf-panel-lg">
+			<div v-if="!publicCorpora.length && !loadingCorpora && !serverInfo.user.canCreateIndex" class="cf-panel cf-panel-lg">
 				<h2>No corpora available</h2>
 				<p>No corpora have been added to BlackLab. Corpora will appear here when when they become available.</p>
 			</div>
@@ -24,20 +24,20 @@
 
 			<!-- always shown if logged in -->
 			<CorpusTable
-				v-if="loggedIn"
+				v-if="serverInfo.user.loggedIn"
 				title="Your corpora"
 				isPrivate
 				:loading="loadingCorpora"
-				:corpora="privateCorpora"
+				:corpora="corpora.filter(c => c.owner)"
 				:formats="formats"
-				:canCreateCorpus="canCreateCorpus"
+				:canCreateCorpus="serverInfo.user.canCreateIndex"
 				@share="doShareCorpus"
 				@upload="doUploadCorpus"
 				@delete="doDeleteCorpus"
 				@create="doCreateCorpus"
 			/>
 
-			<FormatsTable v-if="loggedIn" :formats="privateFormats" :loading="loadingFormats" @create="doCreateFormat" @edit="doEditFormat" @delete="doDeleteFormat" />
+			<FormatsTable v-if="serverInfo.user.loggedIn" :formats="privateFormats" :loading="loadingFormats" @create="doCreateFormat" @edit="doEditFormat" @delete="doDeleteFormat" />
 
 			<!-- Modals -->
 			<ModalCreateFormat
@@ -71,13 +71,13 @@
 		</template>
 	</div>
 </template>
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, onUnmounted, ref, shallowRef, watch } from 'vue';
 
 import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
-import { ApiError } from '@/shared/api/lib/api-types.ts';
+import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types.ts';
 
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
@@ -88,210 +88,211 @@ import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import Modal from '@/shared/ui/Modal.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
-export default defineComponent({
-	components: { Spinner, CorpusTable, FormatsTable, ModalCreateCorpus, ModalCreateFormat, ModalUpload, ModalShareCorpus, Modal },
-	data: () => ({
-		corpora: [] as NormalizedIndexBase[],
-		formats: [] as NormalizedFormat[],
-		serverInfo: undefined as any as NormalizedBlacklabServer,
-		errorMessage: '',
-		successMessage: '',
-		confirmMessage: '',
-		confirmTitle: '',
-		confirmAction: undefined as (() => void) | undefined,
+type CorpusPoll = { displayName: string; request: CancelableRequest<NormalizedIndexBase> | null; timer: ReturnType<typeof setTimeout> | null };
 
-		loadingFormats: false,
-		loadingCorpora: false,
-		loadingServerInfo: false,
+const blacklab = useBlackLabApi();
+const corpora = ref<NormalizedIndexBase[]>([]),
+	formats = ref<NormalizedFormat[]>([]);
+const serverInfo = shallowRef<NormalizedBlacklabServer>();
+const errorMessage = ref(''),
+	successMessage = ref(''),
+	confirmMessage = ref(''),
+	confirmTitle = ref('');
+const confirmAction = shallowRef<(() => void) | undefined>();
+const loadingFormats = ref(false),
+	loadingCorpora = ref(false),
+	loadingServerInfo = ref(false);
+const modal = ref(''),
+	indexId = ref<string | null>(null),
+	formatId = ref<string | null>(null);
+const corpusPolls = new Map<string, CorpusPoll>();
 
-		modal: '',
+const publicCorpora = computed(() => corpora.value.filter(c => !c.owner));
+const publicFormats = computed(() => formats.value.filter(f => !f.owner)),
+	privateFormats = computed(() => formats.value.filter(f => f.owner));
+const corpus = computed(() => (indexId.value ? corpora.value.find(c => c.id === indexId.value) || null : null));
+const format = computed(() => (formatId.value ? formats.value.find(f => f.id === formatId.value) || null : null));
 
-		indexId: null as null | string,
-		formatId: null as null | string,
+function success(message: string) {
+	successMessage.value = message;
+	errorMessage.value = '';
+}
 
-		refreshingCorpora: new Set() as Set<string>,
+function error(message: string) {
+	errorMessage.value = message;
+	successMessage.value = '';
+}
 
-		blacklab: useBlackLabApi(),
-	}),
+function stopCorpusPoll(indexId: string) {
+	const poll = corpusPolls.get(indexId);
+	if (!poll) return;
+	corpusPolls.delete(indexId);
+	poll.request?.cancel();
+	if (poll.timer) clearTimeout(poll.timer);
+}
 
-	computed: {
-		loggedIn(): boolean {
-			return this.serverInfo?.user?.loggedIn;
-		},
-		publicCorpora(): NormalizedIndexBase[] {
-			return this.corpora.filter(c => !c.owner);
-		},
-		privateCorpora(): NormalizedIndexBase[] {
-			return this.corpora.filter(c => c.owner);
-		},
-		publicFormats(): NormalizedFormat[] {
-			return this.formats.filter(f => !f.owner);
-		},
-		privateFormats(): NormalizedFormat[] {
-			return this.formats.filter(f => f.owner);
-		},
-		canCreateCorpus(): boolean {
-			return this.serverInfo?.user.canCreateIndex;
-		},
+function runCorpusPoll(indexId: string, poll: CorpusPoll) {
+	if (corpusPolls.get(indexId) !== poll) return;
+	if (!corpora.value.some(c => c.id === indexId)) return void corpusPolls.delete(indexId);
 
-		busy(): boolean {
-			return this.loadingFormats || this.loadingCorpora || this.loadingServerInfo;
-		},
-
-		corpus(): null | NormalizedIndexBase {
-			return this.indexId ? this.corpora.find(c => c.id === this.indexId) || null : null;
-		},
-		format(): null | NormalizedFormat {
-			return this.formatId ? this.formats.find(f => f.id === this.formatId) || null : null;
-		},
-	},
-	methods: {
-		success(message: string) {
-			this.successMessage = message;
-			this.errorMessage = '';
-		},
-		error(message: string) {
-			this.errorMessage = message;
-			this.successMessage = '';
-		},
-		refreshCorpora() {
-			this.loadingCorpora = true;
-			this.blacklab
-				.getCorpora()
-				.then(corpora => (this.corpora = corpora.sort((a, b) => a.displayName.localeCompare(b.displayName))))
-				.catch((e: ApiError) => (this.errorMessage = e.message))
-				.finally(() => (this.loadingCorpora = false));
-		},
-		refreshFormats() {
-			this.loadingFormats = true;
-			this.blacklab
-				.getFormats()
-				.then(formats => (this.formats = formats.sort((a, b) => a.displayName.localeCompare(b.displayName))))
-				.catch((e: ApiError) => (this.errorMessage = e.message))
-				.finally(() => (this.loadingFormats = false));
-		},
-		/** Begin periodically refreshing the corpus for as long as the status is indexing. */
-		async refreshCorpus(indexId: string) {
-			if (this.refreshingCorpora.has(indexId)) return;
-			this.refreshingCorpora.add(indexId);
-
-			const displayName = this.corpora.find(c => c.id === indexId)?.displayName || indexId;
-			try {
-				while (true) {
-					const newCorpusState = await this.blacklab.getCorpusStatus(indexId);
-					let corpus = this.corpora.find(c => c.id === indexId);
-					if (!corpus) break; // corpus was deleted?
-					Object.assign(corpus, newCorpusState);
-					if (newCorpusState.status !== 'indexing') break;
-					await new Promise(resolve => setTimeout(resolve, 2000));
+	const request = blacklab.getCorpusStatus(indexId);
+	poll.request = request;
+	request.then(
+		newCorpusState => {
+			if (corpusPolls.get(indexId) !== poll) return;
+			poll.request = null;
+			const currentCorpus = corpora.value.find(c => c.id === indexId);
+			if (!currentCorpus) return void corpusPolls.delete(indexId);
+			Object.assign(currentCorpus, newCorpusState);
+			if (newCorpusState.status !== 'indexing') return void corpusPolls.delete(indexId);
+			poll.timer = setTimeout(() => {
+				if (corpusPolls.get(indexId) === poll) {
+					poll.timer = null;
+					runCorpusPoll(indexId, poll);
 				}
-				this.refreshingCorpora.delete(indexId);
-			} catch (error) {
-				// @ts-expect-error message not in unknown
-				this.errorMessage = `Could not retrieve status for corpus "${displayName}": ${error.message}`;
-			}
+			}, 2000);
 		},
-		close() {
-			this.modal = '';
-			this.indexId = this.formatId = null;
+		cause => {
+			if (corpusPolls.get(indexId) !== poll) return;
+			corpusPolls.delete(indexId);
+			const requestError = ApiError.wrap(cause);
+			if (!requestError.isCancelledRequest) error(`Could not retrieve status for corpus "${poll.displayName}": ${requestError.message}`);
 		},
-		doCreateCorpus() {
-			this.modal = 'create-corpus';
-		},
-		doCreateFormat() {
-			this.modal = 'create-format';
-		},
-		doUploadCorpus(indexId: string) {
-			this.indexId = indexId;
-			this.modal = 'upload';
-		},
-		doShareCorpus(indexId: string) {
-			this.indexId = indexId;
-			this.modal = 'share-corpus';
-		},
-		doEditFormat(formatId: string) {
-			this.formatId = formatId;
-			this.modal = 'create-format';
-		},
-		doDeleteCorpus(indexId: string) {
-			this.indexId = indexId;
-			const corpus = this.corpus!;
-			this.confirmTitle = `Delete corpus <em>${corpus.displayName}</em>?`;
-			this.confirmMessage = `Are you sure you want to delete corpus "${corpus.displayName}"?`;
-			this.modal = 'confirm';
-			this.confirmAction = () => {
-				this.close();
-				this.loadingCorpora = true;
-				this.blacklab
-					.deleteCorpus(indexId)
-					.then(r => {
-						this.successMessage = r.status.message;
-						this.corpora = this.corpora.filter(c => c.id !== indexId);
-					})
-					.catch((e: ApiError) => (this.errorMessage = `Could not delete corpus "${corpus.displayName}": ${e.message}`))
-					.finally(() => {
-						this.confirmAction = undefined;
-						this.loadingCorpora = false;
-					});
-			};
-		},
-		doDeleteFormat(formatId: string) {
-			this.formatId = formatId;
-			const format = this.format!;
-			this.confirmTitle = `Delete import format <em>${format.displayName}</em>?`;
-			this.confirmMessage = `You are about to delete the import format <i>${format.id}</i>.<br>Are you sure?`;
-			this.modal = 'confirm';
-			this.confirmAction = () => {
-				this.close();
-				this.loadingFormats = true;
-				this.blacklab
-					.deleteFormat(format.id)
-					.then(r => {
-						this.successMessage = r.status.message;
-						this.formats = this.formats.filter(f => f.id !== format.id);
-					})
-					.catch((e: ApiError) => (this.errorMessage = `Could not delete format "${format.displayName}": ${e.message}`))
-					.finally(() => {
-						this.confirmAction = undefined;
-						this.loadingFormats = false;
-					});
-			};
-		},
-	},
-	async created() {
-		try {
-			this.loadingFormats = this.loadingCorpora = this.loadingServerInfo = true;
-			try {
-				this.serverInfo = await this.blacklab.getServerInfo();
-			} catch (e) {
-				// @ts-expect-error message not in unknown
-				this.errorMessage = `Error loading BlackLab info: ${e.message}`;
-				this.loadingCorpora = this.loadingFormats = this.loadingServerInfo = false;
-				return;
-			}
+	);
+}
 
-			this.loadingServerInfo = false;
-			this.corpora = Object.values(this.serverInfo.corpora).sort((a, b) => a.displayName.localeCompare(b.displayName));
-			this.loadingCorpora = false;
-			this.refreshFormats();
-		} catch (error) {
-			if (error instanceof ApiError) this.errorMessage = error.message;
-			else this.errorMessage = 'An unknown error occurred: ' + JSON.stringify(error);
-			this.loadingCorpora = this.loadingFormats = this.loadingServerInfo = false;
+/** Begin periodically refreshing the corpus for as long as the status is indexing. */
+function refreshCorpus(indexId: string) {
+	if (corpusPolls.has(indexId)) return;
+	const currentCorpus = corpora.value.find(c => c.id === indexId);
+	if (!currentCorpus) return;
+	const poll: CorpusPoll = { displayName: currentCorpus.displayName, request: null, timer: null };
+	corpusPolls.set(indexId, poll);
+	runCorpusPoll(indexId, poll);
+}
+
+function refreshCorpora() {
+	loadingCorpora.value = true;
+	blacklab
+		.getCorpora()
+		.then(value => (corpora.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName))))
+		.catch((e: ApiError) => (errorMessage.value = e.message))
+		.finally(() => (loadingCorpora.value = false));
+}
+
+function refreshFormats() {
+	loadingFormats.value = true;
+	blacklab
+		.getFormats()
+		.then(value => (formats.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName))))
+		.catch((e: ApiError) => (errorMessage.value = e.message))
+		.finally(() => (loadingFormats.value = false));
+}
+
+function close() {
+	modal.value = '';
+	indexId.value = formatId.value = null;
+}
+
+const doCreateCorpus = () => (modal.value = 'create-corpus');
+const doCreateFormat = () => (modal.value = 'create-format');
+
+function doUploadCorpus(id: string) {
+	indexId.value = id;
+	modal.value = 'upload';
+}
+
+function doShareCorpus(id: string) {
+	indexId.value = id;
+	modal.value = 'share-corpus';
+}
+
+function doEditFormat(id: string) {
+	formatId.value = id;
+	modal.value = 'create-format';
+}
+
+function doDeleteCorpus(id: string) {
+	indexId.value = id;
+	const selectedCorpus = corpus.value!;
+	confirmTitle.value = `Delete corpus <em>${selectedCorpus.displayName}</em>?`;
+	confirmMessage.value = `Are you sure you want to delete corpus "${selectedCorpus.displayName}"?`;
+	modal.value = 'confirm';
+	confirmAction.value = () => {
+		close();
+		loadingCorpora.value = true;
+		blacklab
+			.deleteCorpus(id)
+			.then(response => {
+				successMessage.value = response.status.message;
+				stopCorpusPoll(id);
+				corpora.value = corpora.value.filter(c => c.id !== id);
+			})
+			.catch((e: ApiError) => (errorMessage.value = `Could not delete corpus "${selectedCorpus.displayName}": ${e.message}`))
+			.finally(() => {
+				confirmAction.value = undefined;
+				loadingCorpora.value = false;
+			});
+	};
+}
+
+function doDeleteFormat(id: string) {
+	formatId.value = id;
+	const selectedFormat = format.value!;
+	confirmTitle.value = `Delete import format <em>${selectedFormat.displayName}</em>?`;
+	confirmMessage.value = `You are about to delete the import format <i>${selectedFormat.id}</i>.<br>Are you sure?`;
+	modal.value = 'confirm';
+	confirmAction.value = () => {
+		close();
+		loadingFormats.value = true;
+		blacklab
+			.deleteFormat(selectedFormat.id)
+			.then(response => {
+				successMessage.value = response.status.message;
+				formats.value = formats.value.filter(f => f.id !== selectedFormat.id);
+			})
+			.catch((e: ApiError) => (errorMessage.value = `Could not delete format "${selectedFormat.displayName}": ${e.message}`))
+			.finally(() => {
+				confirmAction.value = undefined;
+				loadingFormats.value = false;
+			});
+	};
+}
+
+watch(
+	corpora,
+	value => {
+		const currentIds = new Set(value.map(c => c.id));
+		for (const id of corpusPolls.keys()) if (!currentIds.has(id)) stopCorpusPoll(id);
+		for (const currentCorpus of value) if (currentCorpus.status === 'indexing') refreshCorpus(currentCorpus.id);
+	},
+	{ immediate: true },
+);
+
+onUnmounted(() => [...corpusPolls.keys()].forEach(stopCorpusPoll));
+
+async function bootstrap() {
+	try {
+		loadingFormats.value = loadingCorpora.value = loadingServerInfo.value = true;
+		try {
+			serverInfo.value = await blacklab.getServerInfo();
+		} catch (cause) {
+			errorMessage.value = `Error loading BlackLab info: ${(cause as { message?: string }).message}`;
+			loadingCorpora.value = loadingFormats.value = loadingServerInfo.value = false;
+			return;
 		}
-	},
-	watch: {
-		corpora: {
-			deep: false,
-			immediate: true,
-			handler() {
-				this.corpora.forEach(c => {
-					if (c.status === 'indexing') this.refreshCorpus(c.id);
-				});
-			},
-		},
-	},
-});
+
+		loadingServerInfo.value = false;
+		corpora.value = Object.values(serverInfo.value.corpora).sort((a, b) => a.displayName.localeCompare(b.displayName));
+		loadingCorpora.value = false;
+		refreshFormats();
+	} catch (cause) {
+		errorMessage.value = cause instanceof ApiError ? cause.message : 'An unknown error occurred: ' + JSON.stringify(cause);
+		loadingCorpora.value = loadingFormats.value = loadingServerInfo.value = false;
+	}
+}
+
+bootstrap();
 </script>
 
 <style lang="scss" scoped>
@@ -299,9 +300,6 @@ export default defineComponent({
 
 .alert {
 	margin-top: 1em;
-}
-
-.alert {
 	margin-left: -15px;
 	margin-right: -15px;
 }
