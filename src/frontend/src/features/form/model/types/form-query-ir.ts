@@ -142,7 +142,7 @@ export const sequence = (children: LenientArray<CqlPatternNode>): CqlNodeSequenc
 	const activeChildren = Array.from(lenientIter(children));
 	return activeChildren.length ? { type: 'cql-sequence', children: activeChildren } : null;
 };
-// Even though within and containing clauses can exist almost anywhere in a true CQL query,
+// Even though within clauses can exist almost anywhere in a true CQL query,
 // we restrict them to wrapping the entire query in our IR, so that we can reason about them more easily.
 // This closely mirrors what the search form allows.
 // This code is meant to align with search form capabilities, to allow composing a query across multiple widgets, not necessarily to capture the full CQL spec.
@@ -165,17 +165,10 @@ export const withinAttribute = (attribute: string, valueType: TextValueType, val
 export const withinAttributeRange = (attribute: string, v: { low: string; high: string }): Record<string, PredicateAttributeNode> => {
 	return { [attribute]: { valueType: 'range', low: v.low, high: v.high } };
 };
-export type CqlWrapperNodeContaining = CqlBaseNode<'containing'> & { element: string; attributes: Record<string, PredicateAttributeNode> };
-export const containing = (element: string, attributes: Record<string, PredicateAttributeNode> = {}): CqlWrapperNodeContaining => ({
-	type: 'cql-containing',
-	element,
-	attributes,
-});
-
 // Child node restriction helper type.
 type CqlNodeRepeatChildren = CqlAnnotationNode | CqlNodeAnyToken | CqlNodeRawExpression;
 
-export type CqlWrapperNode = CqlWrapperNodeWithin | CqlWrapperNodeContaining;
+export type CqlWrapperNode = CqlWrapperNodeWithin;
 type CqlPatternLeafNode = _CqlAnnotationNode | CqlNodeAnyToken | CqlNodeRepeat | CqlNodeXmlTag | CqlNodeParallelQuery | CqlNodeRawExpression | CqlNodeSequence | CqlWrapperNode;
 export type CqlPatternNode = CqlPatternLeafNode | BooleanNode<CqlPatternLeafNode>;
 
@@ -226,7 +219,6 @@ export function isCqlPatternNode(node: unknown): node is CqlPatternNode {
 		case 'cql-sequence':
 			return Array.isArray(node.children) && node.children.length > 0 && node.children.every(isCqlPatternNode);
 		case 'cql-within':
-		case 'cql-containing':
 			return typeof node.element === 'string' && isRecord(node.attributes) && Object.values(node.attributes).every(isPredicateAttributeNode);
 		default:
 			return false;

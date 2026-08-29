@@ -51,7 +51,7 @@ type ExtractedCql = { pattern: CqlPatternNode | null; wrappers: CqlWrapperNode[]
 
 function extractWrappers(pattern: CqlPatternNode | null): ExtractedCql {
 	if (!pattern) return { pattern: null, wrappers: [] };
-	if (pattern.type === 'cql-within' || pattern.type === 'cql-containing') return { pattern: null, wrappers: [pattern] };
+	if (pattern.type === 'cql-within') return { pattern: null, wrappers: [pattern] };
 	if (isBooleanNode<CqlPatternNode>(pattern)) {
 		const children = pattern.children.map(extractWrappers);
 		return {
@@ -89,7 +89,7 @@ function extractWrappers(pattern: CqlPatternNode | null): ExtractedCql {
 function simplifyWrappers(wrappers: CqlWrapperNode[]): CqlWrapperNode[] {
 	const within = new Map<string, CqlWithinWrapper>();
 	for (const wrapper of wrappers) {
-		if (wrapper.type !== 'cql-within' || !wrapper.element) continue;
+		if (!wrapper.element) continue;
 		const existing = within.get(wrapper.element);
 		within.set(wrapper.element, {
 			...wrapper,
@@ -97,7 +97,7 @@ function simplifyWrappers(wrappers: CqlWrapperNode[]): CqlWrapperNode[] {
 		});
 	}
 
-	return [...wrappers.filter(wrapper => wrapper.type === 'cql-containing' && wrapper.element), ...within.values()].map(wrapper => ({
+	return [...within.values()].map(wrapper => ({
 		...wrapper,
 		attributes: simplifyWrapperAttributes(wrapper.attributes),
 	}));
@@ -171,7 +171,6 @@ function simplifyCql(pattern: CqlPatternNode | null): CqlPatternNode | null {
 			return { type: 'cql-sequence', children };
 		}
 		case 'cql-within':
-		case 'cql-containing':
 			return null;
 	}
 }
@@ -240,18 +239,7 @@ function isCqlAnnotation(node: CqlPatternNode): node is CqlAnnotationNode {
 
 function emitCqlWithWrappers(pattern: CqlPatternNode | null, wrappers: CqlWrapperNode[]): string | null {
 	let cql = pattern ? emitRequiredCql(pattern) : null;
-	for (const wrapper of wrappers) {
-		if (wrapper.type === 'cql-containing') {
-			const containingClause = emitElementClause(wrapper);
-			if (containingClause) cql = cql ? `${containingClause} containing (${cql})` : containingClause;
-		}
-	}
-
-	const within = wrappers
-		.filter((wrapper): wrapper is CqlWithinWrapper => wrapper.type === 'cql-within')
-		.map(emitElementClause)
-		.filter(isNonNull)
-		.join(' overlap ');
+	const within = wrappers.map(emitElementClause).filter(isNonNull).join(' overlap ');
 	if (within) cql = cql ? `(${cql}) within ${within}` : within;
 	return cql;
 }
@@ -314,7 +302,6 @@ function emitRequiredCql(pattern: CqlPatternNode): string {
 			return `${source} ${targetRelations.join(' ; ')}`;
 		}
 		case 'cql-within':
-		case 'cql-containing':
 			return '';
 	}
 }

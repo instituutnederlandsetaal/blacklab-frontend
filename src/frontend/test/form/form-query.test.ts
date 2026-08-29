@@ -18,19 +18,7 @@ import {
 import { createFormFieldNode, expertQueryController } from '@/features/form';
 import { combineCqlPatterns, compileCql, compileFilter } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
-import {
-	annotation,
-	booleanNode,
-	containing,
-	filter,
-	filterRange,
-	rawCql,
-	textPredicate,
-	within,
-	withinAttributeRange,
-	type CqlPatternNode,
-	type LuceneNode,
-} from '@/features/form/model/types/form-query-ir';
+import { annotation, booleanNode, filter, filterRange, rawCql, textPredicate, within, withinAttributeRange, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 
@@ -156,11 +144,8 @@ describe('semantic query compilation', () => {
 	});
 
 	test('complete-query wrappers are extracted regardless of graph position', () => {
-		const pattern = combineCqlPatterns(
-			[rawCql('[word="water"]'), booleanNode<CqlPatternNode>('or', [within('speech', { person: textPredicate('wildcard', 'Alice*') }), containing('s')])!],
-			'sequence',
-		)!;
-		expect(compileCql(pattern)).toBe('(<s/> containing ([word="water"])) within <speech person="Alice.*"/>');
+		const pattern = combineCqlPatterns([rawCql('[word="water"]'), booleanNode<CqlPatternNode>('or', [within('speech', { person: textPredicate('wildcard', 'Alice*') }), within('p')])!], 'sequence')!;
+		expect(compileCql(pattern)).toBe('([word="water"]) within <speech person="Alice.*"/> overlap <p/>');
 	});
 
 	test('multiple within nodes merge matching elements and overlap distinct elements', () => {
