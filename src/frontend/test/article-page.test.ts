@@ -5,7 +5,7 @@ import { enableAutoUnmount, flushPromises, mount, shallowMount } from '@vue/test
 import type * as VueUse from '@vueuse/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { defineComponent, nextTick, ref } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 
@@ -18,9 +18,11 @@ enableAutoUnmount(afterEach);
 
 const mock = vi.hoisted(() => ({
 	articleRoute: undefined as unknown,
+	cfPageConfig: undefined as unknown,
 	corpus: undefined as unknown,
 	createTooltips: vi.fn(() => vi.fn()),
 	markSettled: vi.fn(),
+	resultDetailedMetadataIds: vi.fn(),
 	streams: undefined as unknown,
 }));
 
@@ -31,11 +33,11 @@ vi.mock('@vueuse/core', async importOriginal => ({
 	useWindowSize: () => ({ width: ref(1024), height: ref(768) }),
 }));
 vi.mock('@/app/state/useCorpusContext', () => ({
-	useCfPageConfig: () => ref({ pageSize: null }),
+	useCfPageConfig: () => mock.cfPageConfig,
 	useCorpus: () => ref(mock.corpus),
 }));
 vi.mock('@/customization-api/internal/internal-api', () => ({
-	useCustomizations: () => ({ resultDetailedMetadataIds: () => [] }),
+	useCustomizations: () => ({ resultDetailedMetadataIds: mock.resultDetailedMetadataIds }),
 }));
 vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
 vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: mock.markSettled }) }));
@@ -59,10 +61,22 @@ function createStreams() {
 	};
 }
 
+const StatisticsProbe = defineComponent({
+	props: { isPaginated: Boolean },
+	template: '<div data-testid="statistics-probe" :data-paginated="String(isPaginated)" />',
+});
+
+const EmptyHtmlRenderer = defineComponent({
+	template: '<div><slot name="empty" /></div>',
+});
+
 beforeEach(() => {
+	mock.cfPageConfig = ref({ pageSize: null });
 	mock.createTooltips.mockReset();
 	mock.createTooltips.mockImplementation(() => vi.fn());
 	mock.markSettled.mockReset();
+	mock.resultDetailedMetadataIds.mockReset();
+	mock.resultDetailedMetadataIds.mockReturnValue([]);
 	ArticleStore.actions.distributionAnnotation(null);
 	ArticleStore.actions.growthAnnotations(null);
 	ArticleStore.actions.statisticsTableFn(null);
@@ -82,7 +96,7 @@ function mountArticle() {
 	return mount(ArticlePage, {
 		global: {
 			mocks: { $t: (key: string) => key },
-			stubs: { ArticlePageStatistics: true, Collapsible: true, Debug: true, Pagination: true, Spinner: true },
+			stubs: { ArticlePageStatistics: StatisticsProbe, Collapsible: true, Debug: true, Pagination: true, Spinner: true },
 		},
 	});
 }
@@ -151,6 +165,58 @@ describe('ArticlePage statistics tab', () => {
 		expect(wrapper.get('#statistics').text()).not.toContain('No statistics have been configured for this corpus.');
 		expect((mock.streams as ReturnType<typeof createStreams>).retrieveSnippetToggle$.value).toBe(true);
 	});
+
+	test.each([
+		[null, false],
+		[0, false],
+		[-10, false],
+		[10, true],
+		[Number.NaN, false],
+	])('treats page size %s as paginated=%s', async (pageSize, expected) => {
+		(mock.cfPageConfig as { value: { pageSize: number | null } }).value.pageSize = pageSize;
+		ArticleStore.actions.distributionAnnotation({ id: 'word', displayName: 'Words' });
+		const wrapper = mountArticle();
+		await wrapper.get('#articleTabs a[href="#statistics"]').trigger('click');
+		((mock.streams as ReturnType<typeof createStreams>).currentPageSnippet$ as BehaviorSubject<unknown>).next(Loadable.Loaded({}));
+		((mock.streams as ReturnType<typeof createStreams>).metadata$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: document.createElement('div'), json: {} }));
+		await flushPromises();
+
+		expect(wrapper.get('[data-testid="statistics-probe"]').attributes('data-paginated')).toBe(String(expected));
+	});
+});
+
+test('resolves reactive detailed metadata IDs inside the computed', async () => {
+	const detailedMetadataIds = ref(['title']);
+	mock.resultDetailedMetadataIds.mockImplementation(() => detailedMetadataIds.value);
+	mock.corpus = {
+		...(mock.corpus as Record<string, unknown>),
+		allMetadataFieldsMap: { author: { id: 'author' }, title: { id: 'title' } },
+		metadataGroups: [{ entries: ['title', 'author'], id: 'main' }],
+	};
+	const wrapper = mount(ArticlePage, {
+		global: {
+			mocks: {
+				$t: (key: string) => key,
+				$tMetaDisplayName: (field: { id: string }) => field.id,
+				$tMetaGroupName: (group: { id: string }) => group.id,
+			},
+			stubs: { ArticlePageStatistics: true, Collapsible: true, Debug: true, HtmlRenderer: EmptyHtmlRenderer, Pagination: true, Spinner: true },
+		},
+	});
+	((mock.streams as ReturnType<typeof createStreams>).metadata$ as BehaviorSubject<unknown>).next(
+		Loadable.Loaded({
+			html: document.createElement('div'),
+			json: { docInfo: { mayView: true, metadata: { author: ['Author value'], title: ['Title value'] }, tokenCounts: [] } },
+		}),
+	);
+	await flushPromises();
+	expect(wrapper.get('#metadata').text()).toContain('Title value');
+	expect(wrapper.get('#metadata').text()).not.toContain('Author value');
+
+	detailedMetadataIds.value = ['author'];
+	await nextTick();
+	expect(wrapper.get('#metadata').text()).not.toContain('Title value');
+	expect(wrapper.get('#metadata').text()).toContain('Author value');
 });
 
 test('replaces and disposes tooltip contexts with article contents', async () => {

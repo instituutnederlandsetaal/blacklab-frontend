@@ -119,7 +119,12 @@
 					<!-- <button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button> -->
 				</div>
 
-				<ArticlePageStatistics v-else-if="statistics.isLoaded()" :snippet="statistics.value[0]" :document="statistics.value[1].json" :is-paginated="cfPageConfig.pageSize != null" />
+				<ArticlePageStatistics
+					v-else-if="statistics.isLoaded()"
+					:snippet="statistics.value[0]"
+					:document="statistics.value[1].json"
+					:is-paginated="cfPageConfig.pageSize != null && cfPageConfig.pageSize > 0"
+				/>
 			</div>
 		</div>
 	</div>
@@ -162,7 +167,7 @@ const { articleRoute, updateArticleQuery } = useArticleRoute(
 	() => corpus.value.allAnnotatedFieldsMap,
 	() => corpus.value.mainAnnotatedField,
 );
-const customizations = useCustomizations();
+const { resultDetailedMetadataIds } = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
@@ -184,9 +189,7 @@ const inputs = computed<Input>(() => ({
 	pageSize: cfPageConfig.value.pageSize,
 }));
 
-const metadataFieldsToShow = computed(() =>
-	fieldSubset(customizations.resultDetailedMetadataIds() || Object.keys(corpus.value.allMetadataFieldsMap), corpus.value.metadataGroups, corpus.value.allMetadataFieldsMap),
-);
+const metadataFieldsToShow = computed(() => fieldSubset(resultDetailedMetadataIds() || Object.keys(corpus.value.allMetadataFieldsMap), corpus.value.metadataGroups, corpus.value.allMetadataFieldsMap));
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
 const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value.viewField ?? '']);
@@ -218,7 +221,7 @@ function errorDiagnostics(error: ApiError) {
 	return error.diagnostics || error.message;
 }
 
-watch(inputs, v => input$.next(v), { immediate: true, deep: true });
+watch(inputs, v => input$.next(v), { immediate: true });
 watch(
 	() => hitToHighlight.value,
 	(cur, prev) => {
@@ -228,28 +231,23 @@ watch(
 	{ immediate: true },
 );
 
-watch(
-	() => contents.value,
-	(c, _, onCleanup) => {
-		if (c?.html) {
-			const tooltipContext = createTooltips({
-				mode: 'attributes',
-				contentAttribute: 'data-tooltip-content',
-				previewAttribute: 'data-tooltip-preview',
-			});
-			onCleanup(tooltipContext);
-			createTooltips(
-				{
-					mode: 'title',
-					excludeAttributes: ['toggle', 'tooltip-content', 'tooltip-preview'],
-					tooltippableSelector: '.word[data-toggle="tooltip"]',
-				},
-				tooltipContext,
-			);
-		}
-	},
-	{ immediate: true },
-);
+watchEffect(onCleanup => {
+	if (!contents.value?.html) return;
+	const tooltipContext = createTooltips({
+		mode: 'attributes',
+		contentAttribute: 'data-tooltip-content',
+		previewAttribute: 'data-tooltip-preview',
+	});
+	onCleanup(tooltipContext);
+	createTooltips(
+		{
+			mode: 'title',
+			excludeAttributes: ['toggle', 'tooltip-content', 'tooltip-preview'],
+			tooltippableSelector: '.word[data-toggle="tooltip"]',
+		},
+		tooltipContext,
+	);
+});
 
 const draggablePosition = useLocalStorage('article-page-pagination-screen-position', {
 	x: Math.max(0, window.innerWidth * 0.9 - 150),
