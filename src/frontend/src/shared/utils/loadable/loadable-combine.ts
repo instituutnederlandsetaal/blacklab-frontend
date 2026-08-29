@@ -16,7 +16,7 @@ export type LoadedValuesIncludingEmpty<T extends LoadableShape> = {
 	[K in keyof T]: T[K] extends MaybeLoadable<infer V> ? V | undefined : T[K];
 };
 
-export type PassthroughFrom<T extends LoadableShape> = Extract<T extends readonly unknown[] ? T[number] : T[keyof T], MaybeLoadable<unknown>>;
+type PassthroughFrom<T extends LoadableShape> = Extract<T extends readonly unknown[] ? T[number] : T[keyof T], MaybeLoadable<unknown>>;
 
 /** Read array and record loadable shapes through one ordered value view. */
 function valuesOf<T extends LoadableShape>(loadables: T): unknown[] {
@@ -48,30 +48,4 @@ export function combineOptional<T extends LoadableShape>(loadables: T): Passthro
 	const nonLoadedOrEmpty = firstNonLoadedOrEmpty(loadables);
 	if (nonLoadedOrEmpty) return nonLoadedOrEmpty;
 	return Loadable.Loaded(mapShape(loadables, value => (isLoadableLike(value) ? (isLoaded(value) ? value.value : undefined) : value)) as LoadedValuesIncludingEmpty<T>);
-}
-
-/**
- * Given an array or object of loadables, if all are loaded, return the result of applying the mapper to the loaded values.
- * Otherwise, return the first non-loaded loadable (which could be Loading, Error or Empty).
- * @param loadables The array or object of loadables to map over.
- * @param mapper The function to apply to the loaded values. Only called if all loadables are loaded. Will receive an array or object of the loaded values, matching the structure of the input, e.g. ([T, U, V]) or {a: T, b: U, c: V}.
- */
-export function mapLoadedValue<T extends LoadableShape, U>(loadables: T, mapper: (values: LoadedValues<T>) => U): PassthroughFrom<T> | Loadable<U> {
-	const combined = combine(loadables);
-	if (!isLoaded(combined)) return combined as PassthroughFrom<T>;
-	const loadedValue = combined.value as LoadedValues<T>;
-	return Loadable.Loaded(mapper(loadedValue));
-}
-
-/**
- * Given an array or object of loadables, if all are loaded, return the result of applying the mapper to the loaded values.
- * Otherwise, return the first non-loaded loadable (which could be Loading, Error or Empty).
- * @param loadables The array or object of loadables to map over.
- * @param mapper The function to apply to the loaded values. Should return a Loadable. Only called if all loadables are loaded. Will receive an array or object of the loaded values, matching the structure of the input, e.g. ([T, U, V]) or {a: T, b: U, c: V}.
- */
-export function flatMapLoadedValue<T extends LoadableShape, U>(loadables: T, mapper: (values: LoadedValues<T>) => MaybeLoadable<U>): PassthroughFrom<T> | MaybeLoadable<U> {
-	const combined = combine(loadables);
-	if (!isLoaded(combined)) return combined as PassthroughFrom<T>;
-	const loadedValue = combined.value as LoadedValues<T>;
-	return mapper(loadedValue);
 }

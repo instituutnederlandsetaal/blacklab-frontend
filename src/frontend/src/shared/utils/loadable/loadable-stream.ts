@@ -1,14 +1,13 @@
 /**
  * Helpers for async data and observable objects.
  * The main type is Loadable<T>, which can represent a value that is loading, loaded, errored, or empty.
- * There are various functions to e.g. create streams of Loadable<T> from http requests, to map/mergeMap/switchMap only for certain Loadable states, and to combine multiple Loadables into one.
+ * There are various functions to e.g. create streams of Loadable<T> from http requests, map loaded values, and combine multiple Loadables into one.
  *
  * E.g.
  * - Loadable<T> is a type that can represent a value that is loading, loaded, errored, or empty.
  * - asObservable() can turn an http request into a stream that emits loading, loaded, and error states.
- * - promiseFromLoadableStream() can turn a stream of Loadable<T> into a promise that resolves with T as soon as the stream emits a Loaded<T>.
  * - combineLoadables() can combine multiple Loadable<T> into a single Loadable<[T1, T2, ...]> that is loaded if all are loaded, and otherwise in the state of the first non-loaded one.
- * - the various mapLoaded/mergeMapLoaded/switchMapLoaded functions will run only for Loaded values, and will not run for Loading/Empty/Error states, which are passed through.
+ * - mapLoaded/switchMapLoaded run only for Loaded values; Loading/Empty/Error states are passed through.
  *
  * Example code:
  * pipe(
@@ -24,97 +23,26 @@
 import { tryOnScopeDispose } from '@vueuse/core';
 import type { Canceler } from 'axios';
 import type { ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
-import { combineLatest, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
+import { combineLatest, distinctUntilChanged, EMPTY, map, Observable, of, startWith, Subject, switchMap, takeUntil, timer } from 'rxjs';
 import { markRaw, ref, shallowRef, type Ref } from 'vue';
 
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 
 import { combine, combineOptional } from './loadable-combine';
-import type { LoadableLike, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable-core';
-import { getLoadableStateValue, isEmpty, isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable-core';
+import type { Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable-core';
+import { isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable-core';
 import { loadableReactive } from './loadable-reactive';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 import { stableStringify } from '@/shared/utils/stable-stringify';
 
-/**
- * Like map, but only call the mapper for Loadables of state S. The value the mapper returned is wrapped in a Loaded.
- * Other values are passed through.
- * E.g.:
- * ```
- * // input is extracted from the Loadable, mapped, and put back into a Loadable
- * mapLoadable<number, string>(LoadableState.Loaded, (v: number) => v + ' bananas')(Loadable.Loaded(5)) -> Loadable.Loaded('5 bananas')
- * // input doesn't match the state, so it's passed through
- * mapLoadable<number, string>(LoadableState.Loaded, (v: number) => v + ' bananas')(Loadable.Empty()) -> Loadable.Empty()
- * ```
- */
-export function mapLoadable<T, U, S extends LoadableState.loaded>(state: S, mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>>;
-export function mapLoadable<T, U, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => U): OperatorFunction<Loadable<T>, Loadable<U | T>>;
-export function mapLoadable<T, U, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, Loadable<U | T>>;
-export function mapLoadable<T, U, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, Loadable<U | T>>;
-export function mapLoadable<T, U, S extends LoadableState>(state: S, mapper: (v: T | ApiError | undefined) => U): OperatorFunction<Loadable<T>, Loadable<U | T>> {
-	return map(v => {
-		if (v.state !== state) return v;
-		return Loadable.Loaded(mapper(getLoadableStateValue(v, state)));
-	});
-}
-export const mapLoaded = (mapLoadable.Loaded = <T, U>(mapper: (v: T) => U) => mapLoadable(LoadableState.loaded, mapper));
+/** Map Loaded values and pass through the exact Loading, Empty, or Error object. */
+export const mapLoaded = <T, U>(mapper: (value: T) => U): OperatorFunction<Loadable<T>, Loadable<U>> =>
+	map(value => (isLoaded(value) ? Loadable.Loaded(mapper(value.value)) : (value as unknown as Loadable<U>)));
 
-/**
- * Like map, but only call the mapper for Loadables of state S. The mapper can directly return a Loadable<U>.
- * Other values are passed through.
- * In this way it is possible to replace a Loadable with another Loadable of a different state/value.
- * E.g:
- * ```
- * // input is extracted from the Loadable, mapped, and put back into a Loadable
- * flatMapLoadable<number, Loadable<string>>(LoadableState.Loaded, (v) => Loadable.Loaded(v.value + ' bananas'))(Loadable.Loaded(5)) -> Loadable.Loaded('5 bananas')
- * // input doesn't match the state, so it's passed through
- * flatMapLoadable<number, Loadable<string>>(LoadableState.Loaded, (v) => Loadable.Loaded(v.value + ' bananas'))(Loadable.Empty()) -> Loadable.Empty()
- * // and once more for good measure, replacing empty with a placeholder Loaded value for example:
- * flatMapLoadable<number, Loadable<string>>(LoadableState.Empty, () => Loadable.Loaded('placeholder'))(Loadable.Empty()) -> Loadable.Loaded('placeholder')
- * ```
- */
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loaded>(state: S, mapper: (v: T) => U): OperatorFunction<Loadable<T>, U>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => U): OperatorFunction<Loadable<T>, U | Loadable<T>>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, U | Loadable<T>>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, U | Loadable<T>>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: T | ApiError | undefined) => U): OperatorFunction<Loadable<T>, U | Loadable<T>> {
-	return map(v => {
-		if (v.state !== state) return v;
-		return mapper(getLoadableStateValue(v, state));
-	});
-}
-
-/**
- * Like mergeMap, but only call the mapper for Loadables of state S.
- * Other values are passed through.
- */
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loaded>(state: S, mapper: (v: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => ObservableInput<U>): OperatorFunction<Loadable<T>, U | Loadable<T>>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: any) => ObservableInput<U>): OperatorFunction<Loadable<T>, U | Loadable<T>> {
-	return mergeMap(v => {
-		if (v.state !== state) return of(v);
-		return mapper(getLoadableStateValue(v, state));
-	});
-}
-
-/**
- * Like switchMap, but only call the mapper for Loadables of state S.
- * Other values are passed through.
- */
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loaded>(state: S, mapper: (v: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => ObservableInput<U>): OperatorFunction<Loadable<T>, U | Loadable<T>>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: any) => ObservableInput<U>): OperatorFunction<Loadable<T>, U | Loadable<T>> {
-	return switchMap(v => {
-		if (v.state !== state) return of(v);
-		return mapper(getLoadableStateValue(v, state));
-	});
-}
-export const switchMapLoaded = (switchMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => switchMapLoadable(LoadableState.loaded, mapper));
+/** Switch-map Loaded values and cancel the previous inner stream when any new state arrives. */
+export const switchMapLoaded = <T, U extends Loadable<any>>(mapper: (value: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U> =>
+	switchMap(value => (isLoaded(value) ? mapper(value.value) : of(value as U)));
 
 /**
  * Return a mapping function that converts an object into a Loaded<T> if all required keys are present and not null, and Empty otherwise.
@@ -421,53 +349,6 @@ export function loadableFromStream<T>(
 		dispose: stop,
 		toJSON: () => ({ state: state.value, value: value.value, error: error.value }),
 	});
-}
-
-/**
- * Map the next non-loading state of the stream to a promise.
- * Empty<T> will resolve to undefined.
- * NOTE: if the stream returns a LoadingError<T>, this will reject!
- * Meaning that if you await this promise, it could throw!
- *
- * NOTE: if the stream caches values (such as with BehaviorSubject or shareReplay(1)),
- * the promise will resolve to the current value!
- * Make sure you next() the stream's input _before_ calling this function,
- * and make sure the stream's output changes synchronously with the input.
- * @param loadableStream
- * @returns a promise that will contain the first non-Loading state of the stream.
- */
-export function promiseFromLoadableStream<T>(loadableStream: Observable<LoadableLike<T>>, _title?: string): Promise<T | undefined> {
-	return new Promise((resolve, reject) =>
-		loadableStream
-			.pipe(
-				filter(v => !isLoading(v)),
-				take(1), // make sure we unsubscribe after the first non-loading state
-			)
-			.subscribe({
-				next: v => {
-					if (isLoaded(v)) resolve(v.value);
-					else if (isError(v)) reject(v.error);
-					else if (isEmpty(v)) resolve(undefined);
-				},
-				error: reject,
-				complete: () => resolve(undefined),
-			}),
-	);
-}
-
-/**
- * Given a promise, return a stream that will emit Loading, Loaded, or LoadingError states.
- * @param promise
- * @returns
- */
-export function loadableStreamFromPromise<T>(promise: Promise<T>): Observable<Loadable<T>> {
-	const subject = new ReplaySubject<Loadable<T>>(1);
-	subject.next(Loadable.Loading());
-	promise
-		.then(v => subject.next(Loadable.Loaded(v)))
-		.catch(e => subject.next(Loadable.LoadingError(e)))
-		.finally(() => subject.complete());
-	return subject;
 }
 
 function combineLoadableStreamsImpl(

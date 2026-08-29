@@ -1,4 +1,5 @@
 import { createMockApi, rejectedRequest, resolvedRequest } from '@test/mocks/api';
+import { filter, firstValueFrom, map, type Observable } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 
 import type { Input } from '@/pages/article/article';
@@ -6,13 +7,26 @@ import { createArticleStreams } from '@/pages/article/article';
 import { type BLDocInfo, type BLHitInDoc, type BLHitResults, type BLDocument } from '@/types/blacklabtypes';
 
 import { ApiError, type DocumentContentsParameters } from '@/shared/api/lib/api-types';
-import { LoadableState } from '@/shared/utils/loadable/loadable-core';
-import { loadableFromStream, promiseFromLoadableStream } from '@/shared/utils/loadable/loadable-stream';
+import { isError, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
+import { loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 const ids = {
 	MOCK_INDEX_ID: 'test',
 	MOCK_DOC_ID: 'test',
 };
+
+function promiseFromLoadableStream<T>(stream: Observable<LoadableLike<T>>): Promise<T | undefined> {
+	return firstValueFrom(
+		stream.pipe(
+			filter(value => value.state !== LoadableState.loading),
+			map(value => {
+				if (isError(value)) throw value.error;
+				return value.value;
+			}),
+		),
+		{ defaultValue: undefined },
+	);
+}
 
 beforeAll(() => {
 	vi.stubGlobal('document', {

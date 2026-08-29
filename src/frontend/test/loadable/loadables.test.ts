@@ -8,14 +8,10 @@ import {
 	combineLoadables,
 	combineLoadablesIncludingEmpty,
 	withRequiredKeys,
-	mapLoadable,
-	mergeMapLoadable,
-	switchMapLoadable,
-	flatMapLoadable,
+	mapLoaded,
+	switchMapLoaded,
 	loadableFromStream,
 	InteractiveLoadable,
-	promiseFromLoadableStream,
-	loadableStreamFromPromise,
 	combineLoadableStreams,
 	combineLoadableStreamsIncludingEmpty,
 } from '@/shared/utils/loadable/loadable-stream';
@@ -289,29 +285,41 @@ describe('toObservable', () => {
 	test('maps cancellation to Empty', () => expect(allValuesFrom(new CancelableRequest(Promise.reject(ApiError.CANCELLED), () => {}).toObservable())).resolves.toEqual([loading, empty]));
 });
 
-// Big combination test for all loadable stream operators with all possible input values.
-describe('loadable streams operators', () => {
-	const expectedValueOutput = { a: 2 };
-	const expectedLoadableOutput = Loadable.Loaded(expectedValueOutput);
-	const operatorsAndImplementations = [
-		{ op: mapLoadable, ret: () => expectedValueOutput }, // return value of mapLoadable is implicitly wrapped in Loaded, so return raw value
-		{ op: mergeMapLoadable, ret: () => of(expectedLoadableOutput) },
-		{ op: switchMapLoadable, ret: () => of(expectedLoadableOutput) },
-		{ op: flatMapLoadable, ret: () => expectedLoadableOutput },
-	];
+describe('loaded stream operators', () => {
+	test('maps and switch-maps loaded values', async () => {
+		await expect(allValuesFrom(of(loaded).pipe(mapLoaded(value => value + 1)))).resolves.toEqual([Loadable.Loaded(2)]);
+		await expect(allValuesFrom(of(loaded).pipe(switchMapLoaded(value => of(Loadable.Loaded(value + 1)))))).resolves.toEqual([Loadable.Loaded(2)]);
+	});
 
-	for (const { op, ret } of operatorsAndImplementations) {
-		for (const streamInput of [loaded, error, loading, empty]) {
-			const normalStreamOutput = streamInput;
-			const stream = of(streamInput);
-			for (const operateOnThisState of [LoadableState.empty, LoadableState.error, LoadableState.loading, LoadableState.loaded]) {
-				const expectedStreamOutput = operateOnThisState === streamInput.state ? expectedLoadableOutput : normalStreamOutput;
-				const outputdescription = operateOnThisState === streamInput.state ? 'the replaced value' : 'the original value';
-				test(`${op.name} state ${operateOnThisState} in stream containing ${streamInput.state} should return ${outputdescription}`, () =>
-					expect(allValuesFrom(stream.pipe((op as any)(operateOnThisState, ret)))).resolves.toEqual([expectedStreamOutput]));
-			}
-		}
-	}
+	test.each([loading, error, empty])('passes through the exact non-loaded object', async state => {
+		expect((await allValuesFrom(of(state).pipe(mapLoaded(value => value))))[0]).toBe(state);
+		expect((await allValuesFrom(of(state).pipe(switchMapLoaded(value => of(Loadable.Loaded(value))))))[0]).toBe(state);
+	});
+
+	test('switchMapLoaded cancels the previous inner stream when a new state arrives', () => {
+		const source = new Subject<Loadable<number>>();
+		const innerTeardown = vi.fn();
+		const output: Loadable<number>[] = [];
+		const subscription = source
+			.pipe(
+				switchMapLoaded(
+					value =>
+						new Observable<Loadable<number>>(observer => {
+							observer.next(Loadable.Loaded(value + 1));
+							return innerTeardown;
+						}),
+				),
+			)
+			.subscribe(value => output.push(value));
+
+		source.next(loaded);
+		const nextState = Loadable.Loading<number>();
+		source.next(nextState);
+
+		expect(innerTeardown).toHaveBeenCalledOnce();
+		expect(output.at(-1)).toBe(nextState);
+		subscription.unsubscribe();
+	});
 });
 
 describe('loadableFromStream', () => {
@@ -509,19 +517,6 @@ describe('InteractiveLoadable', () => {
 
 		loadable.dispose();
 	});
-});
-
-describe('promiseFromLoadableStream', () => {
-	test('should return a promise that resolves to the value', () => expect(promiseFromLoadableStream(of(loaded))).resolves.toBe(loaded.value));
-	test('should return a promise that rejects on error', () => expect(promiseFromLoadableStream(of(error))).rejects.toBeInstanceOf(ApiError));
-	test('should ignore loading states', () => expect(promiseFromLoadableStream(of(loading, loaded))).resolves.toBe(loaded.value));
-	test('should ignore subsequent values after the first', () => expect(promiseFromLoadableStream(of(Loadable.Loaded(1), Loadable.Loaded(2)))).resolves.toBe(1));
-});
-
-describe('loadableStreamFromPromise', () => {
-	test('stream from successful promise returns loading state followed by loaded state', () =>
-		expect(allValuesFrom(loadableStreamFromPromise(Promise.resolve(loaded.value)))).resolves.toEqual([loading, loaded]));
-	test('stream from failed promise returns loading state followed by error state', () => expect(allValuesFrom(loadableStreamFromPromise(Promise.reject(apiError)))).resolves.toEqual([loading, error]));
 });
 
 describe('combineLoadableStreams', () => {
