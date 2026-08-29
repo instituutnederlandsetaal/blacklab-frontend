@@ -1,9 +1,9 @@
 <template>
-	<div :class="classes" tabindex="-1" role="dialog" @click.self="$emit('close')">
+	<div class="modal fade in" :class="sizeClass" tabindex="-1" role="dialog" @click.self="closeFromBackdrop">
 		<div class="modal-dialog" role="document">
 			<div class="modal-content">
 				<div class="modal-header">
-					<button v-if="close" type="button" :disabled="!closeEnabled" class="close" @click="$emit('close')">×</button>
+					<button v-if="close" type="button" :disabled="!closeEnabled" class="close" @click="emit('close')">×</button>
 					<slot name="title"
 						><h4 class="modal-title">{{ title }}</h4></slot
 					>
@@ -15,10 +15,10 @@
 				</div>
 				<div class="modal-footer">
 					<slot name="footer"></slot>
-					<button v-if="close" type="button" class="btn" :class="closeClass" :disabled="!closeEnabled" @click="$emit('close')">
+					<button v-if="close" type="button" class="btn" :class="closeClass" :disabled="!closeEnabled" @click="emit('close')">
 						{{ closeMessage }}
 					</button>
-					<button v-if="confirm" type="button" class="btn" :class="confirmClass" :disabled="!confirmEnabled" @click="$emit('confirm')">
+					<button v-if="confirm" type="button" class="btn" :class="confirmClass" :disabled="!confirmEnabled" @click="emit('confirm')">
 						{{ confirmMessage }}
 					</button>
 				</div>
@@ -27,64 +27,58 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, onBeforeUnmount } from 'vue';
 
-// We want a few modes
-// a 'sm', 'lg' and 'xl' which will be the various container widths
-// without any settings, determine based on the screen size (use bootstrap container size)
-// an auto size, which will be as large as the content, but not larger than the screen.
+type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
 
-// maybe something like shrink true/false in addition to a size='sm|lg|xl|auto'
-
-export default defineComponent({
-	props: {
-		close: { default: true },
-		closeEnabled: { default: true },
-		closeMessage: { default: 'Close' },
-		closeClass: { default: 'btn-default' },
-
-		confirm: { default: true },
-		confirmEnabled: { default: true },
-		confirmMessage: { default: 'OK' },
-		confirmClass: { default: 'btn-primary' },
-
-		title: { default: 'Title' },
-		size: { type: String as () => 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen' | undefined },
-		xs: Boolean,
-		sm: Boolean,
-		md: Boolean,
-		lg: Boolean,
-		auto: Boolean,
-		fullscreen: Boolean,
+const props = withDefaults(
+	defineProps<{
+		close?: boolean;
+		closeEnabled?: boolean;
+		closeMessage?: string;
+		closeClass?: string;
+		confirm?: boolean;
+		confirmEnabled?: boolean;
+		confirmMessage?: string;
+		confirmClass?: string;
+		title?: string;
+		size?: ModalSize;
+		xs?: boolean;
+		sm?: boolean;
+		md?: boolean;
+		lg?: boolean;
+		auto?: boolean;
+		fullscreen?: boolean;
+	}>(),
+	{
+		close: true,
+		closeEnabled: true,
+		closeMessage: 'Close',
+		closeClass: 'btn-default',
+		confirm: true,
+		confirmEnabled: true,
+		confirmMessage: 'OK',
+		confirmClass: 'btn-primary',
+		title: 'Title',
 	},
-	computed: {
-		classes(): Record<string, boolean> {
-			const c: any = {
-				modal: true,
-				fade: true,
-				in: true,
-				xs: !this.size && this.xs,
-				sm: !this.size && this.sm,
-				md: !this.size && this.md,
-				lg: !this.size && this.lg,
-				auto: !this.size && this.auto,
-				fullscreen: !this.size && this.fullscreen,
-			};
-			if (this.size) c[this.size] = true;
+);
 
-			return c;
-		},
-	},
-	created() {
-		document.body.classList.add('modal-open');
-		document.body.setAttribute('data-modal-count', (parseInt(document.body.getAttribute('data-modal-count') || '0') + 1).toString());
-	},
-	beforeUnmount() {
-		document.body.setAttribute('data-modal-count', (parseInt(document.body.getAttribute('data-modal-count') || '0') - 1).toString());
-		if (!document.body.hasAttribute('data-modal-count') || document.body.getAttribute('data-modal-count') === '0') document.body.classList.remove('modal-open');
-	},
-});
+const emit = defineEmits<{ close: []; confirm: [] }>();
+const sizeClass = computed(() => props.size || { xs: props.xs, sm: props.sm, md: props.md, lg: props.lg, auto: props.auto, fullscreen: props.fullscreen });
+
+function updateBodyModalCount(delta: 1 | -1) {
+	const count = Math.max(0, (Number.parseInt(document.body.dataset.modalCount || '0', 10) || 0) + delta);
+	document.body.dataset.modalCount = String(count);
+	document.body.classList.toggle('modal-open', count > 0);
+}
+
+function closeFromBackdrop() {
+	if (props.close && props.closeEnabled) emit('close');
+}
+
+updateBodyModalCount(1);
+onBeforeUnmount(() => updateBodyModalCount(-1));
 </script>
 
 <style lang="scss" scoped>
