@@ -2,7 +2,7 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
-import { defineComponent, h, nextTick, shallowRef, toRaw } from 'vue';
+import { defineComponent, h, nextTick, onMounted, onUnmounted, shallowRef, toRaw } from 'vue';
 
 import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormResult, type FormRuntime } from '@/features/form';
 import { annotation } from '@/features/form/model/types/form-query-ir';
@@ -20,7 +20,12 @@ type FormFixture = {
 const queryOnlyTextController = defineFieldController<'query-only-text', TestTextFieldDefinition>({
 	kind: 'query-only-text',
 	createDefaultState: () => ({ value: '' }),
-	persistence: { key: config => config.annotationId, codec: object({ value: scalar().default('').atRoot() }).default({ value: '' }) },
+	persistence: {
+		key: config => config.annotationId,
+		codec: object({ value: scalar().default('').atRoot() }).default({
+			value: '',
+		}),
+	},
 	outputs: ['patt'],
 	collect(config, _runtime, state, emit) {
 		const pattern = annotation(config.annotationId, 'wildcard', state.value);
@@ -48,7 +53,9 @@ const summaryOnlyTextController = defineFieldController<'summary-only-text', Tes
 
 function createSingleFormFixture(): FormFixture {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+	const form = builder.newForm('search.simple', ContainerRenderer, {
+		title: 'Simple',
+	});
 
 	form.addChildren(
 		builder.newField('search.simple.word', testTextController, TestTextField, {
@@ -65,7 +72,9 @@ function createSingleFormFixture(): FormFixture {
 
 function createAutocompleteTextFixture(): FormFixture {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+	const form = builder.newForm('search.simple', ContainerRenderer, {
+		title: 'Simple',
+	});
 
 	form.addChildren(
 		builder.newField('search.simple.annotation', annotationTextController, TextField, {
@@ -128,18 +137,28 @@ function createTabbedFormFixture(): FormFixture {
 			variant: 'tabs',
 		})
 		.addChildren(
-			builder.newContainer('search.tabbed.word', ContainerRenderer, { title: 'Word', combine: 'and' }).addChildren(
-				builder.newField('search.tabbed.word.field', testTextController, TestTextField, {
-					annotationId: 'word',
-					displayName: 'Word',
-				}),
-			),
-			builder.newContainer('search.tabbed.lemma', ContainerRenderer, { title: 'Lemma', combine: 'and' }).addChildren(
-				builder.newField('search.tabbed.lemma.field', testTextController, TestTextField, {
-					annotationId: 'lemma',
-					displayName: 'Lemma',
-				}),
-			),
+			builder
+				.newContainer('search.tabbed.word', ContainerRenderer, {
+					title: 'Word',
+					combine: 'and',
+				})
+				.addChildren(
+					builder.newField('search.tabbed.word.field', testTextController, TestTextField, {
+						annotationId: 'word',
+						displayName: 'Word',
+					}),
+				),
+			builder
+				.newContainer('search.tabbed.lemma', ContainerRenderer, {
+					title: 'Lemma',
+					combine: 'and',
+				})
+				.addChildren(
+					builder.newField('search.tabbed.lemma.field', testTextController, TestTextField, {
+						annotationId: 'lemma',
+						displayName: 'Lemma',
+					}),
+				),
 		);
 	return {
 		runtime: createTestRuntime(builder),
@@ -150,17 +169,21 @@ function createFilterTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
 	builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(
 		builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
-			builder.newContainer('shared.filters', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
-				builder.newContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' }).addChildren(
-					builder.newContainer('shared.filters.bibliographic.fields', ContainerRenderer, {}).addChildren(
-						builder.newField('shared.filters.bibliographic.author', filterTextController, TextField, {
-							displayName: 'Author',
-							groupId: 'bibliographic',
-							metadataFieldId: 'author',
-						}),
+			builder
+				.newContainer('shared.filters', ContainerRenderer, {
+					variant: ['tabs', 'tab-badges'],
+				})
+				.addChildren(
+					builder.newContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' }).addChildren(
+						builder.newContainer('shared.filters.bibliographic.fields', ContainerRenderer, {}).addChildren(
+							builder.newField('shared.filters.bibliographic.author', filterTextController, TextField, {
+								displayName: 'Author',
+								groupId: 'bibliographic',
+								metadataFieldId: 'author',
+							}),
+						),
 					),
 				),
-			),
 		),
 	);
 
@@ -171,10 +194,17 @@ function createFilterTabsFixture(): FormFixture {
 
 function createGetterTabsFixture() {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.form', ContainerRenderer, { title: () => 'Computed form', variant: 'tabs' });
+	const form = builder.newForm('search.form', ContainerRenderer, {
+		title: () => 'Computed form',
+		variant: 'tabs',
+	});
 	form.addChildren(
-		builder.newContainer('search.first', ContainerRenderer, { title: () => 'Computed first' }),
-		builder.newContainer('search.second', ContainerRenderer, { title: () => 'Computed second' }),
+		builder.newContainer('search.first', ContainerRenderer, {
+			title: () => 'Computed first',
+		}),
+		builder.newContainer('search.second', ContainerRenderer, {
+			title: () => 'Computed second',
+		}),
 	);
 	return { form, runtime: createTestRuntime(builder) };
 }
@@ -208,7 +238,10 @@ describe('form system integration', () => {
 
 	test('forwards host attributes to the rendered root', () => {
 		const fixture = createSingleFormFixture();
-		const wrapper = mount(FormSystem, { props: fixture, attrs: { 'data-form-host': 'search' } });
+		const wrapper = mount(FormSystem, {
+			props: fixture,
+			attrs: { 'data-form-host': 'search' },
+		});
 
 		expect(wrapper.findAll('.blf-form-system').map(node => [node.element.tagName, node.attributes('data-form-host')])).toEqual([
 			['DIV', 'search'],
@@ -235,7 +268,9 @@ describe('form system integration', () => {
 
 	test('submit emits the mounted form runtime compilation', async () => {
 		const builder = createTestBuilder();
-		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		const form = builder.newForm('search.simple', ContainerRenderer, {
+			title: 'Simple',
+		});
 		const runtime = createTestRuntime(builder);
 		const compiled = runtime.compile(form.id);
 		const compile = vi.spyOn(runtime, 'compile').mockReturnValue(compiled);
@@ -250,12 +285,16 @@ describe('form system integration', () => {
 
 	test('reset restores form state and emits one scoped reset event', async () => {
 		const fixture = createSingleFormFixture();
-		fixture.runtime.state.state.value['search.simple.word'] = { value: 'draft' };
+		fixture.runtime.state.state.value['search.simple.word'] = {
+			value: 'draft',
+		};
 		const wrapper = mount(FormSystem, { props: fixture });
 
 		await wrapper.get('form').trigger('reset');
 
-		expect(fixture.runtime.state.state.value['search.simple.word']).toEqual({ value: '' });
+		expect(fixture.runtime.state.state.value['search.simple.word']).toEqual({
+			value: '',
+		});
 		expect(wrapper.emitted('reset')).toHaveLength(1);
 	});
 
@@ -340,6 +379,42 @@ describe('form system integration', () => {
 		expect(wrapper.find('input[aria-label="New word"]').exists()).toBe(true);
 	});
 
+	test('only runtime identity changes remount the rendered subtree', async () => {
+		const mounted = vi.fn();
+		const disposed = vi.fn();
+		const Probe = defineComponent({
+			setup() {
+				onMounted(mounted);
+				onUnmounted(disposed);
+				return () => h('span', { 'data-testid': 'runtime-probe' });
+			},
+		});
+		const createRuntime = () => {
+			const builder = createTestBuilder();
+			builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(builder.newView('search.simple.probe', Probe, {}));
+			return createTestRuntime(builder);
+		};
+		const runtimeA = createRuntime();
+		const runtimeB = createRuntime();
+		const currentRuntime = shallowRef(runtimeA);
+		const Harness = defineComponent({
+			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
+		});
+		mount(Harness);
+
+		runtimeA.state.rawOverrides.value.test = 'same runtime';
+		await nextTick();
+		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([1, 0]);
+
+		currentRuntime.value = runtimeB;
+		await nextTick();
+		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([2, 1]);
+
+		currentRuntime.value = runtimeA;
+		await nextTick();
+		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([3, 2]);
+	});
+
 	test('runtime prop replacement refreshes injected runtime consumers', async () => {
 		const oldRuntime = createLabeledRuntime('Old word');
 		const newRuntime = createLabeledRuntime('New word');
@@ -373,8 +448,12 @@ describe('form system integration', () => {
 		await nextTick();
 		await wrapper.get('input[aria-label="New word"]').setValue('new draft');
 
-		expect(newRuntime.state.state.value['search.simple.word']).toEqual({ value: 'new draft' });
-		expect(oldRuntime.state.state.value['search.simple.word']).toEqual({ value: 'old draft' });
+		expect(newRuntime.state.state.value['search.simple.word']).toEqual({
+			value: 'new draft',
+		});
+		expect(oldRuntime.state.state.value['search.simple.word']).toEqual({
+			value: 'old draft',
+		});
 	});
 
 	test('replaceState refreshes a mounted value and preserves its write-back binding', async () => {
@@ -397,7 +476,9 @@ describe('form system integration', () => {
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
-		expect(runtime.state.state.value['search.simple.word']).toEqual({ value: 'fire' });
+		expect(runtime.state.state.value['search.simple.word']).toEqual({
+			value: 'fire',
+		});
 	});
 
 	test('reused field nodes share state across tabbed forms', async () => {
@@ -465,9 +546,17 @@ describe('form system integration', () => {
 
 	test('array tab variants hide the active child container title', () => {
 		const builder = createTestBuilder();
-		const parent = builder.newContainer('search.tabs', ContainerRenderer, { variant: ['tabs'] });
-		parent.addChildren(builder.newContainer('search.tabs.child', ContainerRenderer, { title: 'Hidden child title' }));
-		const wrapper = mount(FormSystem, { props: { runtime: createTestRuntime(builder) } });
+		const parent = builder.newContainer('search.tabs', ContainerRenderer, {
+			variant: ['tabs'],
+		});
+		parent.addChildren(
+			builder.newContainer('search.tabs.child', ContainerRenderer, {
+				title: 'Hidden child title',
+			}),
+		);
+		const wrapper = mount(FormSystem, {
+			props: { runtime: createTestRuntime(builder) },
+		});
 
 		expect(wrapper.find('.blf-container-title').exists()).toBe(false);
 	});
@@ -488,16 +577,24 @@ describe('form system integration', () => {
 
 	test('tab badges count semantic emissions without requiring a summary', async () => {
 		const builder = createTestBuilder();
-		builder.newForm('search.query-only', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
-			builder.newContainer('search.query-only.tab', ContainerRenderer, { title: 'Query only' }).addChildren(
-				builder.newContainer('search.query-only.tab.wrapper', ContainerRenderer, {}).addChildren(
-					builder.newField('search.query-only.tab.field', queryOnlyTextController, TestTextField, {
-						annotationId: 'word',
-						displayName: 'Query only field',
-					}),
-				),
-			),
-		);
+		builder
+			.newForm('search.query-only', ContainerRenderer, {
+				variant: ['tabs', 'tab-badges'],
+			})
+			.addChildren(
+				builder
+					.newContainer('search.query-only.tab', ContainerRenderer, {
+						title: 'Query only',
+					})
+					.addChildren(
+						builder.newContainer('search.query-only.tab.wrapper', ContainerRenderer, {}).addChildren(
+							builder.newField('search.query-only.tab.field', queryOnlyTextController, TestTextField, {
+								annotationId: 'word',
+								displayName: 'Query only field',
+							}),
+						),
+					),
+			);
 		const runtime = createTestRuntime(builder);
 		const wrapper = mount(FormSystem, { props: { runtime } });
 
@@ -511,16 +608,22 @@ describe('form system integration', () => {
 	test('tab badges ignore summary and frontend-only contributions', () => {
 		const builder = createTestBuilder();
 		builder
-			.newForm('search.non-semantic', ContainerRenderer, { variant: ['tabs', 'tab-badges'] })
+			.newForm('search.non-semantic', ContainerRenderer, {
+				variant: ['tabs', 'tab-badges'],
+			})
 			.addChildren(
 				builder
-					.newContainer('search.non-semantic.tab', ContainerRenderer, { title: 'Non-semantic' })
+					.newContainer('search.non-semantic.tab', ContainerRenderer, {
+						title: 'Non-semantic',
+					})
 					.addChildren(
 						builder.newField('search.non-semantic.summary', summaryOnlyTextController, TestTextField, { annotationId: 'summary', displayName: 'Summary' }),
 						builder.newField('search.non-semantic.frontend', frontendOnlyTextController, TestTextField, { annotationId: 'frontend', displayName: 'Frontend' }),
 					),
 			);
-		const wrapper = mount(FormSystem, { props: { runtime: createTestRuntime(builder) } });
+		const wrapper = mount(FormSystem, {
+			props: { runtime: createTestRuntime(builder) },
+		});
 
 		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
 	});

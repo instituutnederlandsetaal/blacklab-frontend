@@ -7,14 +7,14 @@
 				<button type="button" class="btn btn-xs btn-default" @click="props.runtime.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component :is="renderTree.is" v-bind="{ ...$attrs, ...renderTree.props }" :key="runtimeRevision" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
+		<Component :is="renderTree.is" v-bind="{ ...$attrs, ...renderTree.props }" :key="runtimeKey" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
 			<template #actions><slot name="actions" /></template>
 		</Component>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from 'vue';
+import { computed, toRef } from 'vue';
 
 import type { FormRuntime } from '@/features/form/model/form-runtime';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
@@ -32,20 +32,18 @@ const emit = defineEmits<{
 
 provideFormSystemRuntime(toRef(props, 'runtime'));
 
-// Runtime-bound views may allocate watchers/loaders during setup. Recreate the
-// rendered subtree when the session changes so none survive against old state.
-const runtimeRevision = ref(0);
-watch(
-	() => props.runtime,
-	() => runtimeRevision.value++,
-);
+const runtimeKey = computed(() => Symbol(`form runtime ${props.runtime.definition.getRoot().id}`));
 
 const renderTree = computed(() => props.runtime.renderableGraph());
 
 const activeOverrides = computed(() =>
 	Object.entries(props.runtime.state.rawOverrides.value)
 		.filter(([, value]) => value !== undefined)
-		.map(([parameter, value]) => ({ parameter, value, label: `Restored ${parameter}` })),
+		.map(([parameter, value]) => ({
+			parameter,
+			value,
+			label: `Restored ${parameter}`,
+		})),
 );
 </script>
 
