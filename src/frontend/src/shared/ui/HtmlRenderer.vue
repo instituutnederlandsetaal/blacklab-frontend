@@ -27,6 +27,7 @@ defineOptions({
 
 const emit = defineEmits<{
 	ready: [];
+	settled: [];
 }>();
 
 const props = withDefaults(
@@ -68,9 +69,13 @@ function renderContent(container: HTMLElement, value: RenderableContent) {
 	emit('ready');
 }
 
-watchEffect(() => {
-	if (loadableContent.value.isLoaded() && contentContainer.value) {
-		renderContent(contentContainer.value, loadableContent.value.value);
-	}
-});
+watchEffect(
+	() => {
+		if (loadableContent.value.isLoaded() && contentContainer.value) {
+			renderContent(contentContainer.value, loadableContent.value.value);
+			emit('settled');
+		} else if (loadableContent.value.isError()) emit('settled');
+	},
+	{ flush: 'post' },
+);
 </script>

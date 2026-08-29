@@ -1,5 +1,5 @@
 <template>
-	<HtmlRenderer :content="content" execute-scripts parse-string-as-html @ready="onContentReady" />
+	<HtmlRenderer :content="content" execute-scripts parse-string-as-html @settled="onContentSettled" />
 </template>
 
 <script setup lang="ts">
@@ -7,5 +7,5 @@ import { useTerminalPageContent } from '@/pages/useTerminalPageContent';
 
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 
-const { content, onContentReady } = useTerminalPageContent('getHelp');
+const { content, onContentSettled } = useTerminalPageContent('getHelp');
 </script>

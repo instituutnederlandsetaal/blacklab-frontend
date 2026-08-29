@@ -9,6 +9,7 @@ import { nextTick, ref } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 
+import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import ArticlePage from '@/pages/article/ArticlePage.vue';
@@ -114,6 +115,18 @@ describe('ArticlePage bootstrap settlement', () => {
 
 		expect(mock.markSettled).not.toHaveBeenCalled();
 		current.unmount();
+	});
+
+	test('settles errors only after the article error is rendered', async () => {
+		const wrapper = mountArticle();
+		mock.markSettled.mockImplementationOnce(() => {
+			expect(wrapper.get('#content .alert').text()).toContain('Could not load document contents. Request failed');
+		});
+
+		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.LoadingError(new ApiError('Error', 'Request failed', 'Error', 500)));
+		await flushPromises();
+
+		expect(mock.markSettled).toHaveBeenCalledOnce();
 	});
 });
 

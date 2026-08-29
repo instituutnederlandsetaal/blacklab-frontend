@@ -44,7 +44,7 @@
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
 			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
 				<h2 v-if="corpus.isParallelCorpus" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
-				<HtmlRenderer :content="contentsHtml" @ready="handleContentReady">
+				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView" @settled="pageBootstrap.markSettled">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
 						<Collapsible id="content_error" button-class="btn btn-default" label="Show full diagnostics">
@@ -191,13 +191,6 @@ const metadataFieldsToShow = computed(() =>
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
 const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value.viewField ?? '']);
 
-watchEffect(
-	() => {
-		if (contents.isError()) pageBootstrap.markSettled();
-	},
-	{ flush: 'post' },
-);
-
 function handlePageNavigation(page: number) {
 	if (!validPaginationInfo.isLoaded() || validPaginationInfo.value.pageSize == null) return;
 	void updateArticleQuery({
@@ -220,11 +213,6 @@ function scrollCurrentHitIntoView() {
 	activeArticleTab.value = 'content';
 	window.requestAnimationFrame(() => hit.scrollIntoView({ block: 'center', behavior: 'smooth' }));
 }
-function handleContentReady() {
-	scrollCurrentHitIntoView();
-	pageBootstrap.markSettled();
-}
-
 /** Prefer server diagnostics while keeping a readable fallback for the template. */
 function errorDiagnostics(error: ApiError) {
 	return error.diagnostics || error.message;

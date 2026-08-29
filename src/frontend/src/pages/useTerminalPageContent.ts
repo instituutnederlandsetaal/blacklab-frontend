@@ -1,5 +1,3 @@
-import { watchEffect } from 'vue';
-
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { useCorpusId } from '@/navigation/page-context';
 
@@ -9,12 +7,5 @@ import { loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 export function useTerminalPageContent(endpoint: 'getAbout' | 'getHelp') {
 	const content = loadableFromStream(useFrontendApi()[endpoint](useCorpusId().value).toObservable());
 	const pageBootstrap = usePageBootstrap();
-
-	watchEffect(
-		() => {
-			if (content.isError()) pageBootstrap.markSettled();
-		},
-		{ flush: 'post' },
-	);
-	return { content, onContentReady: () => pageBootstrap.markSettled() };
+	return { content, onContentSettled: () => pageBootstrap.markSettled() };
 }
