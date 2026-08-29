@@ -72,8 +72,6 @@ export interface GroupRowData {
 	displayname: string;
 	/** Total number of documents in the total result set. */
 	'r.d': number;
-	/** Total number of tokens across all matched documents. */
-	'r.t'?: number;
 	/** Total number of hits. Unavailable for queries without CQL pattern. */
 	'r.h'?: number;
 	/** Number of documents in the group. */
@@ -92,14 +90,10 @@ export interface GroupRowData {
 	'sc.t': number;
 	/** Relative group size (documents) [gr.d/r.d]. Adds to 1 across all groups. */
 	'relative group size [gr.d/r.d]': number;
-	/** Relative group size (tokens) [gr.t/r.t]. Adds to 1 across all groups. FIXME: Remove optional flag when Jan implements. */
-	'relative group size [gr.t/r.t]'?: number;
 	/** Relative group size (hits) [gr.h/r.h]. Adds to 1 across all groups. Optional, only when CQL pattern is available. */
 	'relative group size [gr.h/r.h]'?: number;
 	/** Relative frequency (documents) [gr.d/gsc.d]. Optional because subcorpus might not be calculable. */
 	'relative frequency (docs) [gr.d/gsc.d]'?: number;
-	/** Relative frequency (tokens) [gr.t/gsc.t]. Optional because subcorpus might not be calculable. */
-	'relative frequency (tokens) [gr.t/gsc.t]'?: number;
 	/** Relative frequency (hits) [gr.h/gsc.t]. Optional because subcorpus might not be calculable and hits are optional. */
 	'relative frequency (hits) [gr.h/gsc.t]'?: number;
 	/** Relative frequency (documents) [gr.d/sc.d]. Optional because subcorpus is unknown for metadata grouped requests. Wait for Jan. */
@@ -209,10 +203,6 @@ const tableHeaders: {
 		'relative frequency (hits) [gr.h/gsc.t]': {
 			label: 'Relative frequency (hits)',
 			title: '(gr.h/gsc.t) - Note that gsc.t = sc.t when not grouped by metadata',
-		},
-		'relative frequency (tokens) [gr.t/gsc.t]': {
-			label: 'Relative frequency (tokens)',
-			title: '(gr.t/gsc.t) - Note that gsc.t = sc.t when not grouped by metadata',
 		},
 	},
 	hits: {
@@ -574,8 +564,6 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
 			'r.d': getMatchingDocuments(summary),
-			// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
-			'r.t': undefined, // TODO Verify for v5 api, might exist nowadays. Should be total tokens in all docs with a hit.
 			'r.h': getMatchingHits(summary),
 
 			'gr.d': g.numberOfDocs ?? 0,
@@ -598,8 +586,6 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
 			'r.d': getMatchingDocuments(summary),
-			// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
-			'r.t': getSearchParameters(summary).patt ? undefined : summarySubcorpus.tokens,
 			'r.h': getMatchingHits(summary),
 
 			'gr.d': g.size,
@@ -621,11 +607,9 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 		const r: GroupRowData = {
 			...row,
 			'relative group size [gr.d/r.d]': row['gr.d'] / row['r.d'],
-			'relative group size [gr.t/r.t]': row['gr.t'] && row['r.t'] ? row['gr.t'] / row['r.t'] : undefined,
 			'relative group size [gr.h/r.h]': row['gr.h'] && row['r.h'] ? row['gr.h'] / row['r.h'] : undefined,
 
 			'relative frequency (docs) [gr.d/gsc.d]': row['gsc.d'] ? row['gr.d'] / row['gsc.d'] : undefined,
-			'relative frequency (tokens) [gr.t/gsc.t]': row['gr.t'] && row['gsc.t'] ? row['gr.t'] / row['gsc.t'] : undefined,
 			'relative frequency (hits) [gr.h/gsc.t]': row['gr.h'] && row['gsc.t'] ? row['gr.h'] / row['gsc.t'] : undefined,
 
 			'relative frequency (docs) [gr.d/sc.d]': row['sc.d'] ? row['gr.d'] / row['sc.d'] : undefined,
