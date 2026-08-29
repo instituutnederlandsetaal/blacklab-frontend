@@ -339,6 +339,7 @@ export default defineComponent({
 		// Can't be computed, need to wait until we are mounted
 		// (as container might be a parent element that hasn't fully mounted yet when we init)
 		containerEl: null as null | HTMLElement,
+		globalListeners: null as AbortController | null,
 
 		uid: useUid(),
 	}),
@@ -549,7 +550,7 @@ export default defineComponent({
 			}
 
 			// reset option search/filter string
-			if (!this.editable && !this.$attrs.open) {
+			if (!this.editable && this.open == null) {
 				this.inputValue = '';
 			}
 			this.isNaturallyOpen = false;
@@ -803,33 +804,23 @@ export default defineComponent({
 		},
 
 		//////////////////
-		addGlobalListeners() {
-			this.addGlobalCloseListeners();
-			this.addGlobalScrollListeners();
+		ownGlobalListeners(defer = true) {
+			this.releaseGlobalListeners();
+			const owner = (this.globalListeners = new AbortController());
+			const add = () => {
+				if (owner.signal.aborted) return;
+				const options = { signal: owner.signal };
+				document.addEventListener('click', this.doClose, options);
+				window.addEventListener('resize', this.reposition, options);
+				document.addEventListener('scroll', this.reposition, options); // required if any parent has position: sticky
+				for (let parent = this.$el?.parentElement; parent != null; parent = parent.parentElement) parent.addEventListener('scroll', this.reposition, options);
+			};
+			if (defer) requestAnimationFrame(add);
+			else add();
 		},
-		removeGlobalListeners() {
-			this.removeGlobalCloseListeners();
-			this.removeGlobalScrollListeners();
-		},
-		addGlobalCloseListeners() {
-			document.addEventListener('click', this.doClose);
-		},
-		removeGlobalCloseListeners() {
-			document.removeEventListener('click', this.doClose);
-		},
-		addGlobalScrollListeners() {
-			window.addEventListener('resize', this.reposition);
-			document.addEventListener('scroll', this.reposition); // required if any of our parents has for position:sticky
-			for (let parent = this.$el && this.$el.parentElement; parent != null; parent = parent.parentElement) {
-				parent.addEventListener('scroll', this.reposition);
-			}
-		},
-		removeGlobalScrollListeners() {
-			window.removeEventListener('resize', this.reposition);
-			document.removeEventListener('scroll', this.reposition); // required if any of our parents has for position:sticky
-			for (let parent = this.$el && this.$el.parentElement; parent != null; parent = parent.parentElement) {
-				parent.removeEventListener('scroll', this.reposition);
-			}
+		releaseGlobalListeners() {
+			this.globalListeners?.abort();
+			this.globalListeners = null;
 		},
 
 		loopingIncrementor(initial: number, max: number, increment: number) {
@@ -955,12 +946,12 @@ export default defineComponent({
 					// Add a small delay on adding click listeners, or we risk intercepting our own bubbling opening click
 					// and immediately closing
 					// Use requestAnimationFrame because vue.nextTick is too early (event is still bubbling).
-					requestAnimationFrame(() => this.addGlobalListeners());
-					if (this.containerEl || this.flip) {
+					this.ownGlobalListeners();
+					if (this.$refs.menu && (this.containerEl || this.flip)) {
 						this.reposition();
 					}
 				} else {
-					this.removeGlobalListeners();
+					this.releaseGlobalListeners();
 					if (this.emitChangeOnClose) {
 						this.emitChangeOnClose = false;
 						const values = Object.keys(this.internalModel);
@@ -980,20 +971,10 @@ export default defineComponent({
 		},
 		containerEl: {
 			immediate: true,
-			handler(cur: HTMLElement | null, prev: HTMLElement | null) {
-				if (this.isOpen) {
-					if (prev) {
-						this.removeGlobalScrollListeners();
-					}
-					if (cur) {
-						this.addGlobalScrollListeners();
-					}
-				}
-
-				if (cur) {
-					if (this.isOpen) {
-						this.reposition();
-					}
+			handler(_cur: HTMLElement | null, prev: HTMLElement | null | undefined) {
+				if (this.isOpen && prev !== undefined) {
+					this.ownGlobalListeners(false);
+					this.reposition();
 				}
 			},
 		},
@@ -1024,11 +1005,12 @@ export default defineComponent({
 		if (this.container) {
 			this.containerEl = document.querySelector(this.container);
 		}
+		if (this.isOpen && !this.containerEl && this.flip) this.reposition();
 		// @ts-ignore - interop for external scripts; expose a setValue method on our root element
 		this.$el.setValue = (v: string | string[]) => this.$emit('update:modelValue', this.multiple ? [v].flat().filter(v => v != null) : v || null);
 	},
 	beforeUnmount() {
-		this.removeGlobalListeners();
+		this.releaseGlobalListeners();
 
 		// @ts-ignore
 		this.$el.setValue = undefined;
