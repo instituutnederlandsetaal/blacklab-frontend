@@ -9,8 +9,6 @@ import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
-import { stableStringify } from '@/shared/utils/stable-stringify';
-
 function prepareViews(): void {
 	for (const view of Object.values(ViewStore.getState())) {
 		view.first = 0;
@@ -21,20 +19,7 @@ function prepareViews(): void {
 }
 
 export function handoffCompiledForm(result: CompiledFormResult): void {
-	const current = QueryStore.getState();
-	const isCurrentForm = current.form === 'new';
-	const queryChanged = !isCurrentForm || stableStringify(current.state.params) !== stableStringify(result.params);
-
 	const viewName = result.targetView ?? (result.params.patt ? 'hits' : 'docs');
-	if (!queryChanged) {
-		const presentationChanged = current.state.targetView !== result.targetView || current.state.resultPreset !== result.resultPreset;
-		QueryStore.actions.search({ form: 'new', state: result });
-		if (presentationChanged) {
-			InterfaceStore.actions.viewedResults(viewName);
-			if (result.resultPreset !== undefined) ViewStore.getOrCreateModule(viewName).actions.groupDisplayMode(result.resultPreset);
-		}
-		return;
-	}
 
 	QueryStore.actions.search({ form: 'new', state: result });
 	prepareViews();

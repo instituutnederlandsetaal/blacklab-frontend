@@ -104,81 +104,56 @@ describe('compiled-form result handoff', () => {
 		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 	});
 
-	test('publishes and compares the effective compiled state', () => {
+	test('reapplies form-owned result state on an unchanged submit', () => {
 		resetStores();
-		const effective = snapshot({ patt: '[word="restored"]', group: 'field:submitted' }, { targetView: 'hits' });
-
-		submitNewForm(effective);
-		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: { params: { patt: '[word="restored"]', group: 'field:submitted' } } });
-
-		const view = ViewStore.getOrCreateModule('hits');
-		view.actions.groupBy(['field:changed-later']);
-		submitNewForm(effective);
-
-		expect(view.getState().groupBy).toEqual(['field:changed-later']);
-	});
-
-	test('does not reapply form-owned settings when compiled params are unchanged', () => {
-		resetStores();
-		submitNewForm(snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: 'table' }));
+		const submitted = snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { targetView: 'docs', resultPreset: 'table' });
+		submitNewForm(submitted);
 		const view = ViewStore.getOrCreateModule('docs');
-		view.actions.groupBy(['field:changed-later']);
-		view.actions.sort('field:changed-later');
+		const pageSize = view.getState().number;
+		view.actions.groupBy(['field:manual']);
+		view.actions.viewGroup('field:manual');
+		view.actions.sort('field:manual');
 		view.actions.groupDisplayMode('docs');
-
-		submitNewForm(
-			snapshot({ group: 'field:submitted', sort: 'field:submitted' }, { encoded: { 'f.form': 'search.form', 'f.changed': 'presentation-only' }, targetView: 'docs', resultPreset: 'table' }),
-		);
-
-		expect(view.getState()).toMatchObject({ groupBy: ['field:changed-later'], sort: 'field:changed-later', groupDisplayMode: 'docs' });
-	});
-
-	test('applies a changed result preset without resetting query view state', () => {
-		resetStores();
-		const params = { group: 'field:submitted', sort: 'field:submitted' };
-		handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }));
-		const view = ViewStore.getOrCreateModule('docs');
-		view.actions.groupBy(['field:live']);
-		view.actions.sort('field:live');
 		view.actions.range({ first: 40, number: 10 });
 		view.actions.setRequestedRange({ first: 40, number: 10 });
-		const submitted = snapshot(params, {
-			encoded: { 'f.form': 'search.form', 'f.mode': 'tokens' },
-			targetView: 'docs',
-			resultPreset: 'tokens',
-		});
+		InterfaceStore.actions.viewedResults('hits');
 
-		handoffCompiledForm(submitted);
+		submitNewForm(submitted);
 
+		expect(InterfaceStore.get.viewedResults()).toBe('docs');
 		expect(view.getState()).toMatchObject({
-			groupBy: ['field:live'],
-			sort: 'field:live',
-			first: 40,
-			number: 10,
-			requestedRange: { first: 40, number: 10 },
-			groupDisplayMode: 'tokens',
+			groupBy: ['field:submitted'],
+			sort: 'field:submitted',
+			groupDisplayMode: 'table',
+			first: 0,
+			number: pageSize,
+			requestedRange: null,
+			viewGroup: null,
 		});
 		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
 	});
 
-	test('applies a changed target view without resetting view state', () => {
+	test('preserves manual grouping, sorting, and display mode when the form does not own them', () => {
 		resetStores();
-		const params = { patt: '[word="water"]' };
-		handoffCompiledForm(snapshot(params, { targetView: 'docs', resultPreset: 'table' }));
-		const hits = ViewStore.getOrCreateModule('hits');
-		hits.actions.viewGroup('field:live');
-		hits.actions.range({ first: 30, number: 10 });
-		hits.actions.setRequestedRange({ first: 30, number: 10 });
+		const submitted = snapshot({ patt: '[word="water"]' }, { targetView: 'hits' });
+		handoffCompiledForm(submitted);
+		const view = ViewStore.getOrCreateModule('hits');
+		const pageSize = view.getState().number;
+		view.actions.groupBy(['field:manual']);
+		view.actions.sort('field:manual');
+		view.actions.groupDisplayMode('docs');
+		view.actions.range({ first: 40, number: 10 });
+		view.actions.setRequestedRange({ first: 40, number: 10 });
 
-		handoffCompiledForm(snapshot(params, { targetView: 'hits', resultPreset: 'table' }));
+		handoffCompiledForm(submitted);
 
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
-		expect(hits.getState()).toMatchObject({
-			viewGroup: 'field:live',
-			first: 30,
-			number: 10,
-			requestedRange: { first: 30, number: 10 },
-			groupDisplayMode: 'table',
+		expect(view.getState()).toMatchObject({
+			groupBy: ['field:manual'],
+			sort: 'field:manual',
+			groupDisplayMode: 'docs',
+			first: 0,
+			number: pageSize,
+			requestedRange: null,
 		});
 	});
 
