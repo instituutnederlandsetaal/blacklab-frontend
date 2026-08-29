@@ -378,6 +378,7 @@
 		"create": "创建",
 		"select": "选择",
 		"illegalCorpusName": "非法语料库名称。语料库名称必须在3到30个字符之间，不能包含特殊字符。",
+		"configure": "配置",
 		"retry": "重试"
 	},
 	"index": {

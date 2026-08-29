@@ -5,7 +5,7 @@ import { type PageMeta } from '@/navigation/page-context';
 import useInjectable from '@/shared/utils/useInjectable';
 
 type PageBootstrap = {
-	changePage(page: PageMeta): void;
+	changePage(page: PageMeta, samePageInstance: boolean): void;
 	markSettled(): void;
 	settled: Ref<boolean>;
 	page: Ref<PageMeta | null>;
@@ -18,10 +18,9 @@ function createPageBootstrapContext() {
 	const page = ref<PageMeta | null>(null);
 
 	const context: PageBootstrap = {
-		changePage(newPage) {
-			const prevPageName = page.value?.name;
+		changePage(newPage, samePageInstance) {
 			page.value = newPage;
-			settled.value = prevPageName === newPage.name || newPage.customScriptTiming !== 'after-page-bootstrap';
+			settled.value = (samePageInstance && settled.value) || newPage.customScriptTiming !== 'after-page-bootstrap';
 		},
 		markSettled() {
 			settled.value = true;

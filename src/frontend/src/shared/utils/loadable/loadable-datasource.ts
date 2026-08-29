@@ -22,29 +22,29 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 	const error = ref<ApiError>();
 	const state = ref<LoadableState>(LoadableState.empty);
 
-	let r: CancelableRequest<T>;
+	let r: CancelableRequest<T> | undefined;
 	function retry() {
-		if (r) r.cancel();
+		const previous = r;
+		r = undefined;
+		previous?.cancel();
 		value.value = undefined;
 		error.value = undefined;
-		state.value = LoadableState.empty;
+		state.value = LoadableState.loading;
 		const localR = (r = makeRequest());
 		r.then(
 			v => {
 				if (localR !== r) return; // request cancelled or retried, ignore
+				r = undefined;
 				value.value = v;
-				error.value = undefined;
 				state.value = LoadableState.loaded;
 			},
 			e => {
 				if (localR !== r) return; // request cancelled or retried, ignore
+				r = undefined;
 
 				if ((e instanceof ApiError && e.isCancelledRequest) || axios.isCancel(e)) {
-					value.value = undefined;
-					error.value = undefined;
 					state.value = LoadableState.empty;
 				} else {
-					value.value = undefined;
 					error.value = ApiError.wrap(e);
 					state.value = LoadableState.error;
 				}
@@ -52,7 +52,10 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 		);
 	}
 	function stop() {
-		r?.cancel();
+		const active = r;
+		r = undefined;
+		active?.cancel();
+		if (state.value === LoadableState.loading) state.value = LoadableState.empty;
 	}
 
 	tryOnScopeDispose(stop);

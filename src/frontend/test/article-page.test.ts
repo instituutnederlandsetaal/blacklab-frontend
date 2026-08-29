@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import en from '@assets/locales/en-us.json';
-import { enableAutoUnmount, shallowMount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount, shallowMount } from '@vue/test-utils';
 import type * as VueUse from '@vueuse/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -19,6 +19,7 @@ const mock = vi.hoisted(() => ({
 	articleRoute: undefined as unknown,
 	corpus: undefined as unknown,
 	createTooltips: vi.fn(() => vi.fn()),
+	markSettled: vi.fn(),
 	streams: undefined as unknown,
 }));
 
@@ -36,7 +37,7 @@ vi.mock('@/customization-api/internal/internal-api', () => ({
 	useCustomizations: () => ({ resultDetailedMetadataIds: () => [] }),
 }));
 vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
-vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: vi.fn() }) }));
+vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: mock.markSettled }) }));
 vi.mock('@/navigation/router', () => ({
 	useArticleRoute: () => ({ articleRoute: ref(mock.articleRoute), updateArticleQuery: vi.fn() }),
 }));
@@ -60,6 +61,7 @@ function createStreams() {
 beforeEach(() => {
 	mock.createTooltips.mockReset();
 	mock.createTooltips.mockImplementation(() => vi.fn());
+	mock.markSettled.mockReset();
 	ArticleStore.actions.distributionAnnotation(null);
 	ArticleStore.actions.growthAnnotations(null);
 	ArticleStore.actions.statisticsTableFn(null);
@@ -73,6 +75,46 @@ beforeEach(() => {
 	};
 	mock.articleRoute = { docId: 'document', viewField: 'contents' };
 	mock.streams = createStreams();
+});
+
+function mountArticle() {
+	return mount(ArticlePage, {
+		global: {
+			mocks: { $t: (key: string) => key },
+			stubs: { ArticlePageStatistics: true, Collapsible: true, Debug: true, Pagination: true, Spinner: true },
+		},
+	});
+}
+
+describe('ArticlePage bootstrap settlement', () => {
+	test('settles only after rendered content is inside the live article', async () => {
+		const wrapper = mountArticle();
+		const marker = document.createElement('p');
+		marker.className = 'article-marker';
+		marker.textContent = 'Ready';
+		mock.markSettled.mockImplementationOnce(() => {
+			expect(wrapper.get('.article .article-marker').element).toBe(marker);
+		});
+
+		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: marker }));
+		await flushPromises();
+
+		expect(mock.markSettled).toHaveBeenCalledOnce();
+	});
+
+	test('does not run queued settlement after the article instance is unmounted', async () => {
+		const obsolete = mountArticle();
+		const marker = document.createElement('p');
+		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: marker }));
+
+		obsolete.unmount();
+		mock.streams = createStreams();
+		const current = mountArticle();
+		await flushPromises();
+
+		expect(mock.markSettled).not.toHaveBeenCalled();
+		current.unmount();
+	});
 });
 
 describe('ArticlePage statistics tab', () => {

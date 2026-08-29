@@ -59,6 +59,9 @@ describe.each([
 		expect(mock.markSettled).not.toHaveBeenCalled();
 
 		pending.resolve('<p class="page-copy">Ready</p>');
+		mock.markSettled.mockImplementationOnce(() => {
+			expect(wrapper.get('.page-copy').text()).toBe('Ready');
+		});
 		await flushPromises();
 
 		expect(wrapper.getComponent(HtmlRenderer).props('content')).toBe(content);
@@ -73,6 +76,9 @@ describe.each([
 		mock[endpoint].mockReturnValue(pending.request);
 		const wrapper = mount(Page);
 
+		mock.markSettled.mockImplementationOnce(() => {
+			expect(wrapper.get('.text-danger').text()).toBe('Could not load page.');
+		});
 		pending.reject(new Error('Could not load page.'));
 		await flushPromises();
 
@@ -89,6 +95,24 @@ describe.each([
 		wrapper.unmount();
 
 		expect(pending.cancel).toHaveBeenCalledOnce();
+	});
+
+	test('does not run queued settlement after a route instance is unmounted', async () => {
+		const obsoleteRequest = deferredRequest();
+		const currentRequest = deferredRequest();
+		mock[endpoint].mockReturnValueOnce(obsoleteRequest.request).mockReturnValueOnce(currentRequest.request);
+		const obsolete = mount(Page);
+
+		obsoleteRequest.resolve('<p class="obsolete">Obsolete</p>');
+		await Promise.resolve();
+		obsolete.unmount();
+		mock.corpusId.value = 'current-corpus';
+		const current = mount(Page);
+		await flushPromises();
+
+		expect(mock.markSettled).not.toHaveBeenCalled();
+		expect(mock[endpoint]).toHaveBeenLastCalledWith('current-corpus');
+		current.unmount();
 	});
 });
 

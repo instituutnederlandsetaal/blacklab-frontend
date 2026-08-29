@@ -10,9 +10,9 @@ import SearchPage from '@/pages/search/SearchPage.vue';
 
 test('settles a cached-corpus search page only after its DOM is mounted', () => {
 	const pageBootstrap = createPageBootstrapContext();
-	pageBootstrap.changePage({ name: 'article', customScriptTiming: 'after-page-bootstrap' });
+	pageBootstrap.changePage({ name: 'article', customScriptTiming: 'after-page-bootstrap' }, false);
 	pageBootstrap.markSettled();
-	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' });
+	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 
 	let formMounted = false;
 	const QueryForm = defineComponent({
@@ -40,9 +40,9 @@ test('settles a cached-corpus search page only after its DOM is mounted', () => 
 	wrapper.unmount();
 });
 
-test('does not retrigger settlement after CorpusPage settles the initial search', () => {
+test('does not retrigger an already-settled same-instance search', () => {
 	const pageBootstrap = createPageBootstrapContext();
-	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' });
+	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 	pageBootstrap.markSettled();
 	const settledChanges = vi.fn();
 	const stop = watch(pageBootstrap.settled, settledChanges, { flush: 'sync' });

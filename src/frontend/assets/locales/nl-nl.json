@@ -381,6 +381,7 @@
 		"create": "Aanmaken",
 		"select": "Selecteren",
 		"illegalCorpusName": "Ongeldige corpusnaam. De corpusnaam moet tussen 3 en 30 tekens lang zijn en mag geen speciale tekens bevatten.",
+		"configure": "Configureren",
 		"retry": "Opnieuw proberen"
 	},
 	"index": {

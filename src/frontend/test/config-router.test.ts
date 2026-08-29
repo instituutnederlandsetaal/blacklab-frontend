@@ -10,8 +10,8 @@ beforeEach(() => {
 });
 
 describe('config routes', () => {
-	function setup() {
-		return createBlfRouter({ changePage: vi.fn() } as never);
+	function setup(changePage = vi.fn()) {
+		return { ...createBlfRouter({ changePage } as never), changePage };
 	}
 
 	test('renders the corpus picker as the global config default child', () => {
@@ -35,5 +35,27 @@ describe('config routes', () => {
 
 		await router.push('/multi/configwizard/interface');
 		expect(router.currentRoute.value).toMatchObject({ name: 'interface', path: '/multi/configwizard/interface' });
+	});
+
+	test('keeps bootstrap settlement only for the same route and corpus instance', async () => {
+		const { changePage, router } = setup();
+
+		await router.push('/alpha/search?q=one');
+		await router.push('/alpha/search?q=two');
+		await router.push('/beta/search');
+		await router.push('/alpha/docs/one');
+		await router.push('/alpha/docs/two');
+		await router.push('/about');
+		await router.push('/alpha/about');
+
+		expect(changePage.mock.calls.map(([page, samePageInstance]) => [page.name, samePageInstance])).toEqual([
+			['search', false],
+			['search', true],
+			['search', false],
+			['article', false],
+			['article', true],
+			['about', false],
+			['about', false],
+		]);
 	});
 });

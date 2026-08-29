@@ -10,8 +10,11 @@ export function useTerminalPageContent(endpoint: 'getAbout' | 'getHelp') {
 	const content = loadableFromStream(useFrontendApi()[endpoint](useCorpusId().value).toObservable());
 	const pageBootstrap = usePageBootstrap();
 
-	watchEffect(() => {
-		if (content.isLoaded() || content.isError()) pageBootstrap.markSettled();
-	});
-	return content;
+	watchEffect(
+		() => {
+			if (content.isError()) pageBootstrap.markSettled();
+		},
+		{ flush: 'post' },
+	);
+	return { content, onContentReady: () => pageBootstrap.markSettled() };
 }

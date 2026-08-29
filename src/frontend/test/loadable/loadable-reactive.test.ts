@@ -523,7 +523,7 @@ describe('loadableFromRequest', () => {
 		const loadable = loadableFromRequest(makeRequest);
 
 		expect(makeRequest).toHaveBeenCalledTimes(1);
-		expect(loadable.state).toBe(LoadableState.empty);
+		expect(loadable.state).toBe(LoadableState.loading);
 
 		deferred.resolve(42);
 		await flushPromises();
@@ -532,7 +532,21 @@ describe('loadableFromRequest', () => {
 		expect(loadable.value).toBe(42);
 
 		loadable.stop();
+		expect(deferred.cancel).not.toHaveBeenCalled();
+	});
+
+	test('stops an active request immediately and ignores its late result', async () => {
+		const deferred = createDeferredRequest<number>();
+		const loadable = loadableFromRequest(() => deferred.request);
+
+		loadable.stop();
 		expect(deferred.cancel).toHaveBeenCalledTimes(1);
+		expect(loadable.state).toBe(LoadableState.empty);
+
+		deferred.resolve(42);
+		await flushPromises();
+		expect(loadable.state).toBe(LoadableState.empty);
+		expect(loadable.value).toBeUndefined();
 	});
 
 	test('wraps failed requests as ApiError values', async () => {
@@ -585,7 +599,7 @@ describe('loadableFromRequest', () => {
 
 		first.resolve(1);
 		await flushPromises();
-		expect(loadable.state).toBe(LoadableState.empty);
+		expect(loadable.state).toBe(LoadableState.loading);
 
 		second.resolve(2);
 		await flushPromises();
@@ -603,7 +617,7 @@ describe('loadableFromRequest', () => {
 		first.reject(new Error('too late'));
 		await flushPromises();
 
-		expect(loadable.state).toBe(LoadableState.empty);
+		expect(loadable.state).toBe(LoadableState.loading);
 		expect(loadable.error).toBeUndefined();
 
 		second.reject(new Error('current failed'));

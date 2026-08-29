@@ -154,9 +154,8 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 		],
 	});
 
-	router.beforeResolve((to, _from, next) => {
-		pageBootstrap.changePage(to.meta);
-		next();
+	router.beforeResolve((to, from) => {
+		pageBootstrap.changePage(to.meta, to.name === from.name && getRouteParamString(to.params.corpus) === getRouteParamString(from.params.corpus));
 	});
 
 	const corpusId = computed(() => router.currentRoute.value.params.corpus as string | undefined);

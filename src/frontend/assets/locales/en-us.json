@@ -381,6 +381,7 @@
 		"create": "Create",
 		"select": "Select",
 		"illegalCorpusName": "Illegal corpus name. Corpus name must be between 3 and 30 characters and may not contain special characters.",
+		"configure": "Configure",
 		"retry": "Retry"
 	},
 	"index": {
