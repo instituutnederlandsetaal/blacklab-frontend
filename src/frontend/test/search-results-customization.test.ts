@@ -85,6 +85,24 @@ describe('search results customization registrations and resolvers', () => {
 		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
 	});
 
+	test('treats a static true function-only hook as a failing callback before older and legacy fallbacks', () => {
+		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const legacy = vi.spyOn(customizationRegistry.legacyApi.value!.search.metadata, 'showField').mockReturnValue(true);
+		const unregisterOlder = register({ includeMetadataField: () => false });
+		register({ includeMetadataField: true } as unknown as SearchResultsCustomization);
+
+		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
+		expect(legacy).not.toHaveBeenCalled();
+		unregisterOlder();
+		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(true);
+		expect(legacy).toHaveBeenCalledWith('bookId');
+		expect(consoleError).toHaveBeenCalledTimes(2);
+		expect(consoleError.mock.calls.map(([message]) => message)).toEqual([
+			"Error in search results customization 'includeMetadataField':",
+			"Error in search results customization 'includeMetadataField':",
+		]);
+	});
+
 	test('continues newest-first after exceptions for every fallback hook shape', () => {
 		const calls: string[] = [];
 		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});

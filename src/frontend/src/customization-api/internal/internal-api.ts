@@ -51,11 +51,9 @@ function activeResultCustomizations(registry: CustomizationRegistry) {
 	return { legacy: registry.legacyApi.value!, results: registry.resultCustomizations.value };
 }
 
-type ResultHookName = 'withSpans' | 'includeMetadataField' | 'highlightStyle' | 'includeExportSpanAttribute' | 'includeGroupingSpanAttribute';
-
 function resultHook<T, TArgument>(
 	registry: CustomizationRegistry,
-	name: ResultHookName,
+	name: 'withSpans' | 'includeMetadataField' | 'highlightStyle' | 'includeExportSpanAttribute' | 'includeGroupingSpanAttribute',
 	argument: TArgument,
 	fallback: (legacy: NonNullable<CustomizationRegistry['legacyApi']['value']>) => T | null,
 ): T | null {
@@ -64,7 +62,7 @@ function resultHook<T, TArgument>(
 		const hook = customizations[i][name] as boolean | ((argument: TArgument) => T | null) | undefined;
 		if (hook === undefined || (!hook && name !== 'withSpans')) continue;
 		try {
-			const result = typeof hook === 'boolean' ? hook : hook(argument);
+			const result = typeof hook === 'boolean' && name === 'withSpans' ? hook : (hook as (argument: TArgument) => T | null)(argument);
 			if (result != null) return result as T;
 		} catch (error) {
 			console.error(`Error in search results customization '${name}':`, error);
