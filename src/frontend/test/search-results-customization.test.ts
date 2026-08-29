@@ -27,6 +27,22 @@ const metadataFields = {
 		uiType: 'text' as const,
 	},
 };
+const highlightSection = {
+	key: 'alignments[0]',
+	kind: 'relation' as const,
+	display: 'verse-alignment',
+	relationClass: 'al',
+	relationType: 'verse-alignment',
+	sourceStart: 0,
+	sourceEnd: 1,
+	targetStart: 5,
+	targetEnd: 6,
+	isRelation: true,
+	showHighlight: true,
+	relClass: 'al',
+	relType: 'verse-alignment',
+};
+const spanAttribute = { elementName: 's', attributeName: 'type' };
 
 function register(customization: SearchResultsCustomization): () => void {
 	const unregister = customizationRegistry.registerResults(customization);
@@ -36,6 +52,7 @@ function register(customization: SearchResultsCustomization): () => void {
 
 afterEach(() => {
 	for (const unregister of unregisterCallbacks.splice(0).reverse()) unregister();
+	vi.restoreAllMocks();
 });
 
 describe('search results customization registrations and resolvers', () => {
@@ -68,6 +85,116 @@ describe('search results customization registrations and resolvers', () => {
 		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
 	});
 
+	test('continues newest-first after exceptions for every fallback hook shape', () => {
+		const calls: string[] = [];
+		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const legacy = customizationRegistry.legacyApi.value!;
+		const legacyHooks = [
+			vi.spyOn(legacy.search.pattern, 'shouldAddWithSpans'),
+			vi.spyOn(legacy.search.metadata, 'showField'),
+			vi.spyOn(legacy.results, 'matchInfoHighlightStyle'),
+			vi.spyOn(legacy.results.export, 'includeSpanAttribute'),
+			vi.spyOn(legacy.group, 'includeSpanAttribute'),
+		];
+		register({
+			withSpans: () => (calls.push('withSpans:old'), false),
+			includeMetadataField: () => (calls.push('includeMetadataField:old'), false),
+			highlightStyle: () => (calls.push('highlightStyle:old'), 'none'),
+			includeExportSpanAttribute: () => (calls.push('includeExportSpanAttribute:old'), false),
+			includeGroupingSpanAttribute: () => (calls.push('includeGroupingSpanAttribute:old'), false),
+		});
+		register({});
+		register({
+			withSpans() {
+				calls.push('withSpans:new');
+				throw new Error('withSpans');
+			},
+			includeMetadataField() {
+				calls.push('includeMetadataField:new');
+				throw new Error('includeMetadataField');
+			},
+			highlightStyle() {
+				calls.push('highlightStyle:new');
+				throw new Error('highlightStyle');
+			},
+			includeExportSpanAttribute() {
+				calls.push('includeExportSpanAttribute:new');
+				throw new Error('includeExportSpanAttribute');
+			},
+			includeGroupingSpanAttribute() {
+				calls.push('includeGroupingSpanAttribute:new');
+				throw new Error('includeGroupingSpanAttribute');
+			},
+		});
+
+		expect(customizations.searchWithSpans('query')).toBe(false);
+		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
+		expect(customizations.matchInfoHighlightStyle(highlightSection)).toBe('none');
+		expect(customizations.exportSpanAttribute(spanAttribute)).toBe(false);
+		expect(customizations.groupingSpanAttribute(spanAttribute)).toBe(false);
+		expect(calls).toEqual([
+			'withSpans:new',
+			'withSpans:old',
+			'includeMetadataField:new',
+			'includeMetadataField:old',
+			'highlightStyle:new',
+			'highlightStyle:old',
+			'includeExportSpanAttribute:new',
+			'includeExportSpanAttribute:old',
+			'includeGroupingSpanAttribute:new',
+			'includeGroupingSpanAttribute:old',
+		]);
+		expect(consoleError.mock.calls.map(([message]) => message)).toEqual([
+			"Error in search results customization 'withSpans':",
+			"Error in search results customization 'includeMetadataField':",
+			"Error in search results customization 'highlightStyle':",
+			"Error in search results customization 'includeExportSpanAttribute':",
+			"Error in search results customization 'includeGroupingSpanAttribute':",
+		]);
+		for (const legacyHook of legacyHooks) expect(legacyHook).not.toHaveBeenCalled();
+	});
+
+	test('uses each legacy fallback only after typed hooks return null', () => {
+		const calls: string[] = [];
+		const legacy = customizationRegistry.legacyApi.value!;
+		const withSpans = vi.spyOn(legacy.search.pattern, 'shouldAddWithSpans').mockImplementation(() => (calls.push('withSpans:legacy'), true));
+		const metadata = vi.spyOn(legacy.search.metadata, 'showField').mockImplementation(() => (calls.push('includeMetadataField:legacy'), false));
+		const highlight = vi.spyOn(legacy.results, 'matchInfoHighlightStyle').mockImplementation(() => (calls.push('highlightStyle:legacy'), 'hover'));
+		const exportAttribute = vi.spyOn(legacy.results.export, 'includeSpanAttribute').mockImplementation(() => (calls.push('includeExportSpanAttribute:legacy'), true));
+		const groupingAttribute = vi.spyOn(legacy.group, 'includeSpanAttribute').mockImplementation(() => (calls.push('includeGroupingSpanAttribute:legacy'), false));
+		register({});
+		register({
+			withSpans: () => (calls.push('withSpans:typed'), null),
+			includeMetadataField: () => (calls.push('includeMetadataField:typed'), null),
+			highlightStyle: () => (calls.push('highlightStyle:typed'), null),
+			includeExportSpanAttribute: () => (calls.push('includeExportSpanAttribute:typed'), null),
+			includeGroupingSpanAttribute: () => (calls.push('includeGroupingSpanAttribute:typed'), null),
+		});
+
+		expect(customizations.searchWithSpans('query')).toBe(true);
+		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
+		expect(customizations.matchInfoHighlightStyle(highlightSection)).toBe('hover');
+		expect(customizations.exportSpanAttribute(spanAttribute)).toBe(true);
+		expect(customizations.groupingSpanAttribute(spanAttribute)).toBe(false);
+		expect(calls).toEqual([
+			'withSpans:typed',
+			'withSpans:legacy',
+			'includeMetadataField:typed',
+			'includeMetadataField:legacy',
+			'highlightStyle:typed',
+			'highlightStyle:legacy',
+			'includeExportSpanAttribute:typed',
+			'includeExportSpanAttribute:legacy',
+			'includeGroupingSpanAttribute:typed',
+			'includeGroupingSpanAttribute:legacy',
+		]);
+		expect(withSpans).toHaveBeenCalledWith('query');
+		expect(metadata).toHaveBeenCalledWith('bookId');
+		expect(highlight).toHaveBeenCalledWith(highlightSection);
+		expect(exportAttribute).toHaveBeenCalledWith('s', 'type');
+		expect(groupingAttribute).toHaveBeenCalledWith('s', 'type');
+	});
+
 	test('uses the legacy result metadata policy by default and lets a result hook override it', () => {
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.metadata, 'showField').mockImplementation(fieldId => (fieldId === 'bookId' ? false : null));
 		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
@@ -81,23 +208,7 @@ describe('search results customization registrations and resolvers', () => {
 		const style = vi.fn(section => (section.kind === 'relation' && section.relationType === 'verse-alignment' ? ('none' as const) : null));
 		register({ highlightStyle: style });
 
-		expect(
-			customizations.matchInfoHighlightStyle({
-				key: 'alignments[0]',
-				kind: 'relation',
-				display: 'verse-alignment',
-				relationClass: 'al',
-				relationType: 'verse-alignment',
-				sourceStart: 0,
-				sourceEnd: 1,
-				targetStart: 5,
-				targetEnd: 6,
-				isRelation: true,
-				showHighlight: true,
-				relClass: 'al',
-				relType: 'verse-alignment',
-			}),
-		).toBe('none');
+		expect(customizations.matchInfoHighlightStyle(highlightSection)).toBe('none');
 		expect(style).toHaveBeenCalledWith(
 			expect.objectContaining({
 				kind: 'relation',

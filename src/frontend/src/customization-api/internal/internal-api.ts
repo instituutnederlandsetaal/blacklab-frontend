@@ -51,49 +51,26 @@ function activeResultCustomizations(registry: CustomizationRegistry) {
 	return { legacy: registry.legacyApi.value!, results: registry.resultCustomizations.value };
 }
 
-function searchWithSpans(registry: CustomizationRegistry, query: string): boolean | null {
-	const { legacy, results: customizations } = activeResultCustomizations(registry);
-	for (let i = customizations.length - 1; i >= 0; i--) {
-		const setting = customizations[i].withSpans;
-		if (setting === undefined) continue;
-		try {
-			const result = typeof setting === 'boolean' ? setting : setting(query);
-			if (result != null) return result;
-		} catch (error) {
-			console.error("Error in search results customization 'withSpans':", error);
-		}
-	}
-	return legacy.search.pattern.shouldAddWithSpans(query);
-}
+type ResultHookName = 'withSpans' | 'includeMetadataField' | 'highlightStyle' | 'includeExportSpanAttribute' | 'includeGroupingSpanAttribute';
 
-function resultMetadataField(registry: CustomizationRegistry, field: NormalizedMetadataField): boolean | null {
+function resultHook<T, TArgument>(
+	registry: CustomizationRegistry,
+	name: ResultHookName,
+	argument: TArgument,
+	fallback: (legacy: NonNullable<CustomizationRegistry['legacyApi']['value']>) => T | null,
+): T | null {
 	const { legacy, results: customizations } = activeResultCustomizations(registry);
 	for (let i = customizations.length - 1; i >= 0; i--) {
-		const include = customizations[i].includeMetadataField;
-		if (!include) continue;
+		const hook = customizations[i][name] as boolean | ((argument: TArgument) => T | null) | undefined;
+		if (hook === undefined || (!hook && name !== 'withSpans')) continue;
 		try {
-			const result = include(field);
-			if (result != null) return result;
+			const result = typeof hook === 'boolean' ? hook : hook(argument);
+			if (result != null) return result as T;
 		} catch (error) {
-			console.error("Error in search results customization 'includeMetadataField':", error);
+			console.error(`Error in search results customization '${name}':`, error);
 		}
 	}
-	return legacy.search.metadata.showField(field.id);
-}
-
-function matchInfoHighlightStyle(registry: CustomizationRegistry, section: HighlightSection): SearchResultHighlightStyle | null {
-	const { legacy, results: customizations } = activeResultCustomizations(registry);
-	for (let i = customizations.length - 1; i >= 0; i--) {
-		const style = customizations[i].highlightStyle;
-		if (!style) continue;
-		try {
-			const result = style(section);
-			if (result != null) return result;
-		} catch (error) {
-			console.error("Error in search results customization 'highlightStyle':", error);
-		}
-	}
-	return legacy.results.matchInfoHighlightStyle(section);
+	return fallback(legacy);
 }
 
 function toPublicAnnotatedField(field: NormalizedAnnotatedField, displayName: string): SearchResultAnnotatedField {
@@ -197,36 +174,6 @@ function exportDescription(registry: CustomizationRegistry, corpus: Corpus, summ
 		}
 	}
 	return legacy.results.export.description(summary, fieldDisplayName);
-}
-
-function exportSpanAttribute(registry: CustomizationRegistry, attribute: SearchResultSpanAttribute): boolean | null {
-	const { legacy, results: customizations } = activeResultCustomizations(registry);
-	for (let i = customizations.length - 1; i >= 0; i--) {
-		const include = customizations[i].includeExportSpanAttribute;
-		if (!include) continue;
-		try {
-			const result = include(attribute);
-			if (result != null) return result;
-		} catch (error) {
-			console.error("Error in search results customization 'includeExportSpanAttribute':", error);
-		}
-	}
-	return legacy.results.export.includeSpanAttribute(attribute.elementName, attribute.attributeName);
-}
-
-function groupingSpanAttribute(registry: CustomizationRegistry, attribute: SearchResultSpanAttribute): boolean | null {
-	const { legacy, results: customizations } = activeResultCustomizations(registry);
-	for (let i = customizations.length - 1; i >= 0; i--) {
-		const include = customizations[i].includeGroupingSpanAttribute;
-		if (!include) continue;
-		try {
-			const result = include(attribute);
-			if (result != null) return result;
-		} catch (error) {
-			console.error("Error in search results customization 'includeGroupingSpanAttribute':", error);
-		}
-	}
-	return legacy.group.includeSpanAttribute(attribute.elementName, attribute.attributeName);
 }
 
 function toPublicOption(option: string | Option): string | SearchFormOption {
@@ -435,15 +382,18 @@ function createCustomizationApi(
 			}
 		},
 		searchFormAnnotationUiType: (annotatedFieldId: string, annotationId: string) => registry.legacyApi.value?.search.pattern.uiType(annotatedFieldId, annotationId) ?? null,
-		searchWithSpans: (query: string) => searchWithSpans(registry, query),
-		resultMetadataField: (field: NormalizedMetadataField) => resultMetadataField(registry, field),
-		matchInfoHighlightStyle: (section: HighlightSection) => matchInfoHighlightStyle(registry, section),
+		searchWithSpans: (query: string) => resultHook(registry, 'withSpans', query, legacy => legacy.search.pattern.shouldAddWithSpans(query)),
+		resultMetadataField: (field: NormalizedMetadataField) => resultHook(registry, 'includeMetadataField', field, legacy => legacy.search.metadata.showField(field.id)),
+		matchInfoHighlightStyle: (section: HighlightSection): SearchResultHighlightStyle | null =>
+			resultHook(registry, 'highlightStyle', section, legacy => legacy.results.matchInfoHighlightStyle(section)),
 		hitInfoColumnVisible: (results: BLHitResults | BLHitGroupResults, isParallelCorpus: boolean) => hitInfoColumnVisible(registry, results, isParallelCorpus),
 		hitInfoColumnContent: (hit: BLHitInContext, field: NormalizedAnnotatedField, document: BLDoc, translate: Translate) =>
 			hitInfoColumnContent(registry, toValue(corpus), hit, field, document, translate),
 		exportDescription: (summary: BLSearchSummaryV5, fieldDisplayName: (fieldId: string) => string) => exportDescription(registry, toValue(corpus), summary, fieldDisplayName),
-		exportSpanAttribute: (attribute: SearchResultSpanAttribute) => exportSpanAttribute(registry, attribute),
-		groupingSpanAttribute: (attribute: SearchResultSpanAttribute) => groupingSpanAttribute(registry, attribute),
+		exportSpanAttribute: (attribute: SearchResultSpanAttribute) =>
+			resultHook(registry, 'includeExportSpanAttribute', attribute, legacy => legacy.results.export.includeSpanAttribute(attribute.elementName, attribute.attributeName)),
+		groupingSpanAttribute: (attribute: SearchResultSpanAttribute) =>
+			resultHook(registry, 'includeGroupingSpanAttribute', attribute, legacy => legacy.group.includeSpanAttribute(attribute.elementName, attribute.attributeName)),
 		sortOptionGroup: (group: OptGroup) => sortOptionGroup(registry, group),
 		groupOptionGroup: (group: OptGroup, translate: Translate) => groupOptionGroup(registry, group, translate),
 
