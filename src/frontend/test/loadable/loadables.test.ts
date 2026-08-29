@@ -278,6 +278,15 @@ describe('toObservable', () => {
 	test('should return an observable', () => expect(successRequest().toObservable()).toBeInstanceOf(Observable));
 	test('for a success, should emit [Loading, Loaded]', () => expect(allValuesFrom(successRequest().toObservable())).resolves.toEqual([loading, Loadable.Loaded(successValue)]));
 	test('for a failure, should emit [Loading, Error]', () => expect(allValuesFrom(failRequest().toObservable())).resolves.toEqual([loading, Loadable.LoadingError(failValue)]));
+	test.each([
+		['Error', new Error('unexpected'), new ApiError('Unknown Error', 'unexpected', 'Error', undefined)],
+		['plain rejection', { message: 'unexpected' }, new ApiError('Unknown Error', 'unexpected', 'Error', undefined)],
+	])('wraps an unexpected %s in ApiError', async (_name, rejection, expected) => {
+		const values = await allValuesFrom(new CancelableRequest(Promise.reject(rejection), () => {}).toObservable());
+		expect(values).toEqual([loading, Loadable.LoadingError(expected)]);
+		expect(values[1].error).toBeInstanceOf(ApiError);
+	});
+	test('maps cancellation to Empty', () => expect(allValuesFrom(new CancelableRequest(Promise.reject(ApiError.CANCELLED), () => {}).toObservable())).resolves.toEqual([loading, empty]));
 });
 
 // Big combination test for all loadable stream operators with all possible input values.

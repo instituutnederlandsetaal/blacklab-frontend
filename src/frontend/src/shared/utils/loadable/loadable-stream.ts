@@ -149,10 +149,11 @@ export const toObservable = <T>({ cancel, request }: { cancel: Canceler; request
 		observer.next(Loadable.Loading());
 		request
 			.then(v => observer.next(Loadable.Loaded(v)))
-			.catch((e: ApiError) => {
+			.catch((e: unknown) => {
 				// A canceled request should not leave downstream combined streams in Loading forever.
-				if (e?.isCancelledRequest) observer.next(Loadable.Empty());
-				else observer.next(Loadable.LoadingError(e));
+				const error = ApiError.wrap(e);
+				if (error.isCancelledRequest) observer.next(Loadable.Empty());
+				else observer.next(Loadable.LoadingError(error));
 			})
 			.finally(() => observer.complete());
 
