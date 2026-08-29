@@ -51,6 +51,23 @@ describe('new-form query summary selectors', () => {
 });
 
 describe('new-form query history summaries', () => {
+	test('hashes grouping criteria without changing their semantic order', () => {
+		const first = historyEntry(mixedSummaryForm());
+		first.view.groupBy = ['field:z', 'field:a'];
+
+		actions.addEntry({ entry: first, pattern: first.newForm!.params.patt, url: '/test-corpus/search/hits' });
+
+		expect(first.view.groupBy).toEqual(['field:z', 'field:a']);
+		expect(getState()[0]?.view.groupBy).toEqual(['field:z', 'field:a']);
+
+		const second = historyEntry(mixedSummaryForm());
+		second.view.groupBy = ['field:a', 'field:z'];
+		actions.addEntry({ entry: second, pattern: second.newForm!.params.patt, url: '/test-corpus/search/hits' });
+
+		expect(getState()).toHaveLength(1);
+		expect(getState()[0]?.view.groupBy).toEqual(['field:a', 'field:z']);
+	});
+
 	test('uses submitted Explore summaries instead of the legacy draft defaults', () => {
 		const newForm: CompiledFormResult = {
 			encoded: { 'f.form': 'explore.ngram' },

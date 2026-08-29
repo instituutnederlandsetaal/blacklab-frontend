@@ -181,7 +181,7 @@ const actions = {
 			newForm: entry.newForm?.encoded,
 			pattern,
 			gap: entry.gap,
-			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
+			groupBy: [...entry.view.groupBy].sort((l, r) => l.localeCompare(r)),
 		};
 
 		const fullEntry: FullHistoryEntry = Object.freeze(

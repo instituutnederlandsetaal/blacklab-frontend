@@ -14,7 +14,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="(entry, index) in recentHistory" :key="entry.hash + (entry.interface.viewedResults || '')">
+					<tr v-for="({ entry, grouping }, index) in recentHistory" :key="entry.hash + (entry.interface.viewedResults || '')">
 						<td>
 							<strong>{{ index + 1 }}.</strong>
 						</td>
@@ -33,7 +33,7 @@
 						<td>{{ entry.interface.viewedResults === 'hits' ? 'Hits' : entry.interface.viewedResults === 'docs' ? 'Documents' : entry.interface.viewedResults }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0, 1000) || undefined">{{ entry.displayValues.pattern }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0, 1000) || undefined">{{ entry.displayValues.filters }}</td>
-						<td class="history-table-contain-text" :title="humanize(entry.view.groupBy).join(' ') || '-'">{{ humanize(entry.view.groupBy).join(' ') || '-' }}</td>
+						<td class="history-table-contain-text" :title="grouping">{{ grouping }}</td>
 						<td>
 							<div class="btn-group">
 								<button type="button" class="btn btn-default" @click="load(entry)">{{ $t('history.search') }}</button>
@@ -46,7 +46,7 @@
 										<a role="button" @click.prevent="downloadAsFile(entry)">{{ $t('history.downloadAsFile') }}</a>
 									</li>
 									<li>
-										<a role="button" @click.prevent="remove(index)">{{ $t('history.delete') }}</a>
+										<a role="button" @click.prevent="HistoryStore.actions.removeEntry(index)">{{ $t('history.delete') }}</a>
 									</li>
 									<li>
 										<a role="button" @click.prevent="clearHistoryVisible = true">{{ $t('history.deleteAll') }}</a>
@@ -59,7 +59,7 @@
 			</table>
 			<button v-if="recentHistory.length < history.length" type="button" class="btn btn-default" @click="shownOlderEntries += 5">{{ $t('history.loadMore') }}</button>
 
-			<form v-if="isSharingUrl" class="history-popup" @click.self="closeShareUrl">
+			<form v-if="sharingUrl != null" class="history-popup" @click.self="closeShareUrl">
 				<div class="history-popup-content modal-content">
 					<input type="text" class="form-control" :value="sharingUrl" autocomplete="off" autofocus readonly ref="shareUrlInput" />
 				</div>
@@ -92,9 +92,10 @@
 	</Modal>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import URI from 'urijs';
-import { defineComponent, nextTick } from 'vue';
+import { computed, nextTick, ref, useTemplateRef } from 'vue';
+import { useRouter } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
@@ -104,6 +105,7 @@ import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
+import { useI18n } from '@/shared/i18n';
 import useUid from '@/shared/utils/uid';
 
 import Modal from '@/shared/ui/Modal.vue';
@@ -114,116 +116,76 @@ function toRouterPath(url: string): string {
 	return !context || !relativeUrl.startsWith(context) ? relativeUrl : relativeUrl.slice(context.length) || '/';
 }
 
-export default defineComponent({
-	components: {
-		Modal,
-	},
-	setup() {
-		return {
-			blacklab: useBlackLabApi(),
-			corpus: useCorpus(),
-			customizations: useCustomizations(),
-		};
-	},
-	data: () => ({
-		sessionStart: new Date().getTime(),
-		shownOlderEntries: 0,
-		sharingUrl: null as null | string,
-		importUrlError: null as null | string,
-		importUrlVisible: false,
-		clearHistoryVisible: false,
-		uid: useUid(),
-	}),
-	computed: {
-		history(): HistoryStore.ModuleRootState {
-			return HistoryStore.getState();
-		},
-		recentHistory(): HistoryStore.ModuleRootState {
-			let olderEntryCount = 0;
-			return this.history.filter((e: HistoryStore.FullHistoryEntry, i) => e.timestamp >= this.sessionStart || olderEntryCount++ < this.shownOlderEntries || i < 2);
-		},
-		isSharingUrl(): boolean {
-			return this.sharingUrl != null;
-		},
-	},
+const emit = defineEmits<{ close: [] }>();
+const router = useRouter();
+const blacklab = useBlackLabApi();
+const corpus = useCorpus();
+const customizations = useCustomizations();
+const translate = useI18n();
+const importUrlInput = useTemplateRef<HTMLInputElement>('importUrlInput');
+const shareUrlInput = useTemplateRef<HTMLInputElement>('shareUrlInput');
 
-	methods: {
-		remove(index: number): void {
-			HistoryStore.actions.removeEntry(index);
-		},
-		openShareUrl(entry: HistoryStore.FullHistoryEntry) {
-			this.sharingUrl = entry.url;
-		},
-		closeShareUrl() {
-			this.sharingUrl = null;
-		},
-
-		downloadAsFile(entry: HistoryStore.FullHistoryEntry) {
-			const { file, fileName } = HistoryStore.get.asFile(entry);
-			import('file-saver').then(({ saveAs }) => {
-				saveAs(file, fileName);
-			});
-		},
-
-		async load(entry: HistoryStore.HistoryEntry | HistoryStore.FullHistoryEntry) {
-			if ('url' in entry && entry.url) {
-				await this.$router.push(toRouterPath(entry.url));
-			} else {
-				RootStore.actions.replace(entry);
-			}
-			this.$emit('close');
-		},
-		humanize(g: string[]): string[] {
-			return humanizeSerializedGroupBy(this, g, this.corpus.allAnnotationsMap, this.corpus.allMetadataFieldsMap);
-		},
-
-		async importFromUrl() {
-			const input = this.$refs.importUrlInput as HTMLInputElement;
-			const importUrl = input.value;
-			if (!importUrl) {
-				this.importUrlError = null;
-				this.importUrlVisible = false;
-			}
-			if (!input.checkValidity()) {
-				this.importUrlError = 'Invalid url';
-				return;
-			}
-
-			const uri = new URI(importUrl);
-			const state = await new UrlStateParserSearch(
-				createUrlStateParserSearchDependencies({
-					blacklabApi: this.blacklab,
-					corpus: this.corpus,
-					customizations: this.customizations,
-				}),
-				uri,
-			).get();
-			HistoryStore.actions.addEntry({
-				entry: state,
-				pattern: (uri.query(true) as any).patt,
-				url: importUrl,
-			});
-
-			this.importUrlError = null;
-			this.importUrlVisible = false;
-		},
-		clearHistory() {
-			HistoryStore.actions.clear();
-			this.clearHistoryVisible = false;
-		},
-	},
-	watch: {
-		isSharingUrl(value: boolean) {
-			if (value) {
-				nextTick(() => {
-					const input = this.$refs.shareUrlInput as HTMLInputElement;
-					input.focus();
-					input.setSelectionRange(0, input.value.length);
-				});
-			}
-		},
-	},
+const sessionStart = Date.now();
+const shownOlderEntries = ref(0);
+const sharingUrl = ref<string | null>(null);
+const importUrlError = ref<string | null>(null);
+const importUrlVisible = ref(false);
+const clearHistoryVisible = ref(false);
+const uid = useUid();
+const history = computed(HistoryStore.getState);
+const recentHistory = computed(() => {
+	let olderEntryCount = 0;
+	return history.value
+		.filter((entry, index) => entry.timestamp >= sessionStart || olderEntryCount++ < shownOlderEntries.value || index < 2)
+		.map(entry => ({ entry, grouping: humanizeSerializedGroupBy(translate, entry.view.groupBy, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(' ') || '-' }));
 });
+
+async function openShareUrl(entry: HistoryStore.FullHistoryEntry) {
+	sharingUrl.value = entry.url;
+	await nextTick();
+	shareUrlInput.value?.focus();
+	shareUrlInput.value?.select();
+}
+
+function closeShareUrl() {
+	sharingUrl.value = null;
+}
+
+/** Keep file-saver out of the initial page bundle. */
+function downloadAsFile(entry: HistoryStore.FullHistoryEntry) {
+	const { file, fileName } = HistoryStore.get.asFile(entry);
+	import('file-saver').then(({ saveAs }) => saveAs(file, fileName));
+}
+
+async function load(entry: HistoryStore.HistoryEntry | HistoryStore.FullHistoryEntry) {
+	if ('url' in entry && entry.url) await router.push(toRouterPath(entry.url));
+	else RootStore.actions.replace(entry);
+	emit('close');
+}
+
+async function importFromUrl() {
+	const input = importUrlInput.value!;
+	const importUrl = input.value;
+	if (!importUrl) {
+		importUrlError.value = null;
+		importUrlVisible.value = false;
+	}
+	if (!input.checkValidity()) {
+		importUrlError.value = 'Invalid url';
+		return;
+	}
+
+	const uri = new URI(importUrl);
+	const entry = await new UrlStateParserSearch(createUrlStateParserSearchDependencies({ blacklabApi: blacklab, corpus: corpus.value, customizations }), uri).get();
+	HistoryStore.actions.addEntry({ entry, pattern: (uri.query(true) as { patt?: string }).patt, url: importUrl });
+	importUrlError.value = null;
+	importUrlVisible.value = false;
+}
+
+function clearHistory() {
+	HistoryStore.actions.clear();
+	clearHistoryVisible.value = false;
+}
 </script>
 
 <style lang="scss">
