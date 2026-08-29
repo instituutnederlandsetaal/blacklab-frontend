@@ -1,4 +1,4 @@
-import { ApiError, type BlackLabApi, type BlackLabPaths, type CancelableRequest, type FrontendApi } from '@/shared/api/lib/api-types';
+import { ApiError, type BlackLabApi, type CancelableRequest, type FrontendApi } from '@/shared/api/lib/api-types';
 import { rejectedRequest as rejectedApiRequest, resolvedRequest } from '@/shared/api/lib/api-utils';
 import { createApiPlugin, type ApiPlugin, type ApiPluginParts } from '@/shared/api/plugin';
 
@@ -11,7 +11,6 @@ export type MockApiReturnValues<TApi> = Partial<{
 export type MockApiOptions = {
 	blacklab?: MockApiReturnValues<BlackLabApi>;
 	frontend?: MockApiReturnValues<FrontendApi>;
-	blacklabPaths?: Partial<BlackLabPaths>;
 };
 
 const hasOwn = <T extends object>(object: T, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(object, key);
@@ -54,20 +53,10 @@ export function createMockFrontendApi(returnValues: MockApiReturnValues<Frontend
 	return createMockApiProxy<FrontendApi>('frontend', returnValues);
 }
 
-function createMockBlackLabPaths(overrides: Partial<BlackLabPaths> = {}): BlackLabPaths {
-	return new Proxy(overrides, {
-		get: (target, property) => {
-			if (typeof property === 'symbol') return undefined;
-			return property in target ? target[property as keyof BlackLabPaths] : (...parts: unknown[]) => [property, ...parts.map(String)].join('/');
-		},
-	}) as BlackLabPaths;
-}
-
 function createMockApiParts(options: MockApiOptions = {}): ApiPluginParts {
 	return {
 		blacklabApi: createMockBlackLabApi(options.blacklab),
 		frontendApi: createMockFrontendApi(options.frontend),
-		blacklabPaths: createMockBlackLabPaths(options.blacklabPaths),
 	};
 }
 

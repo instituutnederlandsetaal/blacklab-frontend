@@ -15,11 +15,10 @@ const createApi = async (options: {
 }): Promise<ApiPlugin> => {
 	const frontendApi = createFrontendApi(options.frontend);
 
-	const { api: blacklabApi, paths: blacklabPaths } = await createBlackLabApi({ ...options.blacklab });
+	const blacklabApi = await createBlackLabApi({ ...options.blacklab });
 	return createApiPlugin({
 		frontendApi,
 		blacklabApi,
-		blacklabPaths,
 	});
 };
 export { createApi, useBlackLabApi, useFrontendApi };

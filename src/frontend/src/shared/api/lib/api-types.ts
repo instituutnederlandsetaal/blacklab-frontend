@@ -82,30 +82,6 @@ export interface BlackLabApi {
 	getMetadataAutocomplete: ApiEndpoint<string[], [indexId: string, metadataFieldId: string, prefix: string]>;
 }
 
-export interface BlackLabPaths {
-	root: () => string;
-	index: (indexId: string) => string;
-	indexStatus: (indexId: string) => string;
-	field: (indexId: string, fieldName: string) => string;
-	relations: (indexId: string) => string;
-	documentUpload: (indexId: string) => string;
-	shares: (indexId: string) => string;
-	formats: () => string;
-	formatContent: (id: string) => string;
-	formatXslt: (id: string) => string;
-	docInfo: (indexId: string, docId: string) => string;
-	hits: (indexId: string) => string;
-	collocations: (indexId: string) => string;
-	hitsCsv: (indexId: string) => string;
-	docs: (indexId: string) => string;
-	docsCsv: (indexId: string) => string;
-	snippet: (indexId: string, docId: string) => string;
-	parsePattern: (indexId: string) => string;
-	autocompleteAnnotation: (indexId: string, annotatedFieldId: string, annotationId: string) => string;
-	autocompleteMetadata: (indexId: string, metadataFieldId: string) => string;
-	termFrequencies: (indexId: string) => string;
-}
-
 export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Promise<T> {
 	public request: Promise<T>;
 	public cancel: Canceler;

@@ -36,14 +36,17 @@ import {
 } from '@/types/blacklabtypes';
 
 import { type EndpointSettings, type QueryParamsMapper, type QueryParamsMapperReturn, createEndpoint } from '@/shared/api/lib/api-endpoint';
-import { ApiError, CancelableRequest, type BlackLabApi, type BlackLabPaths } from '@/shared/api/lib/api-types';
+import { ApiError, CancelableRequest, type BlackLabApi } from '@/shared/api/lib/api-types';
 import { rejectedRequest } from '@/shared/api/lib/api-utils';
 import { normalizeFormat, normalizeIndex, normalizeIndexBase, normalizeServerInfo } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 import { normalizeDoc, normalizeDocResponse, normalizeHit, normalizeHitResponse } from '@/shared/blacklab-helpers/normalize/normalize-results';
 
-/** Contains url mappings for different requests to blacklab-server */
-const blacklabPathsV4: BlackLabPaths = {
-	/*
+/** Contains URL mappings for requests to the selected BlackLab API version. */
+function createBlackLabPaths(version: '4' | '5') {
+	const corpus = (indexId: string) => `${version === '5' ? 'corpora/' : ''}${indexId}/`;
+
+	return {
+		/*
 		Stupid issue, sending a request to /blacklab-server redirects to /blacklab-server/
 		Problem is, the redirect response is missing the CORS header
 		so the browser doesn't allow the redirect.
@@ -51,74 +54,30 @@ const blacklabPathsV4: BlackLabPaths = {
 		is performed by the servlet container and runs before any application code.
 		So ensure our requests end with a trailing slash to prevent the server from redirecting
 	*/
-	root: () => './',
-	index: (indexId: string) => `${indexId}/`,
-	indexStatus: (indexId: string) => `${indexId}/status/`,
-	field: (indexId: string, fieldName: string) => `${indexId}/fields/${encodeURIComponent(fieldName)}/`,
-
-	/** Retrieve the relations/inline tags in the corpus. Since 4.0 */
-	relations: (indexId: string) => `${indexId}/relations/`,
-	documentUpload: (indexId: string) => `${indexId}/docs/`,
-	shares: (indexId: string) => `${indexId}/sharing/`,
-	formats: () => `input-formats/`,
-	formatContent: (id: string) => `input-formats/${encodeURIComponent(id)}/`,
-	formatXslt: (id: string) => `input-formats/${encodeURIComponent(id)}/xslt`,
-
-	docInfo: (indexId: string, docId: string) => `${indexId}/docs/${encodeURIComponent(docId)}/`,
-	hits: (indexId: string) => `${indexId}/hits/`,
-	collocations: (indexId: string) => `${indexId}/collocations/`,
-	hitsCsv: (indexId: string) => `${indexId}/hits-csv/`,
-	docs: (indexId: string) => `${indexId}/docs/`,
-	docsCsv: (indexId: string) => `${indexId}/docs-csv/`,
-	snippet: (indexId: string, docId: string) => `${indexId}/docs/${encodeURIComponent(docId)}/snippet/`,
-	parsePattern: (indexId: string) => `${indexId}/parse-pattern/`,
-
-	// Is used outside the axios endpoint we created above, so prefix with the correct location
-	autocompleteAnnotation: (indexId: string, annotatedFieldId: string, annotationId: string) => `${indexId}/autocomplete/${encodeURIComponent(annotatedFieldId)}/${encodeURIComponent(annotationId)}/`,
-	// Is used outside the axios endpoint we created above, so prefix with the correct location
-	autocompleteMetadata: (indexId: string, metadataFieldId: string) => `${indexId}/autocomplete/${encodeURIComponent(metadataFieldId)}/`,
-	termFrequencies: (indexId: string) => `${indexId}/termfreq/`,
-};
-
-/** Contains url mappings for different requests to blacklab-server */
-const blacklabPathsV5: BlackLabPaths = {
-	/*
-		Stupid issue, sending a request to /blacklab-server redirects to /blacklab-server/
-		Problem is, the redirect response is missing the CORS header
-		so the browser doesn't allow the redirect.
-		There doesn't seem to be a way to fix this in the server as the redirect
-		is performed by the servlet container and runs before any application code.
-		So ensure our requests end with a trailing slash to prevent the server from redirecting
-	*/
-	root: () => './',
-	index: (indexId: string) => `corpora/${indexId}/`,
-	indexStatus: (indexId: string) => `corpora/${indexId}/status/`,
-	field: (indexId: string, fieldName: string) => `corpora/${indexId}/fields/${encodeURIComponent(fieldName)}/`,
-
-	/** Retrieve the relations/inline tags in the corpus. Since 4.0 */
-	relations: (indexId: string) => `corpora/${indexId}/relations/`,
-	documentUpload: (indexId: string) => `corpora/${indexId}/docs/`,
-	shares: (indexId: string) => `corpora/${indexId}/sharing/`,
-	formats: () => `input-formats/`,
-	formatContent: (id: string) => `input-formats/${encodeURIComponent(id)}/`,
-	formatXslt: (id: string) => `input-formats/${encodeURIComponent(id)}/xslt`,
-
-	docInfo: (indexId: string, docId: string) => `corpora/${indexId}/docs/${encodeURIComponent(docId)}/`,
-	hits: (indexId: string) => `corpora/${indexId}/hits/`,
-	collocations: (indexId: string) => `corpora/${indexId}/collocations/`,
-	hitsCsv: (indexId: string) => `corpora/${indexId}/hits-csv/`,
-	docs: (indexId: string) => `corpora/${indexId}/docs/`,
-	docsCsv: (indexId: string) => `corpora/${indexId}/docs-csv/`,
-	snippet: (indexId: string, docId: string) => `corpora/${indexId}/docs/${encodeURIComponent(docId)}/snippet/`,
-	parsePattern: (indexId: string) => `corpora/${indexId}/parse-pattern/`,
-
-	// Is used outside the axios endpoint we created above, so prefix with the correct location
-	autocompleteAnnotation: (indexId: string, annotatedFieldId: string, annotationId: string) =>
-		`corpora/${indexId}/autocomplete/${encodeURIComponent(annotatedFieldId)}/${encodeURIComponent(annotationId)}/`,
-	// Is used outside the axios endpoint we created above, so prefix with the correct location
-	autocompleteMetadata: (indexId: string, metadataFieldId: string) => `corpora/${indexId}/autocomplete/${encodeURIComponent(metadataFieldId)}/`,
-	termFrequencies: (indexId: string) => `corpora/${indexId}/termfreq/`,
-};
+		root: () => './',
+		index: corpus,
+		indexStatus: (indexId: string) => `${corpus(indexId)}status/`,
+		field: (indexId: string, fieldName: string) => `${corpus(indexId)}fields/${encodeURIComponent(fieldName)}/`,
+		relations: (indexId: string) => `${corpus(indexId)}relations/`,
+		documentUpload: (indexId: string) => `${corpus(indexId)}docs/`,
+		shares: (indexId: string) => `${corpus(indexId)}sharing/`,
+		formats: () => 'input-formats/',
+		formatContent: (id: string) => `input-formats/${encodeURIComponent(id)}/`,
+		formatXslt: (id: string) => `input-formats/${encodeURIComponent(id)}/xslt`,
+		docInfo: (indexId: string, docId: string) => `${corpus(indexId)}docs/${encodeURIComponent(docId)}/`,
+		hits: (indexId: string) => `${corpus(indexId)}hits/`,
+		collocations: (indexId: string) => `${corpus(indexId)}collocations/`,
+		hitsCsv: (indexId: string) => `${corpus(indexId)}hits-csv/`,
+		docs: (indexId: string) => `${corpus(indexId)}docs/`,
+		docsCsv: (indexId: string) => `${corpus(indexId)}docs-csv/`,
+		snippet: (indexId: string, docId: string) => `${corpus(indexId)}docs/${encodeURIComponent(docId)}/snippet/`,
+		parsePattern: (indexId: string) => `${corpus(indexId)}parse-pattern/`,
+		autocompleteAnnotation: (indexId: string, annotatedFieldId: string, annotationId: string) =>
+			`${corpus(indexId)}autocomplete/${encodeURIComponent(annotatedFieldId)}/${encodeURIComponent(annotationId)}/`,
+		autocompleteMetadata: (indexId: string, metadataFieldId: string) => `${corpus(indexId)}autocomplete/${encodeURIComponent(metadataFieldId)}/`,
+		termFrequencies: (indexId: string) => `${corpus(indexId)}termfreq/`,
+	};
+}
 
 type BlackLabApiSettings = EndpointSettings & {
 	/** BlackLab implementation version, if it has already been fetched during login. */
@@ -159,9 +118,9 @@ const mapV5ParamsToV4: QueryParamsMapper<BLSearchParameters> = v => {
 /**
  * Blacklab api
  */
-export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'mapQueryParams'>): Promise<{ api: BlackLabApi; paths: BlackLabPaths }> => {
+export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'mapQueryParams'>): Promise<BlackLabApi> => {
 	const version = await getBlackLabApiVersion(settings);
-	const paths = version === '4' ? blacklabPathsV4 : blacklabPathsV5;
+	const paths = createBlackLabPaths(version);
 
 	const endpoint = createEndpoint({
 		...settings,
@@ -461,5 +420,5 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			return endpoint.getOrPostCancelable<string[]>(paths.autocompleteMetadata(indexId, metadataFieldId), { term: prefix }, requestParameters);
 		},
 	};
-	return { api, paths };
+	return api;
 };
