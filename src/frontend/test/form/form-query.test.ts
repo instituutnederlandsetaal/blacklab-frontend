@@ -22,10 +22,10 @@ import {
 	containing,
 	filter,
 	filterRange,
-	rangePredicate,
 	rawCql,
 	textPredicate,
 	within,
+	withinAttributeRange,
 	type CqlPatternNode,
 	type LuceneNode,
 } from '@/features/form/model/types/form-query-ir';
@@ -115,16 +115,17 @@ describe('semantic query compilation', () => {
 	});
 
 	test('multiple within nodes merge matching elements and overlap distinct elements', () => {
+		const lowOnlyRange = { low: '3', high: '', mode: 'strict' as const };
 		const pattern = combineCqlPatterns(
 			[
 				rawCql('[word="water"]'),
 				within('speech', { person: textPredicate('wildcard', 'Alice*') }),
 				within('speech', { role: textPredicate('literal', 'host') }),
-				within('p', { n: rangePredicate('3', '5') }),
+				within('p', withinAttributeRange('n', lowOnlyRange)),
 			],
 			'and',
 		)!;
-		expect(compileCql(pattern)).toBe('([word="water"]) within <speech person="Alice.*" role="host"/> overlap <p n=in[3,5]/>');
+		expect(compileCql(pattern)).toBe('([word="water"]) within <speech person="Alice.*" role="host"/> overlap <p n=in[3,]/>');
 	});
 
 	test('text fields preserve escaped wildcards and backslashes', () => {
@@ -188,8 +189,9 @@ describe('semantic query compilation', () => {
 
 	test('emits escaped wrapper values, open ranges, and empty tags', () => {
 		const people = booleanNode('or', [textPredicate('wildcard', 'A"B'), textPredicate('wildcard', 'C?')])!;
-		const pattern = combineCqlPatterns([within('speech', { person: people }), within('p', { n: rangePredicate(undefined, '5') }), within('div')], 'and')!;
-		expect(compileCql(pattern)).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[0,5]/> overlap <div/>`);
+		const highOnlyRange = { low: '', high: '5', mode: 'strict' as const };
+		const pattern = combineCqlPatterns([within('speech', { person: people }), within('p', withinAttributeRange('n', highOnlyRange)), within('div')], 'and')!;
+		expect(compileCql(pattern)).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[,5]/> overlap <div/>`);
 	});
 
 	test('keeps explicit regex wrapper predicates separate from escaped values', () => {

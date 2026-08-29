@@ -72,22 +72,12 @@ export type PredicateTextNode = {
 	value: string;
 };
 export const textPredicate = (valueType: TextValueType, value: string): PredicateTextNode => ({ valueType, value });
-export type PredicateRangeNode = {
+type PredicateRangeNode = {
 	valueType: 'range';
 	low?: string;
 	high?: string;
 };
 type RangeInput = { low?: string | null; high?: string | null };
-const isRangeInput = (value: unknown): value is RangeInput => {
-	if (!value || typeof value !== 'object') return false;
-	return ('low' in value && typeof value.low === 'string') || ('high' in value && typeof value.high === 'string');
-};
-export function rangePredicate(input: RangeInput): PredicateRangeNode;
-export function rangePredicate(low?: string, high?: string): PredicateRangeNode;
-export function rangePredicate(arg1?: unknown, arg2?: unknown): PredicateRangeNode {
-	if (isRangeInput(arg1)) return { valueType: 'range', low: arg1.low || undefined, high: arg1.high || undefined };
-	return { valueType: 'range', low: typeof arg1 === 'string' ? arg1 : undefined, high: typeof arg2 === 'string' ? arg2 : undefined };
-}
 export type PredicateValueNode = PredicateTextNode | PredicateRangeNode;
 
 // #endregion
@@ -173,7 +163,7 @@ export const withinAttribute = (attribute: string, valueType: TextValueType, val
 };
 /** Build one range-valued attribute constraint for a within wrapper. */
 export const withinAttributeRange = (attribute: string, v: { low?: string; high?: string }): Record<string, PredicateAttributeNode> => {
-	return { [attribute]: rangePredicate(v.low, v.high) };
+	return { [attribute]: { valueType: 'range', low: v.low, high: v.high } };
 };
 export type CqlWrapperNodeContaining = CqlBaseNode<'containing'> & { element: string; attributes: Record<string, PredicateAttributeNode> };
 export const containing = (element: string, attributes: Record<string, PredicateAttributeNode> = {}): CqlWrapperNodeContaining => ({
@@ -302,7 +292,8 @@ export const summary = (
 	group?: string,
 	options?: Options,
 ): SummaryInput | null => {
-	const value = isRangeInput(values) ? summarizeRange(values.low, values.high) : summarize(values, options);
+	const { low, high } = values as RangeInput;
+	const value = typeof low === 'string' || typeof high === 'string' ? summarizeRange(low, high) : summarize(values as Values, options);
 	return value ? { label, value, summaryType, group } : null;
 };
 
