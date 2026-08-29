@@ -67,25 +67,20 @@ const field = useFieldPresentation(props);
 const modeEnabled = computed(() => props.showMode || Boolean(props.lowField && props.highField));
 const resolvedInputType = computed(() => props.inputType ?? (modeEnabled.value ? 'number' : 'text'));
 
-const lower = computed({
-	get: () => props.modelValue.low,
-	set: low => {
-		emit('update:modelValue', {
-			...props.modelValue,
-			low: String(low),
-		});
-	},
-});
+function boundModel(key: 'low' | 'high') {
+	return computed({
+		get: () => props.modelValue[key],
+		set: value => {
+			emit('update:modelValue', {
+				...props.modelValue,
+				[key]: String(value),
+			});
+		},
+	});
+}
 
-const upper = computed({
-	get: () => props.modelValue.high,
-	set: high => {
-		emit('update:modelValue', {
-			...props.modelValue,
-			high: String(high),
-		});
-	},
-});
+const lower = boundModel('low');
+const upper = boundModel('high');
 
 function updateMode(mode: RangeFieldState['mode']) {
 	emit('update:modelValue', {

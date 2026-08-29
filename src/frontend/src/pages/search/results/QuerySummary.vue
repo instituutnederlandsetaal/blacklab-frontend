@@ -15,13 +15,12 @@ const translate = useI18n();
 const summary = computed(() => {
 	const pattern = QueryStore.get.patternSummary();
 	const filters = QueryStore.get.filterSummary();
-	if (!pattern && !filters) return translate.$t('results.querySummary.allDocuments');
-
-	let ret = '';
-	if (pattern) ret += pattern + ' ' + translate.$t('results.querySummary.within') + ' ';
-	if (filters) ret += translate.$t('results.querySummary.documentsWhere') + ' ' + filters;
-	else ret += translate.$t('results.querySummary.allDocuments');
-	return ret;
+	return [
+		pattern && `${pattern} ${translate.$t('results.querySummary.within')}`,
+		filters ? `${translate.$t('results.querySummary.documentsWhere')} ${filters}` : translate.$t('results.querySummary.allDocuments'),
+	]
+		.filter(Boolean)
+		.join(' ');
 });
 </script>
 

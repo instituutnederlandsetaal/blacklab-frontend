@@ -206,6 +206,16 @@ describe('form system integration', () => {
 		expect(wrapper.find('input[aria-label="Extended lemma"]').exists()).toBe(false);
 	});
 
+	test('forwards host attributes to the rendered root', () => {
+		const fixture = createSingleFormFixture();
+		const wrapper = mount(FormSystem, { props: fixture, attrs: { 'data-form-host': 'search' } });
+
+		expect(wrapper.findAll('.blf-form-system').map(node => [node.element.tagName, node.attributes('data-form-host')])).toEqual([
+			['DIV', 'search'],
+			['FORM', undefined],
+		]);
+	});
+
 	test('mounted views receive live parent-form projections', async () => {
 		const fixture = createSingleFormFixture();
 		const wrapper = mount(FormSystem, {

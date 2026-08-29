@@ -7,14 +7,14 @@
 				<button type="button" class="btn btn-xs btn-default" @click="props.runtime.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component :is="renderTree.is" v-bind="{ ...attrs, ...renderTree.props }" :key="runtimeRevision" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
+		<Component :is="renderTree.is" v-bind="{ ...$attrs, ...renderTree.props }" :key="runtimeRevision" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
 			<template #actions><slot name="actions" /></template>
 		</Component>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, useAttrs, watch } from 'vue';
+import { computed, ref, toRef, watch } from 'vue';
 
 import type { FormRuntime } from '@/features/form/model/form-runtime';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
@@ -24,8 +24,6 @@ import { provideFormSystemRuntime } from '../model/runtime';
 const props = defineProps<{
 	runtime: FormRuntime;
 }>();
-
-const attrs = useAttrs();
 
 const emit = defineEmits<{
 	submit: [snapshot: CompiledFormResult];

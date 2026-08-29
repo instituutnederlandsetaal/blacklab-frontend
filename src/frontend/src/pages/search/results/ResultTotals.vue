@@ -117,9 +117,7 @@ const percentOfSearchSpaceClarification = computed(
 		`Matched ${numResults.value.toLocaleString()} ${resultType.value} in a total of ${isLimited.value ? ' more than' : ''} ${searchSpaceCount.value.toLocaleString()} ${searchSpaceType.value} in the searched subcorpus.`,
 );
 
-watch(totals, (current, previous) => {
-	if (current !== previous) previous?.dispose();
-});
+watch(totals, (_current, previous) => previous.dispose());
 watch(value, current => {
 	if (current && current.results !== props.initialResults) emit('update', current.results);
 });
