@@ -103,12 +103,19 @@ const values = {
 	MOCK_ERROR: new ApiError('test', 'test', 'test', undefined),
 };
 
-function createTestStreams() {
+function hitResultsAt(...starts: number[]): BLHitResults {
+	return {
+		...values.MOCK_HITS,
+		hits: starts.map(start => ({ ...values.MOCK_HITS.hits[0], start, end: start + 1 })),
+	};
+}
+
+function createTestStreams(hits: BLHitResults = values.MOCK_HITS) {
 	const { blacklabApi: blacklab, frontendApi: frontend } = createMockApi({
 		blacklab: {
-			getHits: values.MOCK_HITS,
+			getHits: hits,
 			getDocumentInfo: (_indexId, docId) => (docId === values.MOCK_DOC.docPid ? resolvedRequest(values.MOCK_DOC) : rejectedRequest(values.MOCK_ERROR)),
-			getSnippet: values.MOCK_HITS.hits[0],
+			getSnippet: hits.hits[0] ?? values.MOCK_HITS.hits[0],
 		},
 		frontend: {
 			getDocumentContents: '',
@@ -254,14 +261,11 @@ describe('validPaginationParameters$', () => {
 		output.stop();
 	});
 
-	test('Should clear the findhit if invalid', async () => {
+	test.each([0, 54, 10000])('Should clear a non-hit findhit at %s', async findhit => {
 		const { validPaginationParameters$, input$ } = createTestStreams();
 		const output = loadableFromStream(validPaginationParameters$);
 
-		input$.next({
-			...baseInputs,
-			findhit: 10000,
-		});
+		input$.next({ ...baseInputs, findhit });
 		await promiseFromLoadableStream(validPaginationParameters$);
 
 		expect(output.value).toMatchObject({ findhit: undefined });
@@ -324,7 +328,12 @@ describe('validPaginationParameters$', () => {
 });
 
 describe('hitToHighlight$', () => {
-	test('Should use the last hit as the inactive navigation target after the final hit', async () => {
+	test.each([
+		['before the first hit', 0, 0],
+		['at an exact hit', 125, 1],
+		['between hits', 126, 2],
+		['after the final hit', 230, 2],
+	] as const)('Should use the expected inactive navigation target %s', async (_description, wordstart, expectedIndex) => {
 		const { hitToHighlight$, input$ } = createTestStreams();
 		const output = loadableFromStream(hitToHighlight$);
 
@@ -332,16 +341,39 @@ describe('hitToHighlight$', () => {
 			...baseInputs,
 			findhit: undefined,
 			pageSize: 10,
-			wordstart: 230,
-			wordend: 240,
+			wordstart,
+			wordend: wordstart + 10,
 		});
 		await promiseFromLoadableStream(hitToHighlight$);
 
 		expect(output.value).toMatchObject({
 			totalHits: values.MOCK_HITS.hits.length,
-			hitIndexToHighlight: values.MOCK_HITS.hits.length - 1,
+			hitIndexToHighlight: expectedIndex,
 			isHitVisible: false,
 		});
+		output.stop();
+	});
+
+	test('Should retain the midpoint exact match for duplicate hit starts', async () => {
+		const duplicateHits = hitResultsAt(53, 53, 125);
+		const { hitToHighlight$, input$ } = createTestStreams(duplicateHits);
+		const output = loadableFromStream(hitToHighlight$);
+
+		input$.next({ ...baseInputs, findhit: 53 });
+		await promiseFromLoadableStream(hitToHighlight$);
+
+		expect(output.value).toMatchObject({ totalHits: 3, hitIndexToHighlight: 1 });
+		output.stop();
+	});
+
+	test('Should handle an empty hit list', async () => {
+		const { hitToHighlight$, input$ } = createTestStreams(hitResultsAt());
+		const output = loadableFromStream(hitToHighlight$);
+
+		input$.next({ ...baseInputs, findhit: undefined });
+		await promiseFromLoadableStream(hitToHighlight$);
+
+		expect(output.value).toMatchObject({ totalHits: 0, hitIndexToHighlight: 0, isHitVisible: false });
 		output.stop();
 	});
 });

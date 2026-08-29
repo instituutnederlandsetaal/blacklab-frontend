@@ -5,7 +5,6 @@ import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 
 import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import { getDocumentLength } from '@/shared/blacklab-helpers/normalize/result-helpers';
-import { binarySearch } from '@/shared/utils/array-utils';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import {
 	combineLoadables,
@@ -42,6 +41,19 @@ type PageInput = {
 
 type _Input = Partial<DocInput & HitsInput & PageInput>;
 export type Input = { [K in keyof _Input]: _Input[K] | null };
+
+/** Return an exact hit index, or `-insertionIndex - 1` when no hit starts at the requested position. */
+function findHitIndex(hits: [number, number][], start: number): number {
+	let low = 0;
+	let high = hits.length - 1;
+	while (low <= high) {
+		const mid = Math.floor((low + high) / 2);
+		if (hits[mid][0] < start) low = mid + 1;
+		else if (hits[mid][0] > start) high = mid - 1;
+		else return mid;
+	}
+	return -low - 1;
+}
 
 type ValidPaginationAndDocDisplayParameters = {
 	indexId: string;
@@ -166,8 +178,9 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 		map(combineLoadables),
 		mapLoaded(([pagination, hits, { highlights }]) => {
-			const firstVisibleHitIndex = hits.length ? clamp(Math.abs(binarySearch(hits, h => pagination.wordstart - h[0])), 0, hits.length - 1) : 0;
-			const hitIndexToHighlight = pagination.findhit != null ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
+			const firstHitIndex = findHitIndex(hits, pagination.wordstart);
+			const firstVisibleHitIndex = hits.length ? clamp(firstHitIndex < 0 ? -firstHitIndex - 1 : firstHitIndex, 0, hits.length - 1) : 0;
+			const hitIndexToHighlight = pagination.findhit != null ? findHitIndex(hits, pagination.findhit) : firstVisibleHitIndex;
 			const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
 			const hl = highlights[localHitIndexToHighlight] as HTMLElement | undefined;
 			return {
@@ -229,8 +242,7 @@ function getValidPageSize(pageSize: number | null | undefined): number | null {
  */
 function getValidfindhit(findhit: number | undefined | null, hits?: [number, number][]): number | undefined {
 	if (findhit == null || !hits) return undefined;
-	const hitIndex = binarySearch(hits, h => findhit - h[0]);
-	return hitIndex >= 0 ? findhit : undefined;
+	return findHitIndex(hits, findhit) >= 0 ? findhit : undefined;
 }
 
 function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPaginationAndDocDisplayParameters {
