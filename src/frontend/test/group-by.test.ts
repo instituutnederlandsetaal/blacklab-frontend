@@ -32,7 +32,7 @@ function mountGroupBy() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	ResultsStore.getOrCreateModule('hits').actions.reset({ resetGroupBy: true });
-	mock.params = reactive({ patt: '[]', first: 37, number: 50, group: 'field:title', subcorpussize: true, listvalues: 'all', sort: 'hit:word,numhits,-hit:lemma,-numhits' });
+	mock.params = reactive({ patt: '[]', first: 37, number: 50, group: 'field:title', subcorpussize: true, listvalues: 'all', sort: 'hit:word,numhits,-alignments,-hit:lemma,-numhits,alignments' });
 	mock.corpus = {
 		id: 'test',
 		isParallelCorpus: false,
@@ -73,7 +73,7 @@ describe('GroupBy', () => {
 		expect(wrapper.find('.groupselect').exists()).toBe(true);
 	});
 
-	test('requests a stable preview only when the effective query changes', async () => {
+	test('strips reserved count and alignment sorts from a nonparallel preview', async () => {
 		const wrapper = mountGroupBy();
 		await wrapper.find('.groupselect').trigger('click');
 		await nextTick();

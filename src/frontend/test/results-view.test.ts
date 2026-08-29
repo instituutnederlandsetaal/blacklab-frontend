@@ -97,13 +97,6 @@ function mountView(active = true) {
 	return shallowMount(ResultsView, { props: { id: 'hits', active, store: mock.store! } });
 }
 
-async function mountViewWithResults() {
-	const wrapper = mountView();
-	mock.requests[0].resolve(result('baseline'));
-	await flush();
-	return wrapper;
-}
-
 beforeEach(() => {
 	vi.useFakeTimers();
 	vi.clearAllMocks();
@@ -183,12 +176,12 @@ describe('ResultsView', () => {
 		expect(mock.api.getHits).toHaveBeenCalledOnce();
 	});
 
-	test('ignores a stale cancellation while the replacement request remains active', async () => {
-		const wrapper = await mountViewWithResults();
+	test('ignores a stale cancellation across an A-B-A request race', async () => {
+		const wrapper = mountView();
+		const stale = mock.requests[0];
 		(mock.params as { patt: string }).patt = 'second';
 		await nextTick();
-		const stale = mock.requests[1];
-		(mock.params as { patt: string }).patt = 'current';
+		(mock.params as { patt: string }).patt = 'first';
 		await nextTick();
 
 		expect(stale.request.cancel).toHaveBeenCalledOnce();
@@ -196,34 +189,34 @@ describe('ResultsView', () => {
 		stale.reject({ title: 'cancelled', isCancelledRequest: true });
 		await flush();
 		expect(wrapper.findComponent({ name: 'Spinner' }).exists()).toBe(true);
-		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ query: expect.objectContaining({ patt: 'baseline' }), disabled: true });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).exists()).toBe(false);
 		expect((mock.customizations as { formatError: ReturnType<typeof vi.fn> }).formatError).not.toHaveBeenCalled();
 		expect(wrapper.text()).not.toContain('formatted error');
 
-		mock.requests[2].resolve(result('current'));
+		mock.requests[2].resolve(result('first'));
 		await flush();
 		expect(wrapper.findComponent({ name: 'Spinner' }).exists()).toBe(false);
-		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ query: expect.objectContaining({ patt: 'current' }), disabled: false });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ query: expect.objectContaining({ patt: 'first' }), disabled: false });
 	});
 
-	test('ignores a stale success while the replacement request remains active', async () => {
-		const wrapper = await mountViewWithResults();
+	test('ignores a stale success across an A-B-A request race', async () => {
+		const wrapper = mountView();
+		const stale = mock.requests[0];
 		(mock.params as { patt: string }).patt = 'second';
 		await nextTick();
-		const stale = mock.requests[1];
-		(mock.params as { patt: string }).patt = 'current';
+		(mock.params as { patt: string }).patt = 'first';
 		await nextTick();
 
 		expect(stale.request.cancel).toHaveBeenCalledOnce();
-		stale.resolve(result('second'));
+		stale.resolve(result('stale'));
 		await flush();
 		expect(wrapper.findComponent({ name: 'Spinner' }).exists()).toBe(true);
-		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ query: expect.objectContaining({ patt: 'baseline' }), disabled: true });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).exists()).toBe(false);
 
-		mock.requests[2].resolve(result('current'));
+		mock.requests[2].resolve(result('first'));
 		await flush();
 		expect(wrapper.findComponent({ name: 'Spinner' }).exists()).toBe(false);
-		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ query: expect.objectContaining({ patt: 'current' }), disabled: false });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ query: expect.objectContaining({ patt: 'first' }), disabled: false });
 	});
 
 	test('clears an invalid capture grouping and retries after the grouped error', async () => {

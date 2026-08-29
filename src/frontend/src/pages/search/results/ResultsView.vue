@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, ref, watch } from 'vue';
+import { computed, markRaw, ref, shallowRef, watch } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
@@ -139,7 +139,6 @@ import { getSearchParameters, getTotalAvailableResults } from '@/shared/blacklab
 import { debugLog } from '@/shared/debug/debug';
 import { useI18n } from '@/shared/i18n';
 import { localStorageSynced } from '@/shared/utils/localstore';
-import { stableStringify } from '@/shared/utils/stable-stringify';
 
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
@@ -166,7 +165,7 @@ const corpus = useCorpus();
 const translate = useI18n();
 const root = ref<HTMLElement | null>(null);
 const isDirty = ref(true);
-const request = ref<CancelableRequest<BLTypes.BLSearchResult> | null>(null);
+const request = shallowRef<CancelableRequest<BLTypes.BLSearchResult> | null>(null);
 const results = ref<BLTypes.BLSearchResult | null>(null);
 const paginationResults = ref<BLTypes.BLSearchResult | null>(null);
 const error = ref<string | null>(null);
@@ -209,9 +208,6 @@ const concordanceAnnotationId = computed({
 	set: customizations.setResultConcordanceAnnotationId,
 });
 
-// Refresh only when the request sent to BlackLab changes. The submitted form snapshot also contains
-// presentation data (localized summaries and encoded form state), none of which changes the result set.
-const refreshParameters = computed(() => stableStringify(RootStore.get.blacklabParameters()));
 /** When these change, the form has been resubmitted, so we need to initiate a scroll event */
 const querySettings = computed(QueryStore.getState);
 
@@ -298,8 +294,6 @@ function refresh() {
 		clearResults.value = false;
 	}
 
-	const nonce = refreshParameters.value;
-
 	// If we're querying a parallel corpus, and no sort was chosen yet, sort by alignments (so aligned hits appear first).
 	const viewModule = ResultsStore.getOrCreateModule('hits');
 	if (id === 'hits' && (groupBy.value.length === 0 || viewGroup.value) && corpus.value.isParallelCorpus && viewModule.getState().sort == null) viewModule.actions.sort('alignments');
@@ -314,10 +308,10 @@ function refresh() {
 	nextRequest
 		.then(
 			data => {
-				if (nonce === refreshParameters.value) setSuccess(data);
+				if (request.value === nextRequest) setSuccess(data);
 			},
 			(data: ApiError) => {
-				if (nonce !== refreshParameters.value) return;
+				if (request.value !== nextRequest) return;
 				// Grouping on a capture group that no longer exists can only be detected after the request.
 				if (data.title === 'UNKNOWN_MATCH_INFO' && groupBy.value.length > 0) {
 					debugLog('results', 'grouping failed, clearing groupBy');
@@ -491,7 +485,7 @@ watch(
 	},
 	{ deep: true },
 );
-watch(refreshParameters, () => (active ? refresh() : markDirty()));
+watch(RootStore.get.blacklabParameters, () => (active ? refresh() : markDirty()));
 watch(
 	() => active,
 	value => {

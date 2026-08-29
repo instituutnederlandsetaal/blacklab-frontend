@@ -295,7 +295,7 @@ const firstHitPreviewQuery = computed<BLSearchParameters | undefined>(() => {
 	if (!params.viewgroup) delete params.group;
 	delete params.subcorpussize;
 	delete params.listvalues;
-	const sort = (params.sort?.split(',') ?? []).filter(sort => sort !== 'numhits' && sort !== '-numhits' && (!corpus.value.isParallelCorpus || (sort !== 'alignments' && sort !== '-alignments')));
+	const sort = (params.sort?.split(',') ?? []).filter(sort => !/^-?(numhits|alignments)$/.test(sort));
 	if (corpus.value.isParallelCorpus) sort.unshift('alignments');
 	if (sort.length) params.sort = sort.join(',');
 	else delete params.sort;
