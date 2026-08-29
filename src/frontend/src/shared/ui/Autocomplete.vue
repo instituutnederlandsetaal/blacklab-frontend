@@ -18,17 +18,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, ref, useTemplateRef } from 'vue';
 
 import type { Option } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
 
 import SelectPicker from './SelectPicker.vue';
 
+type AutocompleteRequest = PromiseLike<string[]> & { cancel?: () => void };
+
 const modelValue = defineModel<string>({ default: '' });
 const props = withDefaults(
 	defineProps<{
-		getData: (term: string) => Promise<string[]>;
+		getData: (term: string) => AutocompleteRequest;
 		autocomplete?: boolean;
 		useQuoteAsWordBoundary?: boolean;
 	}>(),
@@ -45,30 +47,19 @@ const emit = defineEmits<{
 
 const options = ref<string[]>([]);
 const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
-const inputElement = computed<HTMLInputElement | null>(() => {
-	const el = autocompleteRef.value?.$el;
-	if (!el) {
-		// console.warn(`Could not find 'input' template ref`);
-		return null;
-	}
-	const input = el.querySelector('input');
-	if (!input) {
-		// console.warn(`Could not find input element within autocomplete component`);
-		return null;
-	}
-	if (!(input instanceof HTMLInputElement)) {
-		// console.warn(`Element found with querySelector was not an HTMLInputElement`);
-		return null;
-	}
-	return input;
-});
+const inputElement = computed(() => (autocompleteRef.value?.$el as HTMLElement | undefined)?.querySelector<HTMLInputElement>('input') ?? null);
 
 let lastSearchValue = '';
+let pendingRequest: AutocompleteRequest | null = null;
+
+function cancelPendingRequest() {
+	const request = pendingRequest;
+	pendingRequest = null;
+	request?.cancel?.();
+}
+onBeforeUnmount(cancelPendingRequest);
 
 function _refreshList() {
-	// console.log('refreshing list');
-	if (!props.getData) return;
-
 	const input = inputElement.value;
 	if (!input) return;
 
@@ -76,49 +67,48 @@ function _refreshList() {
 	if (v === lastSearchValue) return;
 
 	lastSearchValue = v;
+	cancelPendingRequest();
+	options.value = [];
 	if (!v.length) return;
 
-	let r: Promise<string[]> = props.getData(v);
-	if (!r) return;
-	r.then(suggestions => {
-		if (v === lastSearchValue) options.value = suggestions;
-	});
+	const request = props.getData(v);
+	pendingRequest = request;
+	request.then(
+		suggestions => {
+			if (pendingRequest !== request) return;
+			pendingRequest = null;
+			options.value = suggestions;
+		},
+		() => {
+			if (pendingRequest !== request) return;
+			pendingRequest = null;
+			lastSearchValue = '';
+			options.value = [];
+		},
+	);
 }
 
 /**
  * @param lookForward select until next whitespace, or only look back
  */
 function _getWordAroundCursor(inputElement: HTMLInputElement, lookForward: boolean): { start: number; end: number; value: string } {
-	const input = inputElement;
-	const value = input.value;
-	const nothingFound = { value: '', start: 0, end: value.length };
-	if (value.length > 100) {
-		return nothingFound;
-	}
-
-	let start = input.selectionStart != null ? input.selectionStart : 0;
-	let end = input.selectionEnd != null ? input.selectionEnd : value.length;
-	if (start > end) {
-		const tmp = start;
-		start = end;
-		end = tmp;
-	}
+	const value = inputElement.value;
+	let start = inputElement.selectionStart ?? 0;
+	let end = inputElement.selectionEnd ?? value.length;
+	if (start > end) [start, end] = [end, start];
+	const nothingFound = { value: '', start, end };
+	if (value.length > 100) return nothingFound;
 
 	if (start === end) {
-		// just a caret; no selection, find whitespace boundaries around cursor
-		// start - 1 because splitIntoTerms takes quotes into consideration by default, but we do not.
-		const term = tokenizeString(value, props.useQuoteAsWordBoundary).find(t => t.end >= start - 1);
-		if (!term) {
-			return nothingFound;
-		}
-		if (lookForward) {
-			return term;
-		}
-		// We have a term but aren't supposed to look beyond the cursor end index, strip everything beyond it from the found term.
+		if (start > 0 && /\s/.test(value[start - 1])) return nothingFound;
+		const term = tokenizeString(value, props.useQuoteAsWordBoundary).find(t => t.start <= start && t.end >= start);
+		if (!term) return nothingFound;
+		if (lookForward) return term;
+		const contentStart = term.start + (term.isQuoted ? 1 : 0);
 		return {
-			start: term.isQuoted ? term.start + 1 : term.start,
-			end: Math.min(term.end, end),
-			value: term.value.substring(0, end - term.start),
+			start: contentStart,
+			end,
+			value: tokenizeString(value.substring(term.start, end), props.useQuoteAsWordBoundary)[0]?.value ?? '',
 		};
 	}
 
@@ -128,16 +118,10 @@ function _autocompleteSelected({ value: v }: Option) {
 	if (props.useQuoteAsWordBoundary && v.match(/\s/)) v = `"${v}"`;
 
 	const input = inputElement.value;
-	if (!input) return;
-	const value = input.value;
-
-	const { start, end }: { start: number; end: number } = _getWordAroundCursor(input, true);
-
-	input.value = value.substring(0, start) + v + value.substring(end);
-	input.selectionStart = start + v.length + 1;
-	input.selectionEnd = start + v.length + 1;
-
-	input.dispatchEvent(new Event('input'));
+	if (!input) return false;
+	const { start, end } = _getWordAroundCursor(input, true);
+	input.setRangeText(v, start, end, 'end');
+	input.dispatchEvent(new Event('input', { bubbles: true }));
 	return false;
 }
 </script>
