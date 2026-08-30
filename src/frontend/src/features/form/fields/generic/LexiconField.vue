@@ -83,9 +83,7 @@ const emit = defineEmits<{
 
 const wordOptions = ref<LexiconWordOption[] | null>([]);
 const posOptions = ref<Record<string, boolean>>({});
-const requestSerial = ref(0);
-const suppressNextValueLookup = ref(false);
-let debounceHandle: ReturnType<typeof setTimeout> | undefined;
+let generatedValue: string | undefined;
 
 const field = useFieldPresentation(props);
 
@@ -98,12 +96,6 @@ const value = computed({
 
 const isValidWord = /^[\w]+$/;
 
-function applyLookupResult(serial: number, result = defaultLexiconLookupResult) {
-	if (serial !== requestSerial.value) return;
-	posOptions.value = { ...result.posOptions };
-	wordOptions.value = result.wordList.map(word => ({ ...word, pos: [...word.pos] }));
-}
-
 function selectAll() {
 	renderedWords.value.forEach(word => (word.selected = word.count > 0));
 }
@@ -114,44 +106,46 @@ function deselectAll() {
 
 watch(
 	() => value.value,
-	nextValue => {
-		if (debounceHandle) clearTimeout(debounceHandle);
-		if (suppressNextValueLookup.value) {
-			suppressNextValueLookup.value = false;
+	(nextValue, _, onCleanup) => {
+		const suppressLookup = nextValue === generatedValue;
+		generatedValue = undefined;
+		if (suppressLookup) return;
+
+		if (!nextValue || !isValidWord.test(nextValue)) {
+			posOptions.value = {};
+			wordOptions.value = [];
 			return;
 		}
 
-		const serial = ++requestSerial.value;
-		if (!nextValue) {
-			applyLookupResult(serial);
-			return;
-		}
-
-		if (!nextValue.match(isValidWord)) {
-			applyLookupResult(serial);
-			return;
-		}
-
+		let active = true;
+		const timer = setTimeout(() => {
+			props
+				.lookup(nextValue)
+				.catch(() => defaultLexiconLookupResult)
+				.then(result => {
+					if (!active) return;
+					posOptions.value = { ...result.posOptions };
+					wordOptions.value = result.wordList.map(word => ({ ...word, pos: [...word.pos] }));
+				});
+		}, 1500);
+		onCleanup(() => {
+			active = false;
+			clearTimeout(timer);
+		});
 		wordOptions.value = null;
 		posOptions.value = {};
-		debounceHandle = setTimeout(() => {
-			props.lookup(nextValue).then(
-				result => applyLookupResult(serial, result),
-				() => applyLookupResult(serial),
-			);
-		}, 1500);
 	},
 );
 
 watch(
 	() => selectedWords.value.length,
-	(nextLength, previousLength) => {
-		if (nextLength !== previousLength && wordOptions.value && wordOptions.value.length > 0) {
-			suppressNextValueLookup.value = true;
-			value.value = selectedWords.value
+	() => {
+		if (wordOptions.value?.length) {
+			generatedValue = selectedWords.value
 				.map(word => word.word.replace(/([|*?])/g, '\\$1'))
 				.map(word => (word.includes(' ') ? `"${word}"` : word))
 				.join('|');
+			value.value = generatedValue;
 		}
 	},
 );

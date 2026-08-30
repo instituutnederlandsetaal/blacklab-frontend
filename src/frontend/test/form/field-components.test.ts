@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import Axios from 'axios';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
@@ -9,7 +9,7 @@ import { createDefaultCqlQueryBuilderData, type CqlQueryBuilderOptions } from '@
 import { findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState, type AnnotationPosFieldState } from '@/features/form/fields/annotation-pos-field';
 import { createDefaultCheckboxFieldState } from '@/features/form/fields/generic/checkbox-field';
 import { createDefaultDateFieldState, DateUtils } from '@/features/form/fields/generic/date-field';
-import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
+import { createLexiconLookup, type LexiconLookupResult } from '@/features/form/fields/generic/lexicon-field';
 import { createDefaultRadioFieldState } from '@/features/form/fields/generic/radio-field';
 import type { Tagset } from '@/types/apptypes';
 
@@ -37,6 +37,16 @@ const DebugWithSlot = defineComponent({
 		return () => h('span', slots.default?.());
 	},
 });
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise;
+		reject = rejectPromise;
+	});
+	return { promise, reject, resolve };
+}
 
 const tagset: Tagset = {
 	values: {
@@ -337,6 +347,11 @@ describe('part-of-speech field', () => {
 });
 
 describe('lexicon field', () => {
+	const result = (word: string): LexiconLookupResult => ({
+		posOptions: { noun: true },
+		wordList: [{ lemma: word, pos: ['noun'], count: 1, word, selected: false }],
+	});
+
 	test('debounces lookup, filters parts of speech, and maintains selected words', async () => {
 		vi.useFakeTimers();
 		const lookup = vi.fn(async () => ({
@@ -388,6 +403,126 @@ describe('lexicon field', () => {
 		expect(wrapper.find('.lexicon-spinner').exists()).toBe(false);
 		await wrapper.setProps({ modelValue: { value: '', caseSensitive: false } });
 		expect(wrapper.findAll('label[title]')).toHaveLength(0);
+	});
+
+	test('ignores stale resolutions and rejections while applying the latest result', async () => {
+		vi.useFakeTimers();
+		const first = deferred<LexiconLookupResult>();
+		const second = deferred<LexiconLookupResult>();
+		const latest = deferred<LexiconLookupResult>();
+		const lookup = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise).mockReturnValueOnce(latest.promise);
+		const wrapper = mount(LexiconField, {
+			props: { ...baseProps, modelValue: { value: '', caseSensitive: false }, lookup },
+			global: { stubs: { Debug: DebugWithSlot, Spinner: true, debug: DebugWithSlot } },
+		});
+
+		await wrapper.setProps({ modelValue: { value: 'first', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		await wrapper.setProps({ modelValue: { value: 'second', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		first.resolve(result('stale-success'));
+		await flushPromises();
+		expect(wrapper.find('.lexicon-spinner').exists()).toBe(true);
+
+		await wrapper.setProps({ modelValue: { value: 'latest', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		second.reject(new Error('stale failure'));
+		await flushPromises();
+		expect(wrapper.find('.lexicon-spinner').exists()).toBe(true);
+
+		latest.resolve(result('current'));
+		await flushPromises();
+		expect(wrapper.get('label[title]').attributes('title')).toBe('current (1)');
+		expect(lookup.mock.calls.map(([term]) => term)).toEqual(['first', 'second', 'latest']);
+	});
+
+	test('suppresses a matching selection echo only', async () => {
+		vi.useFakeTimers();
+		const lookup = vi.fn(async () => result('water'));
+		const wrapper = mount(LexiconField, {
+			props: { ...baseProps, modelValue: { value: '', caseSensitive: false }, lookup },
+			global: { stubs: { Debug: DebugWithSlot, Spinner: true, debug: DebugWithSlot } },
+		});
+
+		await wrapper.setProps({ modelValue: { value: 'wat', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		await wrapper.get('input[type="checkbox"]').setValue(true);
+		const generated = wrapper.emitted('update:modelValue')!.at(-1)![0] as { value: string; caseSensitive: boolean };
+		expect(generated.value).toBe('water');
+		await wrapper.setProps({ modelValue: generated });
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(lookup).toHaveBeenCalledOnce();
+	});
+
+	test('looks up new text after an identical single-word selection', async () => {
+		vi.useFakeTimers();
+		const lookup = vi.fn(async (term: string) => result(term));
+		const wrapper = mount(LexiconField, {
+			props: { ...baseProps, modelValue: { value: '', caseSensitive: false }, lookup },
+			global: { stubs: { Debug: DebugWithSlot, Spinner: true, debug: DebugWithSlot } },
+		});
+
+		await wrapper.setProps({ modelValue: { value: 'water', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		await wrapper.get('input[type="checkbox"]').setValue(true);
+		expect((wrapper.emitted('update:modelValue')!.at(-1)![0] as { value: string }).value).toBe('water');
+
+		await wrapper.setProps({ modelValue: { value: 'fire', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(lookup.mock.calls.map(([term]) => term)).toEqual(['water', 'fire']);
+	});
+
+	test('clones lookup data before selections can mutate it', async () => {
+		vi.useFakeTimers();
+		const source = result('water');
+		const wrapper = mount(LexiconField, {
+			props: { ...baseProps, modelValue: { value: '', caseSensitive: false }, lookup: async () => source },
+			global: { stubs: { Debug: DebugWithSlot, Spinner: true, debug: DebugWithSlot } },
+		});
+
+		await wrapper.setProps({ modelValue: { value: 'water', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		const checkboxes = wrapper.findAll('input[type="checkbox"]');
+		source.posOptions.noun = false;
+		source.wordList[0].selected = true;
+		source.wordList[0].pos[0] = 'verb';
+		expect((checkboxes[0].element as HTMLInputElement).checked).toBe(false);
+		expect((checkboxes[1].element as HTMLInputElement).checked).toBe(true);
+		await checkboxes[1].setValue(false);
+		await checkboxes[1].setValue(true);
+		expect(wrapper.get('label[title]').attributes('title')).toBe('water (1)');
+	});
+
+	test('clears delayed work and ignores pending results on unmount', async () => {
+		vi.useFakeTimers();
+		const lookup = vi.fn(async () => result('late'));
+		const scheduled = mount(LexiconField, {
+			props: { ...baseProps, modelValue: { value: '', caseSensitive: false }, lookup },
+			global: { stubs: { Debug: DebugWithSlot, Spinner: true, debug: DebugWithSlot } },
+		});
+		await scheduled.setProps({ modelValue: { value: 'scheduled', caseSensitive: false } });
+		scheduled.unmount();
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(lookup).not.toHaveBeenCalled();
+
+		const pending = deferred<LexiconLookupResult>();
+		const readPosOptions = vi.fn(() => ({ noun: true }));
+		const lateResult = {
+			get posOptions() {
+				return readPosOptions();
+			},
+			wordList: [],
+		} satisfies LexiconLookupResult;
+		const started = mount(LexiconField, {
+			props: { ...baseProps, modelValue: { value: '', caseSensitive: false }, lookup: () => pending.promise },
+			global: { stubs: { Debug: DebugWithSlot, Spinner: true, debug: DebugWithSlot } },
+		});
+		await started.setProps({ modelValue: { value: 'started', caseSensitive: false } });
+		await vi.advanceTimersByTimeAsync(1500);
+		started.unmount();
+		pending.resolve(lateResult);
+		await flushPromises();
+		expect(readPosOptions).not.toHaveBeenCalled();
 	});
 
 	test('builds lookup results from service lemmata, wordforms, and frequencies', async () => {
