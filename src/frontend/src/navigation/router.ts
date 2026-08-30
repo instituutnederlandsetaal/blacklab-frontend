@@ -159,11 +159,9 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 	});
 
 	const corpusId = computed(() => router.currentRoute.value.params.corpus as string | undefined);
-	const pageMeta = computed(() => (router.currentRoute.value.meta as PageMeta) || null);
 	return {
 		router,
 		corpusId,
-		pageMeta,
 
 		install: (app => {
 			router.install(app);

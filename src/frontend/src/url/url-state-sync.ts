@@ -15,7 +15,6 @@ import { restoreSearchForm } from '@/features/search/model/new-form/form-state-b
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
-import type { PageMeta } from '@/navigation/page-context';
 import type { Corpus } from '@/types/apptypes';
 import { getSubmittedInterfaceState, type SearchPageQueryParamsInput } from '@/url/state-to-url';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
@@ -38,7 +37,6 @@ type UrlStateSyncDependencies = {
 	blacklabApi: BlackLabApi;
 	corpusContext: LoadableFromRequest<CorpusContext>;
 	indexId: Ref<string | undefined>;
-	pageMeta: Ref<PageMeta | null>;
 	searchForms: Ref<FormRuntime | null>;
 	customizations: Customizations;
 	beforeStateLoaded: () => Promise<unknown>;
@@ -264,8 +262,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 
 	function getUrlSyncContext(): UrlSyncContext | null {
 		const route = router.currentRoute.value;
-		const currentRouteName = dependencies.pageMeta.value?.name || (typeof route.name === 'string' ? route.name : null);
-		const routeName: UrlManagedRouteName | null = currentRouteName === 'search' || currentRouteName === 'article' ? currentRouteName : null;
+		const routeName: UrlManagedRouteName | null = route.name === 'search' || route.name === 'article' ? route.name : null;
 		const corpus = loadedCorpus.value;
 		const indexId = dependencies.indexId.value;
 		return routeName && corpus && indexId ? { routeName, route, corpus, indexId } : null;

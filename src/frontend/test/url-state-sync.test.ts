@@ -11,7 +11,6 @@ import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { ContainerRenderer, FormBuilder, FormRuntime } from '@/features/form';
-import type { PageMeta } from '@/navigation/page-context';
 import type * as UrlStateParserSearchModule from '@/url/url-state-parser-search';
 import startUrlSync from '@/url/url-state-sync';
 
@@ -57,7 +56,6 @@ function startTestUrlSync(searchForms: Ref<FormRuntime | null>, beforeStateLoade
 			blacklabApi: createMockApi().blacklabApi,
 			corpusContext,
 			indexId: ref('test-corpus'),
-			pageMeta: ref({ name: 'search' } as PageMeta),
 			searchForms,
 			customizations: createCustomizations(customizationRegistry, corpus, {} as never, () => {}),
 			beforeStateLoaded,

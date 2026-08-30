@@ -121,7 +121,6 @@ async function start() {
 		blacklabApi: api.blacklabApi,
 		corpusContext: corpusState.contextLoader,
 		indexId: router.corpusId,
-		pageMeta: router.pageMeta,
 		searchForms: searchFormSystem.runtime,
 		customizations,
 		beforeStateLoaded: () => runHooks('beforeStateLoaded'),
