@@ -503,7 +503,7 @@ function makeRowsForHit(p: Result<BLHitInContext>, info: DisplaySettingsForRende
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
 	p.last_of_hit = false;
-	p.hit_id = p.doc.docPid + (p.hit.start ?? indexInRequestedResults) + (p.hit.end ?? '');
+	p.hit_id = JSON.stringify([p.doc.docPid, p.hit.start ?? indexInRequestedResults, p.hit.end ?? null]);
 	r.push(makeHitRow(p, info, highlightColors, info.sourceField, indexInRequestedResults));
 
 	const parallelHits = info.targetFields.map(f => [p.hit.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] !== undefined);

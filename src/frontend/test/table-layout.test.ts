@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 
 import type { DisplaySettingsForRendering } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
-import type { BLDocGroupResults, BLDocResults, BLHitGroupResults, BLSearchSummaryV5 } from '@/types/blacklabtypes';
+import type { BLDocGroupResults, BLDocResults, BLHitGroupResults, BLHitResults, BLSearchSummaryV5 } from '@/types/blacklabtypes';
 
 beforeAll(() => vi.stubGlobal('CONTEXT_URL', ''));
 afterAll(() => vi.unstubAllGlobals());
@@ -106,6 +106,31 @@ function groupedColumns(results: BLHitGroupResults | BLDocGroupResults, mode: st
 }
 
 describe('makeRows', () => {
+	test('gives colliding positioned hits stable tuple IDs shared by their parallel rows', () => {
+		const snippet = { before: { punct: [] }, match: { punct: [] }, after: { punct: [] } };
+		const hitResults = {
+			docInfos: {
+				doc: { metadata: {}, tokenCounts: [], mayView: true },
+				doc1: { metadata: {}, tokenCounts: [], mayView: true },
+			},
+			hits: [
+				{ docPid: 'doc1', start: 2, end: 3, ...snippet, otherFields: { parallel: { start: 20, end: 30, ...snippet } } },
+				{ docPid: 'doc', start: 12, end: 3, ...snippet, otherFields: { parallel: { start: 120, end: 30, ...snippet } } },
+			],
+			summary: summary('', true),
+		} as unknown as BLHitResults;
+		const info = renderingInfo();
+		info.targetFields = [{ id: 'parallel', isParallel: true }] as DisplaySettingsForRendering['targetFields'];
+
+		const hitRows = makeRows(hitResults, info).rows.filter(row => row.type === 'hit');
+		expect(hitRows.map(row => row.hit_id)).toEqual(['["doc1",2,3]', '["doc1",2,3]', '["doc",12,3]', '["doc",12,3]']);
+		expect(
+			makeRows({ ...hitResults, hits: hitResults.hits.toReversed() }, info)
+				.rows.filter(row => row.type === 'hit')
+				.map(row => row.hit_id),
+		).toEqual(['["doc",12,3]', '["doc",12,3]', '["doc1",2,3]', '["doc1",2,3]']);
+	});
+
 	test('mutes rows outside a requested range without normalizing response parameters in place', () => {
 		const params = { first: '5', number: '3' };
 		const results = {

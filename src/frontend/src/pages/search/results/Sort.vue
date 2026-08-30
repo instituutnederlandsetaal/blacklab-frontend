@@ -18,7 +18,7 @@
 import { computed } from 'vue';
 
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import type { NormalizedIndex } from '@/types/apptypes';
+import type { Corpus } from '@/types/apptypes';
 
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
@@ -31,23 +31,13 @@ const {
 	hits = false,
 	docs = false,
 	groups = false,
-	parallelCorpus = false,
 	corpus,
-	annotations,
-	annotationGroupLabels = false,
-	metadata,
-	metadataGroupLabels = false,
 	disabled = false,
 } = defineProps<{
 	hits?: boolean;
 	docs?: boolean;
 	groups?: boolean;
-	parallelCorpus?: boolean;
-	corpus: NormalizedIndex;
-	annotations: string[];
-	annotationGroupLabels?: boolean;
-	metadata: string[];
-	metadataGroupLabels?: boolean;
+	corpus: Corpus;
 	disabled?: boolean;
 }>();
 const model = defineModel<string | null>({ default: null });
@@ -63,6 +53,10 @@ function sortPair(field: string, value: string): Option[] {
 	];
 }
 const sortOptions = computed<OptGroup[]>(() => {
+	const annotations = customizations.resultSortAnnotationIds();
+	const annotationGroupLabels = customizations.resultSortAnnotationLabelsVisible();
+	const metadata = customizations.resultSortMetadataIds();
+	const metadataGroupLabels = customizations.resultSortMetadataLabelsVisible();
 	const options: OptGroup[] = [];
 	const addGroups = (...groups: OptGroup[]) => options.push(...groups.map(customizations.sortOptionGroup));
 
@@ -76,7 +70,7 @@ const sortOptions = computed<OptGroup[]>(() => {
 	if (hits) {
 		addGroups(...getAnnotationSubset(annotations, corpus.annotationGroups, corpus.annotatedFields[corpus.mainAnnotatedField].annotations, 'Sort', translate, debug.value, annotationGroupLabels));
 
-		if (parallelCorpus) {
+		if (corpus.isParallelCorpus) {
 			addGroups({
 				label: translate.$t('results.sort.parallelCorpus'),
 				options: sortPair(translate.$t('results.table.sort_alignments'), 'alignments'),

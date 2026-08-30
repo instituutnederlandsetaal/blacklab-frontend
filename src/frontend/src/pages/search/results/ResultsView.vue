@@ -68,28 +68,9 @@
 					{{ showTitles.value ? $t('results.table.hide') : $t('results.table.show') }} {{ $t('results.table.titles') }}
 				</button>
 
-				<Sort
-					v-model="sort"
-					:hits="isHits"
-					:docs="isDocs"
-					:groups="isGroups"
-					:parallelCorpus="isParallelCorpus"
-					:corpus="corpus"
-					:annotations="customizations.resultSortAnnotationIds()"
-					:annotationGroupLabels="customizations.resultSortAnnotationLabelsVisible()"
-					:metadata="customizations.resultSortMetadataIds()"
-					:metadataGroupLabels="customizations.resultSortMetadataLabelsVisible()"
-					:disabled="!!request"
-				/>
+				<Sort v-model="sort" :hits="isHits" :docs="isDocs" :groups="isGroups" :corpus="corpus" :disabled="!!request" />
 
-				<Export
-					v-if="customizations.resultExportEnabled()"
-					:results="results"
-					:type="id"
-					:disabled="!!request"
-					:annotations="customizations.resultDetailedAnnotationIds()"
-					:metadata="customizations.resultDetailedMetadataIds()"
-				/>
+				<Export v-if="customizations.resultExportEnabled()" :results="results" :type="id" :disabled="!!request" />
 			</div>
 		</template>
 		<div v-else-if="error != null" class="no-results-found">
@@ -217,7 +198,6 @@ const indexId = computed(() => corpus.value.id!);
 const isHits = computed(() => !!results.value && BLTypes.isHitResults(results.value));
 const isDocs = computed(() => !!results.value && BLTypes.isDocResults(results.value));
 const isGroups = computed(() => !!results.value && BLTypes.isGroups(results.value));
-const isParallelCorpus = computed(() => corpus.value.isParallelCorpus);
 
 /**
  * Pagination state for the current view.

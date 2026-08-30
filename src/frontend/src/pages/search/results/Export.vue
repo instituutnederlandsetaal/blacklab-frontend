@@ -24,7 +24,6 @@
 </template>
 
 <script setup lang="ts">
-import cloneDeep from 'clone-deep';
 import { computed, ref } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
@@ -41,14 +40,10 @@ import { useI18n } from '@/shared/i18n';
 const {
 	results = null,
 	type,
-	annotations = null,
-	metadata = null,
 	disabled = false,
 } = defineProps<{
 	results?: BLSearchResult | null;
 	type: 'hits' | 'docs';
-	annotations?: string[] | null;
-	metadata?: string[] | null;
 	disabled?: boolean;
 }>();
 const corpus = useCorpus();
@@ -69,7 +64,9 @@ function downloadCsv(excel: boolean) {
 	if (downloadInProgress.value || !results) return;
 	downloadInProgress.value = true;
 	const apiCall = type === 'hits' ? blacklab.getHitsCsv : blacklab.getDocsCsv;
-	const params = cloneDeep(getSearchParameters(results));
+	const params = { ...getSearchParameters(results) };
+	const annotations = customizations.resultDetailedAnnotationIds();
+	const metadata = customizations.resultDetailedMetadataIds();
 	if (annotations) params.listvalues = annotations.join(',');
 	if (metadata) params.listmetadatavalues = metadata.join(',');
 	params.listspanattributes = spanAttributesToExport.value.join(',');

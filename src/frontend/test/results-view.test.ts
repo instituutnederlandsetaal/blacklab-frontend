@@ -284,13 +284,14 @@ describe('ResultsView', () => {
 
 		const pagination = wrapper.findAllComponents({ name: 'Pagination' })[0];
 		expect(pagination.props()).toMatchObject({ page: 0, page2: 2, maxPage: 5 });
-		totals.vm.$emit('update', result('counted', 205));
+		const countedResult = result('counted', 205);
+		totals.vm.$emit('update', countedResult);
 		await nextTick();
 		expect(wrapper.findAllComponents({ name: 'Pagination' })[0].props('maxPage')).toBe(10);
 		expect(mock.makeRows).toHaveBeenCalledOnce();
 		expect(table.props('rows')).toBe(rows);
 
-		expect(wrapper.findComponent({ name: 'Export' }).props()).toMatchObject({ results: currentResult, annotations: ['word'], metadata: ['title'], type: 'hits', disabled: false });
+		expect(wrapper.findComponent({ name: 'Export' }).props()).toMatchObject({ results: currentResult, type: 'hits', disabled: false });
 		expect(window.scroll).toHaveBeenCalledWith({ behavior: 'smooth', top: 170 });
 		pagination.vm.$emit('change', 2);
 		await nextTick();
