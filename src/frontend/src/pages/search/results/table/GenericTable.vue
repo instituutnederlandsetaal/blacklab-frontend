@@ -32,20 +32,9 @@
 							bottomborder: 'last_of_hit' in row && row.last_of_hit && index < rows.rows.length - 1,
 							muted: row.muted,
 						}"
-						:row="row as any"
-						:info="info"
-						:cols="cols"
-						:maxima="rows.maxima"
-						:open="!!openRows[row.hit_id || index]"
-						:disabled="disabled"
-						:type="type"
-						:query="query"
-						:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
-						@hover="
-							hoverMatchInfos = $event;
-							hoverMatchInfosId = row.hit_id;
-						"
-						@unhover="hoverMatchInfos = undefined"
+						v-bind="commonRowProps(row, index)"
+						@hover="publishHover(row, $event)"
+						@unhover="publishHover(row)"
 						@click="toggleRow(index)"
 					/>
 					<component
@@ -58,20 +47,9 @@
 							open: openRows[row.hit_id || index],
 							muted: row.muted,
 						}"
-						:row="row as any"
-						:info="info"
-						:cols="cols"
-						:maxima="rows.maxima"
-						:open="!!openRows[row.hit_id || index]"
-						:disabled="disabled"
-						:type="type"
-						:query="query"
-						:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
-						@hover="
-							hoverMatchInfos = $event;
-							hoverMatchInfosId = row.hit_id;
-						"
-						@unhover="hoverMatchInfos = undefined"
+						v-bind="commonRowProps(row, index)"
+						@hover="publishHover(row, $event)"
+						@unhover="publishHover(row)"
 						@close="toggleRow(index)"
 						@openFullConcordances="openFullConcordances(row)"
 					/>
@@ -84,6 +62,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
+import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { ColumnDef, ColumnDefs, DisplaySettingsForRendering, DocRowData, GroupRowData, HitRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { definitions } from '@/pages/search/results/table/table-layout';
 import type { BLSearchParameters } from '@/types/blacklabtypes';
@@ -124,21 +103,35 @@ const openRows = ref<Record<number | string, boolean>>({});
 const hoverMatchInfos = ref<undefined | string[]>(undefined);
 const hoverMatchInfosId = ref<undefined | string>(undefined);
 
-function isOpenable(row: HitRowData | DocRowData | GroupRowData) {
-	if (props.disabled || props.disableDetails) return false;
-	if (row.type === 'group') return true;
-	if (row.type === 'hit' && props.type === 'hits') return true;
-	if (row.type === 'doc' && props.type === 'docs' && row.hits) return true;
-	return false;
+type RowData = HitRowData | DocRowData | GroupRowData;
+
+function commonRowProps(row: RowData, index: number): IRowProps<any> {
+	return {
+		row,
+		info: props.info,
+		cols: props.cols,
+		maxima: props.rows.maxima,
+		open: !!openRows.value[row.hit_id || index],
+		disabled: props.disabled,
+		type: props.type,
+		query: props.query,
+		hoverMatchInfos: row.hit_id === hoverMatchInfosId.value ? hoverMatchInfos.value : undefined,
+	};
+}
+function publishHover(row: RowData, matchInfos?: string[]) {
+	hoverMatchInfos.value = matchInfos;
+	hoverMatchInfosId.value = row.hit_id;
+}
+function isOpenable(row: RowData) {
+	return !props.disabled && !props.disableDetails && (row.type === 'group' || (row.type === 'hit' ? props.type === 'hits' : props.type === 'docs' && !!row.hits));
 }
 function toggleRow(index: number) {
 	const row = props.rows.rows[index];
 	if (!isOpenable(row)) return;
 	const id = row.hit_id || index;
-	const newState = !openRows.value[id];
-	openRows.value[id] = newState;
+	openRows.value[id] = !openRows.value[id];
 }
-function openFullConcordances(row: HitRowData | DocRowData | GroupRowData) {
+function openFullConcordances(row: RowData) {
 	if ('displayname' in row) {
 		emit('viewgroup', row.id, row.displayname);
 	}

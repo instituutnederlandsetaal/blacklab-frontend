@@ -42,9 +42,3 @@ const emit = defineEmits<{
 	unhover: [];
 }>();
 </script>
-
-<style lang="scss" scoped>
-.doc-version {
-	padding-left: 1.5em !important;
-}
-</style>

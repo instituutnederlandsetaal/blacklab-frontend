@@ -237,6 +237,36 @@ describe('makeRows', () => {
 			'average document length [gr.t/gr.d]': 25,
 		});
 	});
+
+	test('seeds maxima from the server and tracks each available numeric property', () => {
+		const results = hitGroups('field:genre');
+		results.summary.results.stats.largestGroupSize = 30;
+		results.hitGroups.push({
+			identity: 'nonfiction',
+			identityDisplay: 'nonfiction',
+			size: 5,
+			numberOfDocs: 12,
+			properties: [{ name: 'field:genre', value: 'nonfiction' }],
+			subcorpusSize: { documents: 60, tokens: 600 },
+		});
+
+		const maxima = makeRows(results, renderingInfo()).maxima!;
+		expect(maxima['gr.h']).toBe(30);
+		expect(maxima['gr.d']).toBe(12);
+		expect(maxima['gsc.d']).toBe(60);
+		expect(maxima).not.toHaveProperty('gr.t');
+	});
+
+	test('keeps zero as the baseline for negative numeric maxima', () => {
+		const results = docGroups();
+		results.docGroups[0].numberOfTokens = -5;
+		results.docGroups[0].subcorpusSize = undefined;
+
+		const maxima = makeRows(results, renderingInfo()).maxima!;
+		expect(maxima['gr.t']).toBe(0);
+		expect(maxima['gsc.t']).toBe(0);
+		expect(maxima).not.toHaveProperty('gr.h');
+	});
 });
 
 describe('grouped columns', () => {

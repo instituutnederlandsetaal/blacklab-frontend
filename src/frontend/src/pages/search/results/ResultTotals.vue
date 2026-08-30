@@ -155,13 +155,6 @@ onUnmounted(() => totals.value.dispose());
 	}
 }
 
-.searchIndicator.totals-spinner {
-	font-size: 16px;
-	padding: 4px;
-	margin: 0px 10px;
-	z-index: 0;
-}
-
 .totals-message {
 	> .fa {
 		font-size: 14px;

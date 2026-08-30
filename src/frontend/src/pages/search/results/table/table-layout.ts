@@ -239,14 +239,6 @@ const tableHeaders: {
 		},
 	},
 };
-class MaxCounter<T, K extends (T extends string ? T : KeysOfType<T, number>) = T extends string ? T : KeysOfType<T, number>> {
-	public values: Record<K, number> = {} as any;
-
-	public add(key: K, v?: number) {
-		if (typeof v === 'number') this.values[key] = Math.max(this.values[key] || 0, v);
-	}
-}
-
 /**
  * Flatten a set of arrays into an array of sets.
  * { a: [], b: [] } ==> [ { a: '', b: '' }, { a: '', b: '' }]
@@ -552,7 +544,10 @@ const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
 
 /** For a set of group results, create all rows. */
 function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: DisplaySettingsForRendering): { rows: GroupRowData[]; maxima: Maxima } {
-	const max = new MaxCounter<GroupRowData>();
+	const maxima = {} as Maxima;
+	const updateMaximum = (key: keyof Maxima, value: unknown) => {
+		if (typeof value === 'number') maxima[key] = Math.max(maxima[key] || 0, value);
+	};
 	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
 	const summarySubcorpus = getSubcorpusSize(results) ?? { documents: 0, tokens: 0 };
 
@@ -601,7 +596,7 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 
 	const stage1 = isHitGroups(results) ? results.hitGroups.map(g => mapHitGroup(g, results.summary)) : isDocGroups(results) ? results.docGroups.map(g => mapDocGroup(g, results.summary)) : [];
 	// we know the global maximum of this property, so might as well use it.
-	max.add(isHitGroups(results) ? 'gr.h' : 'gr.d', getLargestGroupSize(results));
+	updateMaximum(isHitGroups(results) ? 'gr.h' : 'gr.d', getLargestGroupSize(results));
 
 	const rows = stage1.map<GroupRowData>((row, i) => {
 		const r: GroupRowData = {
@@ -620,14 +615,14 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 		};
 
 		for (const key of Object.keys(r) as Array<keyof GroupRowData>) {
-			max.add(key as any, r[key] as any);
+			updateMaximum(key as keyof Maxima, r[key]);
 		}
 		return r;
 	});
 
 	return {
 		rows,
-		maxima: max.values,
+		maxima,
 	};
 }
 

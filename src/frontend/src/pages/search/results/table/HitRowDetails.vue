@@ -55,42 +55,22 @@
 							/>
 						</template>
 
-						<HitContext
-							tag="span"
-							:dir="row.dir"
-							:data="snippet"
-							:html="info.html"
-							:annotation="info.mainAnnotation.id"
-							:before="true"
-							:after="false"
-							:hoverMatchInfos="hoverMatchInfos"
-							@hover="$emit('hover', $event)"
-							@unhover="$emit('unhover')"
-						/>
-						<HitContext
-							tag="strong"
-							:dir="row.dir"
-							:data="snippet"
-							:html="info.html"
-							:annotation="info.mainAnnotation.id"
-							bold
-							:hoverMatchInfos="hoverMatchInfos"
-							@hover="$emit('hover', $event)"
-							@unhover="$emit('unhover')"
-						/>
-						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link"></sup></a>
-						<HitContext
-							tag="span"
-							:dir="row.dir"
-							:data="snippet"
-							:html="info.html"
-							:annotation="info.mainAnnotation.id"
-							:after="true"
-							:before="false"
-							:hoverMatchInfos="hoverMatchInfos"
-							@hover="$emit('hover', $event)"
-							@unhover="$emit('unhover')"
-						/>
+						<template v-for="context in snippetContexts" :key="context.key">
+							<a v-if="context.key === 'after' && row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link"></sup></a>
+							<HitContext
+								:tag="context.tag"
+								:dir="row.dir"
+								:data="snippet"
+								:html="info.html"
+								:annotation="info.mainAnnotation.id"
+								:bold="context.bold"
+								:before="context.before"
+								:after="context.after"
+								:hoverMatchInfos="hoverMatchInfos"
+								@hover="emit('hover', $event)"
+								@unhover="emit('unhover')"
+							/>
+						</template>
 					</p>
 					<table v-if="info.detailedAnnotations?.length" class="concordance-details-table">
 						<thead>
@@ -155,6 +135,23 @@ const corpus = useCorpus();
 const customizations = useCustomizations();
 
 const props = defineProps<IRowProps<HitRowData>>();
+const emit = defineEmits<{
+	hover: [relationKeys: string[]];
+	unhover: [];
+}>();
+
+type SnippetContext = {
+	key: 'before' | 'match' | 'after';
+	tag: 'span' | 'strong';
+	bold: boolean;
+	before: boolean;
+	after: boolean;
+};
+const snippetContexts: SnippetContext[] = [
+	{ key: 'before', tag: 'span', bold: false, before: true, after: false },
+	{ key: 'match', tag: 'strong', bold: true, before: false, after: false },
+	{ key: 'after', tag: 'span', bold: false, before: false, after: true },
+];
 
 const sentenceRequest = ref<CancelableRequest<BLTypes.BLHit> | null>(null);
 const sentence = ref<BLTypes.BLHit | null>(null);
