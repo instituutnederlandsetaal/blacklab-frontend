@@ -146,6 +146,40 @@ describe('IterativeResultCountLoader', () => {
 		loader.dispose();
 	});
 
+	test('continues from the latest paused result without restarting the active count', async () => {
+		vi.useFakeTimers();
+		const harness = apiHarness();
+		const intermediate = result('counting', 2);
+		const resumed = result('counting', 3);
+		const loader = new IterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
+
+		await vi.advanceTimersByTimeAsync(100);
+		harness.hitRequests[0].resolve(intermediate);
+		await settleRequest();
+		await vi.advanceTimersByTimeAsync(100);
+		expect(harness.getHits).toHaveBeenCalledTimes(2);
+		await vi.advanceTimersByTimeAsync(50);
+		expect(harness.hitRequests[1].cancel).toHaveBeenCalledOnce();
+		expect(loader.value).toMatchObject({ results: intermediate, state: 'paused' });
+
+		loader.continueCounting();
+		expect(loader.value).toMatchObject({ results: intermediate, state: 'counting' });
+		await vi.advanceTimersByTimeAsync(100);
+		expect(harness.getHits).toHaveBeenCalledTimes(3);
+
+		loader.continueCounting();
+		expect(harness.hitRequests[2].cancel).not.toHaveBeenCalled();
+		expect(harness.getHits).toHaveBeenCalledTimes(3);
+		harness.hitRequests[2].resolve(resumed);
+		await settleRequest();
+		expect(loader.value).toMatchObject({ results: resumed, state: 'counting' });
+
+		await vi.advanceTimersByTimeAsync(100);
+		expect(harness.getHits).toHaveBeenCalledTimes(4);
+		loader.dispose();
+		expect(harness.hitRequests[3].cancel).toHaveBeenCalledOnce();
+	});
+
 	test.each(['finished', 'limited'] as const)('leaves an initially %s total terminal without polling or duplicating it', async state => {
 		vi.useFakeTimers();
 		const harness = apiHarness();

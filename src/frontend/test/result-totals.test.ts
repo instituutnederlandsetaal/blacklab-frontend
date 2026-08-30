@@ -152,4 +152,29 @@ describe('ResultTotals', () => {
 		await nextTick();
 		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll], [replacementPoll]]);
 	});
+
+	test('activates the retry and paused continue buttons once each', async () => {
+		const wrapper = shallowMount(ResultTotals, {
+			props: { annotatedFieldId: 'contents', indexId: 'first', initialResults: {} as BLSearchResult, type: 'hits' },
+		});
+		const loader = mock.loaders[0];
+
+		loader.fail();
+		await nextTick();
+		const retryButton = wrapper.get<HTMLButtonElement>('button.totals-message.totals-button');
+		expect(retryButton.element).toBeInstanceOf(HTMLButtonElement);
+		expect(retryButton.attributes('type')).toBe('button');
+		expect(retryButton.find('.fa-exclamation-triangle').exists()).toBe(true);
+		expect(retryButton.find('.fa-rotate-right').exists()).toBe(true);
+		expect(retryButton.text()).toContain('results.resultsTotals.networkError');
+		expect(retryButton.text()).toContain('results.resultsTotals.retry');
+		await retryButton.trigger('click');
+		expect(loader.continueCounting).toHaveBeenCalledOnce();
+
+		loader.publish({ ...totalsOutput({} as BLSearchResult), state: 'paused' });
+		await nextTick();
+		loader.continueCounting.mockClear();
+		await wrapper.get('.totals-button').trigger('click');
+		expect(loader.continueCounting).toHaveBeenCalledOnce();
+	});
 });

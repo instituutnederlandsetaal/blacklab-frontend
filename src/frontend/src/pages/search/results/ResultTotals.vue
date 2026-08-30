@@ -31,10 +31,10 @@
 			</div>
 		</div>
 
-		<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting()" :title="error.message">
-			<span class="fa fa-exclamation-triangle text-danger" /> {{ $t('results.resultsTotals.networkError') }}!
-			<button type="button" class="totals-button" @click="totals.continueCounting()"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
-		</div>
+		<button v-if="error" type="button" class="totals-message totals-button text-danger" @click="totals.continueCounting()" :title="error.message">
+			<span class="fa fa-exclamation-triangle text-danger" /> {{ $t('results.resultsTotals.networkError') }}! <span class="fa fa-rotate-right text-danger"></span>
+			{{ $t('results.resultsTotals.retry') }}
+		</button>
 		<div
 			v-else-if="isLimited"
 			class="totals-message text-danger"
@@ -167,16 +167,16 @@ onUnmounted(() => totals.value.dispose());
 		font-size: 14px;
 		margin-right: 3px;
 	}
+}
 
-	> .totals-button {
-		background: none;
-		border-color: inherit;
-		outline: none;
-		margin: 0;
-		border-style: solid;
-		border-width: 1px;
-		border-radius: 100px;
-		padding: 2px 4px;
-	}
+.totals-button {
+	background: none;
+	border-color: inherit;
+	outline: none;
+	margin: 0;
+	border-style: solid;
+	border-width: 1px;
+	border-radius: 100px;
+	padding: 2px 4px;
 }
 </style>

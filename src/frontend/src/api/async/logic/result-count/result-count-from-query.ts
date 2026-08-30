@@ -4,7 +4,7 @@ import { type BLSearchResult } from '@/types/blacklabtypes';
 
 import { getTotals, type TotalsOutput } from './result-count-helpers';
 
-import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import type { BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';
 import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable-core';
 import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
@@ -36,6 +36,7 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 			switchMap(({ indexId, operation, results }) => {
 				// Override some settings from the original search, we're not interested in the results, but we need the totals.
 				const params = { ...getSearchParameters(results), number: 0, first: 0, subcorpussize: true };
+				const getResults: () => CancelableRequest<BLSearchResult> = operation === 'docs' ? () => api.getDocs(indexId, params) : () => api.getHits(indexId, params);
 				let latest: Loadable<TotalsOutput> | undefined;
 				const recursiveTotal$ = of(Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
 					expand((cur: Loadable<TotalsOutput>) => {
@@ -45,15 +46,9 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 						// wait a little while before fetching the next batch of results.
 						return timer(typeof intervalMs === 'function' ? intervalMs() : intervalMs).pipe(
 							switchMap(() =>
-								operation === 'docs'
-									? api
-											.getDocs(indexId, params)
-											.then(r => getTotals(r, initial.annotatedFieldId))
-											.toObservable()
-									: api
-											.getHits(indexId, params)
-											.then(r => getTotals(r, initial.annotatedFieldId))
-											.toObservable(),
+								getResults()
+									.then(r => getTotals(r, initial.annotatedFieldId))
+									.toObservable(),
 							),
 						);
 					}),
@@ -69,13 +64,10 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 		this.next(initial);
 	}
 
-	/**
-	 * Continue the count if paused.
-	 * When called and already counting - will abort and restart the current request (if any)
-	 */
+	/** Continue a paused count or retry a failed one. */
 	public continueCounting() {
 		if (this.isError()) this.next(this.initial);
-		else if (this.isLoaded() && !this.isDone(this.value)) this.next({ ...this.initial, results: this.value.results });
+		else if (this.isLoaded() && this.value.state === 'paused') this.next({ ...this.initial, results: this.value.results });
 	}
 
 	private isDone(results: TotalsOutput) {
