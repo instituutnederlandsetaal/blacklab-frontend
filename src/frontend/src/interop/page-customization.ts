@@ -1,4 +1,4 @@
-import { onScopeDispose, readonly, ref, toValue, watch, type MaybeRefOrGetter } from 'vue';
+import { toValue, watch, type MaybeRefOrGetter } from 'vue';
 
 import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
 
@@ -26,32 +26,22 @@ function stopWaitingForCss(link: HTMLLinkElement) {
 	pendingCssLoadHandlers.delete(link);
 }
 
-function _useInsertableContent<T>(p: { insert: (content: T[]) => void; remove: () => void; content: MaybeRefOrGetter<T[]>; immediate?: boolean }) {
-	const enabled = ref(p.immediate ?? true);
+function useInsertableContent<T>(content: MaybeRefOrGetter<T[]>, insert: (content: T[]) => void, remove: () => void) {
+	remove();
 	watch(
-		[enabled, () => toValue(p.content)],
-		([enabled, content]) => {
-			p.remove();
-			if (enabled) p.insert(content);
+		() => toValue(content),
+		(content, _, onCleanup) => {
+			onCleanup(remove);
+			insert(content);
 		},
 		{ immediate: true },
 	);
-
-	onScopeDispose(p.remove);
-
-	return {
-		enable: () => (enabled.value = true),
-		disable: () => (enabled.value = false),
-		toggle: () => (enabled.value = !enabled.value),
-		isEnabled: readonly(enabled),
-	};
 }
 
-export const useCustomCss = (css: MaybeRefOrGetter<CFCustomCssEntry[]>, options?: { immediate: boolean }) => {
-	return _useInsertableContent({
-		content: css,
-		immediate: options?.immediate,
-		insert: cssEntries => {
+export const useCustomCss = (css: MaybeRefOrGetter<CFCustomCssEntry[]>) => {
+	useInsertableContent(
+		css,
+		cssEntries => {
 			let remaining = cssEntries.length;
 			cssEntries.forEach(css => {
 				const link = document.createElement('link');
@@ -67,7 +57,7 @@ export const useCustomCss = (css: MaybeRefOrGetter<CFCustomCssEntry[]>, options?
 				document?.head?.appendChild(link);
 			});
 		},
-		remove: () => {
+		() => {
 			const links = document?.head?.querySelectorAll?.<HTMLLinkElement>(`link[${cssElementMarker}]`);
 			if (!links?.length) return;
 			links.forEach(link => {
@@ -76,14 +66,13 @@ export const useCustomCss = (css: MaybeRefOrGetter<CFCustomCssEntry[]>, options?
 			});
 			notifyCustomCssChanged();
 		},
-	});
+	);
 };
 
-export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>, options?: { immediate: boolean }) => {
-	return _useInsertableContent({
-		content: js,
-		immediate: options?.immediate,
-		insert: jsEntries => {
+export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>) => {
+	useInsertableContent(
+		js,
+		jsEntries => {
 			jsEntries.forEach(js => {
 				const script = document.createElement('script');
 				Object.entries(js.attributes).forEach(([k, v]) => v && script.setAttribute(k, v.toString()));
@@ -92,8 +81,8 @@ export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>, options?: {
 				document?.body?.appendChild(script);
 			});
 		},
-		remove: () => document?.body?.querySelectorAll?.<HTMLScriptElement>(`script[${jsElementMarker}]`)?.forEach(disposeCustomJs),
-	});
+		() => document?.body?.querySelectorAll?.<HTMLScriptElement>(`script[${jsElementMarker}]`)?.forEach(disposeCustomJs),
+	);
 };
 
 export { useFavicon, useTitle } from '@vueuse/core';

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, reactive, ref } from 'vue';
 
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
+import { installIndexIdGlobal } from '@/interop/window-globals';
 import type { CFPageConfig } from '@/types/apptypes';
 
 const mocks = vi.hoisted(() => ({
@@ -22,7 +23,7 @@ const config = (src: string): CFPageConfig =>
 	({
 		analytics: { google: null, plausible: null },
 		bannerMessage: null,
-		customCss: { '': [{ index: 0, attributes: { href: `/style-${src}.css`, ref: 'stylesheet' } }] },
+		customCss: { '': [{ index: 0, attributes: { href: `/style-${src}.css`, rel: 'stylesheet' } }] },
 		customJs: {
 			'': [{ index: 2, attributes: { src: `/global-${src}.js`, defer: true } }],
 			article: [{ index: 1, attributes: { src: `/article-${src}.js` } }],
@@ -37,6 +38,7 @@ const config = (src: string): CFPageConfig =>
 
 describe('page customization effect', () => {
 	beforeEach(() => {
+		vi.clearAllMocks();
 		document.body.replaceChildren();
 		document.head.querySelectorAll('[data-page-customization-css]').forEach(element => element.remove());
 	});
@@ -52,10 +54,11 @@ describe('page customization effect', () => {
 		mocks.indexId = ref('owner:corpus');
 		mocks.pageBootstrap = { page: ref({ name: 'search' }), settled: ref(true) };
 		const scope = effectScope();
-		scope.run(startCustomizationInterop);
 		const appendChild = vi.spyOn(document.body, 'appendChild');
+		scope.run(startCustomizationInterop);
 
 		try {
+			expect(vi.mocked(installIndexIdGlobal).mock.invocationCallOrder[0]).toBeLessThan(appendChild.mock.invocationCallOrder[0]);
 			expect(Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'), script => script.getAttribute('src'))).toEqual([
 				'/search-initial.js',
 				'/global-initial.js',
@@ -71,7 +74,7 @@ describe('page customization effect', () => {
 			mocks.pageBootstrap.settled.value = true;
 			await nextTick();
 
-			expect(appendChild).toHaveBeenCalledTimes(2);
+			expect(appendChild).toHaveBeenCalledTimes(4);
 			const scripts = Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'));
 			expect(scripts.map(script => script.getAttribute('src'))).toEqual(['/article-latest.js', '/global-latest.js']);
 			scripts.forEach(script => expect(script.async).toBe(false));

@@ -5,12 +5,6 @@ import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/interop/page-
 import { installIndexIdGlobal } from '@/interop/window-globals';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { useCorpusId } from '@/navigation/router';
-import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
-
-/** Preserve the declared order after global and page-specific customization lists are merged. */
-function sortCustomizationEntries<T extends CFCustomCssEntry | CFCustomJsEntry>(entries: T[]): T[] {
-	return [...entries].sort((left, right) => left.index - right.index);
-}
 
 export function startCustomizationInterop() {
 	// since this is persistent and runs on all pages, make sure we use the true context, not the one that pretends it's loaded.
@@ -35,7 +29,7 @@ export function startCustomizationInterop() {
 	useCustomCss(
 		computed(() => {
 			const css = context.value?.config.customCss ?? {};
-			return sortCustomizationEntries([...(css[''] ?? []), ...(pageName.value ? (css[pageName.value] ?? []) : [])]);
+			return [...(css[''] ?? []), ...(pageName.value ? (css[pageName.value] ?? []) : [])].sort((left, right) => left.index - right.index);
 		}),
 	);
 
@@ -43,7 +37,7 @@ export function startCustomizationInterop() {
 		computed(() => {
 			if (!pageBootstrap.settled.value) return [];
 			const js = context.value?.config.customJs ?? {};
-			return sortCustomizationEntries([...(js[''] ?? []), ...(pageName.value ? (js[pageName.value] ?? []) : [])]);
+			return [...(js[''] ?? []), ...(pageName.value ? (js[pageName.value] ?? []) : [])].sort((left, right) => left.index - right.index);
 		}),
 	);
 

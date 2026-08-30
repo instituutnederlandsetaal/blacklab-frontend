@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, ref } from 'vue';
 
 import { createCustomizationRegistry } from '@/customization-api/registry';
-import { customCssChangedEvent, useCustomCss, useCustomJs } from '@/interop/page-customization';
+import { customCssChangedEvent, customJsDisposeEvent, useCustomCss, useCustomJs } from '@/interop/page-customization';
 import type { CFCustomCssEntry, CFCustomJsEntry, Corpus } from '@/types/apptypes';
 
 const customizations = createCustomizationRegistry({ relations: { spans: {} } } as Corpus);
@@ -18,43 +18,18 @@ describe('page customization', () => {
 	test('inserts initial static and prepopulated content', () => {
 		const scope = effectScope();
 		scope.run(() => {
-			useCustomCss([{ index: 0, attributes: { href: '/initial.css', ref: 'stylesheet' } }]);
+			useCustomCss([{ index: 0, attributes: { href: '/initial.css', rel: 'stylesheet' } }]);
 			useCustomJs(ref([{ index: 0, attributes: { src: '/initial.js' } }]));
 		});
 
 		try {
 			expect(document.head.querySelector('link[data-page-customization-css]')?.getAttribute('href')).toBe('/initial.css');
+			expect(document.head.querySelector('link[data-page-customization-css]')?.getAttribute('rel')).toBe('stylesheet');
 			expect(document.body.querySelector('script[data-page-customization-js]')?.getAttribute('src')).toBe('/initial.js');
-		} finally {
 			scope.stop();
-		}
-	});
-
-	test('inserts once when content and enablement change in the same tick', async () => {
-		const entries = ref<CFCustomJsEntry[]>([]);
-		const scope = effectScope();
-		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
-		const appendChild = vi.spyOn(document.body, 'appendChild');
-
-		try {
-			entries.value = [{ index: 0, attributes: { src: '/enabled.js' } }];
-			customJs.enable();
-			await nextTick();
-
-			expect(appendChild).toHaveBeenCalledOnce();
-			expect(document.body.querySelector('script[data-page-customization-js]')?.getAttribute('src')).toBe('/enabled.js');
-
-			customJs.disable();
-			entries.value = [{ index: 0, attributes: { src: '/latest.js' } }];
-			await nextTick();
-			expect(document.body.querySelectorAll('script[data-page-customization-js]')).toHaveLength(0);
-
-			customJs.enable();
-			await nextTick();
-			expect(appendChild).toHaveBeenCalledTimes(2);
-			expect(document.body.querySelector('script[data-page-customization-js]')?.getAttribute('src')).toBe('/latest.js');
+			expect(document.head.querySelector('link[data-page-customization-css]')).toBeNull();
+			expect(document.body.querySelector('script[data-page-customization-js]')).toBeNull();
 		} finally {
-			appendChild.mockRestore();
 			scope.stop();
 		}
 	});
@@ -68,8 +43,8 @@ describe('page customization', () => {
 
 		try {
 			entries.value = [
-				{ index: 0, attributes: { href: '/first.css', ref: 'stylesheet' } },
-				{ index: 1, attributes: { href: '/second.css', ref: 'stylesheet' } },
+				{ index: 0, attributes: { href: '/first.css', rel: 'stylesheet' } },
+				{ index: 1, attributes: { href: '/second.css', rel: 'stylesheet' } },
 			];
 			await nextTick();
 
@@ -79,7 +54,7 @@ describe('page customization', () => {
 			links[0].dispatchEvent(new Event('load'));
 			expect(listener).not.toHaveBeenCalled();
 
-			links[1].dispatchEvent(new Event('load'));
+			links[1].dispatchEvent(new Event('error'));
 			expect(listener).toHaveBeenCalledOnce();
 		} finally {
 			window.removeEventListener(customCssChangedEvent, listener);
@@ -95,11 +70,11 @@ describe('page customization', () => {
 		window.addEventListener(customCssChangedEvent, listener);
 
 		try {
-			entries.value = [{ index: 0, attributes: { href: '/old.css', ref: 'stylesheet' } }];
+			entries.value = [{ index: 0, attributes: { href: '/old.css', rel: 'stylesheet' } }];
 			await nextTick();
 			const oldLink = document.head.querySelector<HTMLLinkElement>('link[data-page-customization-css]')!;
 
-			entries.value = [{ index: 0, attributes: { href: '/new.css', ref: 'stylesheet' } }];
+			entries.value = [{ index: 0, attributes: { href: '/new.css', rel: 'stylesheet' } }];
 			await nextTick();
 			const newLink = document.head.querySelector<HTMLLinkElement>('link[data-page-customization-css]')!;
 			listener.mockClear();
@@ -121,10 +96,9 @@ describe('page customization', () => {
 			{ index: 1, attributes: { src: '/second.js' } },
 		]);
 		const scope = effectScope();
-		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		scope.run(() => useCustomJs(entries));
 
 		try {
-			customJs.enable();
 			await nextTick();
 
 			const scripts = Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'));
@@ -139,10 +113,9 @@ describe('page customization', () => {
 	test('respects explicitly async custom scripts', async () => {
 		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/async.js', async: true } }]);
 		const scope = effectScope();
-		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		scope.run(() => useCustomJs(entries));
 
 		try {
-			customJs.enable();
 			await nextTick();
 
 			const script = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]');
@@ -157,7 +130,7 @@ describe('page customization', () => {
 	test('replaces registrations when a custom script is reloaded', async () => {
 		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/customization.js' } }]);
 		const scope = effectScope();
-		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		scope.run(() => useCustomJs(entries));
 		const first = vi.fn();
 		const second = vi.fn();
 		const replacement = vi.fn();
@@ -166,7 +139,6 @@ describe('page customization', () => {
 		let unregisterReplacement = () => {};
 
 		try {
-			customJs.enable();
 			await nextTick();
 			const oldScript = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
 			const currentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(oldScript);
@@ -201,14 +173,15 @@ describe('page customization', () => {
 	test('disposes search-form registrations with their owning custom script', async () => {
 		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/search-form.js' } }]);
 		const scope = effectScope();
-		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		scope.run(() => useCustomJs(entries));
 		const initialCount = customizations.formConfigurators.value.length;
 		let unregister = () => {};
 
 		try {
-			customJs.enable();
 			await nextTick();
 			const script = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			const disposedWhileConnected = vi.fn(() => expect(script.isConnected).toBe(true));
+			script.addEventListener(customJsDisposeEvent, disposedWhileConnected);
 			const currentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(script);
 			try {
 				unregister = customizations.registerForm(() => {});
@@ -217,8 +190,9 @@ describe('page customization', () => {
 			}
 
 			expect(customizations.formConfigurators.value).toHaveLength(initialCount + 1);
-			customJs.disable();
+			entries.value = [];
 			await nextTick();
+			expect(disposedWhileConnected).toHaveBeenCalledOnce();
 			expect(customizations.formConfigurators.value).toHaveLength(initialCount);
 
 			const afterDispose = customizations.formConfigurators.value;
@@ -233,14 +207,13 @@ describe('page customization', () => {
 	test('ignores a late registration from an async script that was already removed', async () => {
 		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/late.js', async: true } }]);
 		const scope = effectScope();
-		const customJs = scope.run(() => useCustomJs(entries, { immediate: false }))!;
+		scope.run(() => useCustomJs(entries));
 		const initialRegistrations = customizations.formConfigurators.value;
 
 		try {
-			customJs.enable();
 			await nextTick();
 			const script = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
-			customJs.disable();
+			entries.value = [];
 			await nextTick();
 
 			const currentScript = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(script);

@@ -409,7 +409,7 @@ export type CFCustomCssEntry = {
 	index: number;
 	attributes: {
 		href: string;
-		ref: 'stylesheet';
+		rel: 'stylesheet';
 		// More can exist here.
 	};
 };
