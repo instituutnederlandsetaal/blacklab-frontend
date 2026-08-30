@@ -1,4 +1,5 @@
 import type { AxiosRequestConfig } from 'axios';
+import cloneDeep from 'clone-deep';
 import { stripIndent } from 'common-tags';
 
 import {
@@ -131,7 +132,22 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 		},
 		mapQueryParams: version === '4' ? mapV5ParamsToV4 : undefined,
 	});
-	const api: BlackLabApi = {
+	const getCsv = (path: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
+		const { first: _first, number: _number, ...csvParams } = params;
+		const requestParams = requestParameters?.params;
+		return endpoint.getOrPostCancelable<Blob>(
+			path,
+			{ ...csvParams, outputformat: 'csv' },
+			{
+				...requestParameters,
+				params: requestParams instanceof URLSearchParams ? new URLSearchParams(requestParams) : cloneDeep(requestParams),
+				headers: { ...requestParameters?.headers, Accept: 'text/csv' },
+				responseType: 'blob',
+				transformResponse: data => new Blob([data], { type: 'text/plain;charset=utf-8' }),
+			},
+		);
+	};
+	return {
 		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer | BLServerV4>(paths.root(), undefined, requestParameters).then(normalizeServerInfo),
 
 		getUser: (requestParameters?: AxiosRequestConfig) =>
@@ -330,45 +346,10 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			}
 		},
 
-		getHitsCsv: (indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
-			const csvParams = Object.assign({}, params, {
-				number: undefined,
-				first: undefined,
-				outputformat: 'csv',
-			});
+		getHitsCsv: (indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) =>
+			isHitParams(params) ? getCsv(paths.hitsCsv(indexId), params, requestParameters) : rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined)),
 
-			if (!isHitParams(params)) {
-				return rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
-			} else {
-				return endpoint.getOrPostCancelable<Blob>(paths.hitsCsv(indexId), csvParams, {
-					...requestParameters,
-					headers: {
-						...(requestParameters || {}).headers,
-						Accept: 'text/csv',
-					},
-					responseType: 'blob',
-					transformResponse: (data: any) => new Blob([data], { type: 'text/plain;charset=utf-8' }),
-				});
-			}
-		},
-
-		getDocsCsv(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) {
-			const csvParams = Object.assign({}, params, {
-				number: undefined,
-				first: undefined,
-				outputformat: 'csv',
-			});
-
-			return endpoint.getOrPostCancelable<Blob>(paths.docsCsv(indexId), csvParams, {
-				...requestParameters,
-				headers: {
-					...(requestParameters || {}).headers,
-					Accept: 'text/csv',
-				},
-				responseType: 'blob',
-				transformResponse: (data: any) => new Blob([data], { type: 'text/plain;charset=utf-8' }),
-			});
-		},
+		getDocsCsv: (indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => getCsv(paths.docsCsv(indexId), params, requestParameters),
 
 		getDocs: <T extends BLDocResults | BLDocGroupResults = BLDocResults | BLDocGroupResults>(
 			indexId: string,
@@ -417,5 +398,4 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			return endpoint.getOrPostCancelable<string[]>(paths.autocompleteMetadata(indexId, metadataFieldId), { term: prefix }, requestParameters);
 		},
 	};
-	return api;
 };
