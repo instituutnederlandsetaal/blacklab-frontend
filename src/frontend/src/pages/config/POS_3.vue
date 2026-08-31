@@ -59,7 +59,6 @@ import { getMatchingHits } from '@/shared/blacklab-helpers/normalize/result-help
 import { mapReduce } from '@/shared/utils/array-utils.ts';
 
 import type { StepState } from './POS.vue';
-import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const value = 'Generate';
 const label = value;
@@ -81,9 +80,6 @@ const defaultAction = (s: StepState): StepState => {
 };
 
 const step = defineComponent({
-	components: {
-		SelectPicker,
-	},
 	emits: ['update:modelValue', 'submit'],
 	props: {
 		modelValue: { type: Object as PropType<StepState>, required: true },

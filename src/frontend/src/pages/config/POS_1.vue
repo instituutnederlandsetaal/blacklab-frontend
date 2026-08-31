@@ -58,7 +58,6 @@ const step = defineComponent({
 			}));
 		},
 	},
-	created() {},
 });
 
 export default Object.assign(step, { value, label, title, defaultAction, step });

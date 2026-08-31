@@ -24,7 +24,6 @@ import Step3 from './POS_3.vue';
 import Step4 from './POS_4.vue';
 import Step5 from './POS_5.vue';
 import Steps from './Steps.vue';
-import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export type ExclusionRule = {
 	annotationId: string;
@@ -74,7 +73,6 @@ const steps: Array<
 
 const component = defineComponent({
 	components: {
-		SelectPicker,
 		Steps,
 	},
 	props: {
@@ -166,5 +164,4 @@ const component = defineComponent({
 });
 
 export default component;
-export const step = component;
 </script>

@@ -82,9 +82,6 @@ const step = defineComponent({
 			return this.modelValue.annotations.filter(a => a.id !== this.modelValue.mainPosAnnotationId && !picked.has(a.id));
 		},
 	},
-	created() {
-		// validate that main annotation is not in list of sub annotations (may have been changed)
-	},
 });
 
 export default Object.assign(step, { value, label, title, defaultAction, step });

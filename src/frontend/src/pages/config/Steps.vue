@@ -22,22 +22,16 @@
 	</div>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
-
+<script setup lang="ts">
 import { optionText, type Option } from '@/shared/utils/options';
 
-export default defineComponent({
-	emits: ['update:modelValue'],
-	methods: {
-		optionText,
-	},
-	props: {
-		steps: { type: Array as PropType<Option[]>, required: true },
-		modelValue: { type: Number, required: true },
-	},
-});
+defineProps<{
+	steps: Option[];
+	modelValue: number;
+}>();
+defineEmits<{
+	'update:modelValue': [value: number];
+}>();
 </script>
 
 <style lang="scss" scoped>
