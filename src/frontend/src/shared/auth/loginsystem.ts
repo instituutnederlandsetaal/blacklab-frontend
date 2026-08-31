@@ -57,11 +57,7 @@ async function completeOidcLogin(userManager: UserManager): Promise<User | null>
 			user = await userManager.signinCallback();
 		} catch {}
 		// place back the url without the callback info
-		url.searchParams.delete('error');
-		url.searchParams.delete('state');
-		url.searchParams.delete('session_state');
-		url.searchParams.delete('code');
-		url.searchParams.delete('scope');
+		for (const parameter of ['error', 'state', 'session_state', 'code', 'scope']) url.searchParams.delete(parameter);
 		window.history.replaceState({}, '', url);
 	} else {
 		// check if we're already logged in
