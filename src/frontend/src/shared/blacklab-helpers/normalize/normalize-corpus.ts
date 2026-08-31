@@ -14,6 +14,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { getParallelFieldParts, PARALLEL_FIELD_SEPARATOR } from '@/shared/blacklab-helpers/parallel-helper';
 import { mapReduce } from '@/shared/utils/array-utils';
 
+/** Extract the owner prefix shared by corpus and format identifiers. */
 function getCorpusOwner(indexId: string): string | null {
 	return indexId.substring(0, indexId.indexOf(':')) || null;
 }
@@ -78,40 +79,23 @@ export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation | BLTypes.
 	}
 }
 
-function normalizeIndexBaseV4(blIndex: BLTypes.BLIndexV4, id: string): NormalizedIndexBase {
-	return {
-		description: '',
-		displayName: getCorpusIdWithoutOwner(id),
-		documentFormat: blIndex.documentFormat,
-		id,
-		indexProgress: blIndex.indexProgress || null,
-		owner: getCorpusOwner(id),
-		status: blIndex.status,
-		timeModified: blIndex.timeModified,
-		tokenCount: blIndex.tokenCount || 0,
-		documentCount: blIndex.documentCount || 0,
-	};
-}
-
-function normalizeIndexBaseV5(blIndex: BLTypes.BLIndex, id: string): NormalizedIndexBase {
-	return {
-		description: '',
-		displayName: getCorpusIdWithoutOwner(id),
-		documentFormat: blIndex.documentFormat,
-		id,
-		indexProgress: blIndex.indexProgress || null,
-		owner: getCorpusOwner(id),
-		status: blIndex.status,
-		timeModified: blIndex.timeModified,
-		tokenCount: blIndex.count.tokens || 0,
-		documentCount: blIndex.count.documents || 0,
-		docVersions: blIndex.count.docVersions,
-	};
-}
-
 /** Normalize a BlackLab v4 or v5 index summary. */
 export function normalizeIndexBase(blIndex: BLTypes.BLIndex | BLTypes.BLIndexV4, id: string): NormalizedIndexBase {
-	return BLTypes.isIndexV5(blIndex) ? normalizeIndexBaseV5(blIndex, id) : normalizeIndexBaseV4(blIndex, id);
+	const isV5 = BLTypes.isIndexV5(blIndex);
+	const count = isV5 ? blIndex.count : { tokens: blIndex.tokenCount, documents: blIndex.documentCount };
+	return {
+		description: '',
+		displayName: getCorpusIdWithoutOwner(id),
+		documentFormat: blIndex.documentFormat,
+		id,
+		indexProgress: blIndex.indexProgress || null,
+		owner: getCorpusOwner(id),
+		status: blIndex.status,
+		timeModified: blIndex.timeModified,
+		tokenCount: count.tokens || 0,
+		documentCount: count.documents || 0,
+		...(isV5 ? { docVersions: blIndex.count.docVersions } : {}),
+	};
 }
 
 export function normalizeServerInfo(server: BLTypes.BLServer | BLTypes.BLServerV4): NormalizedBlacklabServer {
@@ -251,7 +235,7 @@ function normalizeMetadataGroupsV4(blIndex: BLTypes.BLIndexMetadataV4): Normaliz
 function normalizeIndexV4(blIndex: BLTypes.BLIndexMetadataV4, relations: BLTypes.BLRelationInfo): NormalizedIndex {
 	const indexId = blIndex.indexName;
 	return {
-		...normalizeIndexBaseV4(
+		...normalizeIndexBase(
 			{
 				status: blIndex.status,
 				documentFormat: blIndex.documentFormat,
@@ -421,7 +405,7 @@ function normalizeMetadataGroupsV5(blIndex: BLTypes.BLIndexMetadata): Normalized
 function normalizeIndexV5(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.BLRelationInfo): NormalizedIndex {
 	const indexId = blIndex.corpusName;
 	return {
-		...normalizeIndexBaseV5(
+		...normalizeIndexBase(
 			{
 				status: blIndex.status,
 				documentFormat: blIndex.documentFormat,
