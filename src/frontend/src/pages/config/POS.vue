@@ -136,7 +136,10 @@ const component = defineComponent({
 		},
 	},
 	created() {
-		const savedState: null | Partial<StepState> = JSON.parse(localStorage.getItem(this.localStorageKey) || 'null');
+		let savedState: null | Partial<StepState> = null;
+		try {
+			savedState = JSON.parse(localStorage.getItem(this.localStorageKey) || 'null');
+		} catch {}
 		let valid = !!savedState;
 		if (savedState) {
 			const allAnnotations = Object.values(this.index.annotatedFields).flatMap(e => Object.keys(e.annotations));
