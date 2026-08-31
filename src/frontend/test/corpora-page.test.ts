@@ -12,6 +12,8 @@ import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import CorporaPage from '@/pages/corpora/CorporaPage.vue';
 import CorpusTable from '@/pages/corpora/CorpusTable.vue';
 import FormatsTable from '@/pages/corpora/FormatsTable.vue';
+import ModalCreateCorpus from '@/pages/corpora/ModalCreateCorpus.vue';
+import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
 import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import Modal from '@/shared/ui/Modal.vue';
 
@@ -50,7 +52,7 @@ function server(corpora: NormalizedIndexBase[]): NormalizedBlacklabServer {
 	return { corpora: Object.fromEntries(corpora.map(value => [value.id, value])), user: { canCreateIndex: true, id: 'alice', loggedIn: true } } as unknown as NormalizedBlacklabServer;
 }
 
-function deferredRequest<T>() {
+function deferredRequest<T>(cancelRejects = true) {
 	let resolve!: (value: T) => void;
 	let reject!: (cause: unknown) => void;
 	const request = new CancelableRequest<T>(
@@ -58,7 +60,7 @@ function deferredRequest<T>() {
 			resolve = resolvePromise;
 			reject = rejectPromise;
 		}),
-		vi.fn(() => reject(ApiError.CANCELLED)),
+		vi.fn(() => cancelRejects && reject(ApiError.CANCELLED)),
 	);
 	return { request, resolve, reject };
 }
@@ -261,4 +263,60 @@ test('settles sorted corpus partitions before independently loading sorted forma
 	).toEqual(['Alpha', 'Zulu']);
 	expect(tables[0].props('formats').map((value: NormalizedFormat) => value.displayName)).toEqual(['Alpha', 'Public', 'Zulu']);
 	wrapper.unmount();
+});
+
+test('keeps the latest table refreshes loading and cancels active reads on unmount', async () => {
+	const staleCorpora = deferredRequest<NormalizedIndexBase[]>(false);
+	const currentCorpora = deferredRequest<NormalizedIndexBase[]>(false);
+	const unmountedCorpora = deferredRequest<NormalizedIndexBase[]>(false);
+	const staleFormats = deferredRequest<NormalizedFormat[]>(false);
+	const currentFormats = deferredRequest<NormalizedFormat[]>(false);
+	const unmountedFormats = deferredRequest<NormalizedFormat[]>(false);
+	const wrapper = await mountPage();
+	mock.api.getCorpora.mockReturnValueOnce(staleCorpora.request).mockReturnValueOnce(currentCorpora.request).mockReturnValueOnce(unmountedCorpora.request);
+	mock.api.getFormats.mockReturnValueOnce(staleFormats.request).mockReturnValueOnce(currentFormats.request).mockReturnValueOnce(unmountedFormats.request);
+
+	privateTable(wrapper).vm.$emit('create');
+	await wrapper.vm.$nextTick();
+	const createCorpus = wrapper.getComponent(ModalCreateCorpus);
+	createCorpus.vm.$emit('create');
+	createCorpus.vm.$emit('create');
+	expect(staleCorpora.request.cancel).toHaveBeenCalledOnce();
+	staleCorpora.resolve([corpus({ id: 'alice:stale', displayName: 'Stale' })]);
+	await flushPromises();
+	expect(privateTable(wrapper).props('loading')).toBe(true);
+	expect(privateTable(wrapper).props('corpora')).toEqual([expect.objectContaining({ id: 'alice:corpus' })]);
+
+	currentCorpora.resolve([corpus({ id: 'alice:z', displayName: 'Zulu' }), corpus({ id: 'alice:a', displayName: 'Alpha' })]);
+	await flushPromises();
+	expect(privateTable(wrapper).props('loading')).toBe(false);
+	expect(
+		privateTable(wrapper)
+			.props('corpora')
+			.map((value: NormalizedIndexBase) => value.displayName),
+	).toEqual(['Alpha', 'Zulu']);
+
+	privateTable(wrapper).vm.$emit('create');
+	await wrapper.vm.$nextTick();
+	wrapper.getComponent(ModalCreateCorpus).vm.$emit('create');
+	wrapper.getComponent(FormatsTable).vm.$emit('create');
+	await wrapper.vm.$nextTick();
+	const createFormat = wrapper.getComponent(ModalCreateFormat);
+	createFormat.vm.$emit('create');
+	createFormat.vm.$emit('create');
+	expect(staleFormats.request.cancel).toHaveBeenCalledOnce();
+	staleFormats.resolve([format('alice:stale', 'Stale')]);
+	await flushPromises();
+	expect(wrapper.getComponent(FormatsTable).props('loading')).toBe(true);
+	expect(wrapper.getComponent(FormatsTable).props('formats')).toEqual([format('alice:tei', 'TEI')]);
+
+	currentFormats.reject(new Error('format refresh failed'));
+	await flushPromises();
+	expect(wrapper.getComponent(FormatsTable).props('loading')).toBe(false);
+	expect(wrapper.text()).toContain('format refresh failed');
+
+	createFormat.vm.$emit('create');
+	wrapper.unmount();
+	expect(unmountedCorpora.request.cancel).toHaveBeenCalledOnce();
+	expect(unmountedFormats.request.cancel).toHaveBeenCalledOnce();
 });

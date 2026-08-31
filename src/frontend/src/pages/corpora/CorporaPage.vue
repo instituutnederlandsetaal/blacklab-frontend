@@ -96,6 +96,8 @@ const modal = ref(''),
 	indexId = ref<string | null>(null),
 	formatId = ref<string | null>(null);
 const corpusPolls = new Map<string, CorpusPoll>();
+let corporaRequest: CancelableRequest<NormalizedIndexBase[]> | undefined;
+let formatsRequest: CancelableRequest<NormalizedFormat[]> | undefined;
 
 const publicCorpora = computed(() => corpora.value.filter(c => !c.owner));
 const publicFormats = computed(() => formats.value.filter(f => !f.owner)),
@@ -162,21 +164,47 @@ function refreshCorpus(indexId: string) {
 }
 
 function refreshCorpora() {
+	corporaRequest?.cancel();
 	loadingCorpora.value = true;
-	blacklab
-		.getCorpora()
-		.then(value => (corpora.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName))))
-		.catch((e: ApiError) => (errorMessage.value = e.message))
-		.finally(() => (loadingCorpora.value = false));
+	const request = (corporaRequest = blacklab.getCorpora());
+	request
+		.then(
+			value => {
+				if (corporaRequest === request) corpora.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName));
+			},
+			cause => {
+				if (corporaRequest !== request) return;
+				const requestError = ApiError.wrap(cause);
+				if (!requestError.isCancelledRequest) errorMessage.value = requestError.message;
+			},
+		)
+		.finally(() => {
+			if (corporaRequest !== request) return;
+			corporaRequest = undefined;
+			loadingCorpora.value = false;
+		});
 }
 
 function refreshFormats() {
+	formatsRequest?.cancel();
 	loadingFormats.value = true;
-	blacklab
-		.getFormats()
-		.then(value => (formats.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName))))
-		.catch((e: ApiError) => (errorMessage.value = e.message))
-		.finally(() => (loadingFormats.value = false));
+	const request = (formatsRequest = blacklab.getFormats());
+	request
+		.then(
+			value => {
+				if (formatsRequest === request) formats.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName));
+			},
+			cause => {
+				if (formatsRequest !== request) return;
+				const requestError = ApiError.wrap(cause);
+				if (!requestError.isCancelledRequest) errorMessage.value = requestError.message;
+			},
+		)
+		.finally(() => {
+			if (formatsRequest !== request) return;
+			formatsRequest = undefined;
+			loadingFormats.value = false;
+		});
 }
 
 function close() {
@@ -254,7 +282,14 @@ watch(
 	{ immediate: true },
 );
 
-onUnmounted(() => [...corpusPolls.keys()].forEach(stopCorpusPoll));
+onUnmounted(() => {
+	const activeCorporaRequest = corporaRequest;
+	const activeFormatsRequest = formatsRequest;
+	corporaRequest = formatsRequest = undefined;
+	activeCorporaRequest?.cancel();
+	activeFormatsRequest?.cancel();
+	[...corpusPolls.keys()].forEach(stopCorpusPoll);
+});
 
 async function bootstrap() {
 	try {
