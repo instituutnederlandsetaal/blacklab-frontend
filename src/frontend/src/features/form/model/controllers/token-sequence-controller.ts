@@ -36,6 +36,11 @@ function restoreToken(index: number, persisted: PersistedToken, config: FieldCon
 	};
 }
 
+/** Build a fresh token and child-state array for each default request. */
+function createDefaultState(config: FieldControllerProps<TokenSequenceFieldConfig>, runtime: FormRuntimeContext): TokenSequenceFieldState {
+	return Array.from({ length: tokenSequenceLengthBounds(config).defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
+}
+
 const tokenSequencePersistenceCodec = array(persistedTokenCodec)
 	.transform<TokenSequenceFieldState>({
 		encode(state, { config, runtime }) {
@@ -53,17 +58,11 @@ const tokenSequencePersistenceCodec = array(persistedTokenCodec)
 			return tokens.map((token, index) => restoreToken(index, token, config, runtime));
 		},
 	})
-	.default(({ config, runtime }) => {
-		const bounds = tokenSequenceLengthBounds(config);
-		return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
-	});
+	.default(({ config, runtime }) => createDefaultState(config, runtime));
 
 export const tokenSequenceController = defineFieldController<'token-sequence', TokenSequenceFieldDefinition>({
 	kind: 'token-sequence',
-	createDefaultState(config, runtime) {
-		const bounds = tokenSequenceLengthBounds(config);
-		return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
-	},
+	createDefaultState,
 	persistence: { key: config => config.persistKey, codec: tokenSequencePersistenceCodec },
 	outputs: ['patt'],
 	collect(config, runtime, state, emit) {
