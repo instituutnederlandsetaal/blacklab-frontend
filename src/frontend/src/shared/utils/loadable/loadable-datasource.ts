@@ -1,6 +1,4 @@
-import { computed } from 'vue';
-
-import { loadableReactive, type ControlledLoadable } from './loadable-reactive';
+import { loadableReactiveFromSnapshot, type ControlledLoadable } from './loadable-reactive';
 import { resourceLoadable, useRequestResource } from './loadable-request-resource';
 
 import type { CancelableRequest } from '@/shared/api/lib/api-types';
@@ -19,10 +17,5 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 	const resource = useRequestResource<void, T>({ mode: 'manual', request: makeRequest });
 	const loadable = resourceLoadable(resource);
 	resource.run();
-	return loadableReactive(
-		computed(() => loadable.value.state),
-		computed(() => loadable.value.value),
-		computed(() => loadable.value.error),
-		{ retry: () => resource.retry(), stop: () => resource.cancel() },
-	) as LoadableFromRequest<T>;
+	return loadableReactiveFromSnapshot(loadable, { retry: () => resource.retry(), stop: () => resource.cancel() }) as LoadableFromRequest<T>;
 }

@@ -11,6 +11,11 @@ export type RequestLike<T> = PromiseLike<T> & { cancel?: () => void };
 export interface RequestRun {
 	readonly signal: AbortSignal;
 	wait<T>(request: RequestLike<T>): Promise<T>;
+	/**
+	 * Progressive factories must call this immediately after each `await run.wait(...)`
+	 * and before mutating domain state. Pure factories that only return a final value do not need it.
+	 */
+	throwIfAborted(): void;
 }
 
 export interface RequestResourceState<T> {
@@ -64,6 +69,39 @@ interface ActiveRun<I, T> extends RequestRun {
 
 const ABORTED = Symbol('request resource aborted');
 const EMPTY_STATE: RequestResourceState<never> = { phase: 'empty', data: undefined, error: undefined, showLoading: false };
+
+/** Bind a child request to a run's abort signal and ignore any settlement after abort. */
+function waitForRequest<T>(signal: AbortSignal, request: RequestLike<T>): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		let settled = false;
+		const onAbort = () => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			try {
+				request.cancel?.();
+			} catch {}
+			reject(ABORTED);
+		};
+		const settle = (callback: () => void) => {
+			if (settled) return;
+			if (signal.aborted) return onAbort();
+			settled = true;
+			signal.removeEventListener('abort', onAbort);
+			callback();
+		};
+		if (signal.aborted) return onAbort();
+		signal.addEventListener('abort', onAbort, { once: true });
+		try {
+			request.then(
+				value => settle(() => resolve(value)),
+				error => settle(() => reject(error)),
+			);
+		} catch (error) {
+			settle(() => reject(error));
+		}
+	});
+}
 
 export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I, T>): RequestResource<I, T>;
 export function useRequestResource<I, T>(options: ReactiveRequestResourceOptions<I, T>): RequestResource<I, T>;
@@ -147,51 +185,9 @@ export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I
 			debounceTimer: undefined,
 			loadingTimer: undefined,
 			signal: controller.signal,
-			wait<R>(request: RequestLike<R>) {
-				if (controller.signal.aborted) {
-					try {
-						request.cancel?.();
-					} catch {}
-					return Promise.reject(ABORTED);
-				}
-				return new Promise<R>((resolve, reject) => {
-					let settled = false;
-					const cleanup = () => controller.signal.removeEventListener('abort', onAbort);
-					const onAbort = () => {
-						if (settled) return;
-						settled = true;
-						cleanup();
-						try {
-							request.cancel?.();
-						} catch {}
-						reject(ABORTED);
-					};
-					controller.signal.addEventListener('abort', onAbort, { once: true });
-					try {
-						request.then(
-							value => {
-								if (settled) return;
-								if (controller.signal.aborted) return onAbort();
-								settled = true;
-								cleanup();
-								resolve(value);
-							},
-							error => {
-								if (settled) return;
-								if (controller.signal.aborted) return onAbort();
-								settled = true;
-								cleanup();
-								reject(error);
-							},
-						);
-					} catch (error) {
-						if (settled) return;
-						if (controller.signal.aborted) return onAbort();
-						settled = true;
-						cleanup();
-						reject(error);
-					}
-				});
+			wait: request => waitForRequest(controller.signal, request),
+			throwIfAborted() {
+				if (controller.signal.aborted) throw ABORTED;
 			},
 		};
 		active = run;
@@ -247,31 +243,20 @@ export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I
 	};
 
 	if (options.mode === 'reactive') {
-		let hasSourceKey = false;
-		let sourceKey: unknown;
-		if (options.immediate === false) {
-			const initialInput = toValue(options.source);
-			if (initialInput != null) {
-				hasSourceKey = true;
-				sourceKey = options.key ? options.key(initialInput) : initialInput;
-			}
-		}
 		stopSource = watch(
-			() => toValue(options.source),
-			input => {
+			() => {
+				const input = toValue(options.source);
+				return [input, input == null ? undefined : options.key ? options.key(input) : input] as const;
+			},
+			([input, key], previous) => {
 				if (input == null) {
-					hasSourceKey = false;
-					sourceKey = undefined;
 					resource.reset();
 					return;
 				}
-				const key = options.key ? options.key(input) : input;
-				if (hasSourceKey && Object.is(sourceKey, key)) return;
-				hasSourceKey = true;
-				sourceKey = key;
+				if (previous?.[0] != null && Object.is(previous[1], key)) return;
 				trigger(input, false);
 			},
-			{ immediate: options.immediate ?? true },
+			{ immediate: options.immediate ?? true, flush: 'sync' },
 		);
 	}
 

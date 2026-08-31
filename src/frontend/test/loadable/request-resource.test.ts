@@ -106,19 +106,41 @@ describe('useRequestResource triggering', () => {
 		expect(request).toHaveBeenCalledTimes(2);
 	});
 
-	test('reactive mode starts immediately by default and changed source keys replace imperative runs', async () => {
+	test('reactive invalidation is synchronous so a later imperative run in the same tick wins', async () => {
 		const source = ref(1);
 		const pending = [deferred<number>(), deferred<number>(), deferred<number>()];
 		const request = vi.fn().mockReturnValueOnce(pending[0].request).mockReturnValueOnce(pending[1].request).mockReturnValueOnce(pending[2].request);
 		const resource = useRequestResource({ mode: 'reactive', source, request });
 
 		expect(request).toHaveBeenCalledWith(1, expect.anything());
-		resource.run(10);
-		expect(pending[0].cancel).toHaveBeenCalledOnce();
 		source.value = 2;
-		await nextTick();
+		expect(pending[0].cancel).toHaveBeenCalledOnce();
+		resource.run(10);
 		expect(pending[1].cancel).toHaveBeenCalledOnce();
-		expect(request.mock.calls.map(call => call[0])).toEqual([1, 10, 2]);
+		await nextTick();
+		expect(request.mock.calls.map(call => call[0])).toEqual([1, 2, 10]);
+
+		pending[1].resolve(2);
+		await flushPromises();
+		expect(resource.state.value.phase).toBe('loading');
+		pending[2].resolve(10);
+		await flushPromises();
+		expect(resource.state.value.data).toBe(10);
+	});
+
+	test('tracks in-place changes read by a semantic key and suppresses equal replacement keys', () => {
+		const source = ref({ id: 1, incidental: false });
+		const pending = [deferred<number>(), deferred<number>()];
+		const request = vi.fn().mockReturnValueOnce(pending[0].request).mockReturnValueOnce(pending[1].request);
+		useRequestResource({ mode: 'reactive', source, key: input => input.id, request });
+
+		source.value.incidental = true;
+		expect(request).toHaveBeenCalledOnce();
+		source.value.id = 2;
+		expect(request).toHaveBeenCalledTimes(2);
+		expect(pending[0].cancel).toHaveBeenCalledOnce();
+		source.value = { id: 2, incidental: false };
+		expect(request).toHaveBeenCalledTimes(2);
 	});
 
 	test('publishes Loading before debounce and retry bypasses the pending delay', () => {
@@ -205,6 +227,7 @@ describe('RequestRun and lifecycle', () => {
 			mode: 'manual',
 			request: async (_input, run: RequestRun) => {
 				const value = await run.wait(first.request);
+				run.throwIfAborted();
 				reachedSecond();
 				return value + (await run.wait(second.request));
 			},
@@ -221,21 +244,25 @@ describe('RequestRun and lifecycle', () => {
 		expect(resource.state.value.phase).toBe('empty');
 	});
 
-	test('abort suppresses continuation after an already-resolved child', async () => {
-		const continued = vi.fn();
+	test('a checkpoint blocks mutation when cancellation was queued after child fulfillment', async () => {
+		const child = deferred<number>();
+		const mutate = vi.fn();
 		const resource = useRequestResource<void, number>({
 			mode: 'manual',
 			request: async (_input, run) => {
-				await run.wait(Promise.resolve(1));
-				continued();
-				return 2;
+				const value = await run.wait(child.request);
+				run.throwIfAborted();
+				mutate();
+				return value;
 			},
 		});
 
 		resource.run();
-		resource.cancel();
+		child.resolve(1);
+		queueMicrotask(() => resource.cancel());
 		await flushPromises();
-		expect(continued).not.toHaveBeenCalled();
+		expect(mutate).not.toHaveBeenCalled();
+		expect(resource.state.value.phase).toBe('empty');
 	});
 
 	test('scope disposal cancels work and terminally blocks late publication', async () => {
@@ -260,7 +287,7 @@ describe('RequestRun and lifecycle', () => {
 		const first = deferred<number>();
 		const second = deferred<number>();
 		const request = vi.fn().mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
-		const resource = useRequestResource({ mode: 'manual', keepPrevious: true, keepPreviousOnError: true, request });
+		const resource = useRequestResource<void, number>({ mode: 'manual', keepPrevious: true, keepPreviousOnError: true, request });
 		const loadable = resourceLoadable(resource);
 		const snapshots = vi.fn<(state: RequestResourceState<number>) => void>();
 		watch(resource.state, snapshots, { flush: 'sync' });

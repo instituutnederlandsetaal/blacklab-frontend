@@ -102,7 +102,7 @@ function reactiveLoadableFromRefs<T, E extends object>(refs: WritableLoadableRef
 	return withReactiveLoadableMethods<T, LoadableLike<T> & E>(r as LoadableLike<T> & E);
 }
 
-function reactiveLoadableFromSnapshot<T, E extends object>(snapshot: Ref<LoadableLike<T>>, extra: E): ReactiveLoadable<T> & E {
+export function loadableReactiveFromSnapshot<T, E extends object>(snapshot: Readonly<Ref<LoadableLike<T>>>, extra: E): ReactiveLoadable<T> & E {
 	const r = shallowReactive({
 		...(extra as E),
 		get state() {
@@ -198,7 +198,7 @@ export function createDerivedLoadable<T>(getDependencies: () => readonly Loadabl
 
 	tryOnScopeDispose(stop);
 
-	return reactiveLoadableFromSnapshot<T, ReactiveLoadableControls>(published, {
+	return loadableReactiveFromSnapshot<T, ReactiveLoadableControls>(published, {
 		retry() {
 			forEachUniqueRetryableLoadable([...currentDependencies, currentResult], loadable => loadable.retry());
 		},
