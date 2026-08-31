@@ -85,6 +85,9 @@ type BlackLabApiSettings = EndpointSettings & {
 	blacklabVersion?: string | null;
 };
 
+type RawHitResults = BLHitResultsV4 | BLHitResultsV5 | BLHitGroupResultsV4 | BLHitGroupResults;
+type RawDocResults = BLDocResultsV4 | BLDocResultsV5 | BLDocGroupResultsV4 | BLDocGroupResults;
+
 function getMajorBlackLabVersion(version: string): '4' | '5' {
 	if (version.startsWith('4')) return '4';
 	if (version.startsWith('5')) return '5';
@@ -339,11 +342,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
 			if (!isHitParams(params)) return rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
 			const searchParams = { ...params, subcorpussize: true }; // always request this without mutating URL/store state
-			if (version === '4') {
-				return endpoint.getOrPostCancelable<BLHitResultsV4 | BLHitGroupResultsV4>(paths.hits(indexId), searchParams, requestParameters).then(r => normalizeHitResponse(r) as T);
-			} else {
-				return endpoint.getOrPostCancelable<BLHitResultsV5 | BLHitGroupResults>(paths.hits(indexId), searchParams, requestParameters).then(r => normalizeHitResponse(r) as T);
-			}
+			return endpoint.getOrPostCancelable<RawHitResults>(paths.hits(indexId), searchParams, requestParameters).then(r => normalizeHitResponse(r) as T);
 		},
 
 		getHitsCsv: (indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) =>
@@ -357,9 +356,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			requestParameters?: AxiosRequestConfig,
 		): CancelableRequest<T> => {
 			const searchParams = { ...params, subcorpussize: true }; // always request this
-			return version === '4'
-				? endpoint.getOrPostCancelable<BLDocResultsV4 | BLDocGroupResultsV4>(paths.docs(indexId), searchParams, requestParameters).then(r => normalizeDocResponse(r) as T)
-				: endpoint.getOrPostCancelable<BLDocResultsV5 | BLDocGroupResults>(paths.docs(indexId), searchParams, requestParameters).then(r => normalizeDocResponse(r) as T);
+			return endpoint.getOrPostCancelable<RawDocResults>(paths.docs(indexId), searchParams, requestParameters).then(r => normalizeDocResponse(r) as T);
 		},
 
 		/**
