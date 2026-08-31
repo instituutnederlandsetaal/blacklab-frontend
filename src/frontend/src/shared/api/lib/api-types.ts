@@ -1,5 +1,5 @@
 import type { AxiosRequestConfig, Canceler } from 'axios';
-import type { InteropObservable, Observable } from 'rxjs';
+import type { Observable } from 'rxjs';
 
 import type { CFPageConfig, NormalizedBlacklabServer, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import type {
@@ -82,7 +82,7 @@ export interface BlackLabApi {
 	getMetadataAutocomplete: ApiEndpoint<string[], [indexId: string, metadataFieldId: string, prefix: string]>;
 }
 
-export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Promise<T> {
+export class CancelableRequest<T> implements Promise<T> {
 	constructor(
 		public request: Promise<T>,
 		public cancel: Canceler,
@@ -111,10 +111,6 @@ export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Pro
 
 	public toObservable(): Observable<Loadable<T>> {
 		return toObservable(this);
-	}
-
-	[Symbol.observable]() {
-		return this.toObservable();
 	}
 }
 
