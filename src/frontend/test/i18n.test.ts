@@ -2,10 +2,11 @@
 
 import { createMockI18n } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { useI18n, useI18nManager } from '@/shared/i18n';
+import { I18nManager } from '@/shared/i18n/i18n-manager';
 
 const RAW_STATIC_EN_US_BUNDLE = `{
 	// Static installs accept the same commented JSON shape as runtime locale files.
@@ -36,6 +37,23 @@ const TemplateProbe = defineComponent({
 			<i18n-t data-testid="i18n-t" keypath="common.cancel" tag="span" scope="global" />
 		</div>
 	`,
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
+
+test('sets the fallback locale without replacing the active locale', async () => {
+	vi.useFakeTimers();
+	vi.spyOn(I18nManager as any, 'loadLocaleMessages').mockResolvedValue({ common: {} });
+	const manager = new I18nManager();
+	manager.registerLocale('en-us', 'English');
+
+	await manager.setFallbackLocale('en-us');
+
+	expect(manager.getFallbackLocale()).toBe('en-us');
+	expect(manager.getLocale()).toBe('');
 });
 
 describe('mock i18n plugin', () => {

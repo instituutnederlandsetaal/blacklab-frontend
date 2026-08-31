@@ -173,7 +173,7 @@ class I18nManager {
 				this.pendingFallbackLocaleSwitch.value = null;
 				// only activate if locale loaded successfully
 				if (this.localeStates[localeId]?.messages) {
-					this.locale.value = localeId;
+					this.fallbackLocale.value = localeId;
 				} else if (this.localeStates[localeId]?.error) {
 					console.info(`Skipping fallback locale switch to '${localeId}' due to error: ${this.localeStates[localeId].error}`);
 				}
