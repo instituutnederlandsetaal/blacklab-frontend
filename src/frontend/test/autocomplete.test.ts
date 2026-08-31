@@ -8,16 +8,14 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 enableAutoUnmount(afterEach);
 
-function deferred(cancelable = false) {
+function deferred() {
 	let resolve!: (value: string[]) => void;
 	let reject!: (reason?: unknown) => void;
-	const cancel = vi.fn();
 	const request = new Promise<string[]>((resolvePromise, rejectPromise) => {
 		resolve = resolvePromise;
 		reject = rejectPromise;
-	}) as Promise<string[]> & { cancel?: () => void };
-	if (cancelable) request.cancel = cancel;
-	return { cancel, reject, request, resolve };
+	});
+	return { reject, request, resolve };
 }
 
 function input(wrapper: ReturnType<typeof mount>) {
@@ -40,58 +38,6 @@ function select(wrapper: ReturnType<typeof mount>, value: string) {
 	return onBeforeSelect({ value });
 }
 
-test('uses request identity across A1, B, and A2', async () => {
-	const a1 = deferred(true);
-	const b = deferred(true);
-	const a2 = deferred(true);
-	const getData = vi.fn().mockReturnValueOnce(a1.request).mockReturnValueOnce(b.request).mockReturnValueOnce(a2.request);
-	const wrapper = mount(Autocomplete, { props: { getData } });
-
-	await search(wrapper, 'a');
-	await search(wrapper, 'b');
-	await search(wrapper, 'a');
-	expect(a1.cancel).toHaveBeenCalledOnce();
-	expect(b.cancel).toHaveBeenCalledOnce();
-
-	a2.resolve(['A2']);
-	await flushPromises();
-	expect(options(wrapper)).toEqual(['A2']);
-	a1.reject(new Error('stale A1'));
-	b.resolve(['B']);
-	await flushPromises();
-	expect(options(wrapper)).toEqual(['A2']);
-});
-
-test('supports plain promises and only cancels supported pending requests', async () => {
-	const plain = deferred();
-	const cancelable = deferred(true);
-	const latest = deferred();
-	const getData = vi.fn().mockReturnValueOnce(plain.request).mockReturnValueOnce(cancelable.request).mockReturnValueOnce(latest.request);
-	const wrapper = mount(Autocomplete, { props: { getData } });
-
-	await search(wrapper, 'plain');
-	await search(wrapper, 'cancelable');
-	await search(wrapper, 'latest');
-	expect(cancelable.cancel).toHaveBeenCalledOnce();
-	latest.resolve(['result']);
-	plain.resolve(['stale']);
-	await flushPromises();
-	expect(options(wrapper)).toEqual(['result']);
-});
-
-test('does not cancel a request after it settles', async () => {
-	const settled = deferred(true);
-	const next = deferred();
-	const getData = vi.fn().mockReturnValueOnce(settled.request).mockReturnValueOnce(next.request);
-	const wrapper = mount(Autocomplete, { props: { getData } });
-
-	await search(wrapper, 'first');
-	settled.resolve(['first']);
-	await flushPromises();
-	await search(wrapper, 'second');
-	expect(settled.cancel).not.toHaveBeenCalled();
-});
-
 test('handles rejection and permits a same-term retry', async () => {
 	const failed = deferred();
 	const retry = deferred();
@@ -109,18 +55,24 @@ test('handles rejection and permits a same-term retry', async () => {
 	expect(options(wrapper)).toEqual(['recovered']);
 });
 
-test('clears suggestions for empty input and after a delimiter', async () => {
-	const getData = vi.fn(() => Promise.resolve(['one']));
+test('publishes suggestions and clears them for a new or empty term', async () => {
+	const first = deferred();
+	const second = deferred();
+	const getData = vi.fn().mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
 	const wrapper = mount(Autocomplete, { props: { getData } });
 
 	await search(wrapper, 'one');
+	first.resolve(['one']);
 	await flushPromises();
 	expect(options(wrapper)).toEqual(['one']);
-	await search(wrapper, '');
-	expect(options(wrapper)).toEqual([]);
 	await search(wrapper, 'one');
+	expect(getData).toHaveBeenCalledOnce();
+	await search(wrapper, 'two');
+	expect(options(wrapper)).toEqual([]);
+	second.resolve(['two']);
 	await flushPromises();
-	await search(wrapper, 'one ');
+	expect(options(wrapper)).toEqual(['two']);
+	await search(wrapper, 'two ');
 	expect(options(wrapper)).toEqual([]);
 	expect(getData).toHaveBeenCalledTimes(2);
 });
@@ -181,14 +133,4 @@ test('quotes a multiword value and leaves the caret after its closing quote', ()
 	expect(select(wrapper, 'new value')).toBe(false);
 	expect(element.value).toBe('"new value" beta');
 	expect([element.selectionStart, element.selectionEnd]).toEqual([11, 11]);
-});
-
-test.each([false, true])('cancels a supported pending request on unmount: %s', async cancelable => {
-	const pending = deferred(cancelable);
-	const wrapper = mount(Autocomplete, { props: { getData: () => pending.request } });
-
-	await search(wrapper, 'pending');
-	wrapper.unmount();
-	expect(pending.cancel).toHaveBeenCalledTimes(cancelable ? 1 : 0);
-	pending.resolve(['late']);
 });

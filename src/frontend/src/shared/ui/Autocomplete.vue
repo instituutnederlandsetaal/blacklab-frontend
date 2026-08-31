@@ -18,19 +18,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useTemplateRef } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 
+import { useRequestResource, type RequestLike } from '@/shared/utils/loadable/loadable-request-resource';
 import type { Option } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
 
 import SelectPicker from './SelectPicker.vue';
 
-type AutocompleteRequest = PromiseLike<string[]> & { cancel?: () => void };
-
 const modelValue = defineModel<string>({ default: '' });
 const props = withDefaults(
 	defineProps<{
-		getData: (term: string) => AutocompleteRequest;
+		getData: (term: string) => RequestLike<string[]>;
 		autocomplete?: boolean;
 		useQuoteAsWordBoundary?: boolean;
 	}>(),
@@ -45,47 +44,23 @@ const emit = defineEmits<{
 	update: [value: string];
 }>();
 
-const options = ref<string[]>([]);
 const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
 const inputElement = computed(() => (autocompleteRef.value?.$el as HTMLElement | undefined)?.querySelector<HTMLInputElement>('input') ?? null);
+const request = useRequestResource<string, string[]>({ mode: 'manual', request: term => props.getData(term) });
+const options = computed(() => (request.state.value.phase === 'loaded' ? request.state.value.data : []));
 
 let lastSearchValue = '';
-let pendingRequest: AutocompleteRequest | null = null;
-
-function cancelPendingRequest() {
-	const request = pendingRequest;
-	pendingRequest = null;
-	request?.cancel?.();
-}
-onBeforeUnmount(cancelPendingRequest);
 
 function _refreshList() {
 	const input = inputElement.value;
 	if (!input) return;
 
 	const v = _getWordAroundCursor(input, false).value;
-	if (v === lastSearchValue) return;
+	if (v === lastSearchValue && (request.state.value.phase === 'loading' || request.state.value.phase === 'loaded')) return;
 
 	lastSearchValue = v;
-	cancelPendingRequest();
-	options.value = [];
-	if (!v.length) return;
-
-	const request = props.getData(v);
-	pendingRequest = request;
-	request.then(
-		suggestions => {
-			if (pendingRequest !== request) return;
-			pendingRequest = null;
-			options.value = suggestions;
-		},
-		() => {
-			if (pendingRequest !== request) return;
-			pendingRequest = null;
-			lastSearchValue = '';
-			options.value = [];
-		},
-	);
+	if (v) request.run(v);
+	else request.reset();
 }
 
 /**
