@@ -77,21 +77,6 @@ describe('Modal', () => {
 		expect(wrapper.emitted('confirm')).toHaveLength(1);
 	});
 
-	test('lets the string size override boolean sizes and supports every size', async () => {
-		const sizes = ['xs', 'sm', 'md', 'lg', 'auto', 'fullscreen'] as const;
-		const wrapper = mount(Modal, { props: { xs: true, sm: true } });
-
-		expect(wrapper.classes()).toEqual(expect.arrayContaining(['modal', 'fade', 'in', 'xs', 'sm']));
-		for (const size of sizes) {
-			await wrapper.setProps({ size });
-			expect(wrapper.classes()).toContain(size);
-			expect(sizes.filter(candidate => candidate !== size && wrapper.classes().includes(candidate))).toEqual([]);
-		}
-
-		await wrapper.setProps({ size: undefined });
-		expect(wrapper.classes()).toEqual(expect.arrayContaining(['xs', 'sm']));
-	});
-
 	test('counts simultaneous modals and keeps body state until the final unmount', () => {
 		const first = mount(Modal);
 		expect(document.body.dataset.modalCount).toBe('1');

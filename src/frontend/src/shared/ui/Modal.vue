@@ -1,5 +1,5 @@
 <template>
-	<div class="modal fade in" :class="sizeClass" tabindex="-1" role="dialog" @click.self="closeFromBackdrop">
+	<div class="modal fade in" :class="size" tabindex="-1" role="dialog" @click.self="closeFromBackdrop">
 		<div class="modal-dialog" role="document">
 			<div class="modal-content">
 				<div class="modal-header">
@@ -28,9 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue';
-
-type ModalSize = 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
+import { onBeforeUnmount } from 'vue';
 
 const props = withDefaults(
 	defineProps<{
@@ -43,13 +41,7 @@ const props = withDefaults(
 		confirmMessage?: string;
 		confirmClass?: string;
 		title?: string;
-		size?: ModalSize;
-		xs?: boolean;
-		sm?: boolean;
-		md?: boolean;
-		lg?: boolean;
-		auto?: boolean;
-		fullscreen?: boolean;
+		size?: 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
 	}>(),
 	{
 		close: true,
@@ -65,7 +57,6 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ close: []; confirm: [] }>();
-const sizeClass = computed(() => props.size || { xs: props.xs, sm: props.sm, md: props.md, lg: props.lg, auto: props.auto, fullscreen: props.fullscreen });
 
 function updateBodyModalCount(delta: 1 | -1) {
 	const count = Math.max(0, (Number.parseInt(document.body.dataset.modalCount || '0', 10) || 0) + delta);

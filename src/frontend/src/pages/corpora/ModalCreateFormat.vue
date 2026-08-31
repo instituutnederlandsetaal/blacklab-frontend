@@ -4,7 +4,7 @@
 		:closeEnabled="!uploading"
 		:confirmEnabled="!uploading && !downloading"
 		:confirmMessage="uploading ? 'Saving...' : dirty ? 'Save*' : 'Save'"
-		fullscreen
+		size="fullscreen"
 		@confirm="uploadFormat"
 		@close="emit('close')"
 	>

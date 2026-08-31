@@ -7,7 +7,7 @@
 			submit();
 			$emit('close');
 		"
-		lg
+		size="lg"
 		:close="false"
 	>
 		<div v-if="!tagset" class="alert alert-warning">

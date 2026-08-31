@@ -1,5 +1,5 @@
 <template>
-	<Modal :title="$t('history.heading')" :closeMessage="$t('history.close')" :confirm="false" @close="$emit('close')" auto>
+	<Modal :title="$t('history.heading')" :closeMessage="$t('history.close')" :confirm="false" @close="$emit('close')" size="auto">
 		<template #body>
 			<table class="table table-hover history-table">
 				<thead>
@@ -72,7 +72,7 @@
 				:confirmMessage="$t('history.clear')"
 				@confirm="clearHistory"
 				@close="clearHistoryVisible = false"
-				auto
+				size="auto"
 			>
 				{{ $t('history.clearSearchHistoryConfirmation') }}
 			</Modal>

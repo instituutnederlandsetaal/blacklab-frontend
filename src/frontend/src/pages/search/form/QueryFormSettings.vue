@@ -1,5 +1,5 @@
 <template>
-	<Modal :title="$t('setting.heading')" @close="$emit('close')" :confirm="false" :closeMessage="$t('setting.close')" xs>
+	<Modal :title="$t('setting.heading')" @close="$emit('close')" :confirm="false" :closeMessage="$t('setting.close')" size="xs">
 		<div class="form-horizontal">
 			<div class="form-group">
 				<!-- behaves as .row when in .form-horizontal so .row may be omitted -->
