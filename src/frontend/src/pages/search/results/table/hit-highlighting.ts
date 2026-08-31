@@ -27,7 +27,9 @@ const color = (key: string, i: number): TokenHighlight => ({
 });
 
 function mapCaptureList(key: string, list: BLMatchInfoList): HighlightSection[] {
-	return list.infos.map<HighlightSection>((info: UnionHelpers.Merge<BLMatchInfoList['infos'][number]>, index) => {
+	const isTargetList = list.infos.some(info => info.type === 'relation' && info.targetField === '__THIS__');
+	return list.infos.flatMap<HighlightSection>((info: UnionHelpers.Merge<BLMatchInfoList['infos'][number]>, index) => {
+		if (isTargetList && info.type === 'relation' && info.targetField !== '__THIS__') return [];
 		const common = {
 			...info,
 			isRelation: info.type === 'relation',
@@ -184,7 +186,7 @@ export function findHighlightsByTokenIndex(highlights: HighlightSection[], globa
  * This is required because BlackLab only includes the relation info at the source, not at the target.
  * But we want that info in the target as well, so we can highlight it.
  */
-export function mergeMatchInfos(data: BLHitResults): BLHitResults {
+export function mergeMatchInfos(data: BLHitResults): void {
 	// Copy relations to their target field hit, so we can later render that hit as a relation target
 	// (the matchInfo is copied there, with targetField set to the special string __THIS__)
 	data.hits.forEach(hit => {
@@ -194,60 +196,31 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
 
 	// Actually copy the matchInfos to the target field hit from the main hit matchInfos
 	function processHit(targetFieldName: string, targetHit: BLHitInOtherField, sourceHitMatchInfos: Record<string, BLMatchInfo>): BLHitInOtherField {
-		if (Object.keys(sourceHitMatchInfos).length === 0) {
-			// Nothing to merge
-			return targetHit;
-		}
-
 		/** Does the given matchInfo's targetField point to us?
 		 * If it's a list, do any of the list's elements target us?
 		 */
-		function matchInfoHasUsAsTargets([name, matchInfo]: [string, BLMatchInfo]): boolean {
+		function matchInfoHasUsAsTargets(matchInfo: BLMatchInfo): boolean {
 			if ('targetField' in matchInfo && matchInfo.targetField === targetFieldName) return true;
-			if (matchInfo.type === 'list') {
-				const infos = matchInfo.infos as BLMatchInfo[];
-				if (infos.some(l => 'targetField' in l && l.targetField === targetFieldName)) return true;
-			}
-			return false;
-		}
-
-		// Mark targetField as __THIS__ so we'll know it is us later
-		function markTargetField(matchInfo: BLMatchInfo) {
-			return 'targetField' in matchInfo ? { ...matchInfo, targetField: '__THIS__' } : matchInfo;
+			return matchInfo.type === 'list' && matchInfo.infos.some(info => info.type === 'relation' && info.targetField === targetFieldName);
 		}
 
 		// Keep only relations with us as the target field (and mark it, see above)
-		const toMerge = Object.entries(sourceHitMatchInfos)
-			.filter(matchInfoHasUsAsTargets)
-			.reduce(
-				(acc, [name, matchInfo]) => {
-					if ('infos' in matchInfo) {
-						acc[name] = {
-							...matchInfo,
-							infos: matchInfo.infos.map(markTargetField) as BLMatchInfoRelation[],
-						};
-					} else {
-						acc[name] = markTargetField(matchInfo);
-					}
-					return acc;
-				},
-				{} as Record<string, BLMatchInfo>,
-			);
+		const toMerge = Object.fromEntries(
+			Object.entries(sourceHitMatchInfos)
+				.filter(([, matchInfo]) => matchInfoHasUsAsTargets(matchInfo))
+				.map(([name, matchInfo]) => [
+					name,
+					matchInfo.type === 'list'
+						? {
+								...matchInfo,
+								infos: matchInfo.infos.map(info => (info.type === 'relation' && info.targetField === targetFieldName ? { ...info, targetField: '__THIS__' } : info)),
+							}
+						: { ...matchInfo, targetField: '__THIS__' },
+				]),
+		) as Record<string, BLMatchInfo>;
 
-		if (!targetHit.matchInfos || Object.keys(targetHit.matchInfos).length === 0) {
-			// Hit has no matchInfos of its own; just use the infos from the main hit
-			return {
-				...targetHit,
-				matchInfos: toMerge,
-			};
-		}
-
-		// Construct a new hit with matchInfos merged together
-		const newHit = { ...targetHit };
-		newHit.matchInfos = { ...toMerge, ...targetHit.matchInfos };
-		return newHit;
+		return { ...targetHit, matchInfos: { ...toMerge, ...targetHit.matchInfos } };
 	}
-	return data;
 }
 
 /**
