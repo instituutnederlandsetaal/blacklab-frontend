@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, ref, shallowRef, watch } from 'vue';
+import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
@@ -251,15 +251,16 @@ function setError(data: ApiError, isGrouped?: boolean) {
 	request.value = null;
 }
 
+function cancelRequest() {
+	const current = request.value;
+	request.value = null;
+	current?.cancel();
+}
+
 function refresh() {
 	isDirty.value = false;
 	debugLog('results', 'this is when the search should be refreshed');
-
-	if (request.value) {
-		debugLog('results', 'cancelling previous search request');
-		request.value.cancel();
-		request.value = null;
-	}
+	cancelRequest();
 
 	if (!valid.value) {
 		results.value = paginationResults.value = null;
@@ -308,11 +309,7 @@ function refresh() {
 
 function markDirty() {
 	isDirty.value = true;
-	if (request.value) {
-		debugLog('results', 'cancelling search request');
-		request.value.cancel();
-		request.value = null;
-	}
+	cancelRequest();
 	if (active) refresh();
 }
 
@@ -473,6 +470,7 @@ watch(
 	},
 	{ immediate: true },
 );
+onBeforeUnmount(cancelRequest);
 </script>
 
 <style lang="scss">

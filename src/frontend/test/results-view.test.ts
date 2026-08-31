@@ -230,14 +230,16 @@ describe('ResultsView', () => {
 		expect(mock.api.getHits).toHaveBeenCalledTimes(2);
 	});
 
-	test('does not scroll from the delayed callback or request completion after unmount', async () => {
+	test('cancels on unmount and ignores noncooperative late settlement', async () => {
 		const wrapper = mountView();
 		const pending = mock.requests[0];
 		wrapper.unmount();
+		expect(pending.request.cancel).toHaveBeenCalledOnce();
 
 		expect(() => vi.advanceTimersByTime(1500)).not.toThrow();
 		pending.resolve(result('first'));
 		await flush();
+		expect(mock.makeRows).not.toHaveBeenCalled();
 		expect(window.scroll).not.toHaveBeenCalled();
 	});
 
