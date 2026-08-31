@@ -287,12 +287,8 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 
 		postDocuments: (indexId: string, docs: File[], meta?: File[] | null, onProgress?: (percentage: number) => any, requestParameters?: AxiosRequestConfig) => {
 			const formData = new FormData();
-			for (let i = 0; i < (docs ? docs.length : 0); ++i) {
-				formData.append('data', docs[i], docs[i].name);
-			}
-			for (let i = 0; i < (meta ? meta.length : 0); ++i) {
-				formData.append('linkeddata', meta![i], meta![i].name);
-			}
+			for (const doc of docs) formData.append('data', doc, doc.name);
+			for (const file of meta ?? []) formData.append('linkeddata', file, file.name);
 
 			return endpoint.postCancelable<BLResponse>(paths.documentUpload(indexId), formData, {
 				...requestParameters,
@@ -301,9 +297,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 					'Content-Type': 'multipart/form-data',
 				},
 				onUploadProgress: (event: ProgressEvent) => {
-					if (onProgress) {
-						onProgress((event.loaded / event.total) * 100);
-					}
+					onProgress?.((event.loaded / event.total) * 100);
 				},
 			});
 		},
