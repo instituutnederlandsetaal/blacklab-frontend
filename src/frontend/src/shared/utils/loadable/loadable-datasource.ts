@@ -1,11 +1,9 @@
-import { tryOnScopeDispose } from '@vueuse/core';
-import axios from 'axios';
-import { ref } from 'vue';
+import { computed } from 'vue';
 
-import { LoadableState } from './loadable-core';
 import { loadableReactive, type ControlledLoadable } from './loadable-reactive';
+import { resourceLoadable, useRequestResource } from './loadable-request-resource';
 
-import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types';
+import type { CancelableRequest } from '@/shared/api/lib/api-types';
 
 export type LoadableFromRequest<T> = ControlledLoadable<T>;
 
@@ -18,48 +16,13 @@ export type LoadableFromRequest<T> = ControlledLoadable<T>;
  * Don't forget to call stop() after you're done with it, or the stream will keep running.
  */
 export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>): LoadableFromRequest<T> {
-	const value = ref<T>();
-	const error = ref<ApiError>();
-	const state = ref<LoadableState>(LoadableState.empty);
-
-	let r: CancelableRequest<T> | undefined;
-	function retry() {
-		const previous = r;
-		r = undefined;
-		previous?.cancel();
-		value.value = undefined;
-		error.value = undefined;
-		state.value = LoadableState.loading;
-		const localR = (r = makeRequest());
-		r.then(
-			v => {
-				if (localR !== r) return; // request cancelled or retried, ignore
-				r = undefined;
-				value.value = v;
-				state.value = LoadableState.loaded;
-			},
-			e => {
-				if (localR !== r) return; // request cancelled or retried, ignore
-				r = undefined;
-
-				if ((e instanceof ApiError && e.isCancelledRequest) || axios.isCancel(e)) {
-					state.value = LoadableState.empty;
-				} else {
-					error.value = ApiError.wrap(e);
-					state.value = LoadableState.error;
-				}
-			},
-		);
-	}
-	function stop() {
-		const active = r;
-		r = undefined;
-		active?.cancel();
-		if (state.value === LoadableState.loading) state.value = LoadableState.empty;
-	}
-
-	tryOnScopeDispose(stop);
-
-	retry(); // initial request.
-	return loadableReactive(state, value, error, { retry, stop });
+	const resource = useRequestResource<void, T>({ mode: 'manual', request: makeRequest });
+	const loadable = resourceLoadable(resource);
+	resource.run();
+	return loadableReactive(
+		computed(() => loadable.value.state),
+		computed(() => loadable.value.value),
+		computed(() => loadable.value.error),
+		{ retry: () => resource.retry(), stop: () => resource.cancel() },
+	) as LoadableFromRequest<T>;
 }
