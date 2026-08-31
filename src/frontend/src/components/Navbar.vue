@@ -63,7 +63,6 @@ const hasLogo = ref(false);
 const isScrolled = ref(false);
 const navbarElement = ref<HTMLElement>();
 const logoElement = ref<HTMLElement>();
-let configurationId = 0;
 let logoLoadController: AbortController | undefined;
 const bannerFromLocalStorage = localStorageSynced<string>('cf/banner-hidden', '', false, 24 * 7 * 3600);
 const showBanner = computed(() => !!config.value.bannerMessage && bannerFromLocalStorage.value !== config.value.bannerMessage);
@@ -175,7 +174,6 @@ function clearLogoSizing() {
 }
 
 async function configureLogoSizing() {
-	const id = ++configurationId;
 	logoLoadController?.abort();
 	logoLoadController = undefined;
 	const navbar = navbarElement.value;
@@ -191,7 +189,7 @@ async function configureLogoSizing() {
 	logoLoadController = controller;
 	try {
 		const image = await loadImage(styles.imageUrl, controller.signal);
-		if (id !== configurationId || !image.naturalWidth || !image.naturalHeight) return;
+		if (logoLoadController !== controller || !image.naturalWidth || !image.naturalHeight) return;
 
 		const natural = { width: image.naturalWidth, height: image.naturalHeight };
 		const dimensions = inferDimensions(natural, styles.dimensions);
@@ -218,8 +216,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-	configurationId++;
 	logoLoadController?.abort();
+	logoLoadController = undefined;
 	window.removeEventListener(customCssChangedEvent, configureLogoSizing);
 	window.removeEventListener('scroll', updateScrolledState);
 	removeRouterAfterEach();
