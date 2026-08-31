@@ -156,7 +156,7 @@ const withExtraInfo = computed<IndexWithExtraInfo[]>(() =>
 	props.corpora.map(corpus => {
 		let statusText: string = corpus.status;
 		if (statusText === 'indexing' && corpus.indexProgress) {
-			statusText = ` (indexing) - ${corpus.indexProgress!.filesProcessed} files, ${corpus.indexProgress!.docsDone} documents, and ${corpus.indexProgress!.tokensProcessed} tokens indexed so far...`;
+			statusText = ` (indexing) - ${corpus.indexProgress.filesProcessed} files, ${corpus.indexProgress.docsDone} documents, and ${corpus.indexProgress.tokensProcessed} tokens indexed so far...`;
 		} else {
 			statusText = corpus.status === 'available' ? '' : ` (${statusText})`;
 		}
