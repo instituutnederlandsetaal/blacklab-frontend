@@ -186,7 +186,7 @@ import * as ResultsStore from '@/features/search/model/results/view-state';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
-import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
+import type { BLHitGroupResults, BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
@@ -196,6 +196,7 @@ import { getMetadataSubset, getAnnotationSubset } from '@/shared/blacklab-helper
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import debug from '@/shared/debug/debug';
 import { useI18n } from '@/shared/i18n';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 import { findOption, optionText, type OptGroup, type Option, type Options } from '@/shared/utils/options';
 import { stableStringify } from '@/shared/utils/stable-stringify';
 
@@ -228,7 +229,6 @@ const translate = useI18n();
 const addedCriteria = ref<GroupBy[]>([]);
 const selectedCriteriumIndex = ref(0);
 const storeValueUpdateIsOurs = ref(false);
-const hits = ref<BLHitResults>();
 const active = ref(false);
 
 const storeModule = computed<ResultsStore.ViewModule>(() => ResultsStore.getOrCreateModule(type));
@@ -297,6 +297,25 @@ const firstHitPreviewQuery = computed<BLSearchParameters | undefined>(() => {
 	return params;
 });
 const firstHitPreviewQueryHash = computed(() => (active.value ? stableStringify(firstHitPreviewQuery.value) : ''));
+const firstHitPreviewInput = computed(() => {
+	const query = firstHitPreviewQuery.value;
+	return active.value && type === 'hits' && query ? { indexId: corpus.value.id!, query } : null;
+});
+const firstHitPreview = useRequestResource<{ indexId: string; query: BLSearchParameters }, BLHitResults | BLHitGroupResults>({
+	mode: 'reactive',
+	source: firstHitPreviewInput,
+	key: () => firstHitPreviewQueryHash.value,
+	async request({ indexId, query }, run) {
+		const response = await run.wait(blacklab.getHits(indexId, query));
+		run.throwIfAborted();
+		if (isHitResults(response)) mergeMatchInfos(response);
+		return response;
+	},
+});
+const hits = computed(() => {
+	const state = firstHitPreview.state.value;
+	return state.phase === 'loaded' && isHitResults(state.data) ? state.data : undefined;
+});
 const contextsize = computed(() => {
 	const params = SearchModule.get.blacklabParameters();
 	if (!isHitParams(params)) return 5;
@@ -650,22 +669,6 @@ watch(
 		addedCriteria.value = parseGroupBy(value, results ?? undefined);
 		active.value ||= addedCriteria.value.length > 0;
 		if (selectedCriteriumIndex.value >= addedCriteria.value.length) selectedCriteriumIndex.value = addedCriteria.value.length - 1;
-	},
-	{ immediate: true },
-);
-// The parameters object can change without changing the request, such as when paginating.
-watch(
-	firstHitPreviewQueryHash,
-	() => {
-		if (!active.value) return;
-		hits.value = undefined;
-		if (firstHitPreviewQuery.value && type === 'hits') {
-			blacklab.getHits(corpus.value.id!, firstHitPreviewQuery.value).request.then(response => {
-				const data = response as BLHitResults;
-				if (isHitResults(data)) mergeMatchInfos(data);
-				hits.value = data;
-			});
-		}
 	},
 	{ immediate: true },
 );

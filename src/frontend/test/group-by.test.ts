@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, shallowMount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, reactive, ref } from 'vue';
 
 import * as ResultsStore from '@/features/search/model/results/view-state';
+import type { BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
+
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
@@ -14,6 +17,7 @@ const mock = vi.hoisted(() => ({
 	api: { getHits: vi.fn() },
 	corpus: undefined as unknown,
 	customizations: undefined as unknown,
+	mergeMatchInfos: vi.fn(),
 	params: undefined as unknown,
 }));
 
@@ -24,6 +28,13 @@ vi.mock('@/features/search/model/form/filter-state', () => ({ getState: () => ({
 vi.mock('@/features/search/model/query-state', () => ({ get: { sourceField: () => 'contents' } }));
 vi.mock('@/features/search/model/results/global-results-state', () => ({ getState: () => ({ context: 5 }) }));
 vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock.api }));
+vi.mock('@/pages/search/results/table/hit-highlighting', () => ({ getHighlightColors: vi.fn(() => ({})), mergeMatchInfos: mock.mergeMatchInfos }));
+
+function deferredRequest<T>() {
+	let resolve!: (value: T) => void;
+	const request = new CancelableRequest(new Promise<T>(resolvePromise => (resolve = resolvePromise)), vi.fn());
+	return { request, resolve };
+}
 
 function mountGroupBy() {
 	return shallowMount(GroupBy, { props: { type: 'hits' } });
@@ -57,7 +68,7 @@ beforeEach(() => {
 		resultGroupMetadataLabelsVisible: vi.fn(() => true),
 		resultMetadataField: vi.fn(() => true),
 	};
-	mock.api.getHits.mockReturnValue({ request: new Promise(() => undefined) });
+	mock.api.getHits.mockImplementation(() => deferredRequest().request);
 });
 
 describe('GroupBy', () => {
@@ -132,5 +143,40 @@ describe('GroupBy', () => {
 		const calls = (mock.customizations as { groupOptionGroup: ReturnType<typeof vi.fn> }).groupOptionGroup.mock.calls;
 		expect(calls.length).toBeGreaterThan(0);
 		expect(calls[0][1]).toMatchObject({ $t: expect.any(Function), $tMetaDisplayName: expect.any(Function) });
+	});
+
+	test('owns stale, grouped, hit-only, and unmounted previews', async () => {
+		const stale = deferredRequest<BLHitResults | BLHitGroupResults>();
+		const grouped = deferredRequest<BLHitResults | BLHitGroupResults>();
+		const current = deferredRequest<BLHitResults | BLHitGroupResults>();
+		const unmounted = deferredRequest<BLHitResults | BLHitGroupResults>();
+		mock.api.getHits.mockReturnValueOnce(stale.request).mockReturnValueOnce(grouped.request).mockReturnValueOnce(current.request).mockReturnValueOnce(unmounted.request);
+		const wrapper = mountGroupBy();
+		await wrapper.find('.groupselect').trigger('click');
+		await nextTick();
+
+		(mock.params as { patt: string }).patt = '[word="grouped"]';
+		await nextTick();
+		expect(stale.request.cancel).toHaveBeenCalledOnce();
+		stale.resolve({ hits: [], docInfos: {}, summary: {} } as unknown as BLHitResults);
+		await flushPromises();
+		expect(mock.mergeMatchInfos).not.toHaveBeenCalled();
+
+		grouped.resolve({ hitGroups: [], summary: {} } as unknown as BLHitGroupResults);
+		await flushPromises();
+		expect(mock.mergeMatchInfos).not.toHaveBeenCalled();
+
+		(mock.params as { patt: string }).patt = '[word="current"]';
+		await nextTick();
+		const currentResult = { hits: [], docInfos: {}, summary: {} } as unknown as BLHitResults;
+		current.resolve(currentResult);
+		await flushPromises();
+		expect(mock.mergeMatchInfos).toHaveBeenCalledOnce();
+		expect(mock.mergeMatchInfos).toHaveBeenCalledWith(currentResult);
+
+		(mock.params as { patt: string }).patt = '[word="unmounted"]';
+		await nextTick();
+		wrapper.unmount();
+		expect(unmounted.request.cancel).toHaveBeenCalledOnce();
 	});
 });
