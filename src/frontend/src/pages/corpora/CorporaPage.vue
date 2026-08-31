@@ -68,6 +68,7 @@ import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } 
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types.ts';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
@@ -89,15 +90,18 @@ const errorMessage = ref(''),
 	confirmMessage = ref(''),
 	confirmTitle = ref('');
 const confirmAction = shallowRef<(() => void) | undefined>();
-const loadingFormats = ref(false),
-	loadingCorpora = ref(false),
+const loadingCorpusMutation = ref(false),
+	loadingFormatMutation = ref(false),
 	loadingServerInfo = ref(false);
 const modal = ref(''),
 	indexId = ref<string | null>(null),
 	formatId = ref<string | null>(null);
 const corpusPolls = new Map<string, CorpusPoll>();
-let corporaRequest: CancelableRequest<NormalizedIndexBase[]> | undefined;
-let formatsRequest: CancelableRequest<NormalizedFormat[]> | undefined;
+
+const corporaRefresh = useRequestResource<void, NormalizedIndexBase[]>({ mode: 'manual', request: () => blacklab.getCorpora() });
+const formatsRefresh = useRequestResource<void, NormalizedFormat[]>({ mode: 'manual', request: () => blacklab.getFormats() });
+const loadingCorpora = computed(() => loadingServerInfo.value || loadingCorpusMutation.value || corporaRefresh.state.value.phase === 'loading');
+const loadingFormats = computed(() => loadingServerInfo.value || loadingFormatMutation.value || formatsRefresh.state.value.phase === 'loading');
 
 const publicCorpora = computed(() => corpora.value.filter(c => !c.owner));
 const publicFormats = computed(() => formats.value.filter(f => !f.owner)),
@@ -164,47 +168,11 @@ function refreshCorpus(indexId: string) {
 }
 
 function refreshCorpora() {
-	corporaRequest?.cancel();
-	loadingCorpora.value = true;
-	const request = (corporaRequest = blacklab.getCorpora());
-	request
-		.then(
-			value => {
-				if (corporaRequest === request) corpora.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName));
-			},
-			cause => {
-				if (corporaRequest !== request) return;
-				const requestError = ApiError.wrap(cause);
-				if (!requestError.isCancelledRequest) errorMessage.value = requestError.message;
-			},
-		)
-		.finally(() => {
-			if (corporaRequest !== request) return;
-			corporaRequest = undefined;
-			loadingCorpora.value = false;
-		});
+	corporaRefresh.run();
 }
 
 function refreshFormats() {
-	formatsRequest?.cancel();
-	loadingFormats.value = true;
-	const request = (formatsRequest = blacklab.getFormats());
-	request
-		.then(
-			value => {
-				if (formatsRequest === request) formats.value = value.sort((a, b) => a.displayName.localeCompare(b.displayName));
-			},
-			cause => {
-				if (formatsRequest !== request) return;
-				const requestError = ApiError.wrap(cause);
-				if (!requestError.isCancelledRequest) errorMessage.value = requestError.message;
-			},
-		)
-		.finally(() => {
-			if (formatsRequest !== request) return;
-			formatsRequest = undefined;
-			loadingFormats.value = false;
-		});
+	formatsRefresh.run();
 }
 
 function close() {
@@ -239,7 +207,7 @@ function doDeleteCorpus(id: string) {
 	modal.value = 'confirm';
 	confirmAction.value = () => {
 		close();
-		loadingCorpora.value = true;
+		loadingCorpusMutation.value = true;
 		blacklab
 			.deleteCorpus(id)
 			.then(response => {
@@ -248,7 +216,7 @@ function doDeleteCorpus(id: string) {
 				corpora.value = corpora.value.filter(c => c.id !== id);
 			})
 			.catch((e: ApiError) => error(`Could not delete corpus "${selectedCorpus.displayName}": ${e.message}`))
-			.finally(() => (loadingCorpora.value = false));
+			.finally(() => (loadingCorpusMutation.value = false));
 	};
 }
 
@@ -260,7 +228,7 @@ function doDeleteFormat(id: string) {
 	modal.value = 'confirm';
 	confirmAction.value = () => {
 		close();
-		loadingFormats.value = true;
+		loadingFormatMutation.value = true;
 		blacklab
 			.deleteFormat(selectedFormat.id)
 			.then(response => {
@@ -268,7 +236,7 @@ function doDeleteFormat(id: string) {
 				formats.value = formats.value.filter(f => f.id !== selectedFormat.id);
 			})
 			.catch((e: ApiError) => error(`Could not delete format "${selectedFormat.displayName}": ${e.message}`))
-			.finally(() => (loadingFormats.value = false));
+			.finally(() => (loadingFormatMutation.value = false));
 	};
 }
 
@@ -282,33 +250,35 @@ watch(
 	{ immediate: true },
 );
 
-onUnmounted(() => {
-	const activeCorporaRequest = corporaRequest;
-	const activeFormatsRequest = formatsRequest;
-	corporaRequest = formatsRequest = undefined;
-	activeCorporaRequest?.cancel();
-	activeFormatsRequest?.cancel();
-	[...corpusPolls.keys()].forEach(stopCorpusPoll);
+watch(corporaRefresh.state, state => {
+	if (state.phase === 'loaded') corpora.value = state.data.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (state.phase === 'error') errorMessage.value = state.error.message;
 });
+
+watch(formatsRefresh.state, state => {
+	if (state.phase === 'loaded') formats.value = state.data.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (state.phase === 'error') errorMessage.value = state.error.message;
+});
+
+onUnmounted(() => [...corpusPolls.keys()].forEach(stopCorpusPoll));
 
 async function bootstrap() {
 	try {
-		loadingFormats.value = loadingCorpora.value = loadingServerInfo.value = true;
+		loadingServerInfo.value = true;
 		try {
 			serverInfo.value = await blacklab.getServerInfo();
 		} catch (cause) {
 			errorMessage.value = `Error loading BlackLab info: ${(cause as { message?: string }).message}`;
-			loadingCorpora.value = loadingFormats.value = loadingServerInfo.value = false;
+			loadingServerInfo.value = false;
 			return;
 		}
 
 		loadingServerInfo.value = false;
 		corpora.value = Object.values(serverInfo.value.corpora).sort((a, b) => a.displayName.localeCompare(b.displayName));
-		loadingCorpora.value = false;
 		refreshFormats();
 	} catch (cause) {
 		errorMessage.value = cause instanceof ApiError ? cause.message : 'An unknown error occurred: ' + JSON.stringify(cause);
-		loadingCorpora.value = loadingFormats.value = loadingServerInfo.value = false;
+		loadingServerInfo.value = false;
 	}
 }
 
