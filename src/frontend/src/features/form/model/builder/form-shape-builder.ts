@@ -107,19 +107,13 @@ export type BuilderContainerNode = FormContainerLikeNode & AddChildNodes;
  * definition. A node belongs to one builder for its lifetime; sharing nodes
  * within that builder is supported, but transplanting them between builders is
  * not. This ownership rule is a caller contract rather than a runtime check.
+ * Callers provide a fresh, plain context owned by the definition.
  * Treat `id`, `kind`, component/controller identity, children, and active-child
  * contributions as builder-owned and use the editor methods rather than mutating
  * them directly.
  */
 export class FormBuilder {
-	public readonly context: FormRuntimeContext;
-
-	public constructor(context: FormRuntimeContext) {
-		this.context = {
-			corpus: { ...context.corpus },
-			translate: context.translate,
-		};
-	}
+	public constructor(public readonly context: FormRuntimeContext) {}
 
 	private nodeMap: Record<string, AnyBaseFormNode> = {};
 	private root: BaseContainerNode | BaseFormNode | null = null;
@@ -412,7 +406,6 @@ export class FormBuilder {
 			removed.push(node);
 			delete this.nodeMap[node.id];
 		}
-		this.root = root;
 		return removed;
 	}
 

@@ -1,5 +1,3 @@
-import { markRaw } from 'vue';
-
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { applyRawOverrides, compileFormNode, compileFormSummary } from '@/features/form/model/compile';
 import createFormState, { createDefaultFormState } from '@/features/form/model/state';
@@ -20,7 +18,6 @@ export class FormRuntime {
 
 	public constructor(public readonly definition: FormBuilder) {
 		this.state = createFormState(createDefaultFormState(definition.context, ...definition.nodeList));
-		markRaw(this);
 	}
 
 	public renderableGraph() {

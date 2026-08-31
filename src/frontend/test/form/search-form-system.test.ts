@@ -4,7 +4,7 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { customRef, effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
+import { customRef, effectScope, isReactive, nextTick, ref, toValue, type EffectScope } from 'vue';
 
 import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import * as UIStore from '@/app/state/ui-state';
@@ -401,6 +401,7 @@ describe('search form system', () => {
 			corpus.value.value = createCorpus();
 			const initialRuntime = system.runtime.value;
 			expect(initialRuntime).not.toBeNull();
+			expect(isReactive(initialRuntime)).toBe(false);
 			expect(tagset.reads()).toBe(1);
 			expect(configurationRuns).toBe(1);
 

@@ -1,11 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
-import { isReactive, reactive } from 'vue';
+import { isReactive } from 'vue';
 
 import { createDefaultFormState, createFormFieldNode, hasEmissions, searchTarget, type QueryCombineMode } from '@/features/form';
 import { annotation, filter } from '@/features/form/model/types/form-query-ir';
 import type { ContainerNode, FormBoundaryNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
-import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, type createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -86,7 +86,7 @@ function createReusedFieldFixture(controller = testTextController) {
 }
 
 function createNonReactiveBoundaryFixture() {
-	const builder = createTestBuilder(reactive(createTestContext()));
+	const builder = createTestBuilder();
 	const createdController = { ...testTextController };
 	const root = builder.newContainer('root', ContainerRenderer, {});
 	const createdForm = builder.newForm('created.form', ContainerRenderer, { title: 'Search' });
@@ -146,16 +146,6 @@ describe('form model state', () => {
 		const registeredComponents = [...createdBoundaryNodeIds, ...adoptedBoundaryNodeIds].map(id => builder.getNode(id)?.component);
 
 		expect(registeredComponents.every(component => component != null && !isReactive(component))).toBe(true);
-	});
-
-	test('copies a reactive definition context into a non-reactive snapshot', () => {
-		const source = reactive(createTestContext());
-		const builder = createTestBuilder(source);
-
-		expect(isReactive(source)).toBe(true);
-		expect(isReactive(source.corpus)).toBe(true);
-		expect(isReactive(builder.context)).toBe(false);
-		expect(isReactive(builder.context.corpus)).toBe(false);
 	});
 
 	test('keeps mutable runtime state off the builder definition', () => {
