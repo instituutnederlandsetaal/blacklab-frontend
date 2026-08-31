@@ -87,9 +87,6 @@ export function normalizeHit(hit: RawOrNormalizedHit, docPid?: string): BLHit {
 		after: getAfter(hit),
 		before: getBefore(hit),
 		docPid: 'docPid' in hit ? hit.docPid : docPid!,
-		end: hit.end,
-		match: hit.match,
-		start: hit.start,
 		matchInfos: 'matchInfos' in hit ? hit.matchInfos : undefined,
 		otherFields: 'otherFields' in hit && hit.otherFields ? Object.fromEntries(Object.entries(hit.otherFields).map(([field, fieldHit]) => [field, normalizeHit(fieldHit, hit.docPid)])) : undefined,
 	} satisfies BLHit;
