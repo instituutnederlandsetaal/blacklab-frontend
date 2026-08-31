@@ -1,6 +1,6 @@
 <template>
 	<SelectPicker
-		v-if="enabled"
+		v-if="loginSystem.userManager || loginSystem.username"
 		class="username"
 		data-class="btn-navbar"
 		data-width="auto"
@@ -9,36 +9,19 @@
 		hideEmpty
 		placeholder="Not logged in"
 		allowUnknownValues
-		:disabled="!canLogin"
-		:modelValue="username"
-		:options
+		:disabled="!loginSystem.userManager"
+		:modelValue="loginSystem.username"
+		:options="loginSystem.userManager ? [{ label: loginSystem.username ? 'Log out' : 'Log in', value: loginSystem.username ? 'logout' : 'login' }] : []"
 		@update:modelValue="handle"
 	/>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-
 import { useLoginSystem } from '@/shared/auth/loginsystem';
-import type { Option } from '@/shared/utils/options';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const loginSystem = useLoginSystem();
-
-const username = computed(() => loginSystem.username);
-const canLogin = computed(() => !!loginSystem.userManager);
-const enabled = computed(() => canLogin.value || !!username.value);
-const options = computed<Option[]>(() => {
-	const r: Option[] = [];
-	if (canLogin.value && !username.value) {
-		r.push({ label: 'Log in', value: 'login' });
-	}
-	if (canLogin.value && username.value) {
-		r.push({ label: 'Log out', value: 'logout' });
-	}
-	return r;
-});
 
 function handle(value: string) {
 	if (value === 'login') {
