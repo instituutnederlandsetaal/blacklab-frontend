@@ -83,12 +83,10 @@ export interface BlackLabApi {
 }
 
 export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Promise<T> {
-	public request: Promise<T>;
-	public cancel: Canceler;
-	constructor(request: Promise<T>, cancel: Canceler) {
-		this.request = request;
-		this.cancel = cancel;
-	}
+	constructor(
+		public request: Promise<T>,
+		public cancel: Canceler,
+	) {}
 
 	get [Symbol.toStringTag]() {
 		return 'CancelableRequest';
@@ -121,23 +119,21 @@ export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Pro
 }
 
 export class ApiError extends Error {
-	public readonly title: string;
-	public readonly message: string;
-	/** Message representing the httpCode, like "Not Found" for 404 */
-	public readonly statusText: string;
-	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
-	public readonly httpCode: number | undefined;
 	/** Full technical details, if available, for expandable diagnostics. */
 	public readonly diagnostics: string | undefined;
 
 	public static CANCELLED = new ApiError('Request Cancelled', 'The request was cancelled by the user.', 'Cancelled', -1);
 
-	constructor(title: string, message: string, statusText: string, httpCode: number | undefined, diagnostics?: string) {
+	constructor(
+		public readonly title: string,
+		public readonly message: string,
+		/** Message representing the httpCode, like "Not Found" for 404 */
+		public readonly statusText: string,
+		/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
+		public readonly httpCode: number | undefined,
+		diagnostics?: string,
+	) {
 		super(message);
-		this.title = title;
-		this.message = message;
-		this.statusText = statusText;
-		this.httpCode = httpCode;
 		this.diagnostics = diagnostics;
 	}
 
