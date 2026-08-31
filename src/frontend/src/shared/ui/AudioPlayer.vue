@@ -11,74 +11,53 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-let activePlayer: any = null;
+type Player = { stop: () => void };
 
-const audioPlayerCache: { [key: string]: HTMLAudioElement } = {};
-export default defineComponent({
-	props: {
-		url: { type: String, required: true },
-		startTime: { type: Number, required: true },
-		endTime: { type: Number, required: true },
-	},
-	data: () => ({
-		isPlaying: false,
-	}),
-	computed: {
-		audio(): HTMLAudioElement {
-			if (audioPlayerCache[this.url]) {
-				return audioPlayerCache[this.url];
-			}
-			return (audioPlayerCache[this.url] = new Audio(this.url));
-		},
-	},
-	methods: {
-		toggle(): void {
-			if (!this.stopActive()) {
-				this.start();
-			}
-		},
-		stop(): void {
-			this.isPlaying = false;
-			this.audio.pause();
-			this.audio.removeEventListener('timeupdate', this.update);
-			this.audio.removeEventListener('ended', this.stop);
-			if (activePlayer === this) {
-				activePlayer = null;
-			}
-		},
-		start(): void {
-			this.stopActive();
-			activePlayer = this as any; // make linter happy. We need a this alias here...
-			this.isPlaying = true;
-			this.audio.addEventListener('timeupdate', this.update);
-			this.audio.addEventListener('ended', this.stop);
-			this.audio.currentTime = this.startTime;
-			this.audio.play();
-		},
-		/** @return true if the active player was this */
-		stopActive(): boolean {
-			const thisStopped = activePlayer === this;
-			if (activePlayer) {
-				activePlayer.stop();
-			}
+let activePlayer: Player | null = null;
+const audioPlayerCache: Record<string, HTMLAudioElement> = {};
+</script>
 
-			return thisStopped;
-		},
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref } from 'vue';
 
-		update(event: Event) {
-			if ((event.target as HTMLAudioElement).currentTime >= this.endTime) {
-				this.stop();
-			}
-		},
-		ended(event: Event) {
-			this.stop();
-		},
-	},
-	beforeUnmount() {
-		this.stop();
-	},
-});
+const props = defineProps<{ url: string; startTime: number; endTime: number }>();
+const isPlaying = ref(false);
+const audio = computed(() => (audioPlayerCache[props.url] ??= new Audio(props.url)));
+const player: Player = { stop };
+
+function toggle() {
+	if (!stopActive()) start();
+}
+
+function stop() {
+	isPlaying.value = false;
+	audio.value.pause();
+	audio.value.removeEventListener('timeupdate', update);
+	audio.value.removeEventListener('ended', stop);
+	if (activePlayer === player) activePlayer = null;
+}
+
+function start() {
+	stopActive();
+	activePlayer = player;
+	isPlaying.value = true;
+	audio.value.addEventListener('timeupdate', update);
+	audio.value.addEventListener('ended', stop);
+	audio.value.currentTime = props.startTime;
+	audio.value.play();
+}
+
+function stopActive() {
+	const thisStopped = activePlayer === player;
+	activePlayer?.stop();
+	return thisStopped;
+}
+
+function update(event: Event) {
+	if ((event.target as HTMLAudioElement).currentTime >= props.endTime) stop();
+}
+
+onBeforeUnmount(stop);
 </script>
 
 <style>
