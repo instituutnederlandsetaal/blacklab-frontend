@@ -41,6 +41,35 @@ function deferredRequest<T>() {
 	return { cancel, reject, request, resolve };
 }
 
+class ControlledFileReader {
+	static instances: ControlledFileReader[] = [];
+	result: string | ArrayBuffer | null = null;
+	error: DOMException | null = null;
+	onload: (() => void) | null = null;
+	onerror: (() => void) | null = null;
+	onloadend: (() => void) | null = null;
+	abort = vi.fn();
+	readAsText = vi.fn();
+
+	constructor() {
+		ControlledFileReader.instances.push(this);
+	}
+
+	load(result: string) {
+		this.result = result;
+		this.onload?.();
+	}
+
+	fail(message?: string) {
+		this.error = message ? new DOMException(message) : null;
+		this.onerror?.();
+	}
+
+	end() {
+		this.onloadend?.();
+	}
+}
+
 const format = { id: 'owner:preset', displayName: 'Preset' } as NormalizedFormat;
 const availableFormats = ['owner:preset', 'owner:replacement', 'owner:next', 'owner:unmounting', 'standalone', 'owner:broken'].map(id => ({ id, displayName: id })) as NormalizedFormat[];
 const content = (configFile: string, configFileType: string = 'json') => ({ configFile, configFileType, formatName: 'preset' }) as BLFormatContent;
@@ -67,9 +96,22 @@ function loadButton(wrapper: ReturnType<typeof mountFormat>) {
 	return wrapper.findAll('button').find(button => button.text() === 'Load')!;
 }
 
+async function chooseFile(wrapper: ReturnType<typeof mountFormat>, name: string, contents = 'contents') {
+	const input = wrapper.get<HTMLInputElement>('#format_file');
+	Object.defineProperty(input.element, 'files', { configurable: true, value: [new File([contents], name, { type: 'text/plain' })] });
+	await input.trigger('change');
+	return ControlledFileReader.instances.at(-1)!;
+}
+
+async function dropFile(wrapper: ReturnType<typeof mountFormat>, file?: File) {
+	await wrapper.get('.modal-body > div').trigger('drop', { dataTransfer: { files: file ? [file] : [] } });
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	vi.unstubAllGlobals();
+	ControlledFileReader.instances = [];
+	vi.stubGlobal('FileReader', ControlledFileReader);
 });
 
 test('loads an edited format immediately and disables saving while its request is pending', async () => {
@@ -79,6 +121,7 @@ test('loads an edited format immediately and disables saving while its request i
 
 	expect(mock.getFormatContent).toHaveBeenCalledWith('owner:preset');
 	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
+	expect(loadButton(wrapper).attributes('disabled')).toBeDefined();
 
 	pending.resolve(content('remote', 'yml'));
 	await flushPromises();
@@ -115,21 +158,11 @@ test('a completed local file read invalidates a pending download and unmount can
 	const pending = deferredRequest<BLFormatContent>();
 	mock.getFormatContent.mockReturnValue(pending.request);
 	const wrapper = mountFormat({ format });
-	vi.stubGlobal(
-		'FileReader',
-		class {
-			result = 'local file';
-			onload: null | (() => void) = null;
-			readAsText() {
-				this.onload?.();
-			}
-		},
-	);
-	const input = wrapper.get<HTMLInputElement>('#format_file');
-	Object.defineProperty(input.element, 'files', { value: [new File(['local file'], 'local.txt', { type: 'text/plain' })] });
-	await input.trigger('change');
-	await vi.waitFor(() => expect(pending.cancel).toHaveBeenCalledOnce());
+	const reader = await chooseFile(wrapper, 'local.txt', 'local file');
 	expect(pending.cancel).toHaveBeenCalledOnce();
+	reader.load('local file');
+	reader.end();
+	await wrapper.vm.$nextTick();
 	expect(wrapper.get<HTMLTextAreaElement>('[data-testid="editor"]').element).toMatchObject({ value: 'local file' });
 	expect(wrapper.get('[data-testid="editor"]').attributes('data-filename')).toBe('local.blf.json');
 
@@ -140,6 +173,96 @@ test('a completed local file read invalidates a pending download and unmount can
 	await loadButton(wrapper).trigger('click');
 	wrapper.unmount();
 	expect(unmounting.cancel).toHaveBeenCalledOnce();
+});
+
+test('a replacement file owns immediately and stale file events cannot publish or settle it', async () => {
+	const wrapper = mountFormat();
+	presetPicker(wrapper).vm.$emit('update:modelValue', 'owner:preset');
+	await wrapper.vm.$nextTick();
+	const first = await chooseFile(wrapper, 'first.json');
+
+	expect(wrapper.getComponent(Modal).props()).toMatchObject({ closeEnabled: true, confirmEnabled: false });
+	expect(loadButton(wrapper).attributes('disabled')).toBeDefined();
+	await dropFile(wrapper);
+	expect(first.abort).not.toHaveBeenCalled();
+	await dropFile(wrapper, new File(['bad'], 'bad.exe'));
+	expect(first.abort).not.toHaveBeenCalled();
+	expect(wrapper.text()).toContain('File type not supported');
+
+	const second = await chooseFile(wrapper, 'second.yaml');
+	expect(first.abort).toHaveBeenCalledOnce();
+	first.load('stale first');
+	first.fail('stale failure');
+	first.end();
+	await wrapper.vm.$nextTick();
+	expect(wrapper.get<HTMLTextAreaElement>('[data-testid="editor"]').element.value).toBe('');
+	expect(wrapper.text()).toContain('File type not supported');
+	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
+
+	second.load('second contents');
+	await wrapper.vm.$nextTick();
+	expect(wrapper.get<HTMLTextAreaElement>('[data-testid="editor"]').element).toMatchObject({ value: 'second contents' });
+	expect(wrapper.get('[data-testid="editor"]').attributes()).toMatchObject({ 'data-filename': 'second.blf.yaml', 'data-language': 'yaml' });
+	expect(wrapper.text()).not.toContain('File type not supported');
+	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
+	second.end();
+	await wrapper.vm.$nextTick();
+	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(true);
+});
+
+test('preset selection and editor input abort pending files and reject their late events', async () => {
+	const remote = deferredRequest<BLFormatContent>();
+	mock.getFormatContent.mockReturnValue(remote.request);
+	const wrapper = mountFormat();
+	const first = await chooseFile(wrapper, 'first.json');
+
+	presetPicker(wrapper).vm.$emit('update:modelValue', 'owner:replacement');
+	await wrapper.vm.$nextTick();
+	expect(first.abort).toHaveBeenCalledOnce();
+	await loadButton(wrapper).trigger('click');
+	first.load('stale file');
+	first.end();
+	await wrapper.vm.$nextTick();
+	expect(wrapper.get<HTMLTextAreaElement>('[data-testid="editor"]').element.value).toBe('');
+	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
+
+	remote.resolve(content('remote replacement'));
+	await flushPromises();
+	const second = await chooseFile(wrapper, 'second.json');
+	await wrapper.get('[data-testid="editor"]').setValue('local edit');
+	expect(second.abort).toHaveBeenCalledOnce();
+	second.load('stale second file');
+	second.end();
+	await wrapper.vm.$nextTick();
+	expect(wrapper.get<HTMLTextAreaElement>('[data-testid="editor"]').element.value).toBe('local edit');
+});
+
+test('active file errors settle on loadend and unmount aborts without accepting late events', async () => {
+	const wrapper = mountFormat();
+	const failed = await chooseFile(wrapper, 'failed.json');
+
+	failed.fail('Disk read failed');
+	await wrapper.vm.$nextTick();
+	expect(wrapper.text()).toContain('Disk read failed');
+	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
+	failed.end();
+	await wrapper.vm.$nextTick();
+	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(true);
+
+	const fallback = await chooseFile(wrapper, 'fallback.json');
+	fallback.fail();
+	await wrapper.vm.$nextTick();
+	expect(wrapper.text()).toContain('Could not read file.');
+	fallback.end();
+
+	const unmounting = await chooseFile(wrapper, 'unmounting.json');
+	wrapper.unmount();
+	expect(unmounting.abort).toHaveBeenCalledOnce();
+	expect(() => {
+		unmounting.load('too late');
+		unmounting.fail();
+		unmounting.end();
+	}).not.toThrow();
 });
 
 test('only the active download applies success or error and settles the save control', async () => {

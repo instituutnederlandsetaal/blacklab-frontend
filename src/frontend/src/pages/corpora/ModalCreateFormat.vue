@@ -87,10 +87,9 @@ import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { computed, defineAsyncComponent, onBeforeUnmount, ref } from 'vue';
 
 import type { NormalizedFormat } from '@/types/apptypes';
-import type { BLFormatContent } from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
-import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import type { ApiError } from '@/shared/api/lib/api-types';
 import type { Option, Options } from '@/shared/utils/options';
 
 import Modal from '@/shared/ui/Modal.vue';
@@ -116,7 +115,8 @@ const uploading = ref(false);
 const downloading = ref(false);
 const dirty = ref(false);
 const dragActive = ref(false);
-let downloadRequest: CancelableRequest<BLFormatContent> | null = null;
+type ContentRead = { cancel(): void };
+let contentRead: ContentRead | null = null;
 
 const formatTypes: Option[] = [
 	{ label: 'JSON', value: 'json' },
@@ -132,57 +132,73 @@ const formatOptions = computed<Options>(() => [
 	...(props.publicFormats.length ? [{ label: 'Public', options: props.publicFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) }] : []),
 ]);
 
-function cancelDownload() {
-	const request = downloadRequest;
-	downloadRequest = null;
-	request?.cancel();
-	if (request) downloading.value = false;
+function cancelContentRead() {
+	const read = contentRead;
+	contentRead = null;
+	if (read) downloading.value = false;
+	read?.cancel();
 }
 
 function replacePreset(value: string | string[] | null) {
-	cancelDownload();
+	cancelContentRead();
 	formatPresetName.value = typeof value === 'string' ? value : '';
 }
 
 function downloadFormat() {
-	cancelDownload();
+	cancelContentRead();
 	const presetName = formatPresetName.value;
 	if (!presetName) return;
 	downloading.value = true;
-	const request = (downloadRequest = blacklab.getFormatContent(presetName));
+	const request = (contentRead = blacklab.getFormatContent(presetName));
 	request
 		.then(
 			data => {
-				if (downloadRequest !== request) return;
+				if (contentRead !== request) return;
 				const configFileType = data.configFileType.toLowerCase();
 				formatLanguage.value = (configFileType === 'yml' ? 'yaml' : configFileType) as typeof formatLanguage.value;
 				formatContents.value = data.configFile;
 				if (!formatName.value) formatName.value = presetName.split(':')[1] || presetName;
 				dirty.value = false;
+				error.value = '';
 			},
 			(cause: ApiError) => {
-				if (downloadRequest === request) error.value = cause.message;
+				if (contentRead === request) error.value = cause.message;
 			},
 		)
 		.finally(() => {
-			if (downloadRequest === request) {
-				downloadRequest = null;
+			if (contentRead === request) {
+				contentRead = null;
 				downloading.value = false;
 			}
 		});
 }
 
 function markLocalEdit() {
-	cancelDownload();
+	cancelContentRead();
 	dirty.value = true;
 }
 
 function readFile(file: File, loaded: () => void) {
+	cancelContentRead();
 	const reader = new FileReader();
+	const read: ContentRead = { cancel: () => reader.abort() };
+	contentRead = read;
+	downloading.value = true;
 	reader.onload = () => {
-		markLocalEdit();
+		if (contentRead !== read) return;
 		formatContents.value = reader.result as string;
 		loaded();
+		dirty.value = true;
+		error.value = '';
+	};
+	reader.onerror = () => {
+		if (contentRead === read) error.value = reader.error?.message || 'Could not read file.';
+	};
+	reader.onloadend = () => {
+		if (contentRead === read) {
+			contentRead = null;
+			downloading.value = false;
+		}
 	};
 	reader.readAsText(file);
 }
@@ -244,7 +260,7 @@ function uploadFormat() {
 		.finally(() => (uploading.value = false));
 }
 
-onBeforeUnmount(cancelDownload);
+onBeforeUnmount(cancelContentRead);
 if (props.format) {
 	formatPresetName.value = props.format.id;
 	downloadFormat();
