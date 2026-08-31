@@ -251,13 +251,13 @@ watch(
 );
 
 watch(corporaRefresh.state, state => {
-	if (state.phase === 'loaded') corpora.value = state.data.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	else if (state.phase === 'error') errorMessage.value = state.error.message;
+	if (state.phase === 'loaded') corpora.value = state.data!.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (state.phase === 'error') errorMessage.value = state.error!.message;
 });
 
 watch(formatsRefresh.state, state => {
-	if (state.phase === 'loaded') formats.value = state.data.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	else if (state.phase === 'error') errorMessage.value = state.error.message;
+	if (state.phase === 'loaded') formats.value = state.data!.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (state.phase === 'error') errorMessage.value = state.error!.message;
 });
 
 onUnmounted(() => [...corpusPolls.keys()].forEach(stopCorpusPoll));
