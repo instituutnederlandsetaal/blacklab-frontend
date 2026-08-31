@@ -751,12 +751,7 @@ export default defineComponent({
 				return;
 			}
 
-			if (this.onBeforeSelect) {
-				const defaultPrevented = !this.onBeforeSelect(opt);
-				if (defaultPrevented) {
-					return;
-				}
-			}
+			if (this.onBeforeSelect?.(opt) === false) return;
 
 			if (this.editable) {
 				// If editable, internalModel is unused

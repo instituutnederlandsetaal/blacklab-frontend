@@ -222,3 +222,11 @@ test('retains selection veto, external setValue, and invalid-model correction se
 	await corrected.setProps({ modelValue: 'missing' });
 	expect(corrected.emitted('update:modelValue')).toEqual([[null]]);
 });
+
+test('allows selection when onBeforeSelect does not explicitly return false', async () => {
+	const wrapper = mount(SelectPicker, { props: { modelValue: null, onBeforeSelect: () => undefined, options } });
+
+	await wrapper.get('.menu-option[data-value="a"]').trigger('click');
+
+	expect(wrapper.emitted('update:modelValue')).toEqual([['a']]);
+});
