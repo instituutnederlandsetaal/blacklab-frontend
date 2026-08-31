@@ -26,37 +26,33 @@ vi.mock('@/shared/api', () => ({
 }));
 
 vi.mock('@/api/async/logic/result-count/result-count-from-query', () => ({
-	IterativeResultCountLoader: class {
-		private current = ref<TotalsOutput>();
-		private failed = ref(false);
-		continueCounting = vi.fn();
-		dispose = vi.fn();
-		isError = () => this.failed.value;
-		isLoaded = () => this.current.value != null && !this.failed.value;
-
-		get value() {
-			return this.current.value;
-		}
-		get error() {
-			return this.failed.value ? { message: 'error' } : undefined;
-		}
-
-		constructor(
-			public input: unknown,
-			public api: unknown,
-		) {
-			this.current.value = totalsOutput((input as { results: BLSearchResult }).results);
-			mock.loaders.push(this);
-		}
-
-		publish(value: TotalsOutput) {
-			this.failed.value = false;
-			this.current.value = value;
-		}
-		fail() {
-			this.current.value = undefined;
-			this.failed.value = true;
-		}
+	createIterativeResultCountLoader: (input: unknown, api: unknown) => {
+		const current = ref<TotalsOutput | undefined>(totalsOutput((input as { results: BLSearchResult }).results));
+		const failed = ref(false);
+		const loader = {
+			input,
+			api,
+			continueCounting: vi.fn(),
+			dispose: vi.fn(),
+			isError: () => failed.value,
+			isLoaded: () => current.value != null && !failed.value,
+			get value() {
+				return current.value;
+			},
+			get error() {
+				return failed.value ? { message: 'error' } : undefined;
+			},
+			publish(value: TotalsOutput) {
+				failed.value = false;
+				current.value = value;
+			},
+			fail() {
+				current.value = undefined;
+				failed.value = true;
+			},
+		};
+		mock.loaders.push(loader);
+		return loader;
 	},
 }));
 

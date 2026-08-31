@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, watch } from 'vue';
 
-import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
+import { createIterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import type * as BLTypes from '@/types/blacklabtypes';
 
@@ -80,17 +80,16 @@ const emit = defineEmits<{
 
 const blacklab = useBlackLabApi();
 const { $t } = useI18n();
-const totals = computed(
-	() =>
-		new IterativeResultCountLoader(
-			{
-				annotatedFieldId: props.annotatedFieldId,
-				indexId: props.indexId,
-				operation: props.type,
-				results: props.initialResults,
-			},
-			blacklab,
-		),
+const totals = computed(() =>
+	createIterativeResultCountLoader(
+		{
+			annotatedFieldId: props.annotatedFieldId,
+			indexId: props.indexId,
+			operation: props.type,
+			results: props.initialResults,
+		},
+		blacklab,
+	),
 );
 
 const value = computed<TotalsOutput | undefined>(() => (totals.value.isLoaded() ? totals.value.value : undefined));

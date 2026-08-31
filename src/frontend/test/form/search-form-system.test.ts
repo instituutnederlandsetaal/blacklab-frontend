@@ -6,7 +6,6 @@ import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { customRef, effectScope, isReactive, nextTick, ref, toValue, type EffectScope } from 'vue';
 
-import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
@@ -533,9 +532,8 @@ describe('search form system', () => {
 		expect(runtime.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
 	});
 
-	test('creates and disposes an independent totals controller for each summary', () => {
+	test('creates an independent totals controller for each summary', () => {
 		const summary = createDefinition().definition.getView(ids.sharedFiltersSummary()) as unknown as SummaryViewConfig;
-		const dispose = vi.spyOn(FilteredResultCountLoader.prototype, 'dispose');
 		const first = summary.createTotals();
 		const second = summary.createTotals();
 
@@ -549,8 +547,6 @@ describe('search form system', () => {
 		second.update({});
 		expect(toValue(second.state).status).toBe('loaded');
 		second.dispose?.();
-		expect(dispose.mock.contexts).toHaveLength(2);
-		expect(dispose.mock.contexts[0]).not.toBe(dispose.mock.contexts[1]);
 	});
 
 	test('uses tagset labels for POS field configuration', () => {

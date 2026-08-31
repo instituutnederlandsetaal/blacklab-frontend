@@ -1,3 +1,3 @@
-import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
+import { createFilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 
-export let selectedSubcorpusLoader = new FilteredResultCountLoader();
+export let selectedSubcorpusLoader = createFilteredResultCountLoader();

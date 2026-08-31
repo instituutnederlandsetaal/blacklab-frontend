@@ -6,11 +6,11 @@ import { describe, expect, test } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
-import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
+import { createInteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
 
-describe('InteractiveLoadable Vue template interop', () => {
+describe('createInteractiveLoadable Vue template interop', () => {
 	test('renders .value from a component template', async () => {
-		const loadable = new InteractiveLoadable<number, string>(input$ => input$.pipe(map(value => Loadable.Loaded(`value:${value}`))), { debounce: 0 });
+		const loadable = createInteractiveLoadable<number, string>(input$ => input$.pipe(map(value => Loadable.Loaded(`value:${value}`))), 0);
 
 		const wrapper = mount(
 			defineComponent({

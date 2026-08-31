@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { watch } from 'vue';
 
-import { IterativeResultCountLoader, type TotalsInput } from '@/api/async/logic/result-count/result-count-from-query';
+import { createIterativeResultCountLoader, type TotalsInput } from '@/api/async/logic/result-count/result-count-from-query';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
 import { ApiError, type BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';
@@ -81,14 +81,14 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe('IterativeResultCountLoader', () => {
+describe('createIterativeResultCountLoader', () => {
 	test('uses one polling pipeline and publishes every intermediate response through the terminal response', async () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
 		const initial = result('counting', 1);
 		const intermediate = result('counting', 2);
 		const finished = result('finished', 3);
-		const loader = new IterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 1000 });
+		const loader = createIterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 1000 });
 		const updates: BLSearchResult[] = [];
 		const stop = watch(
 			() => loader.value,
@@ -127,7 +127,7 @@ describe('IterativeResultCountLoader', () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
 		const intermediate = result('counting', 2);
-		const loader = new IterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
+		const loader = createIterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
 
 		await vi.advanceTimersByTimeAsync(100);
 		harness.hitRequests[0].resolve(intermediate);
@@ -151,7 +151,7 @@ describe('IterativeResultCountLoader', () => {
 		const harness = apiHarness();
 		const intermediate = result('counting', 2);
 		const resumed = result('counting', 3);
-		const loader = new IterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
+		const loader = createIterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
 
 		await vi.advanceTimersByTimeAsync(100);
 		harness.hitRequests[0].resolve(intermediate);
@@ -184,7 +184,7 @@ describe('IterativeResultCountLoader', () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
 		const initial = result(state, 3);
-		const loader = new IterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 250 });
+		const loader = createIterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 250 });
 
 		expect(loader.value?.results).toBe(initial);
 		expect(loader.value?.state).toBe(state);
@@ -199,7 +199,7 @@ describe('IterativeResultCountLoader', () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
 		const initial = result('counting', 1);
-		const loader = new IterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 1000 });
+		const loader = createIterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 1000 });
 		const error = new ApiError('Failed', 'Could not count', 'Server error', 500);
 
 		await vi.advanceTimersByTimeAsync(100);
@@ -227,7 +227,7 @@ describe('IterativeResultCountLoader', () => {
 	test('switching and disposal cancel superseded timers and requests', async () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
-		const loader = new IterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 1000 });
+		const loader = createIterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 1000 });
 
 		await vi.advanceTimersByTimeAsync(50);
 		loader.next(input(result('counting', 2)));
@@ -250,7 +250,7 @@ describe('IterativeResultCountLoader', () => {
 	test('polls the document endpoint for document totals', async () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
-		const loader = new IterativeResultCountLoader(input(result('counting', 1), 'docs'), harness.api, { intervalMs: 100 });
+		const loader = createIterativeResultCountLoader(input(result('counting', 1), 'docs'), harness.api, { intervalMs: 100 });
 
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getDocs).toHaveBeenCalledOnce();

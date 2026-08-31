@@ -1,6 +1,6 @@
 import { computed, shallowRef, watchEffect, type ObjectPlugin, type Ref, type ShallowRef } from 'vue';
 
-import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
+import { createFilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import type { SearchPatternMode } from '@/customization-api/external/external-api';
 import { createSearchFormCustomizationApi } from '@/customization-api/external/search-form-customization-api';
 import type { Customizations } from '@/customization-api/internal/internal-api';
@@ -56,7 +56,7 @@ import SummaryView from '@/features/form/views/SummaryView.vue';
 const EXPLORE_NGRAM_MAX_SIZE = 5;
 
 function createSearchFormTotals(corpus: Corpus, blacklab: BlackLabApi): SummaryTotalsController {
-	const loader = new FilteredResultCountLoader();
+	const loader = createFilteredResultCountLoader();
 	const state = computed<SummaryTotalsState>(() => {
 		if (loader.isError()) return { status: 'error', message: loader.error?.message ?? 'Could not load result totals.' };
 		if (!loader.isLoaded()) return { status: 'loading' };

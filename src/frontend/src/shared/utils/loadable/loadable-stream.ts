@@ -22,15 +22,15 @@
 
 import { tryOnScopeDispose } from '@vueuse/core';
 import type { Canceler } from 'axios';
-import type { ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
-import { combineLatest, distinctUntilChanged, EMPTY, map, Observable, of, startWith, Subject, switchMap, takeUntil, timer } from 'rxjs';
-import { markRaw, shallowRef } from 'vue';
+import type { ObservableInput, ObservedValueOf, OperatorFunction } from 'rxjs';
+import { combineLatest, distinctUntilChanged, map, Observable, of, Subject, switchMap, timer } from 'rxjs';
+import { shallowRef } from 'vue';
 
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 
 import { combine, combineOptional } from './loadable-combine';
 import type { Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable-core';
-import { isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable-core';
+import { isError, isLoaded, isLoading, Loadable } from './loadable-core';
 import { loadableReactiveFromSnapshot } from './loadable-reactive';
 
 import { ApiError } from '@/shared/api/lib/api-types';
@@ -123,151 +123,27 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[] | Record
 	return Loadable.wrap(combineOptional(t)) as Loadable<{ [K in keyof T]: ValEmpty<T[K]> }>;
 }
 
-type InteractiveLoadableSettings<TInput> = {
-	/** How long old value is preserved when waiting for new values (in ms). < 0 means never. Defaults to -1 */
-	delayClear: number;
-	/** Debounce inputs (in ms). <= 0 disables debouncing. Defaults to 1000. */
-	debounce: number | ((input: TInput) => number);
-	/** Whether the last good value should be removed on errors. Defaults to true. */
-	clearOnError: boolean;
-};
-const defaultInteractiveLoadableSettings: InteractiveLoadableSettings<any> = {
-	delayClear: -1,
-	/** Debounce inputs (in ms). <= 0 disables debouncing. Defaults to 1000. */
-	debounce: 1000,
-	/** Whether the last good value should be removed on errors. Defaults to true. */
-	clearOnError: true,
-};
+type InputDebounce<T> = number | ((input: T) => number);
 
-/**
- * A class that behaves like a Loadable, but has a next() function that can be called to trigger the loading of a new value.
- * This can be useful when you don't want to use an Observable.
- * For example, in a Vue component:
- *
- * ```html
- * <div>
- * 	<div v-if="loadable.isLoading()">Loading...</div>
- * 	<div v-if="loadable.isLoaded()">Value: {{ loadable.value }}</div>
- * 	<div v-if="loadable.isError()">Error: {{ loadable.error }}</div>
- * </div>
- * ```
- * ```typescript
- * import { InteractiveLoadable } from '@/utils/loadable-stream';
- * export default {
- * 	data: () => ({
- * 		loadable: new InteractiveLoadable(map(i => Loaded(i + 1)))
- * 	}),
- * 	mounted() {
- * 		this.loadable.next(1);
- * 	},
- * 	beforeUnmount() {
- * 		this.loadable.dispose();
- * 	}
- * };
- * ```
- */
-// eslint-disable-next-line no-unsafe-declaration-merging no-unused-vars
-export interface InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {}
-export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
-	private readonly i$: Subject<TInput> = markRaw(new Subject());
-	private readonly unsubs: Subscription[] = markRaw([]);
-	private readonly retry$ = markRaw(new Subject<void>());
-
-	private readonly refs = markRaw({
-		state: shallowRef(LoadableState.empty),
-		value: shallowRef<TOutput | undefined>(undefined),
-		error: shallowRef<ApiError | undefined>(undefined),
+export function createInteractiveLoadable<TInput, TOutput>(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>, debounce: InputDebounce<TInput>) {
+	const i$ = new Subject<TInput>();
+	const snapshot = shallowRef<Loadable<TOutput>>(Loadable.Empty());
+	const input$ = i$.pipe(
+		switchMap(input => {
+			const delay = typeof debounce === 'function' ? debounce(input) : debounce;
+			return delay > 0 ? timer(delay).pipe(map(() => input)) : of(input);
+		}),
+	);
+	const subscription = processInput(input$).subscribe({
+		next: value => (snapshot.value = value),
+		error: error => (snapshot.value = Loadable.LoadingError(ApiError.wrap(error))),
+		complete: () => (snapshot.value = Loadable.Empty()),
 	});
-
-	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>, settings?: Partial<InteractiveLoadableSettings<TInput>>) {
-		const { debounce, delayClear, clearOnError } = {
-			...defaultInteractiveLoadableSettings,
-			...settings,
-		};
-
-		const debouncedInput$ =
-			typeof debounce === 'function'
-				? this.i$.pipe(
-						switchMap(input => {
-							const delay = debounce(input);
-							return delay > 0 ? timer(delay).pipe(map(() => input)) : of(input);
-						}),
-					)
-				: debounce > 0
-					? this.i$.pipe(switchMap(input => timer(debounce).pipe(map(() => input))))
-					: this.i$;
-
-		const inputWithRetry$ = debouncedInput$.pipe(repeatLatestWhen(this.retry$));
-
-		const o$: Observable<Loadable<TOutput>> = processInput(inputWithRetry$);
-
-		const clear$ = this.i$.pipe(
-			switchMap(() =>
-				// every time an input comes in:
-				(delayClear < 0
-					? EMPTY // if we don't want to clear, no event is emitted
-					: delayClear > 0
-						? timer(delayClear) // if we have a delay, emit an event after the delay
-						: of(0)
-				) // if clear === 0, emit an event immediately
-					.pipe(takeUntil(o$)),
-			), // swallow the event if the output emits something (assuming that's the new value for the inpout)
-		);
-
-		this.unsubs.push(clear$.subscribe(() => (this.value = this.error = undefined)));
-		this.unsubs.push(
-			o$.subscribe({
-				next: v => {
-					this.state = v.state;
-					if (!isLoading(v)) this.value = v.value;
-					this.error = v.error;
-				},
-				error: e => {
-					this.state = LoadableState.error;
-					if (clearOnError) this.value = undefined;
-					this.error = new ApiError(e?.title || 'Unknown error', e?.message || 'Unknown error', e?.statusText || 'Unknown error', e?.httpCode ?? 0);
-				},
-				complete: () => {
-					this.state = LoadableState.empty;
-					this.value = undefined;
-					this.error = undefined;
-				},
-			}),
-		);
-	}
-	public next(i: TInput) {
-		this.i$.next(i);
-	}
-
-	public retry() {
-		this.retry$.next();
-	}
-
-	public dispose() {
-		this.unsubs.forEach(s => s.unsubscribe());
-		this.unsubs.splice(0);
-	}
-	public get state() {
-		return this.refs.state.value;
-	}
-	public set state(v: LoadableState) {
-		this.refs.state.value = v;
-	}
-	public get value() {
-		return this.refs.value.value;
-	}
-	public set value(v: TOutput | undefined) {
-		this.refs.value.value = v;
-	}
-	public get error() {
-		return this.refs.error.value;
-	}
-	public set error(v: ApiError | undefined) {
-		this.refs.error.value = v;
-	}
+	return loadableReactiveFromSnapshot(snapshot, {
+		next: (input: TInput) => i$.next(input),
+		dispose: () => subscription.unsubscribe(),
+	});
 }
-
-Object.assign(InteractiveLoadable.prototype, Loadable.loadableMethods);
 
 /**
  * Return a reactive Loadable that mirrors a stream and unsubscribes with the current Vue scope.
@@ -349,10 +225,4 @@ export function combineLoadableStreamsIncludingEmpty<T extends Record<string, Ob
 ): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
 export function combineLoadableStreamsIncludingEmpty(streams: ObservableInput<any>[] | Record<string, ObservableInput<any>>): Observable<Loadable<any>> {
 	return combineLoadableStreamsImpl(combineLoadablesIncludingEmpty, streams);
-}
-/**
- * Util: repeat last output when notifier$ emits anything.
- */
-function repeatLatestWhen<T>(notifier$: Observable<any>) {
-	return (source: Observable<T>) => combineLatest([source, notifier$.pipe(startWith(null))]).pipe(map(([val]) => val));
 }

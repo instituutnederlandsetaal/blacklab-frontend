@@ -1,4 +1,4 @@
-import { EMPTY, map, Observable, of, Subject } from 'rxjs';
+import { EMPTY, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, effectScope, nextTick } from 'vue';
 
@@ -11,7 +11,7 @@ import {
 	mapLoaded,
 	switchMapLoaded,
 	loadableFromStream,
-	InteractiveLoadable,
+	createInteractiveLoadable,
 	combineLoadableStreams,
 	combineLoadableStreamsIncludingEmpty,
 } from '@/shared/utils/loadable/loadable-stream';
@@ -334,83 +334,74 @@ describe('loadableFromStream', () => {
 	});
 });
 
-describe('InteractiveLoadable', () => {
+describe('createInteractiveLoadable', () => {
 	afterEach(() => {
 		vi.useRealTimers();
 	});
 
-	test('supports per-input debounce', async () => {
+	test('cancels a pending per-input debounce when a newer input arrives', async () => {
 		vi.useFakeTimers();
-		const loadable = new InteractiveLoadable<number, number>(input$ => input$.pipe(map(value => Loadable.Loaded(value))), { debounce: value => (value < 0 ? 20 : 0) });
+		const loadable = createInteractiveLoadable<number, number>(
+			input$ => input$.pipe(map(value => Loadable.Loaded(value))),
+			value => (value < 0 ? 20 : 0),
+		);
 
 		loadable.next(1);
-		expect(Loadable.isLoadable(loadable)).toBe(true);
-		expect(loadable.isLoaded()).toBe(true);
-		expect(loadable.value).toBe(1);
-		expect(Loadable.map(loadable, value => value + 1)).toEqual(Loadable.Loaded(2));
-
 		loadable.next(-1);
-		expect(loadable.isLoaded()).toBe(true);
-		expect(loadable.value).toBe(1);
+		await vi.advanceTimersByTimeAsync(10);
+		loadable.next(-2);
+		expect(loadable.isLoaded() && loadable.value).toBe(1);
 
 		await vi.advanceTimersByTimeAsync(20);
-		expect(loadable.isLoaded()).toBe(true);
-		expect(loadable.value).toBe(-1);
+		expect(loadable.isLoaded() && loadable.value).toBe(-2);
 
 		loadable.dispose();
 	});
 
-	test('stores emitted errors and retries the latest input', () => {
-		let fail = true;
-		const emittedError = new ApiError('Failed', 'Try again', 'Server error', 500);
-		const loadable = new InteractiveLoadable<number, number>(input$ => input$.pipe(map(value => (fail ? Loadable.LoadingError(emittedError) : Loadable.Loaded(value)))), { debounce: 0 });
-
-		loadable.next(7);
-		expect(loadable.isError()).toBe(true);
-		expect(loadable.error).toBe(emittedError);
-
-		fail = false;
-		loadable.retry();
-		expect(loadable.isLoaded()).toBe(true);
-		expect(loadable.value).toBe(7);
-		expect(loadable.error).toBeUndefined();
-
-		loadable.dispose();
-	});
-
-	test('preserves old values while loading but clears them on emitted errors', () => {
+	test('publishes exactly one emitted state and wraps raw errors', () => {
 		const output$ = new Subject<Loadable<number>>();
-		const loadable = new InteractiveLoadable<number, number>(() => output$, { clearOnError: false, debounce: 0 });
+		const loadable = createInteractiveLoadable<number, number>(() => output$, 0);
 		const emittedError = new ApiError('Failed', 'Try again', 'Server error', 500);
 
 		output$.next(Loadable.Loaded(1));
 		output$.next(Loadable.Loading());
-		expect(loadable.isLoading()).toBe(true);
-		expect(loadable.value).toBe(1);
+		expect(loadable).toMatchObject({ state: LoadableState.loading, value: undefined, error: undefined });
 
 		output$.next(Loadable.LoadingError(emittedError));
-		expect(loadable.isError()).toBe(true);
-		expect(loadable.value).toBeUndefined();
-		expect(loadable.error).toBe(emittedError);
+		expect(loadable).toMatchObject({ state: LoadableState.error, value: undefined, error: emittedError });
+
+		output$.error(new Error('raw failure'));
+		expect(loadable.isError() && loadable.error).toMatchObject({ message: 'raw failure' });
 
 		loadable.dispose();
 	});
 
-	test.each([
-		{ clearOnError: false, expectedValue: 1 },
-		{ clearOnError: true, expectedValue: undefined },
-	])('applies clearOnError=$clearOnError to raw observable errors', ({ clearOnError, expectedValue }) => {
+	test('clears on completion and stops pending work and late publication when disposed', async () => {
+		vi.useFakeTimers();
 		const output$ = new Subject<Loadable<number>>();
-		const loadable = new InteractiveLoadable<number, number>(() => output$, { clearOnError, debounce: 0 });
-		const rawError = new ApiError('Failed', 'Try again', 'Server error', 500);
+		const processed = vi.fn();
+		const loadable = createInteractiveLoadable<number, number>(
+			input$ =>
+				input$.pipe(
+					map(processed),
+					switchMap(() => output$),
+				),
+			20,
+		);
 
-		output$.next(Loadable.Loaded(1));
-		output$.error(rawError);
-		expect(loadable.isError()).toBe(true);
-		expect(loadable.value).toBe(expectedValue);
-		expect(loadable.error).toEqual(rawError);
-
+		loadable.next(1);
 		loadable.dispose();
+		await vi.advanceTimersByTimeAsync(20);
+		expect(processed).not.toHaveBeenCalled();
+		output$.next(Loadable.Loaded(2));
+		expect(loadable.isEmpty()).toBe(true);
+
+		const completing$ = new Subject<Loadable<number>>();
+		const completing = createInteractiveLoadable<number, number>(() => completing$, 0);
+		completing$.next(Loadable.Loaded(1));
+		completing$.complete();
+		expect(completing.isEmpty()).toBe(true);
+		completing.dispose();
 	});
 });
 
