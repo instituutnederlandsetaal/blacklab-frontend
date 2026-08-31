@@ -57,12 +57,14 @@ import { serializeExclusionClause } from './pos-exclusions';
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { getMatchingHits } from '@/shared/blacklab-helpers/normalize/result-helpers.ts';
 import { mapReduce } from '@/shared/utils/array-utils.ts';
+import { useRequestResource, type RequestRun } from '@/shared/utils/loadable/loadable-request-resource.ts';
 
 import type { StepState } from './POS.vue';
 
 const value = 'Generate';
 const label = value;
 const title = 'Check all combinations with BlackLab to see which occur in the corpus';
+type Workflow = (run: RequestRun) => Promise<void>;
 
 const defaultAction = (s: StepState): StepState => {
 	// check if all are loaded.
@@ -84,16 +86,25 @@ const step = defineComponent({
 	props: {
 		modelValue: { type: Object as PropType<StepState>, required: true },
 	},
+	setup() {
+		const blacklab = useBlackLabApi();
+		const workflow = useRequestResource<Workflow, void>({
+			mode: 'manual',
+			request: (execute, run) => execute(run),
+		});
+		return { blacklab, runWorkflow: workflow.run, workflowState: workflow.state };
+	},
 	data: () => ({
 		title,
 		currentStep: '',
 
 		v: {} as StepState['step3'],
 		activeValue: null as null | string,
-		stop: false,
-		loading: true,
 	}),
 	computed: {
+		loading(): boolean {
+			return this.workflowState.phase === 'loading';
+		},
 		main(): NormalizedAnnotation {
 			return this.modelValue.annotations.find(a => a.id === this.modelValue.mainPosAnnotationId)!;
 		},
@@ -126,25 +137,20 @@ const step = defineComponent({
 	},
 	methods: {
 		reset() {
-			if (this.loading) {
-				this.stop = true;
-				return;
-			}
-			this.stop = false;
 			this.v = {};
 			this.activeValue = null;
-			this.loading = true;
 			this.currentStep = '';
 			this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
 			this.getCombinations();
 		},
-		async getValues() {
+		async getValues(run: RequestRun) {
 			const numAnnotations = this.subs.length + 1;
 			this.currentStep = `[0/${numAnnotations}] Getting available options for annotations...`;
 
 			if (!this.v.main) {
 				// skip if already loaded
-				const mainPosValues = await useBlackLabApi().getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100);
+				const mainPosValues = await run.wait(this.blacklab.getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100));
+				run.throwIfAborted();
 
 				const values = Object.keys(mainPosValues.termFreq).filter(v => !!v.trim());
 				this.v.main = mapReduce(values, () => ({
@@ -165,7 +171,8 @@ const step = defineComponent({
 					++i;
 					continue;
 				}
-				const r = await useBlackLabApi().getTermFrequencies(this.modelValue.index.id, subAnnot.id, undefined, undefined, 100);
+				const r = await run.wait(this.blacklab.getTermFrequencies(this.modelValue.index.id, subAnnot.id, undefined, undefined, 100));
+				run.throwIfAborted();
 				const subValues = Object.keys(r.termFreq).filter(v => !!v.trim());
 
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
@@ -181,68 +188,80 @@ const step = defineComponent({
 				this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
 			}
 		},
-		async getCombinations() {
-			await this.getValues();
+		getCombinations() {
+			this.runWorkflow(run => this.generateCombinations(run));
+		},
+		async generateCombinations(run: RequestRun) {
+			try {
+				await this.getValues(run);
+				run.throwIfAborted();
 
-			const allSubs = (Object.values(this.v.main!)[0] || { loading: false, subs: {} }).subs;
-			const numSubValues = Object.values(allSubs).flatMap(s => Object.keys(s)).length;
-			const numMainValues = Object.values(this.v.main!).length;
+				const allSubs = (Object.values(this.v.main!)[0] || { loading: false, subs: {} }).subs;
+				const numSubValues = Object.values(allSubs).flatMap(s => Object.keys(s)).length;
+				const numMainValues = Object.values(this.v.main!).length;
 
-			const totalCombinations = numSubValues * numMainValues;
+				const totalCombinations = numSubValues * numMainValues;
 
-			// now load actual combinations
-			const indexId = this.modelValue.index.id;
-			const mainPosId = this.modelValue.mainPosAnnotationId!;
-			let i = 0;
-			let performedWork = false;
-			for (const [mainPosValue, { subs: subAnnotations, loading: subLoading }] of Object.entries(this.v.main!)) {
-				if (!subLoading) {
-					i += numSubValues;
-					continue;
-				}
+				// now load actual combinations
+				const indexId = this.modelValue.index.id;
+				const mainPosId = this.modelValue.mainPosAnnotationId!;
+				let i = 0;
+				let performedWork = false;
+				for (const [mainPosValue, { subs: subAnnotations, loading: subLoading }] of Object.entries(this.v.main!)) {
+					if (!subLoading) {
+						i += numSubValues;
+						continue;
+					}
 
-				for (const [subAnnotationId, subAnnotationValues] of Object.entries(subAnnotations)) {
-					for (const [subAnnotationValue, state] of Object.entries(subAnnotationValues)) {
-						if (this.stop) return;
-						if (state.occurances !== -1) {
-							++i;
-							continue;
+					for (const [subAnnotationId, subAnnotationValues] of Object.entries(subAnnotations)) {
+						for (const [subAnnotationValue, state] of Object.entries(subAnnotationValues)) {
+							if (state.occurances !== -1) {
+								++i;
+								continue;
+							}
+
+							performedWork = true;
+							this.currentStep = `[${++i}/${totalCombinations}] Resolving available combinations in the corpus... ${mainPosValue} + ${subAnnotationId}=${subAnnotationValue}`;
+
+							state.loading = true;
+							try {
+								const r = await run.wait(
+									this.blacklab.getHits(indexId, {
+										number: 0,
+										first: 0,
+										patt: `[${mainPosId}="${mainPosValue}" & ${subAnnotationId}="${subAnnotationValue}"${this.exclusionClause}]`,
+										maxretrieve: 1,
+										maxcount: 1,
+									}),
+								);
+								run.throwIfAborted();
+
+								state.occurances = getMatchingHits(r) ?? 0;
+							} finally {
+								if (!run.signal.aborted) state.loading = false;
+							}
 						}
-
-						performedWork = true;
-						this.currentStep = `[${++i}/${totalCombinations}] Resolving available combinations in the corpus... ${mainPosValue} + ${subAnnotationId}=${subAnnotationValue}`;
-
-						state.loading = true;
-						const r = await useBlackLabApi().getHits(indexId, {
-							number: 0,
-							first: 0,
-							patt: `[${mainPosId}="${mainPosValue}" & ${subAnnotationId}="${subAnnotationValue}"${this.exclusionClause}]`,
-							maxretrieve: 1,
-							maxcount: 1,
-						}).request;
-
-						state.occurances = getMatchingHits(r) ?? 0;
-						state.loading = false;
+						if (performedWork) {
+							this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
+						}
 					}
-					if (performedWork) {
-						this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
-					}
+					this.v.main![mainPosValue].loading = false;
 				}
-				this.v.main![mainPosValue].loading = false;
+				if (performedWork) {
+					this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
+				}
+				this.currentStep = 'Finished!';
+			} catch (error) {
+				run.throwIfAborted();
+				console.error('Failed to generate tagset:', error);
+				this.currentStep = 'Failed to generate tagset.';
+				throw error;
 			}
-			if (performedWork) {
-				this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
-			}
-			this.currentStep = 'Finished!';
-			this.loading = false;
 		},
 	},
 	created() {
 		this.v = this.modelValue.step3;
 		this.getCombinations();
-	},
-	unmounted() {
-		this.stop = true;
 	},
 });
 
