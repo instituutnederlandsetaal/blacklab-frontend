@@ -1,34 +1,21 @@
 <template>
 	<div>
-		<button type="button" :class="buttonClass" :aria-expanded="open" :aria-controls="panelId" @click="open = !open">
-			<slot name="button" :open="open">{{ label }}</slot>
+		<button type="button" class="btn btn-default" :aria-expanded="open" :aria-controls="id" @click="open = !open">
+			{{ label }}
 		</button>
-		<div :id="panelId" class="collapse" :class="{ in: open }">
+		<div :id class="collapse" :class="{ in: open }">
 			<slot></slot>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
-import useUid from '@/shared/utils/uid';
+defineProps<{
+	id: string;
+	label: string;
+}>();
 
-const props = withDefaults(
-	defineProps<{
-		label?: string;
-		id?: string;
-		buttonClass?: string;
-		initiallyOpen?: boolean;
-	}>(),
-	{
-		label: 'Toggle',
-		buttonClass: 'btn btn-default',
-		initiallyOpen: false,
-	},
-);
-
-const uid = useUid();
-const open = ref(props.initiallyOpen);
-const panelId = computed(() => props.id ?? `collapsible-${uid}`);
+const open = ref(false);
 </script>

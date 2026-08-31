@@ -47,7 +47,7 @@
 				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView" @settled="pageBootstrap.markSettled">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
-						<Collapsible id="content_error" button-class="btn btn-default" label="Show full diagnostics">
+						<Collapsible id="content_error" label="Show full diagnostics">
 							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
 								{{ errorDiagnostics(error) }}
 							</div>
@@ -60,7 +60,7 @@
 				<HtmlRenderer :content="metadataHtml">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document metadata. {{ error.message }}</div>
-						<Collapsible id="metadata_error" button-class="btn btn-default" label="Show full diagnostics">
+						<Collapsible id="metadata_error" label="Show full diagnostics">
 							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
 								{{ errorDiagnostics(error) }}
 							</div>
