@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, effectScope, nextTick } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
+import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState } from '@/shared/utils/loadable/loadable-core';
 import {
 	combineLoadables,
 	combineLoadablesIncludingEmpty,
@@ -51,7 +51,6 @@ function allValuesFrom<T>(o: Observable<T>): Promise<T[]> {
 }
 
 describe('Loadable state checks', () => {
-	// @ts-expect-error - functions are typed to be used to with loadables, but we're passing in non-loadable explicitly
 	test.each(eachCheck)('%s Should return false for non-loadable object', (_, f) => expect(f(dummyObject)).toBe(false));
 	test.each(eachState)('%s isLoadable', (_, v) => expect(Loadable.isLoadable(v)).toBe(true));
 	test('isLoaded should return true for loaded', () => expect(Loadable.isLoaded(loaded) && loaded.isLoaded()).toBe(true));
@@ -80,23 +79,6 @@ describe('Loadable helpers', () => {
 		expect(Loadable.map(empty, mapper)).toBe(empty);
 		expect(mapper).toHaveBeenCalledTimes(1);
 	});
-
-	test('plain LoadableLike pass-throughs are not promoted to full Loadables', () => {
-		const loadingLike: LoadableLike<number> = {
-			state: LoadableState.loading,
-			value: undefined,
-			error: undefined,
-		};
-
-		const result = Loadable.map(loadingLike, value => value + 1);
-
-		expect(result).toBe(loadingLike);
-		expect(Loadable.isLoadable(result)).toBe(false);
-		expect(() => {
-			// @ts-expect-error plain LoadableLike results should not expose full Loadable instance methods
-			result.map(() => 1);
-		}).toThrow('result.map is not a function');
-	});
 });
 
 describe('combineLoadables', () => {
@@ -122,18 +104,6 @@ describe('combineLoadables', () => {
 			const combinedObj = combiner({ a: loading, b: dummyObject, c: loaded });
 			expect(combinedObj.isLoading()).toBe(true);
 			expect(combinedObj.value).toBe(undefined);
-		});
-		test(name + ' should treat plain LoadableLike values as loadables', () => {
-			const loadingLike: LoadableLike<number> = { state: LoadableState.loading, value: undefined, error: undefined };
-			const loadedLike: LoadableLike<number> = { state: LoadableState.loaded, value: 2, error: undefined };
-
-			const blocked = combiner({ a: loadingLike, b: loaded });
-			const combined = combiner({ a: loadedLike, b: dummyObject });
-
-			expect(blocked.isLoading()).toBe(true);
-			expect(Loadable.isLoadable(blocked)).toBe(true);
-			expect(combined.isLoaded()).toBe(true);
-			expect(combined.value).toEqual({ a: 2, b: dummyObject });
 		});
 		test(name + ' with an error value should return the error state', () => {
 			const combinedObj = combiner({ a: error, b: dummyObject, c: loaded });

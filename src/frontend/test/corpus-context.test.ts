@@ -281,7 +281,6 @@ describe('corpus context publication', () => {
 		await settleReactivity();
 		expect(publications).toHaveBeenCalledTimes(2);
 
-		state.contextLoader.stop();
 		for (const requests of [corpusRequests, configRequests, tagsetRequests]) expect(requests.map(request => request.cancel.mock.calls.length)).toEqual([0, 0, 0]);
 	});
 

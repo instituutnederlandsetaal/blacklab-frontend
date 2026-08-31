@@ -1,18 +1,15 @@
-import { tryOnScopeDispose } from '@vueuse/core';
 import { shallowRef, watch } from 'vue';
 
 import { combine, type LoadedValues, type MaybeLoadable, type MaybeLoadablesArrayOrObject } from './loadable-combine';
-import { isLoaded, Loadable, LoadableState, type LoadableLike } from './loadable-core';
-import { loadableReactiveFromSnapshot, type ControlledLoadable } from './loadable-reactive';
+import { isLoaded, Loadable, LoadableState, type Loadable as LoadableType } from './loadable-core';
+import { loadableReactiveFromSnapshot, type RetryableLoadable } from './loadable-reactive';
 
-function forEachUniqueControlled(loadables: readonly MaybeLoadable<unknown>[], callback: (loadable: ControlledLoadable<unknown>) => void) {
+function forEachUniqueRetryable(loadables: readonly MaybeLoadable<unknown>[], callback: (loadable: RetryableLoadable<unknown>) => void) {
 	const seen = new Set<MaybeLoadable<unknown>>();
 	for (const loadable of loadables) {
 		if (seen.has(loadable)) continue;
 		seen.add(loadable);
-		if (typeof (loadable as Partial<ControlledLoadable<unknown>>).retry === 'function' && typeof (loadable as Partial<ControlledLoadable<unknown>>).stop === 'function') {
-			callback(loadable as ControlledLoadable<unknown>);
-		}
+		if (typeof (loadable as Partial<RetryableLoadable<unknown>>).retry === 'function') callback(loadable as RetryableLoadable<unknown>);
 	}
 }
 
@@ -27,35 +24,24 @@ function reuseValue<T>(previous: T | undefined, next: T): T {
 	return next;
 }
 
-export function combineLoadables<T extends MaybeLoadablesArrayOrObject>(loadables: T): ControlledLoadable<LoadedValues<T>> {
+export function combineLoadables<T extends MaybeLoadablesArrayOrObject>(loadables: T): RetryableLoadable<LoadedValues<T>> {
 	const dependencies: readonly MaybeLoadable<unknown>[] = Array.isArray(loadables) ? loadables : Object.values(loadables);
-	const published = shallowRef<LoadableLike<LoadedValues<T>>>(Loadable.Empty());
-	let stopped = false;
-	const stopWatching = watch(
+	const published = shallowRef<LoadableType<LoadedValues<T>>>(Loadable.Empty());
+	watch(
 		() => dependencies.map(loadable => [loadable.state, loadable.value, loadable.error] as const),
 		() => {
 			const result = combine(loadables);
-			const next: LoadableLike<LoadedValues<T>> = {
-				state: result.state,
-				value: isLoaded(result) ? reuseValue(published.value.value, result.value as LoadedValues<T>) : undefined,
-				error: result.state === LoadableState.error ? result.error : undefined,
-			};
+			const next = Loadable.loadable(
+				result.state,
+				isLoaded(result) ? reuseValue(published.value.value, result.value as LoadedValues<T>) : undefined,
+				result.state === LoadableState.error ? result.error : undefined,
+			);
 			if (published.value.state !== next.state || published.value.value !== next.value || published.value.error !== next.error) published.value = next;
 		},
 		{ immediate: true },
 	);
-	const stop = () => {
-		if (stopped) return;
-		stopped = true;
-		stopWatching();
-		forEachUniqueControlled(dependencies, loadable => loadable.stop());
-	};
-	tryOnScopeDispose(stop);
 
 	return loadableReactiveFromSnapshot(published, {
-		retry: () => {
-			if (!stopped) forEachUniqueControlled(dependencies, loadable => loadable.retry());
-		},
-		stop,
+		retry: () => forEachUniqueRetryable(dependencies, loadable => loadable.retry()),
 	});
 }

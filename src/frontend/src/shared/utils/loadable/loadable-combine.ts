@@ -1,6 +1,6 @@
-import { isEmpty, isLoadableLike, isLoaded, Loadable, type LoadableLike } from './loadable-core';
+import { isEmpty, isLoadable, isLoaded, Loadable, type Loadable as LoadableType } from './loadable-core';
 
-export type MaybeLoadable<T> = LoadableLike<T> | Loadable<T>;
+export type MaybeLoadable<T> = LoadableType<T>;
 type LoadableShapeArray = readonly unknown[];
 type LoadableShapeObject = Record<string, unknown>;
 export type LoadableShape = LoadableShapeArray | LoadableShapeObject;
@@ -30,22 +30,22 @@ function mapShape<T extends LoadableShape>(loadables: T, mapper: (value: unknown
 
 /** Return the first non-loaded loadable from the passed array or object. Plain values are considered settled. */
 function firstNonLoaded<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
-	return valuesOf(loadables).find(v => isLoadableLike(v) && !isLoaded(v)) as PassthroughFrom<T> | undefined;
+	return valuesOf(loadables).find(v => isLoadable(v) && !isLoaded(v)) as PassthroughFrom<T> | undefined;
 }
 
 /** Return the first loadable that is neither Loaded nor Empty. Empty values are considered settled. */
 function firstNonLoadedOrEmpty<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
-	return valuesOf(loadables).find(v => isLoadableLike(v) && !isLoaded(v) && !isEmpty(v)) as PassthroughFrom<T> | undefined;
+	return valuesOf(loadables).find(v => isLoadable(v) && !isLoaded(v) && !isEmpty(v)) as PassthroughFrom<T> | undefined;
 }
 
 export function combine<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValues<T>> {
 	const nonLoaded = firstNonLoaded(loadables);
 	if (nonLoaded) return nonLoaded;
-	return Loadable.Loaded(mapShape(loadables, value => (isLoadableLike(value) ? value.value : value)) as LoadedValues<T>);
+	return Loadable.Loaded(mapShape(loadables, value => (isLoadable(value) ? value.value : value)) as LoadedValues<T>);
 }
 
 export function combineOptional<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValuesIncludingEmpty<T>> {
 	const nonLoadedOrEmpty = firstNonLoadedOrEmpty(loadables);
 	if (nonLoadedOrEmpty) return nonLoadedOrEmpty;
-	return Loadable.Loaded(mapShape(loadables, value => (isLoadableLike(value) ? (isLoaded(value) ? value.value : undefined) : value)) as LoadedValuesIncludingEmpty<T>);
+	return Loadable.Loaded(mapShape(loadables, value => (isLoadable(value) ? (isLoaded(value) ? value.value : undefined) : value)) as LoadedValuesIncludingEmpty<T>);
 }

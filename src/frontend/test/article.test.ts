@@ -8,7 +8,7 @@ import { createArticleStreams } from '@/pages/article/article';
 import { type BLDocInfo, type BLHitInDoc, type BLHitResults, type BLDocument } from '@/types/blacklabtypes';
 
 import { ApiError, type DocumentContentsParameters } from '@/shared/api/lib/api-types';
-import { isError, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
+import { isError, LoadableState, type Loadable } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromStream as createLoadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 const ids = {
@@ -16,7 +16,7 @@ const ids = {
 	MOCK_DOC_ID: 'test',
 };
 
-function promiseFromLoadableStream<T>(stream: Observable<LoadableLike<T>>): Promise<T | undefined> {
+function promiseFromLoadableStream<T>(stream: Observable<Loadable<T>>): Promise<T | undefined> {
 	return firstValueFrom(
 		stream.pipe(
 			filter(value => value.state !== LoadableState.loading),

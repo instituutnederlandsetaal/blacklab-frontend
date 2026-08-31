@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { effectScope, nextTick, ref, shallowRef } from 'vue';
+import { effectScope, nextTick, shallowRef } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import type { Corpus } from '@/types/apptypes';
 
-import type { BlackLabApi } from '@/shared/api/lib/api-types';
-import { LoadableState } from '@/shared/utils/loadable/loadable-core';
-import { loadableReactive } from '@/shared/utils/loadable/loadable-reactive';
+import { ApiError, type BlackLabApi } from '@/shared/api/lib/api-types';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
+import { loadableReactiveFromSnapshot } from '@/shared/utils/loadable/loadable-reactive';
 
 const mock = vi.hoisted(() => ({
 	filterString: vi.fn(() => 'author:Austen'),
@@ -23,9 +23,8 @@ const corpus = (id: string) => ({ id }) as Corpus;
 const context = (index: Corpus): CorpusContext => ({ index }) as CorpusContext;
 
 function createContextLoader(initial?: CorpusContext) {
-	const state = ref(initial ? LoadableState.loaded : LoadableState.empty);
-	const value = shallowRef(initial);
-	return { loader: loadableReactive(state, value), state, value };
+	const snapshot = shallowRef<Loadable<CorpusContext>>(initial ? Loadable.Loaded(initial) : Loadable.Empty());
+	return { loader: loadableReactiveFromSnapshot(snapshot, {}), snapshot };
 }
 
 afterEach(() => {
@@ -50,43 +49,39 @@ describe('global corpus effects', () => {
 	test('refreshes once per published corpus through empty, error, retry, and switch states', async () => {
 		const first = corpus('first');
 		const second = corpus('second');
-		const { loader, state, value } = createContextLoader();
+		const { loader, snapshot } = createContextLoader();
 		const scope = effectScope();
 		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab));
 
 		expect(mock.next).not.toHaveBeenCalled();
 
-		state.value = LoadableState.loading;
+		snapshot.value = Loadable.Loading();
 		await nextTick();
-		state.value = LoadableState.error;
+		snapshot.value = Loadable.LoadingError(ApiError.wrap(new Error('failed')));
 		await nextTick();
 		expect(mock.next).not.toHaveBeenCalled();
 
-		value.value = context(first);
-		state.value = LoadableState.loaded;
+		snapshot.value = Loadable.Loaded(context(first));
 		await nextTick();
 		expect(mock.next).toHaveBeenCalledTimes(1);
 
-		value.value = { ...value.value!, config: {} } as CorpusContext;
+		snapshot.value = Loadable.Loaded({ ...snapshot.value.value!, config: {} } as CorpusContext);
 		await nextTick();
 		expect(mock.next).toHaveBeenCalledTimes(1);
 
-		value.value = undefined;
-		state.value = LoadableState.loading;
+		snapshot.value = Loadable.Loading();
 		await nextTick();
-		state.value = LoadableState.error;
+		snapshot.value = Loadable.LoadingError(ApiError.wrap(new Error('failed')));
 		await nextTick();
 		expect(mock.next).toHaveBeenCalledTimes(1);
 
-		value.value = context(first);
-		state.value = LoadableState.loaded;
+		snapshot.value = Loadable.Loaded(context(first));
 		await nextTick();
 		expect(mock.next).toHaveBeenCalledTimes(2);
 
 		mock.sourceField.mockReturnValue('parallel__nl');
 		mock.filterString.mockReturnValue('year:2026');
-		value.value = context(second);
-		state.value = LoadableState.loaded;
+		snapshot.value = Loadable.Loaded(context(second));
 		await nextTick();
 
 		expect(mock.next).toHaveBeenCalledTimes(3);
