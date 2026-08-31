@@ -206,7 +206,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, optionLabel, optionText, type Option } from '@/shared/utils/options';
+import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, optionLabel, optionText, type Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
 type _uiOpt = {
@@ -465,13 +465,7 @@ export default defineComponent({
 		filteredOptions(): uiOption[] {
 			let options = this.uiOptions;
 			if (this.hideDisabled) {
-				let disabledGroup = false;
-				options = options.filter(o => {
-					if (isOptGroup(o)) {
-						disabledGroup = !!o.disabled;
-					}
-					return !(disabledGroup || o.disabled);
-				});
+				options = options.filter(o => !o.disabled);
 			}
 
 			const filter = this.inputValue;

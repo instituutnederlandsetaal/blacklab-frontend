@@ -141,6 +141,35 @@ test('uncontrolled button toggles and clears its search on close', async () => {
 	expect((input.element as HTMLInputElement).value).toBe('');
 });
 
+test('hides propagated disabled options before search while preserving survivor order', async () => {
+	const wrapper = mount(SelectPicker, {
+		props: {
+			hideDisabled: true,
+			hideEmpty: true,
+			open: true,
+			searchable: true,
+			options: [
+				{ value: 'standalone-disabled', label: 'Keep disabled standalone', disabled: true },
+				{ label: 'Disabled group', disabled: true, options: [{ value: 'group-disabled', label: 'Keep propagated disabled' }] },
+				{ value: 'alpha', label: 'Keep alpha' },
+				{
+					label: 'Enabled group',
+					options: [
+						{ value: 'child-disabled', label: 'Keep disabled child', disabled: true },
+						{ value: 'beta', label: 'Keep beta' },
+						{ value: 'gamma', label: 'Keep gamma' },
+					],
+				},
+				{ label: 'Empty after hide', options: [{ value: 'empty-child', label: 'Keep hidden child', disabled: true }] },
+			],
+		},
+	});
+	await nextTick();
+	await wrapper.get('.menu-search').setValue('keep');
+
+	expect(wrapper.findAll('.menu-options > li').map(row => row.attributes('data-value') ?? `group:${row.text()}`)).toEqual(['alpha', 'group:Enabled group', 'beta', 'gamma']);
+});
+
 test('retains selection veto, external setValue, and invalid-model correction semantics', async () => {
 	const onBeforeSelect = vi.fn(() => false);
 	const vetoed = mount(SelectPicker, { attachTo: document.body, props: { modelValue: null, onBeforeSelect, options } });
