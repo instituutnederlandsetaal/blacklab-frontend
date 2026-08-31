@@ -103,7 +103,7 @@ describe('FormatsTable', () => {
 	test('preserves loading state, display, titles, and action payloads', async () => {
 		const wrapper = mount(FormatsTable, { props: { formats: [format], loading: true }, global: { stubs: { Spinner: true } } });
 
-		expect(wrapper.findComponent(Spinner).classes()).toEqual(expect.arrayContaining(['lg', 'overlay']));
+		expect(wrapper.findComponent(Spinner).props()).toMatchObject({ lg: true, overlay: true });
 		expect(wrapper.text()).toContain('tei');
 		expect(wrapper.text()).toContain('TEI');
 		expect(wrapper.get('.fa-pencil').attributes('title')).toBe("Edit format 'TEI'");

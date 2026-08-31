@@ -5,68 +5,51 @@
 	<div v-else ref="spinner" class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-export default defineComponent({
-	props: {
-		lg: Boolean,
-		xs: Boolean,
-		sm: Boolean,
-		size: [Number, String],
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
-		// Only one of these should be set
-		// inline is inline-block
-		// overlay is absolute center of parent element
-		// left, center, right are a block, with the spinner in the left, center or right
-		// We default to 'center' if none are set.
-		inline: Boolean,
-		overlay: Boolean,
-		left: Boolean,
-		center: Boolean,
-		right: Boolean,
-		inverted: Boolean,
-	},
-	data: () => ({ observer: null as ResizeObserver | null }),
-	computed: {
-		position(): 'left' | 'center' | 'right' | undefined {
-			if (this.left == null && this.right == null && this.center == null) return 'center';
-			if (this.inline) return undefined;
-			if (this.left) return 'left';
-			if (this.right) return 'right';
-			if (this.center) return 'center';
-			return undefined;
-		},
-		classes(): any {
-			return { lg: this.lg, sm: this.sm, overlay: this.overlay, inline: this.inline, xs: this.xs, inverted: this.inverted };
-		},
-		style(): any {
-			return {
-				fontSize: this.size ? (typeof this.size === 'number' || this.size.match(/^\d+$/) ? this.size + 'px' : this.size) : undefined,
-			};
-		},
-	},
-	mounted() {
-		if (this.overlay) {
-			const spinner = this.$refs.spinner as HTMLElement;
-			const parent = spinner.parentElement as HTMLElement;
-			parent.style.position = 'relative';
-			// size observer and center spinner
-			this.observer = new ResizeObserver(() => {
-				const { width, height } = parent.getBoundingClientRect();
-				// don't use boundingClientRect for ourselves. It changes when the our element rotates
-				const ownWidth = spinner.scrollWidth;
-				const ownHeight = spinner.scrollHeight;
-				const left = this.left ? 0 : this.right ? width - ownWidth : width / 2 - ownWidth / 2;
-				const top = height / 2 - ownHeight / 2;
-				spinner.style.left = `${left}px`;
-				spinner.style.top = `${top}px`;
-			});
-			this.observer.observe(parent);
-		}
-	},
-	beforeUnmount() {
-		if (this.observer) this.observer.disconnect();
-	},
+const props = defineProps<{
+	lg?: boolean;
+	xs?: boolean;
+	sm?: boolean;
+	size?: number | string;
+	inline?: boolean;
+	overlay?: boolean;
+	left?: boolean;
+	center?: boolean;
+	right?: boolean;
+	inverted?: boolean;
+}>();
+const spinner = ref<HTMLElement>();
+const position = computed(() => (props.inline ? undefined : props.left ? 'left' : props.right ? 'right' : props.center ? 'center' : undefined));
+const classes = computed(() => ({ lg: props.lg, sm: props.sm, overlay: props.overlay, inline: props.inline, xs: props.xs, inverted: props.inverted }));
+const style = computed(() => ({ fontSize: props.size ? (typeof props.size === 'number' || /^\d+$/.test(props.size) ? `${props.size}px` : props.size) : undefined }));
+let observer: ResizeObserver | undefined;
+let restoreParentPosition: (() => void) | undefined;
+
+onMounted(() => {
+	if (!props.overlay) return;
+	const element = spinner.value!;
+	const parent = element.parentElement!;
+	if (getComputedStyle(parent).position === 'static') {
+		const inlinePosition = parent.style.position;
+		parent.style.position = 'relative';
+		restoreParentPosition = () => {
+			if (parent.style.position === 'relative') parent.style.position = inlinePosition;
+		};
+	}
+	observer = new ResizeObserver(() => {
+		const { width, height } = parent.getBoundingClientRect();
+		const left = props.left ? 0 : props.right ? width - element.scrollWidth : width / 2 - element.scrollWidth / 2;
+		element.style.left = `${left}px`;
+		element.style.top = `${height / 2 - element.scrollHeight / 2}px`;
+	});
+	observer.observe(parent);
+});
+
+onBeforeUnmount(() => {
+	observer?.disconnect();
+	restoreParentPosition?.();
 });
 </script>
 

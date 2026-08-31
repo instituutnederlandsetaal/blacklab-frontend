@@ -1,6 +1,6 @@
 <template>
 	<div id="formats-all-container" class="cf-panel cf-panel-lg">
-		<Spinner v-if="loading" class="lg overlay" />
+		<Spinner v-if="loading" lg overlay />
 		<h2>Your import formats</h2>
 		<table class="table corpora">
 			<thead>
