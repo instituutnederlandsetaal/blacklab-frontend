@@ -3,6 +3,7 @@
 import { shallowMount } from '@vue/test-utils';
 import { afterEach, expect, test, vi } from 'vitest';
 
+import { serializeExclusionClause } from '@/pages/config/pos-exclusions';
 import type { NormalizedIndex } from '@/types/apptypes';
 
 import POS from '@/pages/config/POS.vue';
@@ -32,4 +33,8 @@ test('discards corrupt persisted wizard state and restores the current corpus', 
 
 	expect(storage.removeItem).toHaveBeenCalledWith(key);
 	expect(wrapper.vm.stepstate).toMatchObject({ version: 2, index, annotations: [{ id: 'pos' }] });
+});
+
+test('escapes literal exclusion values without escaping list separators', () => {
+	expect(serializeExclusionClause([{ annotationId: 'tag', values: ['a|b', 'c"d', 'e\\f'] }], ' & ')).toBe(String.raw` & tag!="a\|b|c\"d|e\\f"`);
 });
