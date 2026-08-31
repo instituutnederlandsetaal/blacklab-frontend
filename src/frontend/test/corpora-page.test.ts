@@ -187,6 +187,33 @@ test('deletion and unmount cancel in-flight polls without surfacing cancellation
 	await flushPromises();
 });
 
+test('keeps a newer cross-table confirmation when an earlier deletion settles and gives its error precedence', async () => {
+	const corpusDeletion = deferredRequest<BLResponse>();
+	const formatDeletion = deferredRequest<BLResponse>();
+	mock.api.deleteCorpus.mockReturnValueOnce(corpusDeletion.request);
+	mock.api.deleteFormat.mockReturnValueOnce(formatDeletion.request);
+	const wrapper = await mountPage();
+
+	privateTable(wrapper).vm.$emit('delete', 'alice:corpus');
+	await wrapper.vm.$nextTick();
+	wrapper.getComponent(Modal).vm.$emit('confirm');
+	await wrapper.vm.$nextTick();
+	wrapper.getComponent(FormatsTable).vm.$emit('delete', 'alice:tei');
+	await wrapper.vm.$nextTick();
+
+	corpusDeletion.resolve({ status: { message: 'Corpus deleted first' } } as BLResponse);
+	await flushPromises();
+	expect(wrapper.text()).toContain('Corpus deleted first');
+	wrapper.getComponent(Modal).vm.$emit('confirm');
+	expect(mock.api.deleteFormat).toHaveBeenCalledWith('alice:tei');
+
+	formatDeletion.reject(new Error('format failure'));
+	await flushPromises();
+	expect(wrapper.text()).toContain('Could not delete format "TEI": format failure');
+	expect(wrapper.text()).not.toContain('Corpus deleted first');
+	wrapper.unmount();
+});
+
 test('unmount clears a scheduled poll', async () => {
 	mock.api.getCorpusStatus.mockReturnValue(resolvedRequest(corpus({ status: 'indexing' })));
 	const wrapper = await mountPage([corpus({ status: 'indexing' })]);

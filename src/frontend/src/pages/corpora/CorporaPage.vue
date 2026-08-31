@@ -182,6 +182,7 @@ function refreshFormats() {
 function close() {
 	modal.value = '';
 	indexId.value = formatId.value = null;
+	confirmAction.value = undefined;
 }
 
 const doCreateCorpus = () => (modal.value = 'create-corpus');
@@ -218,11 +219,8 @@ function doDeleteCorpus(id: string) {
 				stopCorpusPoll(id);
 				corpora.value = corpora.value.filter(c => c.id !== id);
 			})
-			.catch((e: ApiError) => (errorMessage.value = `Could not delete corpus "${selectedCorpus.displayName}": ${e.message}`))
-			.finally(() => {
-				confirmAction.value = undefined;
-				loadingCorpora.value = false;
-			});
+			.catch((e: ApiError) => error(`Could not delete corpus "${selectedCorpus.displayName}": ${e.message}`))
+			.finally(() => (loadingCorpora.value = false));
 	};
 }
 
@@ -241,11 +239,8 @@ function doDeleteFormat(id: string) {
 				successMessage.value = response.status.message;
 				formats.value = formats.value.filter(f => f.id !== selectedFormat.id);
 			})
-			.catch((e: ApiError) => (errorMessage.value = `Could not delete format "${selectedFormat.displayName}": ${e.message}`))
-			.finally(() => {
-				confirmAction.value = undefined;
-				loadingFormats.value = false;
-			});
+			.catch((e: ApiError) => error(`Could not delete format "${selectedFormat.displayName}": ${e.message}`))
+			.finally(() => (loadingFormats.value = false));
 	};
 }
 
