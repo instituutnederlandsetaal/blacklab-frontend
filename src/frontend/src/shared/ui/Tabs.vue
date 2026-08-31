@@ -95,11 +95,6 @@ const props = withDefaults(
 	}>(),
 	{
 		modelValue: null,
-		vertical: false,
-		flexy: false,
-		wrap: false,
-		small: false,
-		large: false,
 		ariaLabel: 'Tabs',
 		invalidSelectionMessage: 'The selected tab is unavailable.',
 		invalidTabLabel: 'Unavailable tab',

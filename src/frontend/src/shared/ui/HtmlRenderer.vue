@@ -26,17 +26,11 @@ const emit = defineEmits<{
 	settled: [];
 }>();
 
-const props = withDefaults(
-	defineProps<{
-		content: Content;
-		executeScripts?: boolean;
-		parseStringAsHtml?: boolean;
-	}>(),
-	{
-		executeScripts: false,
-		parseStringAsHtml: false,
-	},
-);
+const props = defineProps<{
+	content: Content;
+	executeScripts?: boolean;
+	parseStringAsHtml?: boolean;
+}>();
 
 const loadableContent = computed<Loadable<RenderableContent>>(() => Loadable.wrap(props.content));
 
