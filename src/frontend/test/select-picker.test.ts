@@ -170,6 +170,39 @@ test('hides propagated disabled options before search while preserving survivor 
 	expect(wrapper.findAll('.menu-options > li').map(row => row.attributes('data-value') ?? `group:${row.text()}`)).toEqual(['alpha', 'group:Enabled group', 'beta', 'gamma']);
 });
 
+test('navigates focus across enabled options with wrapping arrows and clamped pages', async () => {
+	const wrapper = mount(SelectPicker, {
+		attachTo: document.body,
+		props: {
+			hideEmpty: true,
+			options: [
+				{ value: 'a', label: 'Alpha' },
+				{ value: 'disabled', label: 'Disabled', disabled: true },
+				{ value: 'b', label: 'Beta' },
+				{ value: 'c', label: 'Gamma' },
+			],
+		},
+	});
+	await open(wrapper);
+	flushFrames();
+	const menu = wrapper.get('.combobox-menu');
+	const focusedValue = () => (document.activeElement as HTMLElement).dataset.value;
+
+	await menu.trigger('keydown', { key: 'ArrowDown' });
+	expect(focusedValue()).toBe('a');
+	(wrapper.get('.menu-button').element as HTMLElement).focus();
+	await menu.trigger('keydown', { key: 'ArrowUp' });
+	expect(focusedValue()).toBe('c');
+	await menu.trigger('keydown', { key: 'ArrowDown' });
+	expect(focusedValue()).toBe('a');
+	await menu.trigger('keydown', { key: 'ArrowDown' });
+	expect(focusedValue()).toBe('b');
+	await menu.trigger('keydown', { key: 'PageDown' });
+	expect(focusedValue()).toBe('c');
+	await menu.trigger('keydown', { key: 'PageUp' });
+	expect(focusedValue()).toBe('a');
+});
+
 test('retains selection veto, external setValue, and invalid-model correction semantics', async () => {
 	const onBeforeSelect = vi.fn(() => false);
 	const vetoed = mount(SelectPicker, { attachTo: document.body, props: { modelValue: null, onBeforeSelect, options } });

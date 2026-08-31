@@ -724,7 +724,7 @@ export default defineComponent({
 			if (currentFocusIndex < 0 && offset < 0) {
 				offset++;
 			}
-			const focusIndex = loop ? this.loopingIncrementor(currentFocusIndex, items.length, offset).next() : Math.max(0, Math.min(currentFocusIndex + offset, items.length - 1));
+			const focusIndex = loop ? (((currentFocusIndex + offset) % items.length) + items.length) % items.length : Math.max(0, Math.min(currentFocusIndex + offset, items.length - 1));
 			this.focus(items[focusIndex] as HTMLElement);
 		},
 		focus(v?: HTMLElement | number): void {
@@ -815,20 +815,6 @@ export default defineComponent({
 		releaseGlobalListeners() {
 			this.globalListeners?.abort();
 			this.globalListeners = null;
-		},
-
-		loopingIncrementor(initial: number, max: number, increment: number) {
-			let cur = initial;
-			return {
-				next() {
-					const next = (cur + increment) % max;
-					cur = next < 0 ? next + max : next;
-					return cur;
-				},
-				get current() {
-					return cur;
-				},
-			};
 		},
 
 		correctModel(newVal: null | undefined | string | string[]) {
