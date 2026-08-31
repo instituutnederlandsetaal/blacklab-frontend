@@ -109,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations, type ResultHitAddon } from '@/customization-api/internal/internal-api';
@@ -178,24 +178,23 @@ function loadSentence() {
 	// 'start' should always be true if this.sentenceAvailable is true, but typescript doesn't know this.
 	if (!sentenceAvailable.value || sentenceRequest.value || !('start' in props.row.hit)) return;
 
+	const row = props.row;
 	const context = customizations.searchFormSentenceElement();
 	if (!context) return; // unavailable.
 
-	// Need to track this, because results pay be paginated and this component may be reused across renders
-	// We should probably use asyncComputed or something but that's for later.
-	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start!, props.row.hit.end!, context);
+	const request = blacklab.getSnippet(corpus.value.id!, row.doc.docPid, row.annotatedField?.id, row.hit.start!, row.hit.end!, context);
 	sentenceRequest.value = request;
 	request
-		// check if hit hasn't changed in the meantime (due to component reuse)
 		.then(r => {
-			if (nonce === props.row.hit) sentence.value = r;
+			if (sentenceRequest.value === request && props.row === row) sentence.value = r;
 		})
 		.catch(e => {
-			if (nonce === props.row.hit) error.value = customizations.formatError(e, 'snippet');
+			if (sentenceRequest.value !== request || props.row !== row) return;
+			const formatted = customizations.formatError(e, 'snippet');
+			if (sentenceRequest.value === request && props.row === row) error.value = formatted;
 		})
 		.finally(() => {
-			if (sentenceRequest.value === request) sentenceRequest.value = null;
+			if (sentenceRequest.value === request && props.row === row) sentenceRequest.value = null;
 		});
 }
 
@@ -205,43 +204,45 @@ function loadSnippet() {
 	// The small table will still be shown.
 	if (snippetRequest.value || snippet.value || !('start' in props.row.hit)) return;
 
+	const row = props.row;
+	const info = props.info;
 	const addonConstructors = customizations.resultHitAddons();
 	const concordanceSize = customizations.resultConcordanceSize();
 
-	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start!, props.row.hit.end!, concordanceSize);
+	const request = blacklab.getSnippet(corpus.value.id!, row.doc.docPid, row.annotatedField?.id, row.hit.start!, row.hit.end!, concordanceSize);
 	snippetRequest.value = request;
 	request
 		.then(s => {
-			if (nonce !== props.row.hit) return; // hit has changed in the meantime.
+			if (snippetRequest.value !== request || props.row !== row) return;
 
 			customizations.transformResultSnippet(s);
 
 			// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
 			// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
-			const highlightColors = [...props.row.context.before, ...props.row.context.match, ...props.row.context.after].reduce<Record<string, TokenHighlight>>((acc, t) => {
+			const highlightColors = [...row.context.before, ...row.context.match, ...row.context.after].reduce<Record<string, TokenHighlight>>((acc, t) => {
 				t.captureAndRelation?.forEach(c => (acc[c.highlight.key] = c.highlight));
 				return acc;
 			}, {});
 
+			if (snippetRequest.value !== request || props.row !== row) return;
 			snippet.value = snippetParts(
 				// @ts-ignore matchinfos not included in snippets. copy from the original hit.
-				{ matchInfos: props.row.hit.matchInfos, ...s },
+				{ matchInfos: row.hit.matchInfos, ...s },
 				highlightColors,
-				props.info.getMatchInfoHighlightStyle,
+				info.getMatchInfoHighlightStyle,
 			);
 
 			// Run plugins defined for this corpus (e.g. a copy to clipboard button, or an audio player/text to speech button)
-			addons.value = addonConstructors
+			const nextAddons = addonConstructors
 				.map((a, i) => {
 					try {
 						return a({
-							docId: props.row.doc.docPid,
+							docId: row.doc.docPid,
 							corpus: corpus.value.id!,
-							document: props.row.doc.docInfo,
-							documentUrl: props.row.href || '',
-							wordAnnotationId: props.info.mainAnnotation.id,
-							dir: props.row.dir,
+							document: row.doc.docInfo,
+							documentUrl: row.href || '',
+							wordAnnotationId: info.mainAnnotation.id,
+							dir: row.dir,
 							citation: s,
 						});
 					} catch (e) {
@@ -253,15 +254,29 @@ function loadSnippet() {
 					}
 				})
 				.filter(a => a != null);
+			if (snippetRequest.value === request && props.row === row) addons.value = nextAddons;
 		})
 		.catch((err: ApiError) => {
-			if (nonce !== props.row.hit) return; // hit has changed in the meantime.
-			error.value = customizations.formatError(err, 'snippet');
+			if (snippetRequest.value !== request || props.row !== row) return;
+			const formatted = customizations.formatError(err, 'snippet');
+			if (snippetRequest.value !== request || props.row !== row) return;
+			error.value = formatted;
 			if (err.stack) debugLog('article', err.stack);
 		})
 		.finally(() => {
-			if (snippetRequest.value === request) snippetRequest.value = null;
+			if (snippetRequest.value === request && props.row === row) snippetRequest.value = null;
 		});
+}
+
+function reset() {
+	const currentSnippetRequest = snippetRequest.value;
+	const currentSentenceRequest = sentenceRequest.value;
+	snippetRequest.value = sentenceRequest.value = null;
+	currentSnippetRequest?.cancel();
+	currentSentenceRequest?.cancel();
+	snippet.value = sentence.value = error.value = null;
+	addons.value = [];
+	sentenceShown.value = false;
 }
 
 watch(
@@ -276,14 +291,11 @@ watch(sentenceShown, shown => {
 watch(
 	() => props.row,
 	() => {
-		// Clear any data that's no longer relevant.
-		snippetRequest.value?.cancel();
-		sentenceRequest.value?.cancel();
-		snippetRequest.value = snippet.value = sentenceRequest.value = sentence.value = error.value = null;
-		addons.value = [];
-		sentenceShown.value = false;
+		reset();
+		if (props.open) loadSnippet();
 	},
 );
+onBeforeUnmount(reset);
 </script>
 
 <style lang="scss">
