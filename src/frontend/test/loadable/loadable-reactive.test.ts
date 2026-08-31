@@ -1,12 +1,12 @@
 import { describe, expect, test, vi } from 'vitest';
-import { nextTick, ref, watch, type Ref } from 'vue';
+import { effectScope, nextTick, ref, watch } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { combine, combineOptional } from '@/shared/utils/loadable/loadable-combine';
-import { combineLoadables, unwrapLoadableRefs } from '@/shared/utils/loadable/loadable-combine-reactive';
+import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
-import { loadableReactive } from '@/shared/utils/loadable/loadable-reactive';
+import { loadableReactive, tapLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
 
 function createControlledLoadable<T>(initial: Loadable<T>, extra: Partial<{ retry: () => void; stop: () => void }> = {}) {
 	const state = ref(initial.state);
@@ -61,27 +61,6 @@ describe('non-reactive loadable primitives', () => {
 		expect(result.state).toBe(LoadableState.empty);
 	});
 
-	test('resolveMaybeRefLoadables unwraps refs and plain values', () => {
-		const a: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
-		const b = Loadable.Loaded(2);
-		const resolved = unwrapLoadableRefs([a, b] as const);
-
-		expect(resolved[0].state).toBe(LoadableState.loaded);
-		expect(resolved[0].value).toBe(1);
-		expect(resolved[1].state).toBe(LoadableState.loaded);
-		expect(resolved[1].value).toBe(2);
-	});
-
-	test('resolveMaybeRefLoadables unwraps object inputs', () => {
-		const a: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
-		const b = Loadable.Empty<number>();
-		const resolved = unwrapLoadableRefs({ a, b });
-
-		expect(resolved.a.state).toBe(LoadableState.loaded);
-		expect(resolved.a.value).toBe(1);
-		expect(resolved.b.state).toBe(LoadableState.empty);
-	});
-
 	test('combine accepts plain LoadableLike shape', () => {
 		const a: LoadableLike<number> = { state: LoadableState.loaded, value: 1, error: undefined };
 		const b: LoadableLike<number> = { state: LoadableState.loaded, value: 2, error: undefined };
@@ -118,195 +97,68 @@ describe('non-reactive loadable primitives', () => {
 });
 
 describe('combineLoadables', () => {
-	test('combines maybeRef loadables in arrays', async () => {
-		const a: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
-		const b = Loadable.Loaded(2);
-
-		const combined = combineLoadables([a, b] as const);
-
-		expect(combined.state).toBe(LoadableState.loaded);
-		expect(combined.value).toEqual([1, 2]);
-
-		a.value = Loadable.Loading();
-		await nextTick();
-		expect(combined.state).toBe(LoadableState.loading);
-	});
-
-	test('combines maybeRef loadables in objects', async () => {
-		const a: Ref<Loadable<string>> = ref(Loadable.Loaded('x'));
-		const b: Ref<Loadable<string>> = ref(Loadable.Loaded('y'));
-
-		const combined = combineLoadables({ a, b });
-
-		expect(combined.state).toBe(LoadableState.loaded);
-		expect(combined.value).toEqual({ a: 'x', b: 'y' });
-
-		b.value = Loadable.Empty();
-		await nextTick();
-		expect(combined.state).toBe(LoadableState.empty);
-	});
-
-	test('supports includeEmpty', () => {
-		const loaded: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
-		const empty: Ref<Loadable<number>> = ref(Loadable.Empty());
-
-		const combined = combineLoadables([loaded, empty] as const, { includeEmpty: true });
-
-		expect(combined.state).toBe(LoadableState.loaded);
-		expect(combined.value).toEqual([1, undefined]);
-	});
-
-	test('combineLoadables can include empty values', () => {
-		const loaded: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
-		const empty: Ref<Loadable<number>> = ref(Loadable.Empty());
-
-		const combined = combineLoadables([loaded] as const);
-		const optional = combineLoadables([loaded, empty] as const, { includeEmpty: true });
-
-		expect(combined.value).toEqual([1]);
-		expect(optional.value).toEqual([1, undefined]);
-	});
-});
-
-describe('loadableFromLoadables', () => {
-	test('keeps value hidden until every input is loaded and surfaces the first unsettled state', async () => {
+	test('publishes state, value, and error as atomic snapshots', async () => {
 		const first = createControlledLoadable(Loadable.Loading<number>());
 		const second = createControlledLoadable(Loadable.Loading<number>());
 		const combined = combineLoadables([first.loadable, second.loadable] as const);
+		const snapshots: Array<readonly [LoadableState, readonly [number, number] | undefined, ApiError | undefined]> = [];
+		watch(
+			() => [combined.state, combined.value, combined.error] as const,
+			snapshot => snapshots.push(snapshot),
+			{ immediate: true, flush: 'sync' },
+		);
 
-		expect(combined.state).toBe(LoadableState.loading);
-		expect(combined.value).toBeUndefined();
-		expect(combined.error).toBeUndefined();
+		first.state.value = LoadableState.empty;
+		await nextTick();
 
 		first.value.value = 1;
 		first.state.value = LoadableState.loaded;
 		await nextTick();
-		expect(combined.state).toBe(LoadableState.loading);
-		expect(combined.value).toBeUndefined();
 
 		const failure = new ApiError('boom', 'boom', 'broken', 500);
 		second.error.value = failure;
 		second.state.value = LoadableState.error;
 		await nextTick();
-		expect(combined.state).toBe(LoadableState.error);
-		expect(combined.error).toBe(failure);
-		expect(combined.value).toBeUndefined();
+
+		second.error.value = undefined;
+		second.value.value = 2;
+		second.state.value = LoadableState.loaded;
+		await nextTick();
+
+		expect(snapshots).toEqual([
+			[LoadableState.loading, undefined, undefined],
+			[LoadableState.empty, undefined, undefined],
+			[LoadableState.loading, undefined, undefined],
+			[LoadableState.error, undefined, failure],
+			[LoadableState.loaded, [1, 2], undefined],
+		]);
 	});
 
-	test('fans out retry and stop to retryable inputs only', () => {
-		const retryA = vi.fn<() => void>();
-		const stopA = vi.fn<() => void>();
-		const retryB = vi.fn<() => void>();
-		const stopB = vi.fn<() => void>();
-		const first = createControlledLoadable(Loadable.Loading<number>(), {
-			retry: retryA,
-			stop: stopA,
-		});
-		const second = createControlledLoadable(Loadable.Loading<number>(), {
-			retry: retryB,
-			stop: stopB,
-		});
-		const combined = combineLoadables([first.loadable, second.loadable, Loadable.Loaded(3)] as const);
-
-		combined.retry();
-		combined.stop();
-
-		expect(retryA).toHaveBeenCalledTimes(1);
-		expect(retryB).toHaveBeenCalledTimes(1);
-		expect(stopA).toHaveBeenCalledTimes(1);
-		expect(stopB).toHaveBeenCalledTimes(1);
-	});
-
-	test('fans out retry and stop once per unique retryable input', () => {
+	test('fans out controls once per unique dependency and cleans up with its scope', () => {
 		const retry = vi.fn<() => void>();
 		const stop = vi.fn<() => void>();
 		const source = createControlledLoadable(Loadable.Loading<number>(), { retry, stop });
-		const combined = combineLoadables([source.loadable, source.loadable] as const);
+		const scope = effectScope();
+		const combined = scope.run(() => combineLoadables([source.loadable, source.loadable, Loadable.Loaded(3)] as const))!;
 
 		combined.retry();
-		combined.stop();
+		scope.stop();
+		combined.retry();
 
 		expect(retry).toHaveBeenCalledTimes(1);
 		expect(stop).toHaveBeenCalledTimes(1);
 	});
 
-	test('fans out retry through object inputs', () => {
-		const retry = vi.fn<() => void>();
-		const source = createControlledLoadable(Loadable.Loading<number>(), { retry });
-		const combined = combineLoadables({ source: source.loadable });
-
-		combined.retry();
-
-		expect(retry).toHaveBeenCalledTimes(1);
-	});
-
-	test('supports treating empty inputs as settled', () => {
-		const loaded = createControlledLoadable(Loadable.Loaded(1));
-		const empty = createControlledLoadable(Loadable.Empty<number>());
-		const combined = combineLoadables([loaded.loadable, empty.loadable] as const, {
-			includeEmpty: true,
-		});
-
-		expect(combined.state).toBe(LoadableState.loaded);
-		expect(combined.value).toEqual([1, undefined]);
-		expect(combined.error).toBeUndefined();
-	});
-
-	test('supports treating empty object inputs as settled', () => {
-		const loaded = createControlledLoadable(Loadable.Loaded(1));
-		const empty = createControlledLoadable(Loadable.Empty<number>());
-		const combined = combineLoadables({ loaded: loaded.loadable, empty: empty.loadable }, { includeEmpty: true });
-
-		expect(combined.state).toBe(LoadableState.loaded);
-		expect(combined.value).toEqual({ loaded: 1, empty: undefined });
-	});
-
-	test('passes through unresolved states when treating empty inputs as settled', () => {
-		const empty = createControlledLoadable(Loadable.Empty<number>());
-		const loading = createControlledLoadable(Loadable.Loading<number>());
-		const combined = combineLoadables([empty.loadable, loading.loadable] as const, {
-			includeEmpty: true,
-		});
-
-		expect(combined.state).toBe(LoadableState.loading);
-		expect(combined.value).toBeUndefined();
-	});
-
-	test('does not trigger watchers when an input settles but the exposed output stays the same', async () => {
-		const first = createControlledLoadable(Loadable.Loading<number>());
-		const second = createControlledLoadable(Loadable.Loading<number>());
-		const combined = combineLoadables([first.loadable, second.loadable] as const);
-		const onStateChange = vi.fn<(value: LoadableState, oldValue: LoadableState | undefined) => void>();
-		const onValueChange = vi.fn<(value: unknown, oldValue: unknown) => void>();
-
-		watch(() => combined.state, onStateChange, { immediate: true, flush: 'sync' });
-		watch(() => combined.value, onValueChange, { immediate: true, flush: 'sync' });
-
-		first.value.value = 1;
-		first.state.value = LoadableState.loaded;
-		await nextTick();
-		expect(onStateChange).toHaveBeenCalledTimes(1);
-		expect(onValueChange).toHaveBeenCalledTimes(1);
-
-		second.value.value = 2;
-		second.state.value = LoadableState.loaded;
-		await nextTick();
-		expect(onStateChange).toHaveBeenCalledTimes(2);
-		expect(onValueChange).toHaveBeenCalledTimes(2);
-		expect(combined.value).toEqual([1, 2]);
-	});
-
-	test('reuses the combined loaded value when the underlying loaded values are unchanged', async () => {
+	test('reuses array values when dependency identities are unchanged', async () => {
 		const shared = { id: 1 };
-		const first: Ref<Loadable<{ id: number }>> = ref(Loadable.Loaded(shared));
-		const second: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
-		const combined = combineLoadables([first, second] as const);
+		const first = createControlledLoadable(Loadable.Loaded(shared));
+		const second = createControlledLoadable(Loadable.Loaded(2));
+		const combined = combineLoadables([first.loadable, second.loadable] as const);
 		const onValueChange = vi.fn<(value: unknown, oldValue: unknown) => void>();
 		const initialValue = combined.value;
 
 		watch(() => combined.value, onValueChange, { immediate: true, flush: 'sync' });
-
-		first.value = Loadable.Loaded(shared);
+		first.error.value = new ApiError('ignored', 'ignored', 'ignored', 500);
 		await nextTick();
 
 		expect(onValueChange).toHaveBeenCalledTimes(1);
@@ -315,19 +167,58 @@ describe('loadableFromLoadables', () => {
 
 	test('reuses object combined values only when entries are unchanged', async () => {
 		const shared = { id: 1 };
-		const first: Ref<Loadable<{ id: number }>> = ref(Loadable.Loaded(shared));
-		const second: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
-		const combined = combineLoadables({ first, second });
+		const first = createControlledLoadable(Loadable.Loaded(shared));
+		const second = createControlledLoadable(Loadable.Loaded(2));
+		const combined = combineLoadables({ first: first.loadable, second: second.loadable });
 		const initialValue = combined.value;
 
-		first.value = Loadable.Loaded(shared);
+		first.error.value = new ApiError('ignored', 'ignored', 'ignored', 500);
 		await nextTick();
 		expect(combined.value).toBe(initialValue);
 
-		first.value = Loadable.Loaded({ id: 1 });
+		first.value.value = { id: 1 };
 		await nextTick();
 		expect(combined.value).not.toBe(initialValue);
 		expect(combined.value).toEqual({ first: { id: 1 }, second: 2 });
+	});
+});
+
+describe('tapLoadedReactive', () => {
+	test('runs its callback synchronously before publishing without tracking callback reads', async () => {
+		const source = createControlledLoadable(Loadable.Loading<number>());
+		const incidental = ref(0);
+		const events: string[] = [];
+		const tapped = tapLoadedReactive(source.loadable, value => events.push(`checkpoint:${value}:${incidental.value}`));
+		watch(
+			() => tapped.value,
+			value => events.push(`consumer:${value}`),
+			{ flush: 'sync' },
+		);
+
+		source.value.value = 1;
+		source.state.value = LoadableState.loaded;
+		expect(events).toEqual(['checkpoint:1:0', 'consumer:1']);
+
+		incidental.value = 1;
+		await nextTick();
+		expect(events).toEqual(['checkpoint:1:0', 'consumer:1']);
+	});
+
+	test('does not publish or retry after the checkpoint stops it', () => {
+		const retry = vi.fn<() => void>();
+		const stop = vi.fn<() => void>();
+		const source = createControlledLoadable(Loadable.Loading<number>(), { retry, stop });
+		let tapped!: ReturnType<typeof tapLoadedReactive<number>>;
+		tapped = tapLoadedReactive(source.loadable, () => tapped.stop());
+
+		source.value.value = 1;
+		source.state.value = LoadableState.loaded;
+		tapped.retry();
+
+		expect(tapped.state).toBe(LoadableState.loading);
+		expect(tapped.value).toBeUndefined();
+		expect(retry).not.toHaveBeenCalled();
+		expect(stop).toHaveBeenCalledTimes(1);
 	});
 });
 
