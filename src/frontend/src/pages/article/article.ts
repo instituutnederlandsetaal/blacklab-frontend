@@ -17,30 +17,18 @@ import {
 } from '@/shared/utils/loadable/loadable-stream';
 import { clamp } from '@/shared/utils/number-utils';
 
-// Define some input/intermediate types and utils.
-
-type DocInput = {
-	indexId: string;
-	docId: string;
-};
-type HitsInput = {
-	indexId: string;
-	docId: string;
-	patt: string;
-	searchfield?: string | undefined;
-	pattgapdata?: string | undefined;
-};
-
-type PageInput = {
-	wordstart: number;
-	wordend: number;
-	findhit?: number;
+export type Input = Partial<{
+	indexId: string | null;
+	docId: string | null;
+	patt: string | null;
+	searchfield: string | null | undefined;
+	pattgapdata: string | null | undefined;
+	wordstart: number | null;
+	wordend: number | null;
+	findhit: number | null;
 	pageSize: number | null;
-	viewField: string;
-};
-
-type _Input = Partial<DocInput & HitsInput & PageInput>;
-export type Input = { [K in keyof _Input]: _Input[K] | null };
+	viewField: string | null;
+}>;
 
 /** Return an exact hit index, or `-insertionIndex - 1` when no hit starts at the requested position. */
 function findHitIndex(hits: [number, number][], start: number): number {
@@ -138,7 +126,13 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	 * It is a guaranteed valid set of pagination parameters.
 	 */
 	const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = metadata$.pipe(
-		switchMapLoaded(m => combineLoadableStreamsIncludingEmpty({ doc: of(m), input: input$, hits: hits$ })),
+		switchMapLoaded(m =>
+			combineLoadableStreamsIncludingEmpty({
+				doc: of(m),
+				input: input$,
+				hits: hits$,
+			}),
+		),
 		mapLoaded(({ input, doc, hits }) => fixInput(input, doc.json, hits)),
 		distinctUntilChanged(compareAsSortedJson),
 		shareReplay(1),
