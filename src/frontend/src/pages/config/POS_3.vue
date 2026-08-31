@@ -52,6 +52,8 @@ import type { PropType } from 'vue';
 
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
+import { serializeExclusionClause } from './pos-exclusions';
+
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { getMatchingHits } from '@/shared/blacklab-helpers/normalize/result-helpers.ts';
 import { mapReduce } from '@/shared/utils/array-utils.ts';
@@ -104,21 +106,7 @@ const step = defineComponent({
 		},
 
 		exclusionClause(): string {
-			if (!this.modelValue.exclusions || this.modelValue.exclusions.length === 0) {
-				return '';
-			}
-
-			const clauses = this.modelValue.exclusions
-				.filter(e => e.annotationId && e.values.length > 0)
-				.map(e => {
-					if (e.values.length === 1) {
-						return `${e.annotationId}!="${e.values[0]}"`;
-					} else {
-						return `${e.annotationId}!="${e.values.join('|')}"`;
-					}
-				});
-
-			return clauses.length > 0 ? ` & ${clauses.join(' & ')}` : '';
+			return serializeExclusionClause(this.modelValue.exclusions, ' & ');
 		},
 
 		mainValues(): null | Array<{ value: string; loading: boolean }> {

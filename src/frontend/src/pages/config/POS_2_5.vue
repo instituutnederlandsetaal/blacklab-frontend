@@ -61,6 +61,8 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
+import { serializeExclusionClause } from './pos-exclusions';
+
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import type { Option } from '@/shared/utils/options';
 
@@ -96,19 +98,7 @@ const step = defineComponent({
 			}));
 		},
 		queryClause(): string {
-			if (this.localExclusions.length === 0) return '';
-
-			const clauses = this.localExclusions
-				.filter(e => e.annotationId && e.values.length > 0)
-				.map(e => {
-					if (e.values.length === 1) {
-						return `${e.annotationId}!="${e.values[0]}"`;
-					} else {
-						return `${e.annotationId}!="${e.values.join('|')}"`;
-					}
-				});
-
-			return clauses.length > 0 ? `& ${clauses.join(' & ')}` : '';
+			return serializeExclusionClause(this.localExclusions, '& ');
 		},
 	},
 	methods: {
