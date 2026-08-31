@@ -1,11 +1,11 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import type { User } from 'oidc-client-ts';
 import { toValue, type MaybeRef } from 'vue';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 import { cleanQueryParams, handleError } from '@/shared/api/lib/api-utils';
 
-export type Endpoint = Omit<AxiosInstance, 'get' | 'post' | 'delete'> & {
+export type Endpoint = {
 	getCancelable<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T>;
 	get<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): Promise<T>;
 
@@ -26,15 +26,13 @@ export type QueryParamsMapper<T extends QueryParamsMapperReturn = QueryParamsMap
 export type EndpointSettings = {
 	baseUrl: string;
 	user: MaybeRef<User | null>;
-	headers?: Record<string, string>;
-	axiosOptions?: Omit<AxiosRequestConfig, 'baseURL' | 'headers'>;
+	axiosOptions?: Omit<AxiosRequestConfig, 'baseURL'>;
 	mapQueryParams?: QueryParamsMapper<any>;
 };
 export function createEndpoint(p: EndpointSettings): Endpoint {
 	const endpoint = axios.create({
 		...p.axiosOptions,
 		baseURL: p.baseUrl.replace(/\/*$/, '/'),
-		headers: p.headers,
 		paramsSerializer: params => new URLSearchParams(cleanQueryParams(p.mapQueryParams?.(params) ?? params)).toString(),
 		// whether to set withCredentials in axios settings
 		// This will send cookies with requests, which is required for authentication
@@ -56,7 +54,6 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 	});
 
 	return {
-		...endpoint,
 		getCancelable<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
 			const request = endpoint
