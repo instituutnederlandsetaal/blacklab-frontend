@@ -154,9 +154,7 @@ export function createLexiconLookup(options: CreateLexiconLookupOptions): Lexico
 
 		return {
 			posOptions: mapReduce(posList),
-			wordList: Object.values(wordOptions)
-				.filter(word => word.count > 0)
-				.sort((a, b) => ((a.count === 0) !== (b.count === 0) ? (a.count === 0 ? 1 : -1) : 0)),
+			wordList: Object.values(wordOptions).filter(word => word.count > 0),
 		};
 	};
 }
