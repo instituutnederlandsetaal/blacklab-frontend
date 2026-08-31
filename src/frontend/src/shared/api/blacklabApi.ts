@@ -314,13 +314,9 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 		getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters),
 
 		getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
-			if (!indexId) {
-				return rejectedRequest(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
-			} else if (!pattern) {
-				return rejectedRequest(new ApiError('Info', 'Cannot parse without pattern.', 'No results', undefined));
-			} else {
-				return endpoint.getOrPostCancelable<BLParsePatternResponse>(paths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
-			}
+			if (!indexId) return rejectedRequest(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
+			if (!pattern) return rejectedRequest(new ApiError('Info', 'Cannot parse without pattern.', 'No results', undefined));
+			return endpoint.getOrPostCancelable<BLParsePatternResponse>(paths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
 		},
 
 		getCollocations: (indexId: string, params: BLCollocationsParameters, requestParameters?: AxiosRequestConfig) => {
