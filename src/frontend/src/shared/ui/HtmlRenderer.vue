@@ -21,10 +21,6 @@ import Spinner from './Spinner.vue';
 type RenderableContent = string | HTMLElement | null | undefined;
 type Content = Loadable<RenderableContent> | RenderableContent;
 
-defineOptions({
-	name: 'HtmlRenderer',
-});
-
 const emit = defineEmits<{
 	ready: [];
 	settled: [];

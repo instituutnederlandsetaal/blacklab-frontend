@@ -14,10 +14,6 @@ import { computed, ref } from 'vue';
 
 import useUid from '@/shared/utils/uid';
 
-defineOptions({
-	name: 'Collapsible',
-});
-
 const props = withDefaults(
 	defineProps<{
 		label?: string;
