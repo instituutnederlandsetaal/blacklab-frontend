@@ -211,15 +211,6 @@ function spanAttributeOptionValue(name: string, attrName: string, listName?: str
 	return `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([groupByName, attrName])}`;
 }
 
-function splitSpanAttributeOptionValue(value: string): { name: string; attrName: string } {
-	if (value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE)) {
-		// grouping on a span attribute
-		const [name, attrName] = JSON.parse(value.slice(OPT_PREFIX_SPAN_ATTRIBUTE.length));
-		return { name, attrName };
-	}
-	throw `Not a span attribute option value: ${value}`;
-}
-
 const {
 	type,
 	disabled = false,
@@ -547,8 +538,8 @@ const selectedMetadataCriterium = computed({
 		if (!value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE)) {
 			selectedCriterium.value.metadata = { type: 'document', field: value };
 		} else {
-			const { name, attrName } = splitSpanAttributeOptionValue(value);
-			selectedCriterium.value.metadata = { type: 'span-attribute', spanName: name, attributeName: attrName };
+			const [spanName, attributeName] = JSON.parse(value.slice(OPT_PREFIX_SPAN_ATTRIBUTE.length));
+			selectedCriterium.value.metadata = { type: 'span-attribute', spanName, attributeName };
 		}
 	},
 });
