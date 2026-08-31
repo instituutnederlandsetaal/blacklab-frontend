@@ -45,13 +45,6 @@ interface LocaleState {
 	messages: null | Record<string, any>;
 }
 
-const importBuiltinLocale = (() => {
-	const cache: Record<string, Promise<{ default: string }>> = {};
-	return (localeId: string): Promise<{ default: string }> => {
-		return (cache[localeId] ??= import(`@assets/locales/${localeId}.json?raw`));
-	};
-})();
-
 class I18nManager {
 	private readonly localeStates = reactive<Record<string, LocaleState>>({});
 
@@ -329,7 +322,7 @@ class I18nManager {
 		return Promise.allSettled([
 			// vite async module import, as string
 			// https://vite.dev/guide/features#custom-queries
-			processImportResult(importBuiltinLocale(localeId)),
+			processImportResult(import(`@assets/locales/${localeId}.json?raw`)),
 			processFetchResult(
 				fetch(`${CONTEXT_URL}${indexId ? `/${indexId}` : ''}/static/locales/${localeId}.json`, {
 					headers: { accept: 'application/json' },
