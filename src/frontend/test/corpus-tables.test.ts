@@ -47,16 +47,18 @@ afterEach(() => {
 
 describe('CorpusTable', () => {
 	test('renders corpus state, routes, counts, and duplicate names from its partition', async () => {
+		const pendingIndex = corpus({ id: 'alice:pending', displayName: 'Pending', status: 'indexing' });
 		const indexing = corpus({
 			id: 'alice:second',
 			status: 'indexing',
 			indexProgress: { filesProcessed: 2, docsDone: 3, tokensProcessed: 4 } as NonNullable<NormalizedIndexBase['indexProgress']>,
 		});
-		const wrapper = mountCorpusTable({ corpora: [corpus(), indexing], title: 'Public corpora' });
+		const wrapper = mountCorpusTable({ corpora: [corpus(), pendingIndex, indexing], title: 'Public corpora' });
 		const links = wrapper.findAllComponents(RouterLinkStub);
 
 		expect(wrapper.text()).toContain('Public corpora');
 		expect(wrapper.text()).toContain('Shared name (alice:first)');
+		expect(wrapper.findAll('.corpus-name a')[1].text()).toContain('(indexing)');
 		expect(wrapper.text()).toContain('(indexing) - 2 files, 3 documents, and 4 tokens indexed so far...');
 		expect(wrapper.text()).toContain('2,7M');
 		expect(links[0].props('to')).toEqual({ name: 'search', params: { corpus: 'alice:first' } });
