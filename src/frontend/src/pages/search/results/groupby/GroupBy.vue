@@ -5,7 +5,9 @@
 
 	<div v-else class="panel panel-primary">
 		<div class="panel-heading" style="display: flex; align-items: first baseline; gap: 0.25em">
-			<h3 class="panel-title" style="padding-right: 0.5em">{{ $t('results.groupBy.groupResults') }}</h3>
+			<h3 class="panel-title" style="padding-right: 0.5em">
+				{{ $t('results.groupBy.groupResults') }}
+			</h3>
 			<button v-if="type === 'hits'" class="btn btn-default" type="button" @click="addAnnotation">+ {{ $t('results.groupBy.annotation') }}</button>
 			<button class="btn btn-default" type="button" @click="addMetadata">+ {{ $t('results.groupBy.metadata') }}</button>
 			<button
@@ -77,7 +79,9 @@
 								type="button"
 								v-if="relationSourceInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
-								:class="{ active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'source' }"
+								:class="{
+									active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'source',
+								}"
 								@click="selectedCriteriumAsLabel && (selectedCriteriumAsLabel.context.relation = 'source')"
 							>
 								{{ relationPartByClass('source') }}
@@ -86,7 +90,9 @@
 								type="button"
 								v-if="relationTargetInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
-								:class="{ active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'target' }"
+								:class="{
+									active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'target',
+								}"
 								@click="selectedCriteriumAsLabel && (selectedCriteriumAsLabel.context.relation = 'target')"
 							>
 								{{ relationPartByClass('target') }}
@@ -156,7 +162,9 @@
 						<div v-else class="main" v-html="word"></div>
 
 						<div v-if="selectedAnnotationAsHtml" :title="selectedAnnotation" class="annotation" v-html="selectedAnnotation"></div>
-						<div v-else :title="selectedAnnotation" class="annotation">{{ selectedAnnotation }}</div>
+						<div v-else :title="selectedAnnotation" class="annotation">
+							{{ selectedAnnotation }}
+						</div>
 					</component>
 					<!-- punctuation between words. -->
 					<component :is="active && section[j + 1]?.active ? 'section' : 'div'" :class="{ punct: true, active: active && section[j + 1]?.active }" :title="punct">{{ punct || ' ' }}</component>
@@ -165,8 +173,12 @@
 		</div>
 
 		<div class="panel-footer text-right">
-			<button type="button" :disabled="disabled" class="btn btn-default" @click="clear">{{ addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close') }}</button>
-			<button type="button" :disabled="disabled || !addedCriteria.length" class="btn btn-primary" @click="apply">{{ $t('results.groupBy.apply') }}</button>
+			<button type="button" :disabled="disabled" class="btn btn-default" @click="clear">
+				{{ addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close') }}
+			</button>
+			<button type="button" :disabled="disabled || !addedCriteria.length" class="btn btn-primary" @click="apply">
+				{{ $t('results.groupBy.apply') }}
+			</button>
 		</div>
 	</div>
 </template>
@@ -338,12 +350,22 @@ const captures = computed(() => {
 	const matchInfos = hits.value?.summary?.pattern?.matchInfos;
 	return Object.entries(matchInfos || {})
 		.filter(([, matchInfo]) => matchInfo.type === 'span' && (matchInfo.fieldName ?? mainSearchField.value) === (selectedCriteriumAsContext.value?.fieldName ?? mainSearchField.value))
-		.map(([name, matchInfo]) => ({ name, label: name, targetField: matchInfo.fieldName }));
+		.map(([name, matchInfo]) => ({
+			name,
+			label: name,
+			targetField: matchInfo.fieldName,
+		}));
 });
 const relations = computed(() =>
 	Object.entries(hits.value?.summary?.pattern?.matchInfos || {}).flatMap(([name, matchInfo]) =>
 		matchInfo.type === 'relation' && (relationSourceInThisField(matchInfo) || relationTargetInThisField(matchInfo))
-			? [{ name, label: name, targetField: selectedCriteriumAsPositional.value?.fieldName }]
+			? [
+					{
+						name,
+						label: name,
+						targetField: selectedCriteriumAsPositional.value?.fieldName,
+					},
+				]
 			: [],
 	),
 );
@@ -352,7 +374,10 @@ const tagAttributes = computed<OptGroup[]>(() => {
 	let options: Option[] = [];
 	const optGroups: OptGroup[] = [];
 	const addOption = (tagName: string, attributeName: string, listName?: string) => {
-		let shouldInclude = customizations.groupingSpanAttribute({ elementName: tagName, attributeName });
+		let shouldInclude = customizations.groupingSpanAttribute({
+			elementName: tagName,
+			attributeName,
+		});
 		const filter = FilterModule.getState().filters[spanFilterId(tagName, attributeName)];
 		if (shouldInclude === null) {
 			const isSpanFilter = filter ? (getValueFunctions(filter)?.isSpanFilter ?? null) : false;
@@ -376,7 +401,11 @@ const tagAttributes = computed<OptGroup[]>(() => {
 			if (!spanInfo.attributes) return;
 			options = [];
 			Object.keys(spanInfo.attributes).forEach(attributeName => addOption(tagName, attributeName, listName));
-			if (options.length) optGroups.push({ label: translate.$td(`index.spans.${tagName}`, `Tag ${tagName}`), options });
+			if (options.length)
+				optGroups.push({
+					label: translate.$td(`index.spans.${tagName}`, `Tag ${tagName}`),
+					options,
+				});
 		});
 	} else {
 		Object.entries(matchInfos)
@@ -385,7 +414,11 @@ const tagAttributes = computed<OptGroup[]>(() => {
 				if (!relationSourceInThisField(matchInfo)) return;
 				options = [];
 				Object.keys(corpus.value.relations.spans?.[tagName]?.attributes ?? {}).forEach(attributeName => addOption(tagName, attributeName));
-				if (options.length) optGroups.push({ label: translate.$td(`index.spans.${tagName}`, `Tag ${tagName}`), options });
+				if (options.length)
+					optGroups.push({
+						label: translate.$td(`index.spans.${tagName}`, `Tag ${tagName}`),
+						options,
+					});
 			});
 	}
 	return optGroups;
@@ -399,7 +432,12 @@ const colors = computed<Record<string, TokenHighlight>>(() => (hits.value ? getH
 const showCaseSensitive = computed(() => selectedCriterium.value?.type === 'metadata' && selectedCriterium.value.metadata.type === 'document');
 const sliderVisible = computed(() => !!selectedCriteriumAsSlider.value);
 const sliderInverted = computed(() => selectedCriteriumAsSlider.value?.context.position === 'E' || selectedCriteriumAsSlider.value?.context.position === 'B');
-const sliderLabels = computed(() => Array.from({ length: contextsize.value }, (_, i) => ({ value: i + 1, label: i + 1 })));
+const sliderLabels = computed(() =>
+	Array.from({ length: contextsize.value }, (_, i) => ({
+		value: i + 1,
+		label: i + 1,
+	})),
+);
 const sliderValue = computed<[number, number]>({
 	get: (): [number, number] => [selectedCriteriumAsSlider.value?.context.start ?? 1, selectedCriteriumAsSlider.value?.context.end ?? 1],
 	set: ([start, end]: [number, number]) => {
@@ -492,14 +530,26 @@ const preview = computed<PreviewToken[][]>(() => {
 });
 
 const contextOptions = computed<Options>(() => [
-	{ label: translate.$t('results.groupBy.some_words.theFirstWord'), value: 'first' },
+	{
+		label: translate.$t('results.groupBy.some_words.theFirstWord'),
+		value: 'first',
+	},
 	{ label: translate.$t('results.groupBy.some_words.allWords'), value: 'all' },
-	{ label: translate.$t('results.groupBy.some_words.specificWords'), value: 'specific' },
+	{
+		label: translate.$t('results.groupBy.some_words.specificWords'),
+		value: 'specific',
+	},
 	{
 		label: translate.$t('results.groupBy.some_words.captureGroupsLabel'),
 		options: [
-			...relations.value.map(c => ({ label: `<span class="color-ball" style="background-color: ${colors.value[c.label].color};">&nbsp;</span> relation ${c.name}`, value: c.name })),
-			...captures.value.map(c => ({ label: `<span class="color-ball" style="background-color: ${colors.value[c.label].color};">&nbsp;</span> capture ${c.name}`, value: c.name })),
+			...relations.value.map(c => ({
+				label: `<span class="color-ball" style="background-color: ${colors.value[c.label].color};">&nbsp;</span> relation ${c.name}`,
+				value: c.name,
+			})),
+			...captures.value.map(c => ({
+				label: `<span class="color-ball" style="background-color: ${colors.value[c.label].color};">&nbsp;</span> capture ${c.name}`,
+				value: c.name,
+			})),
 		],
 	},
 ]);
@@ -537,11 +587,21 @@ const contextValue = computed({
 			if (selectedCriteriumAsPositional.value) {
 				selectedCriteriumAsPositional.value.context.whichTokens = value;
 			} else {
-				selected.context = { type: 'positional', position: 'H', whichTokens: value, start: 1, end: contextsize.value };
+				selected.context = {
+					type: 'positional',
+					position: 'H',
+					whichTokens: value,
+					start: 1,
+					end: contextsize.value,
+				};
 			}
 			if (value === 'all' && selectedCriteriumAsPositional.value?.context.position === 'E') selectedCriteriumAsPositional.value.context.position = 'H';
 		} else {
-			selected.context = { type: 'label', label: value, relation: relationNames.value.includes(value) ? getInitialRelationPartValue(value) : undefined };
+			selected.context = {
+				type: 'label',
+				label: value,
+				relation: relationNames.value.includes(value) ? getInitialRelationPartValue(value) : undefined,
+			};
 		}
 	},
 });
@@ -558,7 +618,11 @@ const selectedMetadataCriterium = computed({
 			selectedCriterium.value.metadata = { type: 'document', field: value };
 		} else {
 			const [spanName, attributeName] = JSON.parse(value.slice(OPT_PREFIX_SPAN_ATTRIBUTE.length));
-			selectedCriterium.value.metadata = { type: 'span-attribute', spanName, attributeName };
+			selectedCriterium.value.metadata = {
+				type: 'span-attribute',
+				spanName,
+				attributeName,
+			};
 		}
 	},
 });
@@ -566,10 +630,26 @@ const selectedMetadataCriterium = computed({
 const positionOptions = computed<Options>(() => {
 	if (!selectedCriteriumAsPositional.value) return [];
 	return [
-		{ label: translate.$t('results.groupBy.in_this_location.beforeTheHit'), value: 'B' },
-		{ label: translate.$t('results.groupBy.in_this_location.inTheHit'), value: 'H' },
-		...(selectedCriteriumAsPositional.value.context.whichTokens !== 'all' ? [{ label: translate.$t('results.groupBy.in_this_location.fromTheEnd'), value: 'E' }] : []),
-		{ label: translate.$t('results.groupBy.in_this_location.afterTheHit'), value: 'A' },
+		{
+			label: translate.$t('results.groupBy.in_this_location.beforeTheHit'),
+			value: 'B',
+		},
+		{
+			label: translate.$t('results.groupBy.in_this_location.inTheHit'),
+			value: 'H',
+		},
+		...(selectedCriteriumAsPositional.value.context.whichTokens !== 'all'
+			? [
+					{
+						label: translate.$t('results.groupBy.in_this_location.fromTheEnd'),
+						value: 'E',
+					},
+				]
+			: []),
+		{
+			label: translate.$t('results.groupBy.in_this_location.afterTheHit'),
+			value: 'A',
+		},
 	];
 });
 const positionValue = computed({
@@ -585,7 +665,10 @@ const parallelVersionOptions = computed<Option[]>(() => {
 	const pattern = hasPatternInfo(summary) ? summary.pattern : undefined;
 	return (pattern ? [pattern.fieldName, ...(pattern.otherFields ?? [])] : []).map(fieldName => {
 		const field = corpus.value.parallelAnnotatedFieldsMap[fieldName];
-		return { value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) };
+		return {
+			value: field.id,
+			label: translate.$tAnnotatedFieldDisplayName(field),
+		};
 	});
 });
 
@@ -609,13 +692,23 @@ function addAnnotation() {
 		type: 'context',
 		fieldName: mainSearchField.value,
 		annotation: defaultAnnotation.value,
-		context: { type: 'positional', position: 'H', whichTokens: 'all', start: 1, end: contextsize.value },
+		context: {
+			type: 'positional',
+			position: 'H',
+			whichTokens: 'all',
+			start: 1,
+			end: contextsize.value,
+		},
 		caseSensitive: false,
 	});
 	selectedCriteriumIndex.value = addedCriteria.value.length - 1;
 }
 function addMetadata() {
-	addedCriteria.value.push({ type: 'metadata', caseSensitive: false, metadata: { type: 'document', field: '' } });
+	addedCriteria.value.push({
+		type: 'metadata',
+		caseSensitive: false,
+		metadata: { type: 'document', field: '' },
+	});
 	selectedCriteriumIndex.value = addedCriteria.value.length - 1;
 }
 function handlePreviewClick(event: MouseEvent, section: number, index: number) {

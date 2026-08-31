@@ -1,6 +1,6 @@
 import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { computed, nextTick } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
@@ -71,87 +71,13 @@ describe('value checks', () => {
 });
 
 describe('Loadable helpers', () => {
-	const otherError: ApiError = new ApiError('other', 'other', 'other', 500);
-
 	test('map maps loaded values and passes through other states', () => {
 		const mapper = vi.fn((value: number) => value + 1);
 
 		expect(Loadable.map(loaded, mapper)).toEqual(Loadable.Loaded(2));
-		expect(loading.map(mapper)).toBe(loading);
-		expect(error.map(mapper)).toBe(error);
-		expect(empty.map(mapper)).toBe(empty);
-		expect(mapper).toHaveBeenCalledTimes(1);
-	});
-
-	test('mapOptional maps loaded and empty values, and passes through loading and error states', () => {
-		const mapper = vi.fn((value: number | undefined) => value ?? 10);
-
-		expect(Loadable.mapOptional(loaded, mapper)).toEqual(Loadable.Loaded(1));
-		expect(Loadable.mapOptional(empty, mapper)).toEqual(Loadable.Loaded(10));
-		expect(loading.mapOptional(mapper)).toBe(loading);
-		expect(error.mapOptional(mapper)).toBe(error);
-		expect(mapper).toHaveBeenCalledTimes(2);
-	});
-
-	test('mapError maps errors and passes through other states', () => {
-		const mapper = vi.fn(() => otherError);
-
-		expect(Loadable.mapError(error, mapper)).toEqual(Loadable.LoadingError(otherError));
-		expect(loaded.mapError(mapper)).toBe(loaded);
-		expect(loading.mapError(mapper)).toBe(loading);
-		expect(empty.mapError(mapper)).toBe(empty);
-		expect(mapper).toHaveBeenCalledTimes(1);
-	});
-
-	test('recover maps errors into loaded values', () => {
-		const mapper = vi.fn(() => 2);
-
-		expect(Loadable.recover(error, mapper)).toEqual(Loadable.Loaded(2));
-		expect(loaded.recover(mapper)).toBe(loaded);
-		expect(loading.recover(mapper)).toBe(loading);
-		expect(empty.recover(mapper)).toBe(empty);
-		expect(mapper).toHaveBeenCalledTimes(1);
-	});
-
-	test('flatMap maps loaded values into loadables and passes through other states', () => {
-		const mapper = vi.fn((value: number) => Loadable.Loaded(String(value + 1)));
-
-		expect(Loadable.flatMap(loaded, mapper)).toEqual(Loadable.Loaded('2'));
-		expect(loading.flatMap(mapper)).toBe(loading);
-		expect(error.flatMap(mapper)).toBe(error);
-		expect(empty.flatMap(mapper)).toBe(empty);
-		expect(mapper).toHaveBeenCalledTimes(1);
-	});
-
-	test('flatMapOptional maps loaded and empty values into loadables', () => {
-		const mapper = vi.fn((value: number | undefined) => (value == null ? Loadable.Loaded('empty') : Loadable.Loaded(String(value))));
-
-		expect(Loadable.flatMapOptional(loaded, mapper)).toEqual(Loadable.Loaded('1'));
-		expect(Loadable.flatMapOptional(empty, mapper)).toEqual(Loadable.Loaded('empty'));
-		expect(loading.flatMapOptional(mapper)).toBe(loading);
-		expect(error.flatMapOptional(mapper)).toBe(error);
-		expect(mapper).toHaveBeenCalledTimes(2);
-	});
-
-	test('flatMapError maps errors into loadables and passes through other states', () => {
-		const mapper = vi.fn(() => Loadable.Loaded('recovered'));
-
-		expect(Loadable.flatMapError(error, mapper)).toEqual(Loadable.Loaded('recovered'));
-		expect(loaded.flatMapError(mapper)).toBe(loaded);
-		expect(loading.flatMapError(mapper)).toBe(loading);
-		expect(empty.flatMapError(mapper)).toBe(empty);
-		expect(mapper).toHaveBeenCalledTimes(1);
-	});
-
-	test('or maps empty values into loadables and treats nullish values as empty', () => {
-		const mapper = vi.fn(() => 2);
-
-		expect(Loadable.or(empty, mapper)).toEqual(Loadable.Loaded(2));
-		expect(Loadable.Empty<number>().or(() => null)).toEqual(Loadable.Empty());
-		expect(Loadable.Empty<number>().or(() => undefined)).toEqual(Loadable.Empty());
-		expect(loaded.or(mapper)).toBe(loaded);
-		expect(loading.or(mapper)).toBe(loading);
-		expect(error.or(mapper)).toBe(error);
+		expect(Loadable.map(loading, mapper)).toBe(loading);
+		expect(Loadable.map(error, mapper)).toBe(error);
+		expect(Loadable.map(empty, mapper)).toBe(empty);
 		expect(mapper).toHaveBeenCalledTimes(1);
 	});
 
@@ -400,17 +326,19 @@ describe('loadableFromStream', () => {
 		const ob$ = new Subject<{ html: string }>();
 		const o = loadableFromStream(ob$);
 		const mappedValues: Array<{ html: string } | undefined> = [];
-		const mapped = o.map(value => {
-			mappedValues.push(value);
-			return value?.html ?? 'missing';
-		});
+		const mapped = computed(() =>
+			Loadable.map(o, value => {
+				mappedValues.push(value);
+				return value?.html ?? 'missing';
+			}),
+		);
 
 		ob$.next({ html: '<p>Rendered content</p>' });
 		await nextTick();
 
+		expect(mapped.value.state).toBe(LoadableState.loaded);
+		expect(mapped.value.value).toBe('<p>Rendered content</p>');
 		expect(mappedValues).toEqual([{ html: '<p>Rendered content</p>' }]);
-		expect(mapped.state).toBe(LoadableState.loaded);
-		expect(mapped.value).toBe('<p>Rendered content</p>');
 		o.stop();
 	});
 	test('it should unpack loadables in the stream', () => {
@@ -452,7 +380,7 @@ describe('InteractiveLoadable', () => {
 		expect(Loadable.isLoadable(loadable)).toBe(true);
 		expect(loadable.isLoaded()).toBe(true);
 		expect(loadable.value).toBe(1);
-		expect(loadable.map(value => value + 1)).toEqual(Loadable.Loaded(2));
+		expect(Loadable.map(loadable, value => value + 1)).toEqual(Loadable.Loaded(2));
 
 		loadable.next(-1);
 		expect(loadable.isLoaded()).toBe(true);

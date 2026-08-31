@@ -14,14 +14,6 @@ export interface LoadableBase<T> {
 	isLoaded(): this is Loaded<T>;
 	isError(): this is LoadingError<T>;
 	isEmpty(): this is Empty<T>;
-	map<U>(mapper: (value: T) => U): Loadable<U>;
-	mapOptional<U>(mapper: (value: T | undefined) => U): Loadable<U>;
-	mapError(mapper: (error: ApiError) => ApiError): Loadable<T>;
-	recover(mapper: (error: ApiError) => T): Loadable<T>;
-	flatMap<U>(mapper: (value: T) => Loadable<U>): Loadable<U>;
-	flatMapOptional<U>(mapper: (value: T | undefined) => Loadable<U>): Loadable<U>;
-	flatMapError<U>(mapper: (error: ApiError) => Loadable<U>): Loadable<T | U>;
-	or(mapper: () => T | null | undefined): Loadable<T>;
 }
 
 export interface LoadingLike<T> extends LoadableLike<T> {
@@ -113,107 +105,12 @@ function thisIsEmpty(this: any): boolean {
 	return isEmpty(this);
 }
 
-export type LoadableStateValue<T, S extends LoadableState> = S extends LoadableState.loaded ? T : S extends LoadableState.error ? ApiError : undefined;
-
-export function getLoadableStateValue<T, S extends LoadableState>(loadable: LoadableLike<T>, state: S): LoadableStateValue<T, S> {
-	if (state === LoadableState.loaded) return loadable.value as LoadableStateValue<T, S>;
-	if (state === LoadableState.error) return loadable.error as LoadableStateValue<T, S>;
-	return undefined as LoadableStateValue<T, S>;
-}
-
-const passthrough = <T, U = T>(v: LoadableLike<T>): LoadableLike<U> => v as unknown as LoadableLike<U>;
-
 function map<T, U>(v: Loadable<T>, mapper: (value: T) => U): Loadable<U>;
 function map<T, U>(v: LoadableLike<T>, mapper: (value: T) => U): LoadableLike<U>;
 /** Map Loaded values and preserve every other state by identity. */
 function map<T, U>(v: LoadableLike<T>, mapper: (value: T) => U): LoadableLike<U> {
 	if (isLoaded(v)) return Loaded(mapper(v.value));
-	return passthrough<T, U>(v);
-}
-
-function mapOptional<T, U>(v: Loadable<T>, mapper: (value: T | undefined) => U): Loadable<U>;
-function mapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => U): LoadableLike<U>;
-function mapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => U): LoadableLike<U> {
-	if (isLoaded(v)) return Loaded(mapper(v.value));
-	if (isEmpty(v)) return Loaded(mapper(undefined));
-	return passthrough<T, U>(v);
-}
-
-function mapError<T>(v: Loadable<T>, mapper: (error: ApiError) => ApiError): Loadable<T>;
-function mapError<T>(v: LoadableLike<T>, mapper: (error: ApiError) => ApiError): LoadableLike<T>;
-/** Transform Error values and preserve every other state by identity. */
-function mapError<T>(v: LoadableLike<T>, mapper: (error: ApiError) => ApiError): LoadableLike<T> {
-	return isError(v) ? LoadingError(mapper(v.error)) : passthrough(v);
-}
-
-function recover<T>(v: Loadable<T>, mapper: (error: ApiError) => T): Loadable<T>;
-function recover<T>(v: LoadableLike<T>, mapper: (error: ApiError) => T): LoadableLike<T>;
-/** Recover Error values as Loaded values and preserve every other state. */
-function recover<T>(v: LoadableLike<T>, mapper: (error: ApiError) => T): LoadableLike<T> {
-	return isError(v) ? Loaded(mapper(v.error)) : passthrough(v);
-}
-
-function flatMap<T, U>(v: Loadable<T>, mapper: (value: T) => Loadable<U>): Loadable<U>;
-function flatMap<T, U>(v: LoadableLike<T>, mapper: (value: T) => Loadable<U>): LoadableLike<U>;
-/** Replace Loaded values with the loadable returned by the mapper. */
-function flatMap<T, U>(v: LoadableLike<T>, mapper: (value: T) => Loadable<U>): LoadableLike<U> {
-	if (isLoaded(v)) return mapper(v.value);
-	return passthrough<T, U>(v);
-}
-
-function flatMapOptional<T, U>(v: Loadable<T>, mapper: (value: T | undefined) => Loadable<U>): Loadable<U>;
-function flatMapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => Loadable<U>): LoadableLike<U>;
-function flatMapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => Loadable<U>): LoadableLike<U> {
-	if (isLoaded(v)) return mapper(v.value);
-	if (isEmpty(v)) return mapper(undefined);
-	return passthrough<T, U>(v);
-}
-
-function flatMapError<T, U>(v: Loadable<T>, mapper: (error: ApiError) => Loadable<U>): Loadable<T | U>;
-function flatMapError<T, U>(v: LoadableLike<T>, mapper: (error: ApiError) => Loadable<U>): LoadableLike<T | U>;
-/** Replace Error values with the loadable returned by the mapper. */
-function flatMapError<T, U>(v: LoadableLike<T>, mapper: (error: ApiError) => Loadable<U>): LoadableLike<T | U> {
-	return isError(v) ? mapper(v.error) : passthrough(v);
-}
-
-function or<T>(v: Loadable<T>, mapper: () => T | null | undefined): Loadable<T>;
-function or<T>(v: LoadableLike<T>, mapper: () => T | null | undefined): LoadableLike<T>;
-function or<T>(v: LoadableLike<T>, mapper: () => T | null | undefined): LoadableLike<T> {
-	if (!isEmpty(v)) return passthrough(v);
-	const value = mapper();
-	return value != null ? Loaded(value) : Empty<T>();
-}
-
-function thisMap<T, U>(this: Loadable<T>, mapper: (value: T) => U): Loadable<U> {
-	return map(this, mapper);
-}
-
-function thisMapOptional<T, U>(this: Loadable<T>, mapper: (value: T | undefined) => U): Loadable<U> {
-	return mapOptional(this, mapper);
-}
-
-function thisMapError<T>(this: Loadable<T>, mapper: (error: ApiError) => ApiError): Loadable<T> {
-	return mapError(this, mapper);
-}
-
-function thisRecover<T>(this: Loadable<T>, mapper: (error: ApiError) => T): Loadable<T> {
-	return recover(this, mapper);
-}
-
-function thisFlatMap<T, U>(this: Loadable<T>, mapper: (value: T) => Loadable<U>): Loadable<U> {
-	return flatMap(this, mapper);
-}
-
-function thisFlatMapOptional<T, U>(this: Loadable<T>, mapper: (value: T | undefined) => Loadable<U>): Loadable<U> {
-	return flatMapOptional(this, mapper);
-}
-
-function thisFlatMapError<T, U>(this: Loadable<T>, mapper: (error: ApiError) => Loadable<U>): Loadable<T | U> {
-	return flatMapError(this, mapper);
-}
-
-function thisOr<T>(this: Loadable<T>, mapper: () => T | null | undefined): Loadable<T> {
-	return or(this, mapper);
+	return v as unknown as LoadableLike<U>;
 }
 
 const loadableMethods = {
@@ -221,17 +118,9 @@ const loadableMethods = {
 	isLoaded: thisIsLoaded,
 	isError: thisIsError,
 	isEmpty: thisIsEmpty,
-	map: thisMap,
-	mapOptional: thisMapOptional,
-	mapError: thisMapError,
-	recover: thisRecover,
-	flatMap: thisFlatMap,
-	flatMapOptional: thisFlatMapOptional,
-	flatMapError: thisFlatMapError,
-	or: thisOr,
 } satisfies LoadableBase<any>;
 
-/** Attach the shared fluent loadable operations to a state object. */
+/** Attach the loadable state checks to a state object. */
 export const withLoadableMethods = <T, E extends object>(object: E): E & LoadableBase<T> => Object.assign(object, loadableMethods) as E & LoadableBase<T>;
 
 const loadable = <T, E extends object = never>(state: LoadableState, value?: T, error?: ApiError, extra?: E): Loadable<T> & E =>
@@ -266,27 +155,11 @@ export const Loadable = {
 	isError,
 	isEmpty,
 	wrap,
-	getLoadableStateValue,
 	map,
-	mapOptional,
-	mapError,
-	recover,
-	flatMap,
-	flatMapOptional,
-	flatMapError,
-	or,
 	thisIsLoading,
 	thisIsLoaded,
 	thisIsError,
 	thisIsEmpty,
-	thisMap,
-	thisMapOptional,
-	thisMapError,
-	thisRecover,
-	thisFlatMap,
-	thisFlatMapOptional,
-	thisFlatMapError,
-	thisOr,
 	loadableMethods,
 	withLoadableMethods,
 };

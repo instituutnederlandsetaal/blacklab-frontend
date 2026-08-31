@@ -147,6 +147,7 @@ import { createArticleStreams, type Input } from './article';
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 import { clamp } from '@/shared/utils/number-utils';
 
@@ -171,10 +172,10 @@ const { resultDetailedMetadataIds } = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
-const metadataHtml = metadata.map(m => m.html);
+const metadataHtml = computed(() => Loadable.map(metadata, value => value.html));
 
 const contents = loadableFromStream(contents$);
-const contentsHtml = contents.map(c => c.html);
+const contentsHtml = computed(() => Loadable.map(contents, value => value.html));
 
 const hits = loadableFromStream(hits$);
 const hitToHighlight = loadableFromStream(hitToHighlight$);

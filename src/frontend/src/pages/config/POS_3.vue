@@ -10,7 +10,8 @@
 				<template v-else-if="mainValues.length">
 					<li v-for="v in mainValues" :key="v.value">
 						<button type="button" style="display: flex; width: 100%; text-align: left" @click="activeValue = v.value" class="btn btn-default" :class="{ active: activeValue === v.value }">
-							<span style="flex-grow: 1">{{ v.value }}</span> <span v-if="v.loading" class="fa fa-spinner fa-spin" style="align-self: center; margin-left: 5px"></span>
+							<span style="flex-grow: 1">{{ v.value }}</span>
+							<span v-if="v.loading" class="fa fa-spinner fa-spin" style="align-self: center; margin-left: 5px"></span>
 						</button>
 					</li>
 				</template>
@@ -92,7 +93,11 @@ const step = defineComponent({
 			mode: 'manual',
 			request: (execute, run) => execute(run),
 		});
-		return { blacklab, runWorkflow: workflow.run, workflowState: workflow.state };
+		return {
+			blacklab,
+			runWorkflow: workflow.run,
+			workflowState: workflow.state,
+		};
 	},
 	data: () => ({
 		title,
@@ -117,10 +122,19 @@ const step = defineComponent({
 		},
 
 		mainValues(): null | Array<{ value: string; loading: boolean }> {
-			return this.v.main ? Object.keys(this.v.main).map(v => ({ value: v, loading: this.v.main![v].loading })) : null;
+			return this.v.main
+				? Object.keys(this.v.main).map(v => ({
+						value: v,
+						loading: this.v.main![v].loading,
+					}))
+				: null;
 		},
 
-		display(): null | Array<{ id: string; loading: boolean; values: Array<{ loading: boolean; occurances: number; value: string }> }> {
+		display(): null | Array<{
+			id: string;
+			loading: boolean;
+			values: Array<{ loading: boolean; occurances: number; value: string }>;
+		}> {
 			if (!this.activeValue || !this.v.main) return null;
 			const v = this.v.main[this.activeValue];
 
@@ -242,13 +256,19 @@ const step = defineComponent({
 							}
 						}
 						if (performedWork) {
-							this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
+							this.$emit('update:modelValue', {
+								...this.modelValue,
+								step3: this.v,
+							});
 						}
 					}
 					this.v.main![mainPosValue].loading = false;
 				}
 				if (performedWork) {
-					this.$emit('update:modelValue', { ...this.modelValue, step3: this.v });
+					this.$emit('update:modelValue', {
+						...this.modelValue,
+						step3: this.v,
+					});
 				}
 				this.currentStep = 'Finished!';
 			} catch (error) {
@@ -265,5 +285,11 @@ const step = defineComponent({
 	},
 });
 
-export default Object.assign(step, { value, label, title, defaultAction, step });
+export default Object.assign(step, {
+	value,
+	label,
+	title,
+	defaultAction,
+	step,
+});
 </script>

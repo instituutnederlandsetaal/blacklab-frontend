@@ -2,34 +2,14 @@ import { tryOnScopeDispose } from '@vueuse/core';
 import { reactive, ref, shallowReactive, shallowRef, toRef, unref, watch, type DebuggerOptions, type MaybeRef, type Ref, type WatchOptions } from 'vue';
 
 import type { MaybeLoadable } from './loadable-combine';
-import {
-	getLoadableStateValue,
-	isEmpty,
-	isLoaded,
-	Loadable,
-	LoadableState,
-	withLoadableMethods,
-	type Loadable as LoadableType,
-	type LoadableBase,
-	type LoadableLike,
-	type LoadableStateValue,
-} from './loadable-core';
+import { isLoaded, Loadable, LoadableState, withLoadableMethods, type Loadable as LoadableType, type LoadableLike } from './loadable-core';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
 
 export type MaybeRefLoadable<T> = MaybeRef<MaybeLoadable<T>>;
 export type LoadableReactiveOptions = DebuggerOptions & { deep?: boolean };
 type ReactiveLoadableControls = { retry: () => void; stop: () => void };
-export interface ReactiveLoadable<T> extends LoadableType<T> {
-	map<U>(mapper: (value: T) => U, options?: LoadableReactiveOptions): ControlledLoadable<U>;
-	mapOptional<U>(mapper: (value: T | undefined) => U, options?: LoadableReactiveOptions): ControlledLoadable<U>;
-	mapError(mapper: (error: ApiError) => ApiError, options?: LoadableReactiveOptions): ControlledLoadable<T>;
-	recover(mapper: (error: ApiError) => T, options?: LoadableReactiveOptions): ControlledLoadable<T>;
-	flatMap<U>(mapper: (value: T) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U>;
-	flatMapOptional<U>(mapper: (value: T | undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U>;
-	flatMapError<U>(mapper: (error: ApiError) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<T | U>;
-	or(mapper: () => T | null | undefined, options?: LoadableReactiveOptions): ControlledLoadable<T>;
-}
+export type ReactiveLoadable<T> = LoadableType<T>;
 export type ControlledLoadable<T> = ReactiveLoadable<T> & ReactiveLoadableControls;
 
 type WritableLoadableRefs<T> = {
@@ -37,8 +17,6 @@ type WritableLoadableRefs<T> = {
 	value: Ref<T | undefined>;
 	error: Ref<ApiError | undefined>;
 };
-
-type LoadableStateMapResult<T, U, S extends LoadableState> = S extends LoadableState.loaded ? U : U | T;
 
 function isRetryableLoadable<T>(loadable: MaybeLoadable<T>): loadable is ControlledLoadable<T> {
 	return typeof (loadable as Partial<ControlledLoadable<T>>).retry === 'function' && typeof (loadable as Partial<ControlledLoadable<T>>).stop === 'function';
@@ -87,11 +65,6 @@ function reuseLoadableValueIfUnchanged<T>(previousValue: T | undefined, nextValu
 	return nextValue;
 }
 
-/** Attach both state-specific and reactive methods to a reactive loadable shell. */
-function withReactiveLoadableMethods<T, E extends object>(object: E): E & ReactiveLoadable<T> {
-	return Object.assign(withLoadableMethods<T, E>(object), reactiveLoadableMethods) as E & ReactiveLoadable<T>;
-}
-
 function reactiveLoadableFromRefs<T, E extends object>(refs: WritableLoadableRefs<T>, extra: E): ReactiveLoadable<T> & E {
 	const r = reactive({
 		...(extra as E),
@@ -99,7 +72,7 @@ function reactiveLoadableFromRefs<T, E extends object>(refs: WritableLoadableRef
 		value: refs.value,
 		error: refs.error,
 	});
-	return withReactiveLoadableMethods<T, LoadableLike<T> & E>(r as LoadableLike<T> & E);
+	return withLoadableMethods<T, LoadableLike<T> & E>(r as LoadableLike<T> & E);
 }
 
 export function loadableReactiveFromSnapshot<T, E extends object>(snapshot: Readonly<Ref<LoadableLike<T>>>, extra: E): ReactiveLoadable<T> & E {
@@ -115,7 +88,7 @@ export function loadableReactiveFromSnapshot<T, E extends object>(snapshot: Read
 			return snapshot.value.error;
 		},
 	});
-	return withReactiveLoadableMethods<T, LoadableLike<T> & E>(r as LoadableLike<T> & E);
+	return withLoadableMethods<T, LoadableLike<T> & E>(r as LoadableLike<T> & E);
 }
 
 function loadableSnapshot<T>(loadable: MaybeLoadable<T>, previous?: LoadableLike<T>): LoadableLike<T> {
@@ -230,83 +203,3 @@ export function tapLoadedReactive<T>(source: ControlledLoadable<T>, cb: (value: 
 		{ ...options, flush: 'sync' },
 	);
 }
-
-function flatMapSingleLoadableReactive<T, U, S extends LoadableState>(
-	loadable: MaybeRefLoadable<T>,
-	stateToMatch: S,
-	mapper: (value: LoadableStateValue<T, S>) => MaybeRefLoadable<U>,
-	options?: LoadableReactiveOptions,
-): ControlledLoadable<LoadableStateMapResult<T, U, S>> {
-	return createDerivedLoadable<LoadableStateMapResult<T, U, S>>(
-		() => [loadable],
-		() => {
-			const source = unref(loadable) as MaybeLoadable<T>;
-			if (source.state !== stateToMatch) return source as MaybeLoadable<LoadableStateMapResult<T, U, S>>;
-			return mapper(getLoadableStateValue(source, stateToMatch)) as MaybeRefLoadable<LoadableStateMapResult<T, U, S>>;
-		},
-		options,
-	);
-}
-
-function flatMapOptionalSingleLoadableReactive<T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: T | undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U> {
-	return createDerivedLoadable<U>(
-		() => [loadable],
-		() => {
-			const source = unref(loadable) as MaybeLoadable<T>;
-			if (!isLoaded(source) && !isEmpty(source)) return source as unknown as MaybeLoadable<U>;
-			return mapper(isLoaded(source) ? source.value : undefined);
-		},
-		options,
-	);
-}
-
-function thisMapReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (value: T) => U, options?: LoadableReactiveOptions): ControlledLoadable<U> {
-	return flatMapSingleLoadableReactive(this, LoadableState.loaded, value => Loadable.Loaded(mapper(value)), options);
-}
-
-function thisMapOptionalReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (value: T | undefined) => U, options?: LoadableReactiveOptions): ControlledLoadable<U> {
-	return flatMapOptionalSingleLoadableReactive(this, value => Loadable.Loaded(mapper(value)), options);
-}
-
-function thisMapErrorReactive<T>(this: MaybeRefLoadable<T>, mapper: (error: ApiError) => ApiError, options?: LoadableReactiveOptions): ControlledLoadable<T> {
-	return flatMapSingleLoadableReactive(this, LoadableState.error, error => Loadable.LoadingError<T>(mapper(error)), options) as ControlledLoadable<T>;
-}
-
-function thisRecoverReactive<T>(this: MaybeRefLoadable<T>, mapper: (error: ApiError) => T, options?: LoadableReactiveOptions): ControlledLoadable<T> {
-	return flatMapSingleLoadableReactive(this, LoadableState.error, error => Loadable.Loaded(mapper(error)), options) as ControlledLoadable<T>;
-}
-
-function thisFlatMapReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (value: T) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U> {
-	return flatMapSingleLoadableReactive(this, LoadableState.loaded, mapper, options);
-}
-
-function thisFlatMapOptionalReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (value: T | undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<U> {
-	return flatMapOptionalSingleLoadableReactive(this, mapper, options);
-}
-
-function thisFlatMapErrorReactive<T, U>(this: MaybeRefLoadable<T>, mapper: (error: ApiError) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions): ControlledLoadable<T | U> {
-	return flatMapSingleLoadableReactive(this, LoadableState.error, mapper, options) as ControlledLoadable<T | U>;
-}
-
-function thisOrReactive<T>(this: MaybeRefLoadable<T>, mapper: () => T | null | undefined, options?: LoadableReactiveOptions): ControlledLoadable<T> {
-	return flatMapSingleLoadableReactive(
-		this,
-		LoadableState.empty,
-		() => {
-			const value = mapper();
-			return value != null ? Loadable.Loaded(value) : Loadable.Empty<T>();
-		},
-		options,
-	) as ControlledLoadable<T>;
-}
-
-const reactiveLoadableMethods = {
-	map: thisMapReactive,
-	mapOptional: thisMapOptionalReactive,
-	mapError: thisMapErrorReactive,
-	recover: thisRecoverReactive,
-	flatMap: thisFlatMapReactive,
-	flatMapOptional: thisFlatMapOptionalReactive,
-	flatMapError: thisFlatMapErrorReactive,
-	or: thisOrReactive,
-} satisfies Partial<LoadableBase<any>>;

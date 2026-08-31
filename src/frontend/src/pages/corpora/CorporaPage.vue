@@ -79,7 +79,11 @@ import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import Modal from '@/shared/ui/Modal.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
-type CorpusPoll = { displayName: string; request: CancelableRequest<NormalizedIndexBase> | null; timer: ReturnType<typeof setTimeout> | null };
+type CorpusPoll = {
+	displayName: string;
+	request: CancelableRequest<NormalizedIndexBase> | null;
+	timer: ReturnType<typeof setTimeout> | null;
+};
 
 const blacklab = useBlackLabApi();
 const corpora = ref<NormalizedIndexBase[]>([]),
@@ -168,7 +172,11 @@ function refreshCorpus(indexId: string) {
 	if (corpusPolls.has(indexId)) return;
 	const currentCorpus = corpora.value.find(c => c.id === indexId);
 	if (!currentCorpus) return;
-	const poll: CorpusPoll = { displayName: currentCorpus.displayName, request: null, timer: null };
+	const poll: CorpusPoll = {
+		displayName: currentCorpus.displayName,
+		request: null,
+		timer: null,
+	};
 	corpusPolls.set(indexId, poll);
 	runCorpusPoll(indexId, poll);
 }
