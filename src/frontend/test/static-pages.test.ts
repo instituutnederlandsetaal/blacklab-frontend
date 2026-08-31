@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
-import type { LoadableFromStream } from '@/shared/utils/loadable/loadable-stream';
+import type { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import AboutPage from '@/pages/about/AboutPage.vue';
 import HelpPage from '@/pages/help/HelpPage.vue';
@@ -50,7 +50,7 @@ describe.each([
 		const pending = deferredRequest();
 		mock[endpoint].mockReturnValue(pending.request);
 		const wrapper = mount(Page);
-		const content = wrapper.getComponent(HtmlRenderer).props('content') as LoadableFromStream<string>;
+		const content = wrapper.getComponent(HtmlRenderer).props('content') as Loadable<string>;
 
 		expect(mock[endpoint]).toHaveBeenCalledWith('test-corpus');
 		expect(wrapper.getComponent(HtmlRenderer).props()).toMatchObject({ executeScripts: true, parseStringAsHtml: true });

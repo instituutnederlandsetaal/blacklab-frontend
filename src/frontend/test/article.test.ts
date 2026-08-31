@@ -1,6 +1,7 @@
 import { createMockApi, rejectedRequest, resolvedRequest } from '@test/mocks/api';
 import { filter, firstValueFrom, map, type Observable } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+import { effectScope, type EffectScope } from 'vue';
 
 import type { Input } from '@/pages/article/article';
 import { createArticleStreams } from '@/pages/article/article';
@@ -8,7 +9,7 @@ import { type BLDocInfo, type BLHitInDoc, type BLHitResults, type BLDocument } f
 
 import { ApiError, type DocumentContentsParameters } from '@/shared/api/lib/api-types';
 import { isError, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
-import { loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
+import { loadableFromStream as createLoadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 const ids = {
 	MOCK_INDEX_ID: 'test',
@@ -27,6 +28,17 @@ function promiseFromLoadableStream<T>(stream: Observable<LoadableLike<T>>): Prom
 		{ defaultValue: undefined },
 	);
 }
+
+let scope: EffectScope;
+const loadableFromStream = <T>(stream: Observable<T>) => scope.run(() => createLoadableFromStream(stream))!;
+
+beforeEach(() => {
+	scope = effectScope();
+});
+
+afterEach(() => {
+	scope.stop();
+});
 
 beforeAll(() => {
 	vi.stubGlobal('document', {
@@ -158,7 +170,6 @@ describe('hits$', () => {
 		const hitsOutput = loadableFromStream(hits$);
 
 		expect(hitsOutput).toMatchObject({ state: LoadableState.empty });
-		hitsOutput.stop();
 	});
 
 	test('Should find the hits', async () => {
@@ -170,7 +181,6 @@ describe('hits$', () => {
 
 		expect(hitsOutput.state).toBe(LoadableState.loaded);
 		expect(hitsOutput.value).toEqual(values.MOCK_HITS.hits.map(h => [h.start, h.end]));
-		hitsOutput.stop();
 	});
 
 	test('Should clear if no docId', async () => {
@@ -183,7 +193,6 @@ describe('hits$', () => {
 		expect(hitsOutput.state).toBe(LoadableState.empty);
 		expect(hitsOutput.value).toBeUndefined();
 		expect(hitsOutput.error).toBeUndefined();
-		hitsOutput.stop();
 	});
 
 	test('Should clear if no indexId', async () => {
@@ -196,7 +205,6 @@ describe('hits$', () => {
 		expect(hitsOutput.state).toBe(LoadableState.empty);
 		expect(hitsOutput.value).toBeUndefined();
 		expect(hitsOutput.error).toBeUndefined();
-		hitsOutput.stop();
 	});
 });
 
@@ -211,7 +219,6 @@ describe('metadata$', () => {
 		expect(output.state).toBe(LoadableState.empty);
 		expect(output.value).toBeUndefined();
 		expect(output.error).toBeUndefined();
-		output.stop();
 	});
 
 	test('Should load the metadata', async () => {
@@ -225,7 +232,6 @@ describe('metadata$', () => {
 			json: values.MOCK_DOC,
 			html: { innerHTML: '<dl><dt>title</dt><dd>Test</dd></dl>' },
 		});
-		output.stop();
 	});
 });
 
@@ -239,7 +245,6 @@ describe('validPaginationParameters$', () => {
 		expect(output.state).toBe(LoadableState.empty);
 		expect(output.value).toBeUndefined();
 		expect(output.error).toBeUndefined();
-		output.stop();
 	});
 
 	test('Should fix the pagination parameters to match the findHit', async () => {
@@ -272,7 +277,6 @@ describe('validPaginationParameters$', () => {
 			wordend: 100,
 			findhit: values.MOCK_HITS.hits[0].start,
 		});
-		output.stop();
 	});
 
 	test.each([0, 54, 10000])('Should clear a non-hit findhit at %s', async findhit => {
@@ -283,7 +287,6 @@ describe('validPaginationParameters$', () => {
 		await promiseFromLoadableStream(validPaginationParameters$);
 
 		expect(output.value).toMatchObject({ findhit: undefined });
-		output.stop();
 	});
 
 	test('Should disable pagination if the pageSize is not provided', async () => {
@@ -303,7 +306,6 @@ describe('validPaginationParameters$', () => {
 			page: 0,
 			maxPage: 0,
 		});
-		output.stop();
 	});
 
 	test('Should not add a phantom page when the document length is an exact multiple of pageSize', async () => {
@@ -323,7 +325,6 @@ describe('validPaginationParameters$', () => {
 			page: 0,
 			maxPage: 1,
 		});
-		output.stop();
 	});
 
 	test('Should expose the error as a Loadable if the doc is not found', async () => {
@@ -337,7 +338,6 @@ describe('validPaginationParameters$', () => {
 
 		await expect(promiseFromLoadableStream(validPaginationParameters$)).rejects.toBeInstanceOf(ApiError);
 		expect(output).toMatchObject({ state: LoadableState.error });
-		output.stop();
 	});
 });
 
@@ -365,7 +365,6 @@ describe('hitToHighlight$', () => {
 			hitIndexToHighlight: expectedIndex,
 			isHitVisible: false,
 		});
-		output.stop();
 	});
 
 	test('Should retain the midpoint exact match for duplicate hit starts', async () => {
@@ -377,7 +376,6 @@ describe('hitToHighlight$', () => {
 		await promiseFromLoadableStream(hitToHighlight$);
 
 		expect(output.value).toMatchObject({ totalHits: 3, hitIndexToHighlight: 1 });
-		output.stop();
 	});
 
 	test('Should handle an empty hit list', async () => {
@@ -388,7 +386,6 @@ describe('hitToHighlight$', () => {
 		await promiseFromLoadableStream(hitToHighlight$);
 
 		expect(output.value).toMatchObject({ totalHits: 0, hitIndexToHighlight: 0, isHitVisible: false });
-		output.stop();
 	});
 });
 

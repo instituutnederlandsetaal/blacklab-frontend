@@ -1,6 +1,6 @@
 import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { computed, nextTick } from 'vue';
+import { computed, effectScope, nextTick } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
@@ -249,80 +249,22 @@ describe('loaded stream operators', () => {
 });
 
 describe('loadableFromStream', () => {
-	test('the default initial state should be empty', () => {
+	test('starts empty', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$);
-		expect(o.state).toBe(LoadableState.empty);
-		o.stop();
-	});
-	test('if configured, the initial state should be loading', () => {
-		const ob$ = new Subject<number>();
-		const o = loadableFromStream(ob$, { loadingOnStart: true });
-		expect(o.state).toBe(LoadableState.loading);
-		o.stop();
-	});
-	test('the state should be empty after the stream completes', () => {
-		const ob$ = new Subject<number>();
-		const o = loadableFromStream(ob$, { loadingOnStart: true, keepValueAfterCompletion: false });
+		expect(o.isEmpty()).toBe(true);
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.empty);
-		o.stop();
 	});
-	test('keepValueAfterCompletion=true still clears a loading state on completion', () => {
-		const ob$ = new Subject<number>();
-		const o = loadableFromStream(ob$, { loadingOnStart: true, keepValueAfterCompletion: true });
-		ob$.complete();
-		expect(o.state).toBe(LoadableState.empty);
-		o.stop();
-	});
-	test('keepValueAfterCompletion=true preserves a loaded state on completion', () => {
-		const ob$ = new Subject<number>();
-		const o = loadableFromStream(ob$, { keepValueAfterCompletion: true });
-		ob$.next(1);
-		ob$.complete();
-		expect(o.state).toBe(LoadableState.loaded);
-		expect(o.value).toBe(1);
-		o.stop();
-	});
-	test('keepValueAfterCompletion=true preserves an error state on completion', () => {
-		const ob$ = new Subject<Loadable<number>>();
-		const o = loadableFromStream(ob$, { keepValueAfterCompletion: true });
-		ob$.next(error as Loadable<number>);
-		ob$.complete();
-		expect(o.state).toBe(LoadableState.error);
-		expect(o.error).toBe(apiError);
-		o.stop();
-	});
-	test('keepValueAfterCompletion=false clears a loaded state on completion', () => {
-		const ob$ = new Subject<number>();
-		const o = loadableFromStream(ob$, { keepValueAfterCompletion: false });
-		ob$.next(1);
-		ob$.complete();
-		expect(o.state).toBe(LoadableState.empty);
-		expect(o.value).toBe(undefined);
-		o.stop();
-	});
-	test('keepValueAfterCompletion=false clears an error state on completion', () => {
-		const ob$ = new Subject<Loadable<number>>();
-		const o = loadableFromStream(ob$, { keepValueAfterCompletion: false });
-		ob$.next(error as Loadable<number>);
-		ob$.complete();
-		expect(o.state).toBe(LoadableState.empty);
-		expect(o.error).toBe(undefined);
-		o.stop();
-	});
-	test('its value should mirror the stream output', () => {
+
+	test('wraps plain values and mirrors loadable states', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$);
 		ob$.next(1);
-		expect(o.state).toBe(LoadableState.loaded);
-		expect(o.value).toBe(1);
-		ob$.next(2);
-		expect(o.state).toBe(LoadableState.loaded);
-		expect(o.value).toBe(2);
-		o.stop();
+		expect(o.isLoaded() && o.value).toBe(1);
+		ob$.complete();
 	});
-	test('map should not run with undefined while a stream loaded value is being applied', async () => {
+
+	test('publishes each state, value, and error atomically', async () => {
 		const ob$ = new Subject<{ html: string }>();
 		const o = loadableFromStream(ob$);
 		const mappedValues: Array<{ html: string } | undefined> = [];
@@ -339,31 +281,56 @@ describe('loadableFromStream', () => {
 		expect(mapped.value.state).toBe(LoadableState.loaded);
 		expect(mapped.value.value).toBe('<p>Rendered content</p>');
 		expect(mappedValues).toEqual([{ html: '<p>Rendered content</p>' }]);
-		o.stop();
+		ob$.complete();
 	});
-	test('it should unpack loadables in the stream', () => {
+
+	test('unpacks all loadable states', () => {
 		const ob$ = new Subject<Loadable<number>>();
 		const o = loadableFromStream(ob$);
 		ob$.next(Loadable.Loaded(1));
-		expect(o.state).toBe(LoadableState.loaded);
-		expect(o.value).toBe(1);
-		ob$.next(Loadable.Loaded(2));
-		expect(o.state).toBe(LoadableState.loaded);
-		expect(o.value).toBe(2);
-		ob$.next(error as Loadable<any>);
-		expect(o.state).toBe(LoadableState.error);
-		expect(o.error).toBe(error.error);
-		ob$.next(empty as Loadable<any>);
-		expect(o.state).toBe(LoadableState.empty);
-		o.stop();
+		expect(o).toMatchObject({ state: LoadableState.loaded, value: 1, error: undefined });
+		ob$.next(error);
+		expect(o).toMatchObject({ state: LoadableState.error, value: undefined, error: apiError });
+		ob$.next(loading);
+		expect(o).toMatchObject({ state: LoadableState.loading, value: undefined, error: undefined });
+		ob$.next(empty);
+		expect(o).toMatchObject({ state: LoadableState.empty, value: undefined, error: undefined });
+		ob$.complete();
 	});
-	test('it should capture errors in the stream', () => {
+
+	test('wraps errors from the stream error channel', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$);
-		ob$.error(apiError);
-		expect(o.state).toBe(LoadableState.error);
-		expect(o.error).toBeInstanceOf(ApiError);
-		o.stop();
+		ob$.error(new Error('failed'));
+		expect(o.isError() && o.error).toMatchObject({ message: 'failed' });
+	});
+
+	test('retains settled states but clears an unfinished loading state on completion', () => {
+		const loaded$ = new Subject<Loadable<number>>();
+		const loadedOutput = loadableFromStream(loaded$);
+		loaded$.next(loaded);
+		loaded$.complete();
+		expect(loadedOutput).toMatchObject(loaded);
+
+		const error$ = new Subject<Loadable<number>>();
+		const errorOutput = loadableFromStream(error$);
+		error$.next(error);
+		error$.complete();
+		expect(errorOutput).toMatchObject(error);
+
+		const loading$ = new Subject<Loadable<number>>();
+		const loadingOutput = loadableFromStream(loading$);
+		loading$.next(loading);
+		loading$.complete();
+		expect(loadingOutput.isEmpty()).toBe(true);
+	});
+
+	test('unsubscribes with its Vue scope', () => {
+		const teardown = vi.fn();
+		const scope = effectScope();
+		scope.run(() => loadableFromStream(new Observable(() => teardown)));
+		scope.stop();
+		expect(teardown).toHaveBeenCalledOnce();
 	});
 });
 

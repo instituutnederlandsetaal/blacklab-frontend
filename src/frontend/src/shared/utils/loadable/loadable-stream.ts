@@ -24,14 +24,14 @@ import { tryOnScopeDispose } from '@vueuse/core';
 import type { Canceler } from 'axios';
 import type { ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
 import { combineLatest, distinctUntilChanged, EMPTY, map, Observable, of, startWith, Subject, switchMap, takeUntil, timer } from 'rxjs';
-import { markRaw, ref, shallowRef, type Ref } from 'vue';
+import { markRaw, shallowRef } from 'vue';
 
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 
 import { combine, combineOptional } from './loadable-combine';
 import type { Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable-core';
 import { isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable-core';
-import { loadableReactive } from './loadable-reactive';
+import { loadableReactiveFromSnapshot } from './loadable-reactive';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 import { stableStringify } from '@/shared/utils/stable-stringify';
@@ -269,86 +269,21 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 
 Object.assign(InteractiveLoadable.prototype, Loadable.loadableMethods);
 
-export interface LoadableFromStream<T> extends Loadable<T> {
-	stop: () => void;
-	dispose: () => void;
-	toJSON(): { state: LoadableState; value: T | undefined; error: ApiError | undefined };
-}
-
 /**
- * A class that behaves like a Loadable, auto-updates based on a stream's state.
- * This is basically a simple wrapper to go from async behavior to reactive behavior.
- *
- * When called from within a vue component, cleanup will happen automatically on unmount,
- * but otherwise,
- * Don't forget to dispose() after you're done with it, or the stream will keep running.
+ * Return a reactive Loadable that mirrors a stream and unsubscribes with the current Vue scope.
  */
-export function loadableFromStream<T>(
-	stream$: Observable<T>,
-	settings: {
-		/** initial state is normally empty, but can be Loading if so desired. Defaults to false. */
-		loadingOnStart?: boolean;
-		/** when the stream completes, preserve settled Loaded/Error states or clear back to Empty. Loading is always cleared. Defaults to true. */
-		keepValueAfterCompletion?: boolean;
-		/** Defaults to false */
-		deepReactiveValue?: boolean;
-	} = { loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false },
-): LoadableFromStream<ValueTypeFromLoadableOrObservable<T>> {
-	settings = {
-		loadingOnStart: false,
-		keepValueAfterCompletion: true,
-		deepReactiveValue: false,
-		...settings,
-	};
-
-	const value: Ref<ValueTypeFromLoadableOrObservable<T> | undefined> = settings.deepReactiveValue ? ref() : shallowRef();
-	const state = ref<LoadableState>(settings.loadingOnStart ? LoadableState.loading : LoadableState.empty);
-	const error = ref<ApiError>();
-
-	const unsub = stream$.pipe(map(Loadable.wrap)).subscribe({
-		next: v => {
-			if (isLoaded(v)) {
-				value.value = v.value;
-				state.value = v.state;
-				error.value = undefined;
-			} else if (isError(v)) {
-				error.value = v.error;
-				state.value = v.state;
-				value.value = undefined;
-			} else {
-				state.value = v.state;
-				value.value = undefined;
-				error.value = undefined;
-			}
-		},
-		error: e => {
-			error.value = ApiError.wrap(e);
-			state.value = LoadableState.error;
-			value.value = undefined;
-		},
+export function loadableFromStream<T>(stream$: Observable<T>): Loadable<ValueTypeFromLoadableOrObservable<T>> {
+	type Value = ValueTypeFromLoadableOrObservable<T>;
+	const snapshot = shallowRef<Loadable<Value>>(Loadable.Empty());
+	const subscription = stream$.pipe(map(Loadable.wrap)).subscribe({
+		next: value => (snapshot.value = value),
+		error: error => (snapshot.value = Loadable.LoadingError(ApiError.wrap(error))),
 		complete: () => {
-			if (state.value === LoadableState.loading) {
-				if (value.value != null) state.value = LoadableState.loaded;
-				else if (error.value != null) state.value = LoadableState.error;
-				else state.value = LoadableState.empty;
-			} else if (settings.keepValueAfterCompletion) return;
-			else {
-				state.value = LoadableState.empty;
-				value.value = undefined;
-				error.value = undefined;
-			}
+			if (isLoading(snapshot.value)) snapshot.value = Loadable.Empty();
 		},
 	});
-
-	const stop = () => unsub.unsubscribe();
-
-	tryOnScopeDispose(stop);
-
-	return loadableReactive(state, value, error, {
-		stop,
-		dispose: stop,
-		toJSON: () => ({ state: state.value, value: value.value, error: error.value }),
-	});
+	tryOnScopeDispose(() => subscription.unsubscribe());
+	return loadableReactiveFromSnapshot(snapshot, {});
 }
 
 function combineLoadableStreamsImpl(
