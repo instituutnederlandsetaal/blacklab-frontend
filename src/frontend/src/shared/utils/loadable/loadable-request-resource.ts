@@ -2,49 +2,35 @@ import { tryOnScopeDispose } from '@vueuse/core';
 import axios from 'axios';
 import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue';
 
-import { Loadable, type Loadable as LoadableType } from './loadable-core';
+import { Loadable, type Empty, type Loaded, type LoadingError } from './loadable-core';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 
 export type RequestLike<T> = PromiseLike<T> & { cancel?: () => void };
+type Settled<T> = Empty<T> | Loaded<T> | LoadingError<T>;
 
 export interface RequestRun {
 	readonly signal: AbortSignal;
 	wait<T>(request: RequestLike<T>): Promise<T>;
-	/**
-	 * Progressive factories must call this immediately after each `await run.wait(...)`
-	 * and before mutating domain state. Pure factories that only return a final value do not need it.
-	 */
+	/** Call immediately after a progressive `await run.wait(...)`, before mutating domain state. */
 	throwIfAborted(): void;
 }
 
 export interface RequestResourceState<T> {
-	readonly phase: 'empty' | 'loading' | 'loaded' | 'error';
-	readonly data: T | undefined;
-	readonly error: ApiError | undefined;
-	readonly showLoading: boolean;
+	readonly loading: boolean;
+	readonly settled: Settled<T>;
 }
 
-type RequestFactory<I, T> = (input: I, run: RequestRun) => RequestLike<T>;
-
-interface RequestResourceOptions<I, T> {
-	request: RequestFactory<I, T>;
-	debounceMs?: number | ((input: I) => number);
-	keepPrevious?: boolean;
-	keepPreviousOnError?: boolean;
-	loadingIndicatorDelayMs?: number;
-}
-
-export interface ManualRequestResourceOptions<I, T> extends RequestResourceOptions<I, T> {
-	mode: 'manual';
-}
-
-export interface ReactiveRequestResourceOptions<I, T> extends RequestResourceOptions<I, T> {
-	mode: 'reactive';
-	source: MaybeRefOrGetter<I | null | undefined>;
-	immediate?: boolean;
-	key?: (input: I) => unknown;
-}
+type RequestResourceOptions<I, T> = {
+	request: (input: I, run: RequestRun) => RequestLike<T>;
+} & (
+	| { mode: 'manual' }
+	| {
+			mode: 'reactive';
+			source: MaybeRefOrGetter<I | null | undefined>;
+			key?: (input: I) => unknown;
+	  }
+);
 
 export interface RequestResource<I, T> {
 	readonly state: Readonly<Ref<RequestResourceState<T>>>;
@@ -52,23 +38,18 @@ export interface RequestResource<I, T> {
 	retry(): void;
 	cancel(): void;
 	reset(): void;
-	dispose(): void;
 }
 
-interface LoadedSnapshot<T> {
-	data: T;
-}
-
-interface ActiveRun<I, T> extends RequestRun {
+interface ActiveRun<I> extends RequestRun {
 	input: I;
 	controller: AbortController;
-	previous: LoadedSnapshot<T> | undefined;
-	debounceTimer: ReturnType<typeof setTimeout> | undefined;
-	loadingTimer: ReturnType<typeof setTimeout> | undefined;
 }
 
 const ABORTED = Symbol('request resource aborted');
-const EMPTY_STATE: RequestResourceState<never> = { phase: 'empty', data: undefined, error: undefined, showLoading: false };
+const EMPTY_STATE: RequestResourceState<never> = {
+	loading: false,
+	settled: Loadable.Empty(),
+};
 
 /** Bind a child request to a run's abort signal and ignore any settlement after abort. */
 function waitForRequest<T>(signal: AbortSignal, request: RequestLike<T>): Promise<T> {
@@ -103,87 +84,47 @@ function waitForRequest<T>(signal: AbortSignal, request: RequestLike<T>): Promis
 	});
 }
 
-export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I, T>): RequestResource<I, T>;
-export function useRequestResource<I, T>(options: ReactiveRequestResourceOptions<I, T>): RequestResource<I, T>;
-export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I, T> | ReactiveRequestResourceOptions<I, T>): RequestResource<I, T> {
-	const { debounceMs = 0, keepPrevious = false, keepPreviousOnError = false, loadingIndicatorDelayMs = 0 } = options;
+export function useRequestResource<I, T>(options: RequestResourceOptions<I, T>): RequestResource<I, T> {
 	const snapshot = shallowRef<RequestResourceState<T>>(EMPTY_STATE);
-	let active: ActiveRun<I, T> | undefined;
-	let retained: LoadedSnapshot<T> | undefined;
-	let lastInput: I | undefined;
-	let hasLastInput = false;
+	let active: ActiveRun<I> | undefined;
+	let retryInput: { value: I } | undefined;
 	let disposed = false;
 	let stopSource = () => {};
 
 	const publish = (state: RequestResourceState<T>) => {
 		if (!disposed) snapshot.value = state;
 	};
-
-	const clearTimers = (run: ActiveRun<I, T>) => {
-		if (run.debounceTimer != null) clearTimeout(run.debounceTimer);
-		if (run.loadingTimer != null) clearTimeout(run.loadingTimer);
-		run.debounceTimer = run.loadingTimer = undefined;
-	};
-
-	const abort = (run: ActiveRun<I, T>) => {
-		clearTimers(run);
-		run.controller.abort();
-	};
-
-	const takeActive = (run: ActiveRun<I, T>) => {
+	const takeActive = (run: ActiveRun<I>) => {
 		if (active !== run) return false;
 		active = undefined;
-		abort(run);
+		run.controller.abort();
 		return true;
 	};
-
-	const publishCancelled = (run: ActiveRun<I, T>) => {
-		publish(keepPrevious && run.previous ? { phase: 'loaded', data: run.previous.data, error: undefined, showLoading: false } : EMPTY_STATE);
-	};
-
-	const settleError = (run: ActiveRun<I, T>, error: unknown) => {
-		if (!takeActive(run)) return;
-		if (error === ABORTED || (error instanceof ApiError && error.isCancelledRequest) || axios.isCancel(error)) publishCancelled(run);
-		else publish({ phase: 'error', data: keepPreviousOnError ? run.previous?.data : undefined, error: ApiError.wrap(error), showLoading: false });
-	};
-
-	const start = (run: ActiveRun<I, T>) => {
-		if (active !== run || disposed) return;
-		let request: RequestLike<T>;
+	const start = async (run: ActiveRun<I>) => {
 		try {
-			request = options.request(run.input, run);
+			const value = await run.wait(options.request(run.input, run));
+			if (takeActive(run)) publish({ loading: false, settled: Loadable.Loaded(value) });
 		} catch (error) {
-			settleError(run, error);
-			return;
+			if (!takeActive(run)) return;
+			const cancelled = error === ABORTED || (error instanceof ApiError && error.isCancelledRequest) || axios.isCancel(error);
+			publish(
+				cancelled
+					? EMPTY_STATE
+					: {
+							loading: false,
+							settled: Loadable.LoadingError<T>(ApiError.wrap(error)),
+						},
+			);
 		}
-		run.wait(request).then(
-			data => {
-				if (!takeActive(run)) return;
-				retained = keepPrevious || keepPreviousOnError ? { data } : undefined;
-				publish({ phase: 'loaded', data, error: undefined, showLoading: false });
-			},
-			error => settleError(run, error),
-		);
 	};
-
-	const trigger = (input: I, bypassDebounce: boolean) => {
+	const trigger = (input: I) => {
 		if (disposed) return;
-		lastInput = input;
-		hasLastInput = true;
-		const previous = snapshot.value.phase === 'loaded' ? { data: snapshot.value.data as T } : (active?.previous ?? retained);
-		if (active) {
-			const replaced = active;
-			active = undefined;
-			abort(replaced);
-		}
-
+		retryInput = { value: input };
+		if (active) takeActive(active);
 		const controller = new AbortController();
-		const run: ActiveRun<I, T> = {
+		const run: ActiveRun<I> = {
 			input,
 			controller,
-			previous,
-			debounceTimer: undefined,
-			loadingTimer: undefined,
 			signal: controller.signal,
 			wait: request => waitForRequest(controller.signal, request),
 			throwIfAborted() {
@@ -191,54 +132,27 @@ export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I
 			},
 		};
 		active = run;
-		publish({ phase: 'loading', data: keepPrevious ? previous?.data : undefined, error: undefined, showLoading: loadingIndicatorDelayMs <= 0 });
-		if (loadingIndicatorDelayMs > 0) {
-			run.loadingTimer = setTimeout(() => {
-				if (active === run) publish({ ...snapshot.value, showLoading: true });
-			}, loadingIndicatorDelayMs);
-		}
-
-		let delay: number;
-		try {
-			delay = bypassDebounce ? 0 : typeof debounceMs === 'function' ? debounceMs(input) : debounceMs;
-		} catch (error) {
-			settleError(run, error);
-			return;
-		}
-		if (delay > 0) run.debounceTimer = setTimeout(() => start(run), delay);
-		else start(run);
+		publish({ loading: true, settled: snapshot.value.settled });
+		void start(run);
 	};
 
 	const resource: RequestResource<I, T> = {
 		state: computed(() => snapshot.value),
-		run: input => trigger(input, false),
+		run: trigger,
 		retry: () => {
-			if (hasLastInput) trigger(lastInput as I, true);
+			if (retryInput) trigger(retryInput.value);
 		},
 		cancel: () => {
-			if (!active || disposed) return;
-			const cancelled = active;
-			active = undefined;
-			abort(cancelled);
-			publishCancelled(cancelled);
+			if (active && !disposed) {
+				takeActive(active);
+				publish(EMPTY_STATE);
+			}
 		},
 		reset: () => {
 			if (disposed) return;
-			if (active) {
-				const reset = active;
-				active = undefined;
-				abort(reset);
-			}
-			retained = undefined;
-			hasLastInput = false;
-			lastInput = undefined;
+			if (active) takeActive(active);
+			retryInput = undefined;
 			publish(EMPTY_STATE);
-		},
-		dispose: () => {
-			if (disposed) return;
-			resource.cancel();
-			disposed = true;
-			stopSource();
 		},
 	};
 
@@ -249,26 +163,17 @@ export function useRequestResource<I, T>(options: ManualRequestResourceOptions<I
 				return [input, input == null ? undefined : options.key ? options.key(input) : input] as const;
 			},
 			([input, key], previous) => {
-				if (input == null) {
-					resource.reset();
-					return;
-				}
-				if (previous?.[0] != null && Object.is(previous[1], key)) return;
-				trigger(input, false);
+				if (input == null) resource.reset();
+				else if (previous?.[0] == null || !Object.is(previous[1], key)) trigger(input);
 			},
-			{ immediate: options.immediate ?? true, flush: 'sync' },
+			{ immediate: true, flush: 'sync' },
 		);
 	}
 
-	tryOnScopeDispose(() => resource.dispose());
-	return resource;
-}
-
-export function resourceLoadable<T>(resource: Pick<RequestResource<unknown, T>, 'state'>): Readonly<Ref<LoadableType<T>>> {
-	return computed(() => {
-		const state = resource.state.value;
-		if (state.phase === 'loaded') return Loadable.Loaded(state.data as T);
-		if (state.phase === 'error') return Loadable.LoadingError<T>(state.error as ApiError);
-		return state.phase === 'loading' ? Loadable.Loading<T>() : Loadable.Empty<T>();
+	tryOnScopeDispose(() => {
+		resource.cancel();
+		disposed = true;
+		stopSource();
 	});
+	return resource;
 }

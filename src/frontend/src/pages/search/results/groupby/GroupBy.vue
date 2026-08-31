@@ -313,8 +313,8 @@ const firstHitPreview = useRequestResource<{ indexId: string; query: BLSearchPar
 	},
 });
 const hits = computed(() => {
-	const state = firstHitPreview.state.value;
-	return state.phase === 'loaded' && isHitResults(state.data) ? state.data : undefined;
+	const { loading, settled } = firstHitPreview.state.value;
+	return !loading && settled.isLoaded() && isHitResults(settled.value) ? settled.value : undefined;
 });
 const contextsize = computed(() => {
 	const params = SearchModule.get.blacklabParameters();

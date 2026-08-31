@@ -98,10 +98,16 @@ const modal = ref(''),
 	formatId = ref<string | null>(null);
 const corpusPolls = new Map<string, CorpusPoll>();
 
-const corporaRefresh = useRequestResource<void, NormalizedIndexBase[]>({ mode: 'manual', request: () => blacklab.getCorpora() });
-const formatsRefresh = useRequestResource<void, NormalizedFormat[]>({ mode: 'manual', request: () => blacklab.getFormats() });
-const loadingCorpora = computed(() => loadingServerInfo.value || loadingCorpusMutation.value || corporaRefresh.state.value.phase === 'loading');
-const loadingFormats = computed(() => loadingServerInfo.value || loadingFormatMutation.value || formatsRefresh.state.value.phase === 'loading');
+const corporaRefresh = useRequestResource<void, NormalizedIndexBase[]>({
+	mode: 'manual',
+	request: () => blacklab.getCorpora(),
+});
+const formatsRefresh = useRequestResource<void, NormalizedFormat[]>({
+	mode: 'manual',
+	request: () => blacklab.getFormats(),
+});
+const loadingCorpora = computed(() => loadingServerInfo.value || loadingCorpusMutation.value || corporaRefresh.state.value.loading);
+const loadingFormats = computed(() => loadingServerInfo.value || loadingFormatMutation.value || formatsRefresh.state.value.loading);
 
 const publicCorpora = computed(() => corpora.value.filter(c => !c.owner));
 const publicFormats = computed(() => formats.value.filter(f => !f.owner)),
@@ -251,13 +257,13 @@ watch(
 );
 
 watch(corporaRefresh.state, state => {
-	if (state.phase === 'loaded') corpora.value = state.data!.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	else if (state.phase === 'error') errorMessage.value = state.error!.message;
+	if (!state.loading && state.settled.isLoaded()) corpora.value = state.settled.value.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (!state.loading && state.settled.isError()) errorMessage.value = state.settled.error.message;
 });
 
 watch(formatsRefresh.state, state => {
-	if (state.phase === 'loaded') formats.value = state.data!.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	else if (state.phase === 'error') errorMessage.value = state.error!.message;
+	if (!state.loading && state.settled.isLoaded()) formats.value = state.settled.value.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (!state.loading && state.settled.isError()) errorMessage.value = state.settled.error.message;
 });
 
 onUnmounted(() => [...corpusPolls.keys()].forEach(stopCorpusPoll));

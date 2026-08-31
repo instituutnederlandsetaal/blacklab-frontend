@@ -103,7 +103,7 @@ const step = defineComponent({
 	}),
 	computed: {
 		loading(): boolean {
-			return this.workflowState.phase === 'loading';
+			return this.workflowState.loading;
 		},
 		main(): NormalizedAnnotation {
 			return this.modelValue.annotations.find(a => a.id === this.modelValue.mainPosAnnotationId)!;

@@ -1,5 +1,8 @@
+import { computed } from 'vue';
+
+import { Loadable } from './loadable-core';
 import { loadableReactiveFromSnapshot, type ControlledLoadable } from './loadable-reactive';
-import { resourceLoadable, useRequestResource } from './loadable-request-resource';
+import { useRequestResource } from './loadable-request-resource';
 
 import type { CancelableRequest } from '@/shared/api/lib/api-types';
 
@@ -14,8 +17,13 @@ export type LoadableFromRequest<T> = ControlledLoadable<T>;
  * Don't forget to call stop() after you're done with it, or the stream will keep running.
  */
 export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>): LoadableFromRequest<T> {
-	const resource = useRequestResource<void, T>({ mode: 'manual', request: makeRequest });
-	const loadable = resourceLoadable(resource);
+	const resource = useRequestResource<void, T>({
+		mode: 'manual',
+		request: makeRequest,
+	});
 	resource.run();
-	return loadableReactiveFromSnapshot(loadable, { retry: () => resource.retry(), stop: () => resource.cancel() }) as LoadableFromRequest<T>;
+	return loadableReactiveFromSnapshot(
+		computed(() => (resource.state.value.loading ? Loadable.Loading<T>() : resource.state.value.settled)),
+		{ retry: () => resource.retry(), stop: () => resource.cancel() },
+	) as LoadableFromRequest<T>;
 }

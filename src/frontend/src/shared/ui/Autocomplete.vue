@@ -46,8 +46,14 @@ const emit = defineEmits<{
 
 const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
 const inputElement = computed(() => (autocompleteRef.value?.$el as HTMLElement | undefined)?.querySelector<HTMLInputElement>('input') ?? null);
-const request = useRequestResource<string, string[]>({ mode: 'manual', request: term => props.getData(term) });
-const options = computed(() => (request.state.value.phase === 'loaded' ? request.state.value.data : []));
+const request = useRequestResource<string, string[]>({
+	mode: 'manual',
+	request: term => props.getData(term),
+});
+const options = computed(() => {
+	const { loading, settled } = request.state.value;
+	return !loading && settled.isLoaded() ? settled.value : [];
+});
 
 let lastSearchValue = '';
 
@@ -56,7 +62,8 @@ function _refreshList() {
 	if (!input) return;
 
 	const v = _getWordAroundCursor(input, false).value;
-	if (v === lastSearchValue && (request.state.value.phase === 'loading' || request.state.value.phase === 'loaded')) return;
+	const { loading, settled } = request.state.value;
+	if (v === lastSearchValue && (loading || settled.isLoaded())) return;
 
 	lastSearchValue = v;
 	if (v) request.run(v);
