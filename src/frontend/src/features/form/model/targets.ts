@@ -1,5 +1,5 @@
 import { compileCql, compileFilter } from '@/features/form/model/compile/query-artifact';
-import type { FormParams, SearchParams } from '@/features/form/model/types/blacklab-params';
+import type { FormOverrides, FormParams, SearchParams } from '@/features/form/model/types/blacklab-params';
 import type { FormEmission, FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 
 export type ViewName = 'hits' | 'docs';
@@ -9,7 +9,7 @@ export type FormTarget<Accepted extends readonly FormOutputName[], Params extend
 	readonly acceptedOutputs: Accepted;
 	readonly targetView?: ViewName;
 	readonly supportedEndpoints: readonly BlackLabEndpointName[];
-	compile(emissions: readonly FormEmission<Accepted[number]>[], issues: FormIssue[]): Params;
+	compile(emissions: readonly FormEmission<Accepted[number]>[], issues: FormIssue[], overrides?: Readonly<FormOverrides>): Params;
 };
 
 export type AnyFormTarget = FormTarget<readonly FormOutputName[], FormParams>;
@@ -38,7 +38,7 @@ export function createSearchTarget(options: SearchTargetOptions = {}): FormTarge
 		acceptedOutputs: SEARCH_OUTPUTS,
 		targetView: options.targetView,
 		supportedEndpoints: options.supportedEndpoints ?? ['hits', 'docs', 'hits-grouped', 'docs-grouped'],
-		compile(emissions, issues) {
+		compile(emissions, issues, overrides) {
 			let patt: string | undefined;
 			let filter: string | undefined;
 			let searchfield: string | undefined;
@@ -85,6 +85,19 @@ export function createSearchTarget(options: SearchTargetOptions = {}): FormTarge
 				}
 			}
 
+			if (overrides?.patt !== undefined) {
+				patt = overrides.patt.trim() || undefined;
+				if (!patt) issues.push({ severity: 'warning', message: "Restored override 'patt' is empty after normalization; ignoring it." });
+			}
+			if (overrides?.filter !== undefined) {
+				filter = overrides.filter.trim() || undefined;
+				if (!filter) issues.push({ severity: 'warning', message: "Restored override 'filter' is empty after normalization; ignoring it." });
+			}
+			if (overrides?.searchfield !== undefined) {
+				searchfield = overrides.searchfield.trim() || undefined;
+				if (!searchfield) issues.push({ severity: 'warning', message: "Restored override 'searchfield' is empty after normalization; ignoring it." });
+			}
+			if (overrides?.withspans !== undefined) withspans = overrides.withspans;
 			searchfield ??= defaultSearchfield;
 			const params: SearchParams = {
 				...(patt !== undefined ? { patt } : {}),

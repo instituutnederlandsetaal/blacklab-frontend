@@ -1,5 +1,5 @@
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { applyRawOverrides, compileFormNode, compileFormSummary } from '@/features/form/model/compile';
+import { compileFormNode, compileFormSummary } from '@/features/form/model/compile';
 import createFormState, { createDefaultFormState } from '@/features/form/model/state';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import { renderFormNode } from '@/features/form/ui/renderable-graph';
@@ -28,14 +28,14 @@ export class FormRuntime {
 		const form = this.definition.getForm(formId);
 		if (!form) throw new Error(`Cannot compile unknown form '${formId}'.`);
 		const state = this.state.getReactiveState();
-		return applyRawOverrides(compileFormNode(form, state, this.definition.context), state.rawOverrides, form.target.acceptedOutputs);
+		return compileFormNode(form, state, this.definition.context, state.rawOverrides);
 	}
 
 	public compileSummary(formId: string): CompiledFormSummary {
 		const form = this.definition.getForm(formId);
 		if (!form) throw new Error(`Cannot compile summary for unknown form '${formId}'.`);
 		const state = this.state.getReactiveState();
-		return applyRawOverrides(compileFormSummary(form, state, this.definition.context), state.rawOverrides, form.target.acceptedOutputs);
+		return compileFormSummary(form, state, this.definition.context, state.rawOverrides);
 	}
 
 	public reset() {
@@ -43,6 +43,6 @@ export class FormRuntime {
 	}
 
 	public clearRawOverride(parameter: string) {
-		delete this.state.rawOverrides.value[parameter];
+		delete this.state.rawOverrides.value[parameter as keyof typeof this.state.rawOverrides.value];
 	}
 }

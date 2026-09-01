@@ -1,10 +1,11 @@
 import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field';
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { applyRawOverrides, compileFormNode } from '@/features/form/model/compile/form';
+import { compileRestoredFormNode } from '@/features/form/model/compile/form';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@/features/form/model/persistence/schema';
-import { createDefaultFormState, type FormOverrides, type NewFormState } from '@/features/form/model/state';
+import { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
+import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
 import { restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
@@ -215,9 +216,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 		rawOverrides: {},
 	};
 	const activeSchema = activeForm === scopedForm ? schema : resolvePersistenceSchema(activeForm, definition.context);
-	const compiled = compileFormNode(activeForm, restoredState, definition.context, activeSchema);
-	const compiledParams = compiled.params as Readonly<Record<string, unknown>>;
-	const rawOverrides = Object.fromEntries(Object.entries(overrideCandidates).filter(([parameter, value]) => !Object.hasOwn(compiledParams, parameter) || compiledParams[parameter] !== value));
+	const { result: compiled, overrides: rawOverrides } = compileRestoredFormNode(activeForm, restoredState, definition.context, overrideCandidates, activeSchema);
 	const state: RestoredFormState = {
 		...restoredState,
 		rawOverrides,
@@ -226,6 +225,6 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 
 	return {
 		state,
-		submittedResult: finalSubmittedFormId ? applyRawOverrides({ ...compiled, issues: [...issues, ...compiled.issues] }, rawOverrides, activeForm.target.acceptedOutputs) : null,
+		submittedResult: finalSubmittedFormId ? { ...compiled, issues: [...issues, ...compiled.issues] } : null,
 	};
 }

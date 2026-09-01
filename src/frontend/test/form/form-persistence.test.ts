@@ -18,6 +18,7 @@ import {
 	filterSelectController,
 	filterTextController,
 	FormSystem,
+	hitsSearchTarget,
 	parallelController,
 	queryBuilderController,
 	resultGroupByController,
@@ -248,6 +249,15 @@ describe('scoped form persistence', () => {
 		formerResult.issues.unshift(...restored.state.issues);
 		expect(collect).toHaveBeenCalledTimes(1);
 		expect(restored.submittedResult).toEqual(formerResult);
+	});
+
+	test('discards baseline requiredness diagnostics resolved by a restored override', () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.hits', ContainerRenderer, { target: hitsSearchTarget });
+		const restored = restoreSearchForm(createTestRuntime(builder), { 'f.form': form.id, patt: '[word="water"]' });
+
+		expect(restored.state.rawOverrides).toEqual({ patt: '[word="water"]' });
+		expect(restored.submittedResult).toMatchObject({ params: { patt: '[word="water"]' }, issues: [] });
 	});
 
 	test('reports dangling scoped parameters and restores fields accepted by the default form for an unknown selector', () => {

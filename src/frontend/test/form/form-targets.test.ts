@@ -212,7 +212,24 @@ describe('search target compilation', () => {
 		]);
 	});
 
-	test('reconciles accepted runtime overrides after target compilation', () => {
+	test('normalizes restored canonical values before applying defaults and requiredness', () => {
+		const target = createSearchTarget({ defaultSearchfield: 'contents', requiredOutputs: ['patt'] });
+		const issues: FormIssue[] = [];
+		const params = target.compile([emission('patt', rawCql('[word="draft"]')), emission('filter', filter('author', 'literal', 'draft')!)] as FormEmission<SearchOutputName>[], issues, {
+			patt: '   ',
+			filter: ' author:Austen ',
+			searchfield: '   ',
+		});
+
+		expect(params).toEqual({ filter: 'author:Austen', searchfield: 'contents' });
+		expect(issues).toEqual([
+			{ severity: 'warning', message: "Restored override 'patt' is empty after normalization; ignoring it." },
+			{ severity: 'warning', message: "Restored override 'searchfield' is empty after normalization; ignoring it." },
+			{ severity: 'error', message: "Required output 'patt' is missing." },
+		]);
+	});
+
+	test('reconciles only target-owned runtime overrides during target compilation', () => {
 		const controller = createController(['patt'], (_config, _runtime, _state, emit) => emit('patt', rawCql('[word="draft"]')));
 		const runtime = createRuntime(controller);
 		runtime.state.rawOverrides.value.patt = '[word="restored"]';

@@ -23,3 +23,18 @@ type CollocationParams = SharedFormParams & {
 };
 
 export type FormParams = SearchParams | CollocationParams;
+
+export type FormOverrides = Partial<{
+	patt: string;
+	collpatt: string;
+	filter: string;
+	searchfield: string;
+	withspans: true;
+	colltype: BLCollocationType;
+	context: number | string;
+	within: string;
+	reltype: string;
+	annotation: string;
+	sensitive: boolean;
+	scorertype: BLCollocationScorer;
+}>;

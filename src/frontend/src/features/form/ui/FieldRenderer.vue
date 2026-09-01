@@ -23,7 +23,8 @@ const runtime = useFormSystemRuntime();
 const componentProps = computed(() => ({
 	...createRenderedNodeProps(props.field, ['component', 'controller', 'kind']),
 	disabled:
-		props.disabled || props.field.controller.outputs.some(output => runtime.value.state.rawOverrides.value[output] !== undefined && Object.hasOwn(runtime.value.state.rawOverrides.value, output)),
+		props.disabled ||
+		props.field.controller.outputs.some(output => Reflect.get(runtime.value.state.rawOverrides.value, output) !== undefined && Object.hasOwn(runtime.value.state.rawOverrides.value, output)),
 	htmlId: props.htmlId,
 	modelValue: props.modelValue,
 	'onUpdate:modelValue': (value: unknown) => emit('update:modelValue', value),

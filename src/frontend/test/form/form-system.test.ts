@@ -402,7 +402,7 @@ describe('form system integration', () => {
 		});
 		mount(Harness);
 
-		runtimeA.state.rawOverrides.value.test = 'same runtime';
+		runtimeA.state.rawOverrides.value.patt = 'same runtime';
 		await nextTick();
 		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([1, 0]);
 

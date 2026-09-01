@@ -2,9 +2,8 @@ import { ref, toRaw } from 'vue';
 
 import { isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import type { FormNode } from '@/features/form/model/types';
+import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-
-export type FormOverrides = Record<string, unknown>;
 
 export type NewFormState = {
 	state: Record<string, unknown>;
