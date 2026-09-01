@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { watch } from 'vue';
 
 import { createIterativeResultCountLoader, type TotalsInput } from '@/api/async/logic/result-count/result-count-from-query';
+import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
 import { ApiError, type BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';
@@ -56,6 +57,7 @@ function pendingRequest(): PendingRequest {
 function apiHarness() {
 	const hitRequests: PendingRequest[] = [];
 	const docRequests: PendingRequest[] = [];
+	const collocationRequests: PendingRequest[] = [];
 	const getHits = vi.fn(() => {
 		const pending = pendingRequest();
 		hitRequests.push(pending);
@@ -66,11 +68,17 @@ function apiHarness() {
 		docRequests.push(pending);
 		return pending.request;
 	});
-	return { api: { getDocs, getHits } as unknown as BlackLabApi, docRequests, getDocs, getHits, hitRequests };
+	const getCollocations = vi.fn(() => {
+		const pending = pendingRequest();
+		collocationRequests.push(pending);
+		return pending.request;
+	});
+	return { api: { getCollocations, getDocs, getHits } as unknown as BlackLabApi, collocationRequests, docRequests, getCollocations, getDocs, getHits, hitRequests };
 }
 
-function input(results: BLSearchResult, operation: TotalsInput['operation'] = 'hits'): TotalsInput {
-	return { annotatedFieldId: 'contents', indexId: 'corpus', operation, results };
+function input(results: BLSearchResult, operation: 'hits' | 'docs' = 'hits'): TotalsInput {
+	const request: ExecutedSearchRequest = operation === 'hits' ? { operation, params: { number: 20, patt: '[]' } } : { operation, params: { number: 20 } };
+	return { annotatedFieldId: 'contents', indexId: 'corpus', request, results };
 }
 
 async function settleRequest() {
@@ -258,5 +266,43 @@ describe('createIterativeResultCountLoader', () => {
 
 		loader.dispose();
 		expect(harness.docRequests[0].cancel).toHaveBeenCalledOnce();
+	});
+
+	test('polls collocations with the exact executed parameters and only total-count overrides', async () => {
+		vi.useFakeTimers();
+		const harness = apiHarness();
+		const request: ExecutedSearchRequest = {
+			operation: 'collocations',
+			params: {
+				patt: '[word="water"]',
+				collpatt: '[lemma="ship"]',
+				colltype: 'proximity',
+				context: '3:4',
+				annotation: 'lemma',
+				sensitive: false,
+				scorertype: 'coll-dice',
+				filter: 'year:2020',
+				first: 40,
+				number: 20,
+				sort: '-size',
+				subcorpussize: false,
+			},
+		};
+		const loader = createIterativeResultCountLoader({ annotatedFieldId: 'contents', indexId: 'corpus', request, results: result('counting', 1) }, harness.api, {
+			intervalMs: 100,
+		});
+
+		await vi.advanceTimersByTimeAsync(100);
+		expect(harness.getCollocations).toHaveBeenCalledWith('corpus', {
+			...request.params,
+			first: 0,
+			number: 0,
+			subcorpussize: true,
+		});
+		expect(harness.getHits).not.toHaveBeenCalled();
+		expect(harness.getDocs).not.toHaveBeenCalled();
+
+		loader.dispose();
+		expect(harness.collocationRequests[0].cancel).toHaveBeenCalledOnce();
 	});
 });

@@ -270,6 +270,16 @@ describe('makeRows', () => {
 });
 
 describe('grouped columns', () => {
+	test('treats grouped hit responses without a group parameter as annotation grouping', () => {
+		const results = hitGroups('hit:lemma');
+		delete results.summary.params.group;
+
+		expect(groupedColumns(results, 'table')).toEqual({
+			columns: ['displayname', 'gr.h', 'relative frequency (hits) [gr.h/gsc.t]'],
+			modes: ['table', 'hits'],
+		});
+	});
+
 	test.each([
 		[
 			'hit metadata table',

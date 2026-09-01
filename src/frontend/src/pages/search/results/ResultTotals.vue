@@ -59,6 +59,7 @@ import { computed, onUnmounted, watch } from 'vue';
 
 import { createIterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
+import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -70,6 +71,7 @@ import Spinner from '@/shared/ui/Spinner.vue';
 
 const props = defineProps<{
 	initialResults: BLTypes.BLSearchResult;
+	executedRequest: ExecutedSearchRequest;
 	type: 'hits' | 'docs';
 	indexId: string;
 	annotatedFieldId: string;
@@ -85,7 +87,7 @@ const totals = computed(() =>
 		{
 			annotatedFieldId: props.annotatedFieldId,
 			indexId: props.indexId,
-			operation: props.type,
+			request: props.executedRequest,
 			results: props.initialResults,
 		},
 		blacklab,

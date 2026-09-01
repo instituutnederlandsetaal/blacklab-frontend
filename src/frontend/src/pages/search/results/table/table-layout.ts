@@ -847,7 +847,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForRen
 
 	if (!isGroups(results)) return { hitColumns, docColumns, groupColumns, groupModeOptions: [] };
 	const groupType = isDocGroups(results) ? 'docs' : 'hits';
-	const groupedBy = getSearchParameters(results).group!.match(/field:|decade/) ? 'metadata' : 'annotation';
+	const groupedBy = getSearchParameters(results).group?.match(/field:|decade/) ? 'metadata' : 'annotation';
 	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as GroupDisplayMode[];
 
 	// Hide the relative tokens view when results are filtered based on a cql pattern

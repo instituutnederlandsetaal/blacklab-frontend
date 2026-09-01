@@ -15,7 +15,7 @@ import ResultsView from '@/pages/search/results/ResultsView.vue';
 enableAutoUnmount(afterEach);
 
 const mock = vi.hoisted(() => ({
-	api: { getHits: vi.fn(), getDocs: vi.fn() },
+	api: { getHits: vi.fn(), getDocs: vi.fn(), getCollocations: vi.fn() },
 	corpus: undefined as unknown,
 	customizations: undefined as unknown,
 	globalState: undefined as unknown,
@@ -32,7 +32,7 @@ vi.mock('@/app/state/root-store', () => ({
 	get: {
 		blacklabParameters: () => {
 			const view = mock.store?.getState();
-			return {
+			const params = {
 				...(mock.params as Record<string, unknown>),
 				group: view?.groupBy.length ? view.groupBy.join(',') : undefined,
 				first: view?.first,
@@ -40,6 +40,11 @@ vi.mock('@/app/state/root-store', () => ({
 				sort: view?.sort ?? undefined,
 				viewgroup: view?.viewGroup ?? undefined,
 			};
+			if ((params as Record<string, unknown>).colltype) {
+				delete params.group;
+				delete params.viewgroup;
+			}
+			return params;
 		},
 	},
 }));
@@ -85,6 +90,19 @@ function result(patt: string, total = 105, hitCount = 1): BLSearchResult {
 			params: { patt, first: 0, number: 20 },
 			pattern: { bcql: patt, fieldName: 'contents', otherFields: ['parallel'] },
 			results: { stats: { processed: { hits: total, documents: 1 }, counted: { hits: total, documents: 1 } } },
+		},
+	} as unknown as BLSearchResult;
+}
+
+function collocationResult(patt: string, total = 105): BLSearchResult {
+	return {
+		hitGroups: [{ identity: 'ship', identityDisplay: 'ship', properties: [{ name: 'hit:lemma', value: 'ship' }], size: 12 }],
+		summary: {
+			params: { patt, first: 0, number: 20 },
+			pattern: { bcql: patt, fieldName: 'contents' },
+			results: {
+				stats: { processed: { hits: total, documents: 1 }, counted: { hits: total, documents: 1 }, numberOfGroups: 1, largestGroupSize: 12 },
+			},
 		},
 	} as unknown as BLSearchResult;
 }
@@ -151,12 +169,14 @@ beforeEach(() => {
 	};
 	mock.sampleSize.mockImplementation(value => ((mock.globalState as { sampleSize: number | null }).sampleSize = value));
 	mock.requests = [];
-	mock.api.getHits.mockImplementation(() => {
+	const enqueueRequest = () => {
 		const request = deferredRequest();
 		mock.requests.push(request);
 		return request.request;
-	});
-	mock.api.getDocs.mockImplementation(mock.api.getHits);
+	};
+	mock.api.getHits.mockImplementation(enqueueRequest);
+	mock.api.getDocs.mockImplementation(enqueueRequest);
+	mock.api.getCollocations.mockImplementation(enqueueRequest);
 	mock.makeColumns.mockReturnValue({ hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] });
 	mock.makeRows.mockReturnValue({ rows: [{ type: 'hit' }] });
 	Object.defineProperty(HTMLElement.prototype, 'offsetTop', { configurable: true, get: () => 320 });
@@ -371,6 +391,80 @@ describe('ResultsView', () => {
 		await nextTick();
 		expect(mock.requests[0].request.cancel).toHaveBeenCalledOnce();
 		expect(mock.requests).toHaveLength(2);
+	});
+
+	test('dispatches collocations as grouped-only UI with the exact executed request', async () => {
+		mock.store = ResultsStore.getOrCreateModule('hits');
+		(mock.corpus as { isParallelCorpus: boolean }).isParallelCorpus = true;
+		Object.assign(mock.params as object, {
+			patt: '[word="water"]',
+			collpatt: '[lemma="ship"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		mock.makeColumns.mockReturnValue({ hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: ['table', 'hits'] });
+		mock.makeRows.mockReturnValue({ rows: [{ type: 'group' }] });
+
+		const wrapper = mountView();
+		expect(mock.api.getCollocations).toHaveBeenCalledOnce();
+		expect(mock.api.getHits).not.toHaveBeenCalled();
+		expect(mock.store.getState().sort).toBeNull();
+		const [indexId, executedParams, config] = mock.api.getCollocations.mock.calls[0];
+		expect(indexId).toBe('test');
+		expect(executedParams).toMatchObject({
+			patt: '[word="water"]',
+			collpatt: '[lemma="ship"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		expect(executedParams).not.toHaveProperty('group');
+		expect(executedParams).not.toHaveProperty('viewgroup');
+		expect(config).toEqual({ headers: { 'Cache-Control': 'no-cache' } });
+
+		mock.requests[0].resolve(collocationResult('[word="water"]'));
+		await flush();
+
+		expect(wrapper.findAllComponents({ name: 'GroupBy' })).toHaveLength(0);
+		expect(wrapper.findComponent({ name: 'BreadCrumbs' }).exists()).toBe(false);
+		expect(wrapper.findAll('button').some(button => button.text().includes('backToGroupedResults'))).toBe(false);
+		expect(wrapper.findComponent({ name: 'Export' }).exists()).toBe(false);
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ disableDetails: true, type: 'hits' });
+		expect(wrapper.findComponent({ name: 'Sort' }).props()).toMatchObject({ hits: false, docs: false, groups: true });
+		expect(wrapper.findAll('.btn-group button').map(button => button.text())).toEqual(expect.arrayContaining(['table', 'hits']));
+		const totalsRequest = wrapper.findComponent({ name: 'Totals' }).props('executedRequest') as { operation: string; params: object };
+		expect(totalsRequest.operation).toBe('collocations');
+		expect(totalsRequest.params).toBe(executedParams);
+
+		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('changeSort', 'size');
+		expect(mock.store.getState().sort).toBe('size');
+		await nextTick();
+		expect(mock.api.getCollocations).toHaveBeenCalledTimes(2);
+	});
+
+	test('formats collocation failures as grouped and keeps incompatible controls hidden after clearing the result', async () => {
+		Object.assign(mock.params as object, {
+			patt: '[word="water"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		mock.store!.actions.groupBy(['stale']);
+		const wrapper = mountView();
+		mock.requests[0].reject({ title: 'failure', isCancelledRequest: false });
+		await flush();
+
+		expect((mock.customizations as { formatError: ReturnType<typeof vi.fn> }).formatError).toHaveBeenCalledWith(expect.anything(), 'groups');
+		expect(wrapper.findAllComponents({ name: 'GroupBy' })).toHaveLength(0);
+		expect(wrapper.findComponent({ name: 'Export' }).exists()).toBe(false);
+		expect(wrapper.findComponent({ name: 'Totals' }).exists()).toBe(false);
 	});
 
 	test('renders invalid, loading, cancelled, error, retry, and empty states', async () => {

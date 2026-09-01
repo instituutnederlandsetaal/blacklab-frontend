@@ -150,8 +150,6 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			},
 		);
 	};
-	const getRelations = (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters);
-
 	return {
 		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer | BLServerV4>(paths.root(), undefined, requestParameters).then(normalizeServerInfo),
 
@@ -183,7 +181,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 								const ids = Object.keys(annotations).filter(id => annotations[id].hasForwardIndex);
 								return (indexRequest = endpoint.getCancelable<BLIndexMetadataV4>(paths.index(id), { listvalues: ids.join(',') }, requestParameters));
 							});
-							const relationsRequest = getRelations(id, requestParameters);
+							const relationsRequest = endpoint.getCancelable<BLRelationInfo>(paths.relations(id), { limitvalues: 1000 }, requestParameters);
 							return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
 								cancelled = true;
 								[indexRequest, relationsRequest].forEach(request => request.cancel());
@@ -313,7 +311,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			else return endpoint.getOrPostCancelable<BLDocument>(paths.docInfo(indexId, documentId), params, requestParameters);
 		},
 
-		getRelations,
+		getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters),
 
 		getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
 			if (!indexId) return rejectedRequest(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
@@ -323,7 +321,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 
 		getCollocations: (indexId: string, params: BLCollocationsParameters, requestParameters?: AxiosRequestConfig) => {
 			if (!params.patt) return rejectedRequest(new ApiError('Info', 'Cannot get collocations without a pattern.', 'No results', undefined));
-			const searchParams = { ...params };
+			const searchParams = { ...params, subcorpussize: true };
 			// The endpoint derives the grouping property from annotation/sensitivity.
 			delete searchParams.group;
 			return endpoint

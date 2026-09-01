@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
+import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
 import ResultTotals from '@/pages/search/results/ResultTotals.vue';
@@ -78,13 +79,14 @@ beforeEach(() => {
 describe('ResultTotals', () => {
 	test('disposes replaced and unmounted result loaders', async () => {
 		const initialResults = {} as BLSearchResult;
+		const initialRequest: ExecutedSearchRequest = { operation: 'hits', params: { number: 20, patt: '[]' } };
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', indexId: 'first', initialResults, type: 'hits' },
+			props: { annotatedFieldId: 'contents', executedRequest: initialRequest, indexId: 'first', initialResults, type: 'hits' },
 		});
 		let current = mock.loaders[0];
 		let expectedLoaderCount = 1;
 
-		expect(current.input).toEqual({ annotatedFieldId: 'contents', indexId: 'first', operation: 'hits', results: initialResults });
+		expect(current.input).toEqual({ annotatedFieldId: 'contents', indexId: 'first', request: initialRequest, results: initialResults });
 		expect(current.api).toBe(mock.api);
 		expect(current.dispose).not.toHaveBeenCalled();
 
@@ -99,17 +101,18 @@ describe('ResultTotals', () => {
 		}
 
 		await replaceLoader({ annotatedFieldId: 'parallel' });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'first', operation: 'hits', results: initialResults });
+		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'first', request: initialRequest, results: initialResults });
 
 		await replaceLoader({ indexId: 'second' });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', operation: 'hits', results: initialResults });
+		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: initialRequest, results: initialResults });
 
 		const nextResults = {} as BLSearchResult;
 		await replaceLoader({ initialResults: nextResults });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', operation: 'hits', results: nextResults });
+		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: initialRequest, results: nextResults });
 
-		await replaceLoader({ type: 'docs' });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', operation: 'docs', results: nextResults });
+		const docsRequest: ExecutedSearchRequest = { operation: 'docs', params: { number: 20 } };
+		await replaceLoader({ executedRequest: docsRequest, type: 'docs' });
+		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: docsRequest, results: nextResults });
 
 		wrapper.unmount();
 		expect(current.dispose).toHaveBeenCalledOnce();
@@ -119,7 +122,7 @@ describe('ResultTotals', () => {
 	test('emits later loaded results but not initial, errored, or stale loader values', async () => {
 		const initialResults = {} as BLSearchResult;
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', indexId: 'first', initialResults, type: 'hits' },
+			props: { annotatedFieldId: 'contents', executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } }, indexId: 'first', initialResults, type: 'hits' },
 		});
 		const initialLoader = mock.loaders[0];
 		expect(wrapper.emitted('update')).toBeUndefined();
@@ -151,7 +154,13 @@ describe('ResultTotals', () => {
 
 	test('activates the retry and paused continue buttons once each', async () => {
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', indexId: 'first', initialResults: {} as BLSearchResult, type: 'hits' },
+			props: {
+				annotatedFieldId: 'contents',
+				executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } },
+				indexId: 'first',
+				initialResults: {} as BLSearchResult,
+				type: 'hits',
+			},
 		});
 		const loader = mock.loaders[0];
 

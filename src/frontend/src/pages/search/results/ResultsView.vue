@@ -2,13 +2,21 @@
 	<div ref="root" class="results-container" :disabled="request" :style="{ minHeight: request ? '100px' : undefined }">
 		<Spinner v-if="request" overlay size="75" />
 
-		<template v-if="resultComponentData && cols && renderDisplaySettings">
+		<template v-if="resultComponentData && cols && renderDisplaySettings && loadedRequest">
 			<div class="crumbs-totals">
-				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
-				<Totals class="result-totals" :initialResults="loadedResults" :type="id" :indexId="indexId" :annotatedFieldId="sourceAnnotatedFieldId" @update="paginationResults = $event" />
+				<BreadCrumbs v-if="!isCollocations" :crumbs="breadCrumbs" :disabled="!!request" />
+				<Totals
+					class="result-totals"
+					:initialResults="loadedResults"
+					:executedRequest="loadedRequest"
+					:type="id"
+					:indexId="indexId"
+					:annotatedFieldId="sourceAnnotatedFieldId"
+					@update="paginationResults = $event"
+				/>
 			</div>
 
-			<GroupBy v-if="!viewGroup" :type="id" :results="results" :disabled="!!request" />
+			<GroupBy v-if="!isCollocations && !viewGroup" :type="id" :results="results" :disabled="!!request" />
 
 			<div class="result-buttons-layout">
 				<Pagination slot="pagination" :page="pagination.shownPage" :page2="pagination.shownPage2" :maxPage="pagination.maxShownPage" :disabled="!!request" @change="page = $event" />
@@ -24,7 +32,7 @@
 						{{ option }}
 					</button>
 				</div>
-				<button v-if="viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
+				<button v-if="!isCollocations && viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
 					<span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}
 				</button>
 
@@ -54,6 +62,7 @@
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
 				:showTitles="showTitles.value"
 				:disabled="!!request"
+				:disableDetails="isCollocations"
 				:query="resultComponentData.query"
 				:sort="resultComponentData.sort"
 				@changeSort="sort = sort === $event ? `-${sort}` : $event"
@@ -70,7 +79,7 @@
 
 				<Sort v-model="sort" :hits="isHits" :docs="isDocs" :groups="isGroups" :corpus="corpus" :disabled="!!request" />
 
-				<Export v-if="customizations.resultExportEnabled()" :results="results" :type="id" :disabled="!!request" />
+				<Export v-if="!isCollocations && customizations.resultExportEnabled()" :results="results" :type="id" :disabled="!!request" />
 			</div>
 		</template>
 		<div v-else-if="error != null" class="no-results-found">
@@ -84,7 +93,7 @@
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
 		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
-			<GroupBy v-if="groupBy.length" :type="id" :results="results" :disabled="!!request" />
+			<GroupBy v-if="!isCollocations && groupBy.length" :type="id" :results="results" :disabled="!!request" />
 			<Pagination
 				v-if="pagination.shownPage != 0"
 				style="display: block"
@@ -106,7 +115,7 @@ import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
-import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
+import { isEffectiveCollocationParameters, type ExecutedSearchRequest, type GroupDisplayMode } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import type { DisplaySettingsForRendering } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
@@ -149,6 +158,7 @@ const isDirty = ref(true);
 const request = shallowRef<CancelableRequest<BLTypes.BLSearchResult> | null>(null);
 const results = ref<BLTypes.BLSearchResult | null>(null);
 const paginationResults = ref<BLTypes.BLSearchResult | null>(null);
+const executedRequest = shallowRef<ExecutedSearchRequest | null>(null);
 const error = ref<string | null>(null);
 const storedViewGroupName = ref<string | null>(null);
 // Should we scroll when next results arrive - set when main form submitted
@@ -194,10 +204,12 @@ const querySettings = computed(QueryStore.getState);
 
 const valid = computed(() => id !== 'hits' || BLTypes.isHitParams(RootStore.get.blacklabParameters()));
 const loadedResults = computed(() => results.value!);
+const loadedRequest = computed(() => executedRequest.value!);
 const indexId = computed(() => corpus.value.id!);
 const isHits = computed(() => !!results.value && BLTypes.isHitResults(results.value));
 const isDocs = computed(() => !!results.value && BLTypes.isDocResults(results.value));
 const isGroups = computed(() => !!results.value && BLTypes.isGroups(results.value));
+const isCollocations = computed(() => executedRequest.value?.operation === 'collocations' || isEffectiveCollocationParameters(RootStore.get.blacklabParameters()));
 
 /**
  * Pagination state for the current view.
@@ -233,12 +245,13 @@ function scrollToResults() {
 	window.scroll({ behavior: 'smooth', top: root.value.offsetTop - 150 });
 }
 
-function setSuccess(data: BLTypes.BLSearchResult) {
+function setSuccess(data: BLTypes.BLSearchResult, executed: ExecutedSearchRequest) {
 	debugLog('results', 'search results', data);
 	clearResults.value = false;
 	error.value = null;
 	request.value = null;
 	results.value = paginationResults.value = markRaw(data);
+	executedRequest.value = executed;
 }
 
 function setError(data: ApiError, isGrouped?: boolean) {
@@ -246,6 +259,7 @@ function setError(data: ApiError, isGrouped?: boolean) {
 		debugLog('results', 'Request failed: ', data);
 		error.value = customizations.formatError(data, isGrouped ? 'groups' : id);
 		results.value = paginationResults.value = null;
+		executedRequest.value = null;
 		clearResults.value = false;
 	}
 	request.value = null;
@@ -264,6 +278,7 @@ function refresh() {
 
 	if (!valid.value) {
 		results.value = paginationResults.value = null;
+		executedRequest.value = null;
 		error.value = null;
 		clearResults.value = false;
 		return;
@@ -271,25 +286,39 @@ function refresh() {
 
 	if (clearResults.value) {
 		results.value = paginationResults.value = null;
+		executedRequest.value = null;
 		error.value = null;
 		clearResults.value = false;
 	}
 
 	// If we're querying a parallel corpus, and no sort was chosen yet, sort by alignments (so aligned hits appear first).
 	const viewModule = ResultsStore.getOrCreateModule('hits');
-	if (id === 'hits' && (groupBy.value.length === 0 || viewGroup.value) && corpus.value.isParallelCorpus && viewModule.getState().sort == null) viewModule.actions.sort('alignments');
+	const currentParams = RootStore.get.blacklabParameters()!;
+	let executed: ExecutedSearchRequest;
+	if (isEffectiveCollocationParameters(currentParams)) {
+		executed = { operation: 'collocations', params: currentParams };
+	} else {
+		if (id === 'hits' && (groupBy.value.length === 0 || viewGroup.value) && corpus.value.isParallelCorpus && viewModule.getState().sort == null) viewModule.actions.sort('alignments');
+		const params = RootStore.get.blacklabParameters()!;
+		executed = isEffectiveCollocationParameters(params) ? { operation: 'collocations', params } : { operation: id, params };
+	}
+	const params = executed.params;
 
-	const params = RootStore.get.blacklabParameters()!;
 	const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
-	debugLog('results', 'starting search', id, params);
-	const nextRequest = id === 'hits' ? blacklab.getHits(indexId.value, params, axiosParams) : blacklab.getDocs(indexId.value, params, axiosParams);
+	debugLog('results', 'starting search', executed.operation, params);
+	const nextRequest =
+		executed.operation === 'collocations'
+			? blacklab.getCollocations(indexId.value, executed.params, axiosParams)
+			: executed.operation === 'hits'
+				? blacklab.getHits(indexId.value, executed.params, axiosParams)
+				: blacklab.getDocs(indexId.value, executed.params, axiosParams);
 	request.value = nextRequest;
 	setTimeout(scrollToResults, 1500);
 
 	nextRequest
 		.then(
 			data => {
-				if (request.value === nextRequest) setSuccess(data);
+				if (request.value === nextRequest) setSuccess(data, executed);
 			},
 			(data: ApiError) => {
 				if (request.value !== nextRequest) return;
@@ -301,7 +330,7 @@ function refresh() {
 					);
 					groupBy.value = serializeSortByOrGroupBy(okayGroups);
 				}
-				setError(data, !!params.group);
+				setError(data, executed.operation === 'collocations' || !!params.group);
 			},
 		)
 		.finally(scrollToResults);

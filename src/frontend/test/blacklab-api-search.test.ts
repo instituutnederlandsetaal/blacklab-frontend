@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import type { BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLCollocationsParameters, BLHitGroupResults, BLSearchParameters } from '@/types/blacklabtypes';
 
 import { createBlackLabApi } from '@/shared/api/blacklabApi';
 import * as ApiEndpointModule from '@/shared/api/lib/api-endpoint';
@@ -57,6 +57,56 @@ test.each(searches)('$name copies parameters, forwards config by identity, and c
 	expect(sentConfig).toBe(config);
 	expect(params).toEqual(originalParams);
 	expect(mock.cancel).toHaveBeenCalledOnce();
+});
+
+test.each(['4.2.0', '5.0.0'])('getCollocations copies parameters, forces subcorpus totals, strips group, forwards config, and chains cancellation on BlackLab %s', async blacklabVersion => {
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
+	const params: BLCollocationsParameters = {
+		patt: '[word="water"]',
+		collpatt: '[lemma="ship"]',
+		colltype: 'proximity',
+		context: 5,
+		annotation: 'lemma',
+		sensitive: false,
+		scorertype: 'coll-dice',
+		group: 'hit:word:s',
+		subcorpussize: false,
+	};
+	const originalParams = { ...params };
+	const config: AxiosRequestConfig = { headers: { 'X-Test': 'exact-config' }, timeout: 321 };
+
+	const request = api.getCollocations('owner:corpus', params, config);
+	const endpointRequest = mock.getOrPostCancelable.mock.results[0].value as CancelableRequest<unknown>;
+	expect(request).not.toBe(endpointRequest);
+	request.cancel();
+
+	const [path, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLCollocationsParameters, AxiosRequestConfig];
+	const expectedParams = { ...originalParams };
+	delete expectedParams.group;
+	expect(path).toBe(blacklabVersion.startsWith('4') ? 'owner:corpus/collocations/' : 'corpora/owner:corpus/collocations/');
+	expect(sentParams).toEqual({ ...expectedParams, subcorpussize: true });
+	expect(sentParams).not.toHaveProperty('group');
+	expect(sentParams).not.toBe(params);
+	expect(sentConfig).toBe(config);
+	expect(params).toEqual(originalParams);
+	expect(mock.cancel).toHaveBeenCalledOnce();
+});
+
+test('getCollocations rejects a missing pattern before calling the endpoint', async () => {
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
+	await expect(api.getCollocations('owner:corpus', {} as BLCollocationsParameters)).rejects.toEqual(new ApiError('Info', 'Cannot get collocations without a pattern.', 'No results', undefined));
+	expect(mock.getOrPostCancelable).not.toHaveBeenCalled();
+});
+
+test('getCollocations retains grouped-hit normalization', async () => {
+	const raw = {
+		hitGroups: [{ identity: 'ship', identityDisplay: 'ship', properties: [{ name: 'hit:lemma', value: 'ship' }], size: 2, numberOfDocs: 1 }],
+		summary: { params: { patt: '[]', number: 20 }, results: {} },
+	} as unknown as BLHitGroupResults;
+	mock.getOrPostCancelable.mockReturnValueOnce(new CancelableRequest(Promise.resolve(raw), mock.cancel));
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
+
+	await expect(api.getCollocations('owner:corpus', { patt: '[]' })).resolves.toEqual({ hitGroups: raw.hitGroups, summary: raw.summary });
 });
 
 test.each([

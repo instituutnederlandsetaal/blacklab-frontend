@@ -1,17 +1,17 @@
 import { concatWith, defer, EMPTY, expand, filter, of, switchMap, takeUntil, tap, timer } from 'rxjs';
 
+import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
 import { type BLSearchResult } from '@/types/blacklabtypes';
 
 import { getTotals, type TotalsOutput } from './result-count-helpers';
 
 import type { BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';
-import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable-core';
 import { createInteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
 
 export type TotalsInput = {
 	indexId: string;
-	operation: 'hits' | 'docs';
+	request: ExecutedSearchRequest;
 	results: BLSearchResult;
 	annotatedFieldId: string;
 };
@@ -32,10 +32,14 @@ export function createIterativeResultCountLoader(
 	}> = {},
 ) {
 	const loader = createInteractiveLoadable(
-		switchMap(({ indexId, operation, results }: TotalsInput) => {
+		switchMap(({ indexId, request, results }: TotalsInput) => {
 			// Override some settings from the original search, we're not interested in the results, but we need the totals.
-			const params = { ...getSearchParameters(results), number: 0, first: 0, subcorpussize: true };
-			const getResults: () => CancelableRequest<BLSearchResult> = operation === 'docs' ? () => api.getDocs(indexId, params) : () => api.getHits(indexId, params);
+			const getResults = (): CancelableRequest<BLSearchResult> => {
+				const overrides = { number: 0, first: 0, subcorpussize: true } as const;
+				if (request.operation === 'collocations') return api.getCollocations(indexId, { ...request.params, ...overrides });
+				if (request.operation === 'docs') return api.getDocs(indexId, { ...request.params, ...overrides });
+				return api.getHits(indexId, { ...request.params, ...overrides });
+			};
 			let latest: Loadable<TotalsOutput> | undefined;
 			const recursiveTotal$ = of(Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
 				expand((cur: Loadable<TotalsOutput>) => {

@@ -52,6 +52,7 @@ const routes: Array<{ name: string; invoke: (api: BlackLabApi) => CancelableRequ
 		method: 'GET_OR_POST',
 	},
 	{ name: 'hits', invoke: api => api.getHits(corpusId, { number: 20, patt: '[]' }), path: prefix => `${prefix}${corpusId}/hits/`, method: 'GET_OR_POST' },
+	{ name: 'collocations', invoke: api => api.getCollocations(corpusId, { patt: '[]' }), path: prefix => `${prefix}${corpusId}/collocations/`, method: 'GET_OR_POST' },
 	{
 		name: 'snippet',
 		invoke: api => api.getSnippet(corpusId, 'doc/42', 'contents', 1, 2),
