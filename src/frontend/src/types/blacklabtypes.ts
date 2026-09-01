@@ -1,6 +1,8 @@
 /** @public */
 export type BLCollocationType = 'proximity' | 'relsources' | 'reltargets';
 /** @public */
+export const isBLCollocationType = (value: unknown): value is BLCollocationType => value === 'proximity' || value === 'relsources' || value === 'reltargets';
+/** @public */
 export type BLCollocationScorer = (string & {}) | 'coll-dice' | 'coll-salience';
 
 /**

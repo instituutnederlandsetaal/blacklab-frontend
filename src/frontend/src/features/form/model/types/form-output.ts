@@ -1,6 +1,25 @@
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
+import { isBLCollocationType, type BLCollocationScorer, type BLCollocationType } from '@/types/blacklabtypes';
 
 import { isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from './form-query-ir';
+
+export type CollocationContext = number | readonly [number, number];
+
+function isSafeNonNegativeInteger(value: unknown): value is number {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+export function isCollocationContext(value: unknown): value is CollocationContext {
+	return isSafeNonNegativeInteger(value) || (Array.isArray(value) && value.length === 2 && value.every(isSafeNonNegativeInteger));
+}
+
+export function parseCollocationContext(value: string): CollocationContext | null {
+	const parts = value.trim().split(':');
+	if ((parts.length !== 1 && parts.length !== 2) || parts.some(part => !/^\d+$/.test(part))) return null;
+	const context = parts.map(Number);
+	if (!context.every(isSafeNonNegativeInteger)) return null;
+	return context.length === 1 ? context[0] : [context[0], context[1]];
+}
 
 export type FormOutputValues = {
 	patt: CqlPatternNode;
@@ -10,11 +29,31 @@ export type FormOutputValues = {
 	group: readonly string[] | null;
 	sort: readonly string[] | null;
 	withspans: true;
-
-	// Remaining collocation outputs are omitted until the collocation target is implemented.
+	colltype: BLCollocationType;
+	context: CollocationContext;
+	within: string;
+	reltype: string;
+	annotation: string;
+	sensitive: boolean;
+	scorertype: BLCollocationScorer;
 };
 
-const FORM_OUTPUT_NAMES = ['patt', 'collpatt', 'filter', 'searchfield', 'group', 'sort', 'withspans'] as const satisfies readonly (keyof FormOutputValues)[];
+const FORM_OUTPUT_NAMES = [
+	'patt',
+	'collpatt',
+	'filter',
+	'searchfield',
+	'group',
+	'sort',
+	'withspans',
+	'colltype',
+	'context',
+	'within',
+	'reltype',
+	'annotation',
+	'sensitive',
+	'scorertype',
+] as const satisfies readonly (keyof FormOutputValues)[];
 
 export type FormOutputName = keyof FormOutputValues;
 export type Emit = <Name extends FormOutputName>(name: Name, value: FormOutputValues[Name]) => void;
@@ -35,6 +74,13 @@ const OUTPUT_VALIDATORS: Record<FormOutputName, (value: unknown) => boolean> = {
 	group: value => value === null || (Array.isArray(value) && value.every(item => typeof item === 'string')),
 	sort: value => value === null || (Array.isArray(value) && value.every(item => typeof item === 'string')),
 	withspans: value => value === true,
+	colltype: isBLCollocationType,
+	context: isCollocationContext,
+	within: value => typeof value === 'string',
+	reltype: value => typeof value === 'string',
+	annotation: value => typeof value === 'string',
+	sensitive: value => typeof value === 'boolean',
+	scorertype: value => typeof value === 'string',
 };
 
 /** Validate an emission against the shared output vocabulary. */

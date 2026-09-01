@@ -1,9 +1,13 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+	COLLOCATION_OUTPUTS,
+	createCollocationTarget,
 	createSearchTarget,
 	docsSearchTarget,
 	hitsSearchTarget,
+	isCollocationParams,
+	isValidEmission,
 	rawCql,
 	searchTarget,
 	type FieldController,
@@ -11,6 +15,7 @@ import {
 	type FormIssue,
 	type FormOutputName,
 	type SearchOutputName,
+	within,
 } from '@/features/form';
 import { filter } from '@/features/form/model/types/form-query-ir';
 
@@ -43,6 +48,24 @@ function emission<Name extends FormOutputName>(name: Name, value: FormEmission<N
 }
 
 describe('form output acceptance', () => {
+	test('validates collocation discriminators and safe context shapes at the form boundary', () => {
+		expect(isValidEmission({ name: 'collpatt', value: rawCql('[lemma="ship"]') })).toBe(true);
+		expect(isValidEmission({ name: 'colltype', value: 'proximity' })).toBe(true);
+		expect(isValidEmission({ name: 'context', value: 0 })).toBe(true);
+		expect(isValidEmission({ name: 'context', value: [3, 4] })).toBe(true);
+		expect(isValidEmission({ name: 'sensitive', value: false })).toBe(true);
+		for (const name of ['within', 'reltype', 'annotation', 'scorertype'] as const) {
+			expect(isValidEmission({ name, value: 'value' })).toBe(true);
+			expect(isValidEmission({ name, value: 1 })).toBe(false);
+		}
+		expect(isValidEmission({ name: 'collpatt', value: '[lemma="ship"]' })).toBe(false);
+		expect(isValidEmission({ name: 'colltype', value: 'unknown' })).toBe(false);
+		expect(isValidEmission({ name: 'context', value: -1 })).toBe(false);
+		expect(isValidEmission({ name: 'context', value: [3] })).toBe(false);
+		expect(isValidEmission({ name: 'context', value: [3, Number.MAX_SAFE_INTEGER + 1] })).toBe(false);
+		expect(isValidEmission({ name: 'sensitive', value: 'false' })).toBe(false);
+	});
+
 	test('reports unknown, undeclared, malformed, and unsupported values while retaining unrelated valid outputs', () => {
 		const controller = createController(['patt', 'collpatt', 'filter', 'searchfield'], (_config, _runtime, _state, emit) => {
 			const rawEmit = emit as unknown as (name: string, value: unknown) => void;
@@ -244,5 +267,132 @@ describe('search target compilation', () => {
 		expect(searchTarget.supportedEndpoints).toEqual(['hits', 'docs', 'hits-grouped', 'docs-grouped']);
 		expect(hitsSearchTarget).toMatchObject({ targetView: 'hits', supportedEndpoints: ['hits', 'hits-grouped'] });
 		expect(docsSearchTarget).toMatchObject({ targetView: 'docs', supportedEndpoints: ['docs', 'docs-grouped'] });
+	});
+});
+
+describe('collocation target compilation', () => {
+	test('declares its exact grouped endpoint contract and applies explicit defaults', () => {
+		const target = createCollocationTarget(' lemma ');
+		const issues: FormIssue[] = [];
+		const params = target.compile([emission('patt', rawCql(' [word="ship"] '))] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[], issues);
+
+		expect(target).toMatchObject({
+			acceptedOutputs: COLLOCATION_OUTPUTS,
+			targetView: 'hits',
+			supportedEndpoints: ['collocations'],
+		});
+		expect(COLLOCATION_OUTPUTS).not.toContain('group');
+		expect(params).toEqual({
+			patt: '[word="ship"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		expect(isCollocationParams(params)).toBe(true);
+		expect(issues).toEqual([]);
+	});
+
+	test('compiles both patterns, filters, endpoint within, context pairs, and sort', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile(
+			[
+				emission('patt', rawCql(' [word="ship"] ')),
+				emission('collpatt', rawCql(' [lemma="boat"] ')),
+				emission('filter', filter('author', 'literal', 'Austen')!),
+				emission('searchfield', ' contents__en '),
+				emission('context', [3, 4]),
+				emission('within', ' s '),
+				emission('annotation', ' lemma '),
+				emission('sensitive', true),
+				emission('scorertype', ' coll-salience '),
+				emission('sort', [' -size ', 'identity']),
+			] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[],
+			issues,
+		);
+
+		expect(params).toEqual({
+			patt: '[word="ship"]',
+			collpatt: '[lemma="boat"]',
+			filter: 'author:(Austen)',
+			searchfield: 'contents__en',
+			colltype: 'proximity',
+			context: '3:4',
+			within: 's',
+			annotation: 'lemma',
+			sensitive: true,
+			scorertype: 'coll-salience',
+			sort: '-size,identity',
+		});
+		expect(issues).toEqual([]);
+	});
+
+	test('keeps endpoint within separate from a CQL within wrapper', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile(
+			[emission('patt', { type: 'and', children: [rawCql('[word="ship"]'), within('article')] }), emission('within', 's')] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[],
+			issues,
+		);
+
+		expect(params.patt).toContain('within <article/>');
+		expect(params.within).toBe('s');
+		expect(issues).toEqual([]);
+	});
+
+	test('reports a missing keyword pattern while retaining safe defaults', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+
+		expect(target.compile([], issues)).toEqual({ colltype: 'proximity', context: 5, annotation: 'word', sensitive: false, scorertype: 'coll-dice' });
+		expect(issues).toEqual([{ severity: 'error', message: "Required output 'patt' is missing." }]);
+	});
+
+	test('rejects proximity relation parameters without disabling an otherwise valid proximity query', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile([emission('patt', rawCql('[word="ship"]')), emission('reltype', 'aligns')] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[], issues);
+
+		expect(params).toMatchObject({ patt: '[word="ship"]', colltype: 'proximity', context: 5 });
+		expect(params).not.toHaveProperty('reltype');
+		expect(issues).toEqual([{ severity: 'error', message: "Output 'reltype' is not valid for proximity collocations; ignoring it." }]);
+	});
+
+	test.each(['relsources', 'reltargets'] as const)('gates unsupported %s requests and removes executable pattern and proximity-only values', colltype => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile(
+			[emission('patt', rawCql('[word="ship"]')), emission('colltype', colltype), emission('context', 3), emission('within', 's'), emission('reltype', 'aligns')] as FormEmission<
+				(typeof COLLOCATION_OUTPUTS)[number]
+			>[],
+			issues,
+		);
+
+		expect(params).toEqual({ colltype, reltype: 'aligns', annotation: 'word', sensitive: false, scorertype: 'coll-dice' });
+		expect(issues).toEqual([
+			{ severity: 'error', message: `Collocation type '${colltype}' is not supported yet.` },
+			{ severity: 'error', message: "Output 'context' is not valid for relation collocations; ignoring it." },
+			{ severity: 'error', message: "Output 'within' is not valid for relation collocations; ignoring it." },
+		]);
+	});
+
+	test('applies the release gate after restoring a relation discriminator', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile([emission('patt', rawCql('[word="ship"]'))] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[], issues, { colltype: 'reltargets' });
+
+		expect(params).toEqual({ colltype: 'reltargets', annotation: 'word', sensitive: false, scorertype: 'coll-dice' });
+		expect(issues).toEqual([{ severity: 'error', message: "Collocation type 'reltargets' is not supported yet." }]);
+	});
+
+	test('rejects an invalid restored context without substituting the proximity default', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile([emission('patt', rawCql('[word="ship"]'))] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[], issues, { context: '-1' });
+
+		expect(params).toEqual({ colltype: 'proximity', annotation: 'word', sensitive: false, scorertype: 'coll-dice' });
+		expect(issues).toEqual([{ severity: 'error', message: "Restored override 'context' must be a safe non-negative integer or before:after pair." }]);
 	});
 });
