@@ -14,6 +14,10 @@ describe('standard search-form IDs', () => {
 			exploreSectionHeading: ids.exploreSectionHeading(),
 			exploreFormsContainer: ids.exploreFormsContainer(),
 			exploreForm: ids.exploreForm('ngram'),
+			collocationsSection: ids.collocationsSection(),
+			collocationsSectionHeading: ids.collocationsSectionHeading(),
+			collocationsForm: ids.collocationsForm(),
+			collocationsField: ids.collocationsField(),
 			withinField: ids.withinField(),
 			sharedFiltersRegion: ids.sharedFiltersRegion(),
 			sharedFiltersHeading: ids.sharedFiltersHeading(),
@@ -49,6 +53,10 @@ describe('standard search-form IDs', () => {
 			  "annotationField": "standard-search-form/annotation-field/extended/contents__nl/pos",
 			  "annotationTab": "standard-search-form/annotation-tab/Grammar",
 			  "annotationTabs": "standard-search-form/annotation-tabs",
+			  "collocationsField": "standard-search-form/collocations-field",
+			  "collocationsForm": "standard-search-form/collocations-form",
+			  "collocationsSection": "standard-search-form/section/collocations",
+			  "collocationsSectionHeading": "standard-search-form/section-heading/collocations",
 			  "exploreControls": "standard-search-form/explore-controls/frequency",
 			  "exploreCorporaGroupBy": "standard-search-form/explore-corpora-group-by",
 			  "exploreCorporaGroupDisplayMode": "standard-search-form/explore-corpora-group-display-mode",
@@ -101,9 +109,10 @@ describe('standard search-form IDs', () => {
 		expect(ids.metadataFilter('same')).not.toBe(ids.filterTab('same'));
 	});
 
-	test('recognizes standard search and explore form IDs', () => {
+	test('recognizes every standard form section', () => {
 		expect(ids.formKind(ids.searchForm('simple'))).toBe('search');
 		expect(ids.formKind(ids.exploreForm('corpora'))).toBe('explore');
+		expect(ids.formKind(ids.collocationsForm())).toBe('collocations');
 		expect(ids.formKind(ids.root())).toBeNull();
 	});
 });

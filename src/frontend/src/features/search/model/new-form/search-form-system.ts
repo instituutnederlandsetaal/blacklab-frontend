@@ -10,12 +10,15 @@ import type { SearchFormWithinAttribute } from '@/customization-api/shared/form/
 import {
 	FormBuilder,
 	FormRuntime,
+	CollocationField,
 	ParallelField,
 	QueryBuilderField,
 	RawCqlField,
 	SelectField,
 	TokenSequenceField,
 	WithinField,
+	collocationController,
+	createCollocationTarget,
 	createFormFieldNode,
 	expertQueryController,
 	frequencyAnnotationController,
@@ -222,6 +225,27 @@ function createAnnotationLabels(context: BuildContext, annotationIds: string[]):
 			.filter((annotation): annotation is NormalizedAnnotation => !!annotation)
 			.map(annotation => [annotation.id, () => context.translate.$tAnnotDisplayName(annotation)]),
 	);
+}
+
+function createCollocationsSection(context: BuildContext, sharedFilters: FormNode | null, annotations: NormalizedAnnotation[], mainAnnotationId: string): FormNode {
+	const { builder, translate } = context;
+	const field = createFormFieldNode(ids.collocationsField(), collocationController, CollocationField, {
+		annotationOptions: annotations.map(annotation => ({
+			value: annotation.id,
+			label: () => translate.$tAnnotDisplayName(annotation).toString(),
+		})),
+		defaultAnnotation: mainAnnotationId,
+	});
+	const form = builder
+		.newForm(ids.collocationsForm(), ContainerRenderer, {
+			target: createCollocationTarget(mainAnnotationId),
+			variant: sharedFilters ? 'columns' : undefined,
+		})
+		.addChildren(field, sharedFilters);
+
+	return builder
+		.newContainer(ids.collocationsSection(), ContainerRenderer, { title: () => translate.$t('queryForm.collocations'), variant: 'list' })
+		.addChildren(builder.newView(ids.collocationsSectionHeading(), HeadingView, { title: () => translate.$t('collocations.heading') }), form);
 }
 
 function createExploreParallelSource(context: BuildContext, mode: 'frequency' | 'ngram'): FormFieldNode | null {
@@ -449,6 +473,15 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	);
 
 	exploreFormsContainer.addChildren(createExploreCorporaForm(context, sharedFilters), createExploreNgramForm(context, sharedFilters), createExploreFrequencyForm(context, sharedFilters));
+
+	const mainAnnotatedField = corpus.allAnnotatedFieldsMap[corpus.mainAnnotatedField];
+	const mainAnnotation = mainAnnotatedField?.annotations[mainAnnotatedField.mainAnnotationId];
+	const collocationAnnotations = Object.values(mainAnnotatedField?.annotations ?? {}).filter(annotation => !annotation.isInternal && annotation.hasForwardIndex);
+	root.addChildren(
+		mainAnnotatedField && mainAnnotation && collocationAnnotations.includes(mainAnnotation)
+			? createCollocationsSection(context, sharedFilters, collocationAnnotations, mainAnnotatedField.mainAnnotationId)
+			: null,
+	);
 	customizations.customizeSearchForm(createSearchFormCustomizationApi({ builder, corpus, nodeConstructors, translate }));
 
 	return builder;

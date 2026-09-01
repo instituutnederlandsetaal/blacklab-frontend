@@ -22,6 +22,7 @@ function id(family: string, ...parts: SemanticId[]): string {
 function formKind(formId: string): SearchFormSection | null {
 	if (formId.startsWith(`${id('search-form')}/`)) return 'search';
 	if (formId.startsWith(`${id('explore-form')}/`)) return 'explore';
+	if (formId === id('collocations-form')) return 'collocations';
 	return null;
 }
 
@@ -43,6 +44,11 @@ export const searchFormIds = {
 	exploreSectionHeading: () => id('section-heading', 'explore'),
 	exploreFormsContainer: () => id('forms', 'explore'),
 	exploreForm: (mode: ExploreFormMode) => id('explore-form', mode),
+
+	collocationsSection: () => id('section', 'collocations'),
+	collocationsSectionHeading: () => id('section-heading', 'collocations'),
+	collocationsForm: () => id('collocations-form'),
+	collocationsField: () => id('collocations-field'),
 
 	withinField: () => id('within-field'),
 	sharedFiltersRegion: () => id('shared-filters-region'),

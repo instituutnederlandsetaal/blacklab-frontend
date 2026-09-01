@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as RootStore from '@/app/state/root-store';
+import type { SearchFormSection } from '@/customization-api/external/external-api';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult, FormRuntime } from '@/features/form';
 
@@ -12,7 +13,7 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 
 type SubmitContext = {
-	confirmLargeExploreSearch(form?: 'search' | 'explore'): boolean;
+	confirmLargeExploreSearch(form?: SearchFormSection): boolean;
 	newForm: FormRuntime | null;
 	blurActiveElement(): void;
 };

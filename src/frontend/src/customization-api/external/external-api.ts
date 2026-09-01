@@ -17,8 +17,8 @@ export type SearchPatternMode = 'simple' | 'extended' | 'advanced' | 'expert';
 /** Identifies the document grouping, N-gram, or frequency Explore form. */
 export type ExploreFormMode = 'corpora' | 'ngram' | 'frequency';
 
-/** Identifies whether an item belongs to Search or Explore. */
-export type SearchFormSection = 'search' | 'explore';
+/** Identifies which top-level standard form section an item belongs to. */
+export type SearchFormSection = 'search' | 'explore' | 'collocations';
 
 /** Visual styles supported by form fields. */
 /** @materialize */
@@ -435,6 +435,14 @@ export interface SearchFormIds {
 	exploreFormsContainer(): string;
 	/** Returns the ID of an Explore form. */
 	exploreForm(mode: ExploreFormMode): string;
+	/** Returns the ID of the Collocations section. */
+	collocationsSection(): string;
+	/** Returns the ID of the Collocations section heading. */
+	collocationsSectionHeading(): string;
+	/** Returns the ID of the collocation search form. */
+	collocationsForm(): string;
+	/** Returns the ID of the retained collocation field. */
+	collocationsField(): string;
 	/** Returns the ID of the within control. */
 	withinField(): string;
 	/** Returns the ID of the area containing shared filters and their summary. */
@@ -481,7 +489,7 @@ export interface SearchFormIds {
 	exploreNgramTokens(): string;
 	/** Returns the ID of the frequency annotation field. */
 	exploreFrequencyAnnotation(): string;
-	/** Identifies whether a form ID belongs to Search or Explore. */
+	/** Identifies which top-level standard section contains a form ID. */
 	formKind(formId: string): SearchFormSection | null;
 }
 

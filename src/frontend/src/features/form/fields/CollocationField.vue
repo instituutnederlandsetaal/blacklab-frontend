@@ -30,15 +30,6 @@
 
 		<div class="row">
 			<div class="form-group col-sm-6">
-				<label :for="`${htmlId}-type`">{{ $t('collocations.type') }}</label>
-				<select :id="`${htmlId}-type`" class="form-control" :disabled :value="modelValue.colltype" @change="update('colltype', ($event.target as HTMLSelectElement).value as BLCollocationType)">
-					<option value="proximity">{{ $t('collocations.types.proximity') }}</option>
-					<option value="relsources">{{ $t('collocations.types.relsources') }}</option>
-					<option value="reltargets">{{ $t('collocations.types.reltargets') }}</option>
-				</select>
-			</div>
-
-			<div v-if="modelValue.colltype === 'proximity'" class="form-group col-sm-6">
 				<label :for="`${htmlId}-context`">{{ $t('collocations.context') }}</label>
 				<input
 					:id="`${htmlId}-context`"
@@ -52,31 +43,18 @@
 				/>
 			</div>
 
-			<div v-else class="form-group col-sm-6">
-				<label :for="`${htmlId}-reltype`">{{ $t('collocations.relationType') }}</label>
+			<div class="form-group col-sm-6">
+				<label :for="`${htmlId}-within`">{{ $t('collocations.within') }}</label>
 				<input
-					:id="`${htmlId}-reltype`"
+					:id="`${htmlId}-within`"
 					class="form-control"
 					type="text"
 					:disabled
-					:placeholder="$t('collocations.relationTypePlaceholder')"
-					:value="modelValue.reltype"
-					@input="update('reltype', ($event.target as HTMLInputElement).value)"
+					:placeholder="$t('collocations.withinPlaceholder')"
+					:value="modelValue.within"
+					@input="update('within', ($event.target as HTMLInputElement).value)"
 				/>
 			</div>
-		</div>
-
-		<div v-if="modelValue.colltype === 'proximity'" class="form-group">
-			<label :for="`${htmlId}-within`">{{ $t('collocations.within') }}</label>
-			<input
-				:id="`${htmlId}-within`"
-				class="form-control"
-				type="text"
-				:disabled
-				:placeholder="$t('collocations.withinPlaceholder')"
-				:value="modelValue.within"
-				@input="update('within', ($event.target as HTMLInputElement).value)"
-			/>
 		</div>
 
 		<div class="row">
@@ -112,7 +90,7 @@
 
 <script setup lang="ts">
 import type { CollocationFieldComponentProps, CollocationFieldState } from '@/features/form/fields/collocation-field';
-import type { BLCollocationScorer, BLCollocationType } from '@/types/blacklabtypes';
+import type { BLCollocationScorer } from '@/types/blacklabtypes';
 
 const props = withDefaults(defineProps<CollocationFieldComponentProps>(), {
 	disabled: false,

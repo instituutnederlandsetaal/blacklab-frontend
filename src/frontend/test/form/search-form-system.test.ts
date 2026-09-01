@@ -14,12 +14,14 @@ import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import {
+	CollocationField,
 	FormSystem,
 	RangeField,
 	SelectField,
 	summarizeAnnotationPosState,
 	TextField,
 	type AnnotationPosFieldConfig,
+	type CollocationFieldState,
 	type FormRuntime,
 	type ParallelFieldState,
 	type TokenSequenceFieldState,
@@ -375,6 +377,85 @@ afterEach(() => {
 enableAutoUnmount(afterEach);
 
 describe('search form system', () => {
+	test('builds Collocations as the third root section with one direct field and the shared filters', () => {
+		const runtime = createDefinition();
+		const definition = runtime.definition;
+
+		expect(definition.getRoot().children.map(node => node.id)).toEqual([ids.searchSection(), ids.exploreSection(), ids.collocationsSection()]);
+		expect(definition.getContainer(ids.collocationsSection())?.children.map(node => node.id)).toEqual([ids.collocationsSectionHeading(), ids.collocationsForm()]);
+		expect(definition.getNode(ids.collocationsSectionHeading())?.kind).toBe('view');
+		expect(definition.getForm(ids.collocationsForm())?.children.map(node => node.id)).toEqual([ids.collocationsField(), ids.sharedFiltersRegion()]);
+		expect(definition.getField(ids.collocationsField())?.component).toBe(CollocationField);
+	});
+
+	test('compiles the retained collocation field with its reused shared filter region', () => {
+		const runtime = createDefinition();
+		const state = runtime.state.state.value[ids.collocationsField()] as CollocationFieldState;
+		runtime.state.state.value[ids.collocationsField()] = {
+			...state,
+			patt: ' [word="ship"] ',
+			collpatt: ' [pos="N.*"] ',
+			context: '3:4',
+			annotation: 'lemma',
+		};
+		runtime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
+
+		expect(runtime.compile(ids.collocationsForm())).toMatchObject({
+			formId: ids.collocationsForm(),
+			params: {
+				annotation: 'lemma',
+				collpatt: '[pos="N.*"]',
+				colltype: 'proximity',
+				context: '3:4',
+				filter: 'author:(Austen)',
+				patt: '[word="ship"]',
+				scorertype: 'coll-dice',
+				sensitive: false,
+			},
+			resultPreset: 'table',
+			targetView: 'hits',
+		});
+	});
+
+	test('uses deferred labels for usable forward-index annotations from the main field only', () => {
+		const corpus = createCorpus();
+		const mainField = corpus.allAnnotatedFieldsMap.contents;
+		mainField.annotations.internal = annotation('internal', { isInternal: true });
+		mainField.annotations.no_forward_index = annotation('no_forward_index', { hasForwardIndex: false });
+		const locale = ref('en');
+		const translate = createMockTranslate();
+		const runtime = createScopedSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			corpus: ref(corpus),
+			tagset: ref(undefined),
+			translate: {
+				...translate,
+				$tAnnotDisplayName: value => `${locale.value}:${value.id}`,
+			},
+		}).runtime.value!;
+		const field = runtime.definition.getField(ids.collocationsField()) as unknown as {
+			annotationOptions: Array<{ value: string; label: () => string }>;
+			defaultAnnotation: string;
+		};
+
+		expect(field.defaultAnnotation).toBe('word');
+		expect(field.annotationOptions.map(option => option.value)).toEqual(['word', 'lemma', 'word_or_lemma', 'pos']);
+		expect(field.annotationOptions[0].label()).toBe('en:word');
+		locale.value = 'nl';
+		expect(field.annotationOptions[0].label()).toBe('nl:word');
+	});
+
+	test('omits Collocations instead of falling back when the main annotation has no forward index', () => {
+		const corpus = createCorpus();
+		corpus.allAnnotatedFieldsMap.contents.annotations.word.hasForwardIndex = false;
+		const definition = createDefinition(corpus).definition;
+
+		expect(definition.getRoot().children.map(node => node.id)).toEqual([ids.searchSection(), ids.exploreSection()]);
+		expect(definition.getContainer(ids.collocationsSection())).toBeNull();
+		expect(definition.getForm(ids.collocationsForm())).toBeNull();
+		expect(definition.getField(ids.collocationsField())).toBeNull();
+	});
+
 	test('tracks tagset and customization dependencies only while a corpus is loaded', () => {
 		const corpus = countedRef<Corpus | undefined>(undefined);
 		const tagset = countedRef<Tagset | undefined>(undefined);

@@ -77,6 +77,7 @@ import { defineComponent } from 'vue';
 import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import type { SearchFormSection } from '@/customization-api/external/external-api';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult, FormRuntime } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
@@ -133,7 +134,7 @@ export default defineComponent({
 		reset(_event?: Event) {
 			RootStore.actions.reset();
 		},
-		confirmLargeExploreSearch(form?: 'search' | 'explore'): boolean {
+		confirmLargeExploreSearch(form?: SearchFormSection): boolean {
 			const activeForm = form ?? this.activeForm;
 			if (activeForm !== 'explore' || !this.subcorpus.isLoaded() || this.subcorpus.value.tokensInMatchingDocuments <= 5000000) return true;
 			const msg = stripIndent`
