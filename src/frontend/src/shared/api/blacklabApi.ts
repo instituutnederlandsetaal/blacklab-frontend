@@ -150,6 +150,8 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			},
 		);
 	};
+	const getRelations = (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters);
+
 	return {
 		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer | BLServerV4>(paths.root(), undefined, requestParameters).then(normalizeServerInfo),
 
@@ -181,7 +183,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 								const ids = Object.keys(annotations).filter(id => annotations[id].hasForwardIndex);
 								return (indexRequest = endpoint.getCancelable<BLIndexMetadataV4>(paths.index(id), { listvalues: ids.join(',') }, requestParameters));
 							});
-							const relationsRequest = api.getRelations(id, requestParameters);
+							const relationsRequest = getRelations(id, requestParameters);
 							return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
 								cancelled = true;
 								[indexRequest, relationsRequest].forEach(request => request.cancel());
@@ -311,7 +313,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			else return endpoint.getOrPostCancelable<BLDocument>(paths.docInfo(indexId, documentId), params, requestParameters);
 		},
 
-		getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters),
+		getRelations,
 
 		getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
 			if (!indexId) return rejectedRequest(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
