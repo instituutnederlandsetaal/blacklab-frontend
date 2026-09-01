@@ -246,6 +246,7 @@ function normalizeIndexV4(blIndex: BLTypes.BLIndexMetadataV4, relations: BLTypes
 			},
 			indexId,
 		),
+		blacklabVersion: blIndex.versionInfo.blacklabVersion,
 		annotatedFields: mapReduce(
 			Object.entries(blIndex.annotatedFields).map(([id, field]) => normalizeAnnotatedFieldV4(id, field)),
 			'id',
@@ -415,6 +416,7 @@ function normalizeIndexV5(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.B
 			},
 			indexId,
 		),
+		blacklabVersion: blIndex.versionInfo.blacklabVersion,
 		annotatedFields: mapReduce(
 			Object.entries(blIndex.annotatedFields).map(([id, field]) => normalizeAnnotatedFieldV5(id, field)),
 			'id',

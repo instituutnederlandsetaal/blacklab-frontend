@@ -43,6 +43,7 @@ import type { WithinFieldOption } from '@/features/form/fields/within-field';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { Corpus } from '@/types/apptypes';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
+import { blackLabSupportsCollocations } from '@/types/blacklabtypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
@@ -478,7 +479,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	const mainAnnotation = mainAnnotatedField?.annotations[mainAnnotatedField.mainAnnotationId];
 	const collocationAnnotations = Object.values(mainAnnotatedField?.annotations ?? {}).filter(annotation => !annotation.isInternal && annotation.hasForwardIndex);
 	root.addChildren(
-		mainAnnotatedField && mainAnnotation && collocationAnnotations.includes(mainAnnotation)
+		blackLabSupportsCollocations(corpus.blacklabVersion) && mainAnnotatedField && mainAnnotation && collocationAnnotations.includes(mainAnnotation)
 			? createCollocationsSection(context, sharedFilters, collocationAnnotations, mainAnnotatedField.mainAnnotationId)
 			: null,
 	);

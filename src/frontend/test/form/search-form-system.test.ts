@@ -20,6 +20,7 @@ import {
 	SelectField,
 	summarizeAnnotationPosState,
 	TextField,
+	createCollocationTarget,
 	type AnnotationPosFieldConfig,
 	type CollocationFieldState,
 	type FormRuntime,
@@ -133,6 +134,7 @@ function createCorpus(): Corpus {
 			{ annotatedFieldId: 'contents', entries: ['word', 'lemma', 'word_or_lemma'], fields: [annotations.word, annotations.lemma, annotations.word_or_lemma], id: 'Basics', isRemainderGroup: false },
 			{ annotatedFieldId: 'contents', entries: ['pos'], fields: [annotations.pos], id: 'Grammar', isRemainderGroup: false },
 		],
+		blacklabVersion: '5.0.0',
 		contentViewable: true,
 		description: '',
 		displayName: 'Test corpus',
@@ -377,6 +379,20 @@ afterEach(() => {
 enableAutoUnmount(afterEach);
 
 describe('search form system', () => {
+	test.each([
+		{ version: '4.4.0', available: false },
+		{ version: '5.0.0', available: true },
+		{ version: '6.0.0', available: true },
+		{ version: 'dev', available: true },
+	])('gates Collocations for BlackLab $version', ({ version, available }) => {
+		const corpus = createCorpus();
+		corpus.blacklabVersion = version;
+		const definition = createDefinition(corpus).definition;
+
+		expect(definition.getContainer(ids.collocationsSection()) !== null).toBe(available);
+		expect(definition.getForm(ids.collocationsForm()) !== null).toBe(available);
+	});
+
 	test('builds Collocations as the third root section with one direct field and the shared filters', () => {
 		const runtime = createDefinition();
 		const definition = runtime.definition;
@@ -1052,6 +1068,7 @@ describe('search form system', () => {
 		const unregister = customizationRegistry.registerForm({
 			customize(form) {
 				const id = form.ids.queryField('simple');
+				expect(form.corpus.blacklabVersion).toBe('5.0.0');
 				observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
 				expect(form).not.toHaveProperty('setAnnotationUiType');
 				form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
@@ -1076,6 +1093,33 @@ describe('search form system', () => {
 			expect(system.runtime.value!.definition.getForm(customFormId)).toBeNull();
 		} finally {
 			if (registered) unregister();
+		}
+	});
+
+	test('rejects a customized collocation target on unsupported BlackLab versions', () => {
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const customFormId = 'custom/collocations-form';
+		const unregister = customizationRegistry.registerForm({
+			customize(form) {
+				(form.newForm as (id: string, config: { target: ReturnType<typeof createCollocationTarget> }) => unknown)(customFormId, {
+					target: createCollocationTarget('word'),
+				});
+			},
+		});
+
+		try {
+			const corpus = createCorpus();
+			corpus.blacklabVersion = '4.4.0';
+			const definition = createDefinition(corpus).definition;
+
+			expect(definition.getForm(customFormId)).toBeNull();
+			expect(error).toHaveBeenCalledWith(
+				'Error in search form graph customization callback:',
+				expect.objectContaining({ message: "Collocation form target 'custom/collocations-form' requires BlackLab 5 or newer, or dev; this corpus reports '4.4.0'." }),
+			);
+			expect(createDefinition().definition.getForm(customFormId)).not.toBeNull();
+		} finally {
+			unregister();
 		}
 	});
 

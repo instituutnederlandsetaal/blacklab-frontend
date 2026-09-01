@@ -68,6 +68,7 @@ function createIndex(): NormalizedIndex {
 			{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma'], isRemainderGroup: false },
 			{ annotatedFieldId: 'contents', id: 'Other', entries: ['pos', 'internal'], isRemainderGroup: true },
 		],
+		blacklabVersion: '5.0.0',
 		contentViewable: true,
 		description: '',
 		displayName: 'Test corpus',
@@ -130,10 +131,12 @@ describe('search form data dependencies', () => {
 				metadataFields: {},
 				status: 'available',
 				timeModified: '',
+				versionInfo: { blacklabVersion: '5.2.0', timeModified: '' },
 			} as any,
 			{ relations: {}, spans: {} },
 		);
 
+		expect(index.blacklabVersion).toBe('5.2.0');
 		expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
 	});
 

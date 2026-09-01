@@ -147,6 +147,9 @@ export type BLServer = BLServerBase & {
 };
 export const isServerV5 = (v: BLServer | BLServerV4): v is BLServer => (v as BLServer).corpora != null;
 
+/** Whether this BlackLab implementation exposes the collocations operation. */
+export const blackLabSupportsCollocations = (version: string): boolean => version === 'dev' || Number.parseInt(version, 10) > 4;
+
 // #endregion
 
 // #region Base corpus info, used in /blacklab-server/ and /blacklab-server/corpora/
