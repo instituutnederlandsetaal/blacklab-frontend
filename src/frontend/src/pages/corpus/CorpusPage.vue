@@ -2,7 +2,7 @@
 	<div>
 		<div v-if="loadingState.isLoading()" class="container main-content">
 			<Spinner center />
-			<h2>Please wait while we load the corpus...</h2>
+			<h2>{{ $t('corpus.loading') }}</h2>
 		</div>
 		<div v-else-if="loadingState.isError()" class="container main-content">
 			<h2>{{ loadingState.error.title }}</h2>

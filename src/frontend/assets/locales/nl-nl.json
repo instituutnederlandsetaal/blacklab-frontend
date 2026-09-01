@@ -1,4 +1,7 @@
 {
+	"corpus": {
+		"loading": "Even geduld, het corpus wordt geladen..."
+	},
 	"widgets": {
 		"learnMore": "Meer informatie",
 		"clickToRemove": "Klik om te verwijderen",

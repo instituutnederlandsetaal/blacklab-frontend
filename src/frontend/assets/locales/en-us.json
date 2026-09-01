@@ -1,4 +1,7 @@
 {
+	"corpus": {
+		"loading": "Please wait while we load the corpus..."
+	},
 	"widgets": {
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",

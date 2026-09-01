@@ -39,6 +39,7 @@ test('hides the corpus child while switching and lets the remounted child settle
 	snapshot.value = Loadable.Loading();
 	await nextTick();
 	expect(wrapper.find('[data-test="search-child"]').exists()).toBe(false);
+	expect(wrapper.get('h2').text()).toBe('corpus.loading');
 	expect(unmounted).toHaveBeenCalledOnce();
 	expect(pageBootstrap.settled.value).toBe(false);
 
