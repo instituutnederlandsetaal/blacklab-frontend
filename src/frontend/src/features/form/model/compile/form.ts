@@ -8,6 +8,11 @@ import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 
 import { collectFormSummaryValues, collectFormValues } from './gather';
 
+/** Copy one typed override while preserving the correlation between its key and value. */
+function copyOverride<Key extends keyof FormOverrides>(target: FormOverrides, source: Readonly<FormOverrides>, key: Key): void {
+	target[key] = source[key];
+}
+
 function filterTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly FormEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
 	const result: FormEmission<Names[number]>[] = [];
 	for (const emission of emissions) {
@@ -22,19 +27,10 @@ function filterTargetEmissions<Names extends readonly FormOutputName[]>(emission
 
 function selectOverrides(candidates: Readonly<FormOverrides>, params: Readonly<FormParams>): FormOverrides {
 	const overrides: FormOverrides = {};
-	const collocation = params.colltype === undefined ? undefined : params;
-	if (candidates.patt !== undefined && candidates.patt !== params.patt) overrides.patt = candidates.patt;
-	if (candidates.collpatt !== undefined && candidates.collpatt !== collocation?.collpatt) overrides.collpatt = candidates.collpatt;
-	if (candidates.filter !== undefined && candidates.filter !== params.filter) overrides.filter = candidates.filter;
-	if (candidates.searchfield !== undefined && candidates.searchfield !== params.searchfield) overrides.searchfield = candidates.searchfield;
-	if (candidates.withspans !== undefined && candidates.withspans !== params.withspans) overrides.withspans = candidates.withspans;
-	if (candidates.colltype !== undefined && candidates.colltype !== params.colltype) overrides.colltype = candidates.colltype;
-	if (candidates.context !== undefined && candidates.context !== collocation?.context) overrides.context = candidates.context;
-	if (candidates.within !== undefined && candidates.within !== collocation?.within) overrides.within = candidates.within;
-	if (candidates.reltype !== undefined && candidates.reltype !== collocation?.reltype) overrides.reltype = candidates.reltype;
-	if (candidates.annotation !== undefined && candidates.annotation !== collocation?.annotation) overrides.annotation = candidates.annotation;
-	if (candidates.sensitive !== undefined && candidates.sensitive !== collocation?.sensitive) overrides.sensitive = candidates.sensitive;
-	if (candidates.scorertype !== undefined && candidates.scorertype !== collocation?.scorertype) overrides.scorertype = candidates.scorertype;
+	const baseline: Readonly<Partial<FormOverrides>> = params;
+	for (const key of Object.keys(candidates) as (keyof FormOverrides)[]) {
+		if (candidates[key] !== baseline[key]) copyOverride(overrides, candidates, key);
+	}
 	return overrides;
 }
 

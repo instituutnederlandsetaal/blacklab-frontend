@@ -35,7 +35,7 @@ export function createIterativeResultCountLoader(
 		switchMap(({ indexId, request, results }: TotalsInput) => {
 			// Override some settings from the original search, we're not interested in the results, but we need the totals.
 			const getResults = (): CancelableRequest<BLSearchResult> => {
-				const overrides = { number: 0, first: 0, subcorpussize: true } as const;
+				const overrides = { number: 0, first: 0 } as const;
 				if (request.operation === 'collocations') return api.getCollocations(indexId, { ...request.params, ...overrides });
 				if (request.operation === 'docs') return api.getDocs(indexId, { ...request.params, ...overrides });
 				return api.getHits(indexId, { ...request.params, ...overrides });

@@ -81,7 +81,7 @@ describe('ResultTotals', () => {
 		const initialResults = {} as BLSearchResult;
 		const initialRequest: ExecutedSearchRequest = { operation: 'hits', params: { number: 20, patt: '[]' } };
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', executedRequest: initialRequest, indexId: 'first', initialResults, type: 'hits' },
+			props: { annotatedFieldId: 'contents', executedRequest: initialRequest, indexId: 'first', initialResults },
 		});
 		let current = mock.loaders[0];
 		let expectedLoaderCount = 1;
@@ -111,7 +111,7 @@ describe('ResultTotals', () => {
 		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: initialRequest, results: nextResults });
 
 		const docsRequest: ExecutedSearchRequest = { operation: 'docs', params: { number: 20 } };
-		await replaceLoader({ executedRequest: docsRequest, type: 'docs' });
+		await replaceLoader({ executedRequest: docsRequest });
 		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: docsRequest, results: nextResults });
 
 		wrapper.unmount();
@@ -122,7 +122,7 @@ describe('ResultTotals', () => {
 	test('emits later loaded results but not initial, errored, or stale loader values', async () => {
 		const initialResults = {} as BLSearchResult;
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } }, indexId: 'first', initialResults, type: 'hits' },
+			props: { annotatedFieldId: 'contents', executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } }, indexId: 'first', initialResults },
 		});
 		const initialLoader = mock.loaders[0];
 		expect(wrapper.emitted('update')).toBeUndefined();
@@ -152,6 +152,27 @@ describe('ResultTotals', () => {
 		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll], [replacementPoll]]);
 	});
 
+	test('uses hit counts and labels for collocation requests', async () => {
+		const wrapper = shallowMount(ResultTotals, {
+			props: {
+				annotatedFieldId: 'contents',
+				executedRequest: {
+					operation: 'collocations',
+					params: { number: 20, patt: '[]', colltype: 'proximity', context: 5, annotation: 'word', sensitive: false, scorertype: 'coll-dice' },
+				},
+				indexId: 'first',
+				initialResults: {} as BLSearchResult,
+			},
+		});
+		mock.loaders[0].publish({ ...totalsOutput({} as BLSearchResult), hitsCounted: 23, docsCounted: 47, tokensInMatchingDocuments: 230, numberOfMatchingDocuments: 470, state: 'finished' });
+		await nextTick();
+
+		expect(wrapper.text()).toContain('results.resultsTotals.hits');
+		expect(wrapper.get('.totals-text').attributes('title')).toContain('results.resultsTotals.tokens');
+		expect(wrapper.text()).toContain('23');
+		expect(wrapper.text()).not.toContain('47');
+	});
+
 	test('activates the retry and paused continue buttons once each', async () => {
 		const wrapper = shallowMount(ResultTotals, {
 			props: {
@@ -159,7 +180,6 @@ describe('ResultTotals', () => {
 				executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } },
 				indexId: 'first',
 				initialResults: {} as BLSearchResult,
-				type: 'hits',
 			},
 		});
 		const loader = mock.loaders[0];

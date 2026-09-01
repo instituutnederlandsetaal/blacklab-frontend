@@ -9,7 +9,6 @@
 					class="result-totals"
 					:initialResults="loadedResults"
 					:executedRequest="loadedRequest"
-					:type="id"
 					:indexId="indexId"
 					:annotatedFieldId="sourceAnnotatedFieldId"
 					@update="paginationResults = $event"

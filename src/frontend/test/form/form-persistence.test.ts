@@ -7,6 +7,7 @@ import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql
 import {
 	annotationSelectController,
 	annotationPosController,
+	collocationController,
 	createDefaultFormState,
 	createCollocationTarget,
 	createFormFieldNode,
@@ -46,6 +47,7 @@ import { restoreSearchForm } from '@/features/search/model/new-form/form-state-b
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
+import CollocationField from '@/features/form/fields/CollocationField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
@@ -193,6 +195,27 @@ describe('scoped form persistence', () => {
 		});
 	});
 
+	test('preserves collocation discriminator wire values and rejects malformed persisted values', () => {
+		const builder = createTestBuilder();
+		const field = builder.newField('collocations.field', collocationController, CollocationField, {
+			annotationOptions: [],
+			defaultAnnotation: 'word',
+		});
+		const form = builder.newForm('collocations.form', ContainerRenderer, { target: createCollocationTarget('word') }).addChildren(field);
+		const codecContext = { config: field, runtime: builder.context };
+		const relationState = { ...collocationController.createDefaultState(field, builder.context), patt: '[word="ship"]', colltype: 'relsources' as const };
+		const encoded = collocationController.persistence.codec.encode(relationState, codecContext)!;
+
+		expect(encoded).toBe('[word\\="ship"];ct=relsources');
+
+		const restored = restoreForm(builder, { 'f.form': form.id, 'f.collocations': encoded.replace('relsources', 'invalid') });
+		expect(restored.state.state[field.id]).toEqual(collocationController.createDefaultState(field, builder.context));
+		expect(restored.state.issues).toContainEqual({
+			severity: 'error',
+			message: "Could not restore persisted field 'collocations' for 'collocations.field': Cannot decode unmapped value 'invalid'.",
+		});
+	});
+
 	test('restores scoped state without consuming unrelated unscoped parameters', () => {
 		const fixture = createSingleTextForm();
 
@@ -275,7 +298,7 @@ describe('scoped form persistence', () => {
 		expect(changed.submittedResult).toMatchObject({ params: { patt: '[word="water"]', context: 6 } });
 
 		const invalid = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '-1' });
-		expect(invalid.state.rawOverrides).toEqual({ patt: '[word="water"]', context: '-1' });
+		expect(invalid.state.rawOverrides).toEqual({ patt: '[word="water"]', context: null });
 		expect(invalid.submittedResult?.params.patt).toBeUndefined();
 		expect(invalid.submittedResult?.issues).toContainEqual({ severity: 'error', message: "Restored override 'context' must be a safe non-negative integer or before:after pair." });
 	});

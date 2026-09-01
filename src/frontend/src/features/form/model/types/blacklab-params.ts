@@ -39,7 +39,7 @@ export type FormOverrides = Partial<{
 	searchfield: string;
 	withspans: true;
 	colltype: BLCollocationType;
-	context: number | string;
+	context: number | string | null;
 	within: string;
 	reltype: string;
 	annotation: string;

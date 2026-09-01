@@ -72,7 +72,6 @@ import Spinner from '@/shared/ui/Spinner.vue';
 const props = defineProps<{
 	initialResults: BLTypes.BLSearchResult;
 	executedRequest: ExecutedSearchRequest;
-	type: 'hits' | 'docs';
 	indexId: string;
 	annotatedFieldId: string;
 }>();
@@ -101,18 +100,19 @@ const isLimited = computed(() => value.value?.state === 'limited');
 const isPaused = computed(() => value.value?.state === 'paused');
 const isFinished = computed(() => value.value?.state === 'finished');
 
-const resultType = computed(() => (props.type === 'hits' ? $t('results.resultsTotals.hits').toString() : $t('results.resultsTotals.documents').toString()));
+const isHits = computed(() => props.executedRequest.operation !== 'docs');
+const resultType = computed(() => (isHits.value ? $t('results.resultsTotals.hits').toString() : $t('results.resultsTotals.documents').toString()));
 const isGroups = computed(() => value.value?.groups != null);
 const searchTime = computed(() => (value.value ? frac2Percent(value.value.searchTime / 100000, 1).replace('%', 's') : ''));
 
 const numPrefix = computed(() => (isLimited.value || isPaused.value ? '≥' : ''));
 const numSuffix = computed(() => (isCounting.value || isPaused.value ? '…' : ''));
-const numResults = computed(() => (props.type === 'hits' ? (value.value?.hitsCounted ?? 0) : (value.value?.docsCounted ?? 0)));
-const numResultsRetrieved = computed(() => (props.type === 'hits' ? (value.value?.hitsRetrieved ?? 0) : (value.value?.docsRetrieved ?? 0)));
+const numResults = computed(() => (isHits.value ? (value.value?.hitsCounted ?? 0) : (value.value?.docsCounted ?? 0)));
+const numResultsRetrieved = computed(() => (isHits.value ? (value.value?.hitsRetrieved ?? 0) : (value.value?.docsRetrieved ?? 0)));
 const numGroups = computed(() => value.value?.groups ?? 0);
 
-const searchSpaceType = computed(() => (props.type === 'hits' ? $t('results.resultsTotals.tokens').toString() : $t('results.resultsTotals.documents').toString()));
-const searchSpaceCount = computed(() => (props.type === 'hits' ? (value.value?.tokensInMatchingDocuments ?? 0) : (value.value?.numberOfMatchingDocuments ?? 0)));
+const searchSpaceType = computed(() => (isHits.value ? $t('results.resultsTotals.tokens').toString() : $t('results.resultsTotals.documents').toString()));
+const searchSpaceCount = computed(() => (isHits.value ? (value.value?.tokensInMatchingDocuments ?? 0) : (value.value?.numberOfMatchingDocuments ?? 0)));
 const percentOfSearchSpaceClarification = computed(
 	() =>
 		`Matched ${numResults.value.toLocaleString()} ${resultType.value} in a total of ${isLimited.value ? ' more than' : ''} ${searchSpaceCount.value.toLocaleString()} ${searchSpaceType.value} in the searched subcorpus.`,

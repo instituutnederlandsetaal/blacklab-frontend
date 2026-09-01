@@ -110,7 +110,7 @@ describe('createIterativeResultCountLoader', () => {
 
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledOnce();
-		expect(harness.getHits).toHaveBeenCalledWith('corpus', expect.objectContaining({ first: 0, number: 0, patt: '[]', subcorpussize: true }));
+		expect(harness.getHits).toHaveBeenCalledWith('corpus', { first: 0, number: 0, patt: '[]' });
 
 		harness.hitRequests[0].resolve(intermediate);
 		await settleRequest();
@@ -297,7 +297,6 @@ describe('createIterativeResultCountLoader', () => {
 			...request.params,
 			first: 0,
 			number: 0,
-			subcorpussize: true,
 		});
 		expect(harness.getHits).not.toHaveBeenCalled();
 		expect(harness.getDocs).not.toHaveBeenCalled();

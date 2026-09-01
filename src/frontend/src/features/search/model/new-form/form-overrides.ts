@@ -27,8 +27,8 @@ export function extractSearchFormOverrides(query: Record<string, unknown>, paral
 	const rawColltype = firstNonEmpty(query, 'colltype');
 	const colltype = isBLCollocationType(rawColltype) ? rawColltype : null;
 	const rawContext = colltype ? firstNonEmpty(query, 'context') : null;
-	const parsedContext = rawContext ? parseCollocationContext(rawContext) : null;
-	const context = parsedContext === null ? rawContext : typeof parsedContext === 'number' ? parsedContext : `${parsedContext[0]}:${parsedContext[1]}`;
+	const parsedContext = rawContext === null ? undefined : parseCollocationContext(rawContext);
+	const context = parsedContext == null || typeof parsedContext === 'number' ? parsedContext : `${parsedContext[0]}:${parsedContext[1]}`;
 	const within = firstNonEmpty(query, 'within');
 	const reltype = firstNonEmpty(query, 'reltype');
 	const annotation = firstNonEmpty(query, 'annotation');
@@ -42,7 +42,7 @@ export function extractSearchFormOverrides(query: Record<string, unknown>, paral
 		...(searchfield ? { searchfield } : {}),
 		...(withspans === 'true' ? { withspans: true as const } : {}),
 		...(colltype ? { colltype } : {}),
-		...(context !== null ? { context } : {}),
+		...(context !== undefined ? { context } : {}),
 		...(within ? { within } : {}),
 		...(reltype ? { reltype } : {}),
 		...(annotation ? { annotation } : {}),

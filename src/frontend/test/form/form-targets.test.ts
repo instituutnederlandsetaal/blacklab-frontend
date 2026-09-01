@@ -173,6 +173,7 @@ describe('search target compilation', () => {
 				emission('searchfield', '   '),
 				emission('searchfield', ' contents '),
 				emission('searchfield', 'ignored'),
+				emission('patt', rawCql('   ')),
 				emission('patt', rawCql(' [word="water"] ')),
 				emission('patt', rawCql('[lemma="water"]')),
 				emission('filter', filter('author', 'literal', 'Austen')!),
@@ -329,6 +330,23 @@ describe('collocation target compilation', () => {
 		expect(issues).toEqual([]);
 	});
 
+	test('retains zero and false scalar values before later conflicts', () => {
+		const target = createCollocationTarget('word');
+		const issues: FormIssue[] = [];
+		const params = target.compile(
+			[emission('patt', rawCql('[word="ship"]')), emission('context', 0), emission('context', 2), emission('sensitive', false), emission('sensitive', true)] as FormEmission<
+				(typeof COLLOCATION_OUTPUTS)[number]
+			>[],
+			issues,
+		);
+
+		expect(params).toMatchObject({ context: 0, sensitive: false });
+		expect(issues).toEqual([
+			{ severity: 'warning', message: "Ignoring repeated non-empty output 'context'." },
+			{ severity: 'warning', message: "Ignoring repeated non-empty output 'sensitive'." },
+		]);
+	});
+
 	test('keeps endpoint within separate from a CQL within wrapper', () => {
 		const target = createCollocationTarget('word');
 		const issues: FormIssue[] = [];
@@ -390,7 +408,7 @@ describe('collocation target compilation', () => {
 	test('rejects an invalid restored context without substituting the proximity default', () => {
 		const target = createCollocationTarget('word');
 		const issues: FormIssue[] = [];
-		const params = target.compile([emission('patt', rawCql('[word="ship"]'))] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[], issues, { context: '-1' });
+		const params = target.compile([emission('patt', rawCql('[word="ship"]'))] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[], issues, { context: null });
 
 		expect(params).toEqual({ colltype: 'proximity', annotation: 'word', sensitive: false, scorertype: 'coll-dice' });
 		expect(issues).toEqual([{ severity: 'error', message: "Restored override 'context' must be a safe non-negative integer or before:after pair." }]);

@@ -86,10 +86,6 @@ describe('collocation controller', () => {
 		]);
 	});
 
-	test('emits nothing for an unknown persisted operation mode', () => {
-		expect(collect(state({ patt: '[word="ship"]', colltype: 'unknown' as CollocationFieldState['colltype'] }))).toEqual([]);
-	});
-
 	test('assigns every user-facing summary to its semantic output', () => {
 		const summaries: SummaryInput[] = [];
 		collocationController.summarize?.(config, runtime, state({ patt: '[word="ship"]', collpatt: '[lemma="boat"]', annotation: 'lemma' }), summary => summaries.push(summary));

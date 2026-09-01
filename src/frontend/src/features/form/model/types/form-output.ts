@@ -9,7 +9,7 @@ function isSafeNonNegativeInteger(value: unknown): value is number {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
-export function isCollocationContext(value: unknown): value is CollocationContext {
+function isCollocationContext(value: unknown): value is CollocationContext {
 	return isSafeNonNegativeInteger(value) || (Array.isArray(value) && value.length === 2 && value.every(isSafeNonNegativeInteger));
 }
 
@@ -37,23 +37,6 @@ export type FormOutputValues = {
 	sensitive: boolean;
 	scorertype: BLCollocationScorer;
 };
-
-const FORM_OUTPUT_NAMES = [
-	'patt',
-	'collpatt',
-	'filter',
-	'searchfield',
-	'group',
-	'sort',
-	'withspans',
-	'colltype',
-	'context',
-	'within',
-	'reltype',
-	'annotation',
-	'sensitive',
-	'scorertype',
-] as const satisfies readonly (keyof FormOutputValues)[];
 
 export type FormOutputName = keyof FormOutputValues;
 export type Emit = <Name extends FormOutputName>(name: Name, value: FormOutputValues[Name]) => void;
@@ -111,5 +94,5 @@ export function formatSummaryEntries(entries: readonly SummaryEntry[], type: Sum
 
 /** Narrow names from untyped extension producers to the shared output vocabulary. */
 export function isFormOutputName(value: string): value is FormOutputName {
-	return (FORM_OUTPUT_NAMES as readonly string[]).includes(value);
+	return Object.hasOwn(OUTPUT_VALIDATORS, value);
 }

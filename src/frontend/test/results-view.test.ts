@@ -332,7 +332,7 @@ describe('ResultsView', () => {
 		const table = wrapper.findComponent({ name: 'GenericTable' });
 		expect(table.props()).toMatchObject({ cols: columns, rows, header: columns.hitColumns, info: settings, query: currentResult.summary.params, sort: null, type: 'hits', disabled: false });
 		const totals = wrapper.findComponent({ name: 'Totals' });
-		expect(totals.props()).toMatchObject({ initialResults: currentResult, type: 'hits', indexId: 'test', annotatedFieldId: 'contents' });
+		expect(totals.props()).toMatchObject({ initialResults: currentResult, indexId: 'test', annotatedFieldId: 'contents' });
 
 		const pagination = wrapper.findAllComponents({ name: 'Pagination' })[0];
 		expect(pagination.props()).toMatchObject({ page: 0, page2: 2, maxPage: 5 });

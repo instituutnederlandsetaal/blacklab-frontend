@@ -1,9 +1,8 @@
 import type { CollocationFieldDefinition, CollocationFieldState } from '@/features/form/fields/collocation-field';
-import { bool, object, scalar, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 import { parseCollocationContext } from '@/features/form/model/types/form-output';
 import { rawCql, summary } from '@/features/form/model/types/form-query-ir';
-import { isBLCollocationType } from '@/types/blacklabtypes';
 
 /** @public */
 export type CollocationControllerConfig = {
@@ -28,7 +27,7 @@ function createDefaultState(config: CollocationFieldConfig): CollocationFieldSta
 const persistenceCodec = object({
 	patt: scalar().default('').atRoot(),
 	collpatt: scalar().default('').at('cp'),
-	colltype: scalar().default('proximity').at('ct'),
+	colltype: scalar().mapped({ proximity: 'proximity', relsources: 'relsources', reltargets: 'reltargets' }).default('proximity').at('ct'),
 	context: scalar().default('5').at('c'),
 	within: scalar().default('').at('w'),
 	reltype: scalar().default('').at('r'),
@@ -37,7 +36,7 @@ const persistenceCodec = object({
 		.at('a'),
 	sensitive: bool().default(false).at('s'),
 	scorertype: scalar().default('coll-dice').at('st'),
-}) as unknown as PersistenceCodec<CollocationFieldState, FieldPersistenceContext<CollocationFieldConfig>>;
+});
 
 /** @public */
 export const collocationController = defineFieldController<'collocation', CollocationFieldDefinition, CollocationControllerConfig>({
@@ -49,7 +48,6 @@ export const collocationController = defineFieldController<'collocation', Colloc
 	},
 	outputs: ['patt', 'collpatt', 'colltype', 'context', 'within', 'reltype', 'annotation', 'sensitive', 'scorertype'],
 	collect(_config, _runtime, state, emit) {
-		if (!isBLCollocationType(state.colltype)) return;
 		const context = state.colltype === 'proximity' ? parseCollocationContext(state.context) : null;
 		if (state.colltype === 'proximity' && context === null) return;
 
