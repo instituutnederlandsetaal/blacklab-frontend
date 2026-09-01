@@ -31,6 +31,12 @@ describe('search form override integration', () => {
 		expect(extractSearchFormOverrides({ searchfield: 'contents__nl' }, false)).toEqual({});
 	});
 
+	test('ignores empty values for every accepted URL override', () => {
+		const keys = ['patt', 'query', 'collpatt', 'filter', 'searchfield', 'searchField', 'field', 'withspans', 'colltype', 'context', 'within', 'reltype', 'annotation', 'sensitive', 'scorertype'];
+		expect(extractSearchFormOverrides(Object.fromEntries(keys.map(key => [key, ''])), true)).toEqual({});
+		expect(extractSearchFormOverrides({ colltype: ['', 'proximity'], context: '' }, false)).toEqual({ colltype: 'proximity' });
+	});
+
 	test('assigns raw context to the form only for a valid collocation discriminator', () => {
 		expect(extractSearchFormOverrides({ colltype: 'proximity', context: '5' }, false)).toEqual({ colltype: 'proximity', context: 5 });
 		expect(extractSearchFormOverrides({ colltype: 'proximity', context: '03:04' }, false)).toEqual({ colltype: 'proximity', context: '3:4' });

@@ -284,7 +284,7 @@ describe('scoped form persistence', () => {
 		expect(restored.submittedResult).toMatchObject({ params: { patt: '[word="water"]' }, issues: [] });
 	});
 
-	test('compares parsed collocation context canonically and rejects an invalid override', () => {
+	test('compares parsed collocation context canonically, ignores empty input, and rejects an invalid override', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('collocations.form', ContainerRenderer, { target: createCollocationTarget('word') });
 		const runtime = createTestRuntime(builder);
@@ -296,6 +296,10 @@ describe('scoped form persistence', () => {
 		const changed = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '6' });
 		expect(changed.state.rawOverrides).toEqual({ patt: '[word="water"]', context: 6 });
 		expect(changed.submittedResult).toMatchObject({ params: { patt: '[word="water"]', context: 6 } });
+
+		const empty = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '' });
+		expect(empty.state.rawOverrides).toEqual({ patt: '[word="water"]' });
+		expect(empty.submittedResult).toMatchObject({ params: { patt: '[word="water"]', colltype: 'proximity', context: 5 }, issues: [] });
 
 		const invalid = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '-1' });
 		expect(invalid.state.rawOverrides).toEqual({ patt: '[word="water"]', context: null });
