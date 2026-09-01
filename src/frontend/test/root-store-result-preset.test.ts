@@ -7,7 +7,7 @@ import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
-import type { CompiledFormResult, FormParams } from '@/features/form';
+import type { CollocationParams, CompiledFormResult, FormParams } from '@/features/form';
 import type { HistoryEntry } from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
@@ -16,6 +16,8 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as QueryStore from '@/features/search/model/query-state';
+import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
+import { isEffectiveCollocationParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
 const corpus = { allMetadataFields: [], relations: { spans: {} } } as never;
@@ -41,6 +43,7 @@ function resetStores() {
 	PatternStore.init(context, customizations);
 	QueryStore.init(context, customizations);
 	ViewStore.init({} as CorpusContext);
+	GlobalResultsStore.init({} as CorpusContext);
 }
 
 function snapshot(params: FormParams, extra: Partial<CompiledFormResult> = {}): CompiledFormResult {
@@ -56,6 +59,18 @@ function snapshot(params: FormParams, extra: Partial<CompiledFormResult> = {}): 
 
 function submitNewForm(result: CompiledFormResult) {
 	RootStore.actions.searchFromSubmit(result);
+}
+
+function collocationParams(params: Partial<CollocationParams> = {}): CollocationParams {
+	return {
+		patt: '[word="water"]',
+		colltype: 'proximity',
+		context: 5,
+		annotation: 'lemma',
+		sensitive: false,
+		scorertype: 'coll-dice',
+		...params,
+	};
 }
 
 afterEach(() => {
@@ -290,5 +305,107 @@ describe('compiled-form result handoff', () => {
 			groupDisplayMode: 'docs',
 			sort: 'field:title',
 		});
+	});
+
+	test('constructs explicit effective collocation parameters with compiled context ownership', () => {
+		resetStores();
+		GlobalResultsStore.actions.context(9);
+		GlobalResultsStore.actions.sampleMode('count');
+		GlobalResultsStore.actions.sampleSize(7);
+		GlobalResultsStore.actions.sampleSeed(123);
+
+		submitNewForm(
+			snapshot(
+				collocationParams({
+					collpatt: '[word="sea"]',
+					filter: 'author:Austen',
+					searchfield: 'contents__nl',
+					context: '3:4',
+					within: 's',
+					annotation: 'word',
+					sensitive: true,
+					scorertype: 'coll-salience',
+					sort: '-size',
+				}),
+				{ targetView: 'docs', resultPreset: 'table' },
+			),
+		);
+
+		const params = RootStore.get.blacklabParameters();
+		expect(isEffectiveCollocationParameters(params)).toBe(true);
+		expect(params).toMatchObject({
+			patt: '[word="water"]',
+			collpatt: '[word="sea"]',
+			filter: 'author:Austen',
+			field: 'contents__nl',
+			searchfield: 'contents__nl',
+			colltype: 'proximity',
+			context: '3:4',
+			within: 's',
+			annotation: 'word',
+			sensitive: true,
+			scorertype: 'coll-salience',
+			samplenum: 7,
+			sampleseed: 123,
+			sort: '-size',
+		});
+		expect(params).not.toHaveProperty('group');
+		expect(params).not.toHaveProperty('viewgroup');
+		expect(params).not.toHaveProperty('pattgapdata');
+		expect(params).not.toHaveProperty('adjusthits');
+		expect(params).not.toHaveProperty('withspans');
+		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ groupBy: [], viewGroup: null, sort: '-size', groupDisplayMode: 'table' });
+	});
+
+	test('clears stale ordinary result state on a fresh collocation submit', () => {
+		resetStores();
+		const view = ViewStore.getOrCreateModule('hits');
+		view.actions.groupBy(['field:author']);
+		view.actions.viewGroup('author:Austen');
+		view.actions.sort('field:title');
+
+		submitNewForm(snapshot(collocationParams(), { resultPreset: 'table' }));
+
+		expect(view.getState()).toMatchObject({ groupBy: [], viewGroup: null, sort: null, groupDisplayMode: 'table' });
+	});
+
+	test('rejects collocations without an executable pattern or outside the proximity gate', () => {
+		resetStores();
+		submitNewForm(snapshot(collocationParams({ patt: undefined })));
+		expect(RootStore.get.blacklabParameters()).toBeUndefined();
+
+		submitNewForm(snapshot(collocationParams({ colltype: 'relsources', context: undefined })));
+		expect(RootStore.get.blacklabParameters()).toBeUndefined();
+	});
+
+	test('forces restored collocations to a sanitized copied hits view while preserving sort', () => {
+		resetStores();
+		const submitted = snapshot(collocationParams({ sort: '-size' }), { targetView: 'docs', resultPreset: 'table' });
+		const persistedView = {
+			...ViewStore.initialViewState,
+			groupBy: ['field:author'],
+			viewGroup: 'author:Austen',
+			groupDisplayMode: 'docs' as const,
+			sort: '-size',
+		};
+		const historyEntry = {
+			explore: ExploreStore.defaults,
+			filters: {},
+			gap: GapStore.defaults,
+			global: { context: 9, sampleMode: 'percentage', sampleSeed: null, sampleSize: null },
+			interface: { ...InterfaceStore.defaults, viewedResults: 'docs' },
+			newForm: submitted,
+			patterns: PatternStore.defaults,
+			view: persistedView,
+		} satisfies HistoryEntry;
+
+		RootStore.actions.replace(historyEntry);
+
+		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ groupBy: [], viewGroup: null, sort: '-size', groupDisplayMode: 'docs' });
+		expect(persistedView).toMatchObject({ groupBy: ['field:author'], viewGroup: 'author:Austen' });
+		expect(RootStore.get.blacklabParameters()).not.toHaveProperty('group');
+		expect(RootStore.get.blacklabParameters()).toMatchObject({ context: 5, sort: '-size' });
 	});
 });

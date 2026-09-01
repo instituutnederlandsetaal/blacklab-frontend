@@ -8,6 +8,7 @@ import {
 	annotationSelectController,
 	annotationPosController,
 	createDefaultFormState,
+	createCollocationTarget,
 	createFormFieldNode,
 	compileFormNode,
 	expertQueryController,
@@ -258,6 +259,25 @@ describe('scoped form persistence', () => {
 
 		expect(restored.state.rawOverrides).toEqual({ patt: '[word="water"]' });
 		expect(restored.submittedResult).toMatchObject({ params: { patt: '[word="water"]' }, issues: [] });
+	});
+
+	test('compares parsed collocation context canonically and rejects an invalid override', () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('collocations.form', ContainerRenderer, { target: createCollocationTarget('word') });
+		const runtime = createTestRuntime(builder);
+		const canonical = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '5' });
+
+		expect(canonical.state.rawOverrides).toEqual({ patt: '[word="water"]' });
+		expect(canonical.submittedResult).toMatchObject({ params: { patt: '[word="water"]', colltype: 'proximity', context: 5 }, issues: [] });
+
+		const changed = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '6' });
+		expect(changed.state.rawOverrides).toEqual({ patt: '[word="water"]', context: 6 });
+		expect(changed.submittedResult).toMatchObject({ params: { patt: '[word="water"]', context: 6 } });
+
+		const invalid = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '-1' });
+		expect(invalid.state.rawOverrides).toEqual({ patt: '[word="water"]', context: '-1' });
+		expect(invalid.submittedResult?.params.patt).toBeUndefined();
+		expect(invalid.submittedResult?.issues).toContainEqual({ severity: 'error', message: "Restored override 'context' must be a safe non-negative integer or before:after pair." });
 	});
 
 	test('reports dangling scoped parameters and restores fields accepted by the default form for an unknown selector', () => {
@@ -610,6 +630,7 @@ describe('scoped form persistence', () => {
 			searchfield: 'contents__nl',
 			withspans: true,
 			colltype: 'proximity',
+			context: 9,
 			within: 's',
 			reltype: 'aligns',
 			annotation: 'lemma',

@@ -6,7 +6,7 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import type { CompiledFormResult } from '@/features/form';
+import { isCollocationParams, type CompiledFormResult } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
@@ -18,8 +18,8 @@ import { memoize } from '@/features/search/model/form/reactive-store';
 import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
+import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ViewModule from '@/features/search/model/results/view-state';
-import type * as BLTypes from '@/types/blacklabtypes';
 
 import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 import debug, { debugLog } from '@/shared/debug/debug';
@@ -45,7 +45,7 @@ const get = {
 		return InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'advanced';
 	},
 
-	blacklabParameters: memoize((): BLTypes.BLSearchParameters | undefined => {
+	blacklabParameters: memoize((): EffectiveSearchParameters | undefined => {
 		const activeView = get.viewedResultsSettings();
 		if (!activeView || !QueryModule.getState().form) return undefined;
 		if (GlobalResultsModule.getState().sampleSize && GlobalResultsModule.getState().sampleSeed == null) {
@@ -64,8 +64,35 @@ const get = {
 		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
 
 		const globalState = GlobalResultsModule.getState();
-		const patt = QueryModule.get.patternString();
 		const queryState = QueryModule.getState();
+		if (queryState.form === 'new' && isCollocationParams(queryState.state.params)) {
+			const params = queryState.state.params;
+			if (params.colltype !== 'proximity' || !params.patt || params.context === undefined) return undefined;
+			const sourceField = params.searchfield ?? QueryModule.get.sourceField();
+			return {
+				...debugParams,
+				first: lowerPageBoundary,
+				number: numberOfResults,
+				filter: params.filter,
+				field: sourceField,
+				searchfield: sourceField,
+				sample: globalState.sampleMode === 'percentage' && globalState.sampleSize ? globalState.sampleSize : undefined,
+				samplenum: globalState.sampleMode === 'count' && globalState.sampleSize ? globalState.sampleSize : undefined,
+				sampleseed: globalState.sampleSize != null ? globalState.sampleSeed! : undefined,
+				sort: activeView.sort ?? undefined,
+				patt: params.patt,
+				collpatt: params.collpatt,
+				colltype: params.colltype,
+				context: params.context,
+				within: params.within,
+				reltype: params.reltype,
+				annotation: params.annotation,
+				sensitive: params.sensitive,
+				scorertype: params.scorertype,
+			};
+		}
+
+		const patt = QueryModule.get.patternString();
 		const queryNeedsSpans =
 			queryState.form === 'new'
 				? queryState.state.params.withspans
@@ -277,31 +304,39 @@ const actions = {
 	},
 
 	replace: (payload: HistoryModule.HistoryEntry) => {
-		FormManager.actions.replace(payload);
-		GlobalResultsModule.actions.replace(payload.global);
+		const collocations = payload.newForm?.params && isCollocationParams(payload.newForm.params);
+		const restoredPayload: HistoryModule.HistoryEntry = collocations
+			? {
+					...payload,
+					interface: { ...payload.interface, viewedResults: 'hits' },
+					view: { ...payload.view, groupBy: [], viewGroup: null },
+				}
+			: payload;
+		FormManager.actions.replace(restoredPayload);
+		GlobalResultsModule.actions.replace(restoredPayload.global);
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
-		if (payload.interface.viewedResults != null) {
-			const viewName = payload.interface.viewedResults;
-			ViewModule.actions.replaceView({ view: viewName, data: payload.view });
+		if (restoredPayload.interface.viewedResults != null) {
+			const viewName = restoredPayload.interface.viewedResults;
+			ViewModule.actions.replaceView({ view: viewName, data: restoredPayload.view });
 
 			const pageSize = GlobalResultsModule.getState().pageSize;
-			const lowerPageBoundary = Math.floor(payload.view.first / pageSize) * pageSize;
-			const numberOfResults = Math.ceil((payload.view.first + payload.view.number - lowerPageBoundary) / pageSize) * pageSize;
-			const rangeNeedsExpansion = lowerPageBoundary !== payload.view.first || numberOfResults !== payload.view.number;
+			const lowerPageBoundary = Math.floor(restoredPayload.view.first / pageSize) * pageSize;
+			const numberOfResults = Math.ceil((restoredPayload.view.first + restoredPayload.view.number - lowerPageBoundary) / pageSize) * pageSize;
+			const rangeNeedsExpansion = lowerPageBoundary !== restoredPayload.view.first || numberOfResults !== restoredPayload.view.number;
 
 			const restoredView = ViewModule.getOrCreateModule(viewName);
 			if (rangeNeedsExpansion) {
 				restoredView.actions.setRequestedRange({
-					first: payload.view.first,
-					number: payload.view.number,
+					first: restoredPayload.view.first,
+					number: restoredPayload.view.number,
 				});
 			} else {
 				restoredView.actions.clearRequestedRange();
 			}
 		}
 
-		if (payload.interface.viewedResults != null) {
-			QueryModule.actions.search(getNextQueryState(payload.newForm));
+		if (restoredPayload.interface.viewedResults != null) {
+			QueryModule.actions.search(getNextQueryState(restoredPayload.newForm));
 		} else {
 			QueryModule.actions.reset();
 		}

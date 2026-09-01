@@ -30,4 +30,13 @@ describe('search form override integration', () => {
 	test('omits searchfield for non-parallel corpora', () => {
 		expect(extractSearchFormOverrides({ searchfield: 'contents__nl' }, false)).toEqual({});
 	});
+
+	test('assigns raw context to the form only for a valid collocation discriminator', () => {
+		expect(extractSearchFormOverrides({ colltype: 'proximity', context: '5' }, false)).toEqual({ colltype: 'proximity', context: 5 });
+		expect(extractSearchFormOverrides({ colltype: 'proximity', context: '03:04' }, false)).toEqual({ colltype: 'proximity', context: '3:4' });
+		expect(extractSearchFormOverrides({ colltype: 'proximity', context: '0' }, false)).toEqual({ colltype: 'proximity', context: 0 });
+		expect(extractSearchFormOverrides({ colltype: 'proximity', context: '-1' }, false)).toEqual({ colltype: 'proximity', context: '-1' });
+		expect(extractSearchFormOverrides({ colltype: 'invalid', context: '3:4' }, false)).toEqual({});
+		expect(extractSearchFormOverrides({ context: '5' }, false)).toEqual({});
+	});
 });

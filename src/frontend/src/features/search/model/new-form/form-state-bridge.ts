@@ -2,7 +2,7 @@
 	Helper module for bridging the new form to the stores and URL
 */
 
-import { type CompiledFormResult, type FormRuntime, type RestoredFormState, restoreForm } from '@/features/form';
+import { isCollocationParams, type CompiledFormResult, type FormRuntime, type RestoredFormState, restoreForm } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { extractSearchFormOverrides } from '@/features/search/model/new-form/form-overrides';
 import * as QueryStore from '@/features/search/model/query-state';
@@ -19,12 +19,19 @@ function prepareViews(): void {
 }
 
 export function handoffCompiledForm(result: CompiledFormResult): void {
-	const viewName = result.targetView ?? (result.params.patt ? 'hits' : 'docs');
+	const collocations = isCollocationParams(result.params);
+	const viewName = collocations ? 'hits' : (result.targetView ?? (result.params.patt ? 'hits' : 'docs'));
 
 	QueryStore.actions.search({ form: 'new', state: result });
 	prepareViews();
 	InterfaceStore.actions.viewedResults(viewName);
 	const view = ViewStore.getOrCreateModule(viewName);
+	if (collocations) {
+		view.actions.groupBy([]);
+		if (Object.hasOwn(result.params, 'sort')) view.actions.sort(result.params.sort ?? null);
+		if (result.resultPreset !== undefined) view.actions.groupDisplayMode(result.resultPreset);
+		return;
+	}
 	const previousSort = view.getState().sort;
 	if (Object.hasOwn(result.params, 'group')) {
 		view.actions.groupBy(result.params.group ? result.params.group.split(',') : []);

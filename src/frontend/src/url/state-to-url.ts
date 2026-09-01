@@ -1,12 +1,12 @@
 import type * as InterfaceStore from '@/features/search/model/form/interface-state';
 import type * as QueryStore from '@/features/search/model/query-state';
+import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import type * as ViewStore from '@/features/search/model/results/view-state';
-import type { BLSearchParameters } from '@/types/blacklabtypes';
 
 export type SearchPageQueryParamsInput = {
 	query: QueryStore.ModuleRootState;
 	interface: InterfaceStore.ModuleRootState;
-	blacklabParams: BLSearchParameters;
+	blacklabParams: EffectiveSearchParameters;
 	view: ViewStore.ViewRootState;
 };
 

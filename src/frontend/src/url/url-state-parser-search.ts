@@ -20,6 +20,7 @@ import type { GroupDisplayMode } from '@/features/search/model/results/result-ty
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { Corpus } from '@/types/apptypes';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
+import { isBLCollocationType } from '@/types/blacklabtypes';
 import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import parseLucene from '@/utils/luceneparser';
 
@@ -440,8 +441,13 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			sampleMode: this.sampleMode,
 			sampleSeed: this.sampleSeed,
 			sampleSize: this.sampleSize,
-			context: this.context,
+			context: this.hasCollocationType ? null : this.context,
 		};
+	}
+
+	@memoize
+	private get hasCollocationType(): boolean {
+		return isBLCollocationType(this.getString('colltype', null));
 	}
 
 	@memoize

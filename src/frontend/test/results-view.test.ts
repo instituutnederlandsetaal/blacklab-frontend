@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, shallowMount } from '@vue/test-utils';
+import { enableAutoUnmount, mount, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, reactive, ref } from 'vue';
 
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import type { ViewModule } from '@/features/search/model/results/view-state';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
+import Results from '@/pages/search/results/Results.vue';
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
 enableAutoUnmount(afterEach);
@@ -32,7 +34,7 @@ vi.mock('@/app/state/root-store', () => ({
 			const view = mock.store?.getState();
 			return {
 				...(mock.params as Record<string, unknown>),
-				group: view?.groupBy.join(','),
+				group: view?.groupBy.length ? view.groupBy.join(',') : undefined,
 				first: view?.first,
 				number: view?.number,
 				sort: view?.sort ?? undefined,
@@ -136,6 +138,10 @@ beforeEach(() => {
 		resultDetailedMetadataIds: vi.fn(() => ['title']),
 		resultDocumentSummary: vi.fn(() => 'summary'),
 		resultExportEnabled: vi.fn(() => true),
+		resultViews: vi.fn(() => [
+			{ id: 'hits', title: 'Hits', component: { template: '<div class="hits-result" />' } },
+			{ id: 'docs', title: 'Documents', component: { template: '<div class="docs-result" />' } },
+		]),
 		resultShownAnnotationIds: vi.fn(() => ['lemma']),
 		resultShownMetadataIds: vi.fn(() => ['title']),
 		resultSortAnnotationIds: vi.fn(() => ['word']),
@@ -161,6 +167,30 @@ afterEach(() => {
 	vi.clearAllTimers();
 	vi.useRealTimers();
 	vi.restoreAllMocks();
+});
+
+describe('Results tabs', () => {
+	test('mounts only the hits tab and component for an effective collocation request', async () => {
+		InterfaceStore.actions.viewedResults('hits');
+		Object.assign(mock.params as object, {
+			patt: '[word="water"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		const wrapper = mount(Results);
+
+		expect(wrapper.findAll('#resultTabs li')).toHaveLength(1);
+		expect(wrapper.find('.hits-result').exists()).toBe(true);
+		expect(wrapper.find('.docs-result').exists()).toBe(false);
+
+		delete (mock.params as Record<string, unknown>).colltype;
+		await nextTick();
+		expect(wrapper.findAll('#resultTabs li')).toHaveLength(2);
+		expect(wrapper.find('.docs-result').exists()).toBe(true);
+	});
 });
 
 describe('ResultsView', () => {
