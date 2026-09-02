@@ -34,6 +34,7 @@ import {
 	type BLServerV4,
 	type BLShareInfo,
 	type BLTermOccurances,
+	normalizeBlackLabVersion,
 } from '@/types/blacklabtypes';
 
 import { type EndpointSettings, type QueryParamsMapper, type QueryParamsMapperReturn, createEndpoint } from '@/shared/api/lib/api-endpoint';
@@ -97,8 +98,8 @@ function getMajorBlackLabVersion(version: string): '4' | '5' {
 	return '5';
 }
 
-async function getBlackLabApiVersion(settings: BlackLabApiSettings): Promise<'4' | '5'> {
-	if (settings.blacklabVersion) return getMajorBlackLabVersion(settings.blacklabVersion);
+async function getBlackLabRuntimeVersion(settings: BlackLabApiSettings): Promise<string> {
+	if (settings.blacklabVersion) return normalizeBlackLabVersion(settings.blacklabVersion);
 
 	const { origin, pathname, searchParams } = new URL(settings.baseUrl, window.location.origin);
 	searchParams.set('outputformat', 'json');
@@ -108,7 +109,7 @@ async function getBlackLabApiVersion(settings: BlackLabApiSettings): Promise<'4'
 	if (!response.blacklabVersion) {
 		throw new Error('Invalid response from BlackLab server: missing blacklabVersion');
 	}
-	return getMajorBlackLabVersion(response.blacklabVersion);
+	return normalizeBlackLabVersion(response.blacklabVersion);
 }
 
 /** Map some renamed query params from V5 to V4 */
@@ -123,7 +124,8 @@ const mapV5ParamsToV4: QueryParamsMapper<BLSearchParameters> = v => {
  * Blacklab api
  */
 export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'mapQueryParams'>): Promise<BlackLabApi> => {
-	const version = await getBlackLabApiVersion(settings);
+	const runtimeVersion = await getBlackLabRuntimeVersion(settings);
+	const version = getMajorBlackLabVersion(runtimeVersion);
 	const paths = createBlackLabPaths(version);
 
 	const endpoint = createEndpoint({
@@ -185,12 +187,12 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 							return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
 								cancelled = true;
 								[indexRequest, relationsRequest].forEach(request => request.cancel());
-							}).then(([index, relations]) => normalizeIndex(index, relations));
+							}).then(([index, relations]) => normalizeIndex(index, relations, runtimeVersion));
 						})()
 					: indexRequest.then(index => {
 							const v5Index = index as BLIndexMetadata;
 							const relations = v5Index.annotatedFields[v5Index.mainAnnotatedField]?.relations as BLRelationInfo | undefined;
-							return normalizeIndex(v5Index, relations ?? {});
+							return normalizeIndex(v5Index, relations ?? {}, runtimeVersion);
 						});
 
 			return corpusRequest.catch<never>(e => {
@@ -319,14 +321,14 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			return endpoint.getOrPostCancelable<BLParsePatternResponse>(paths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
 		},
 
-		getCollocations: (indexId: string, params: BLCollocationsParameters, requestParameters?: AxiosRequestConfig) => {
+		getCollocations: <TParams extends BLCollocationsParameters>(indexId: string, params: TParams, requestParameters?: AxiosRequestConfig) => {
 			if (!params.patt) return rejectedRequest(new ApiError('Info', 'Cannot get collocations without a pattern.', 'No results', undefined));
 			const searchParams = { ...params, subcorpussize: true };
 			// The endpoint derives the grouping property from annotation/sensitivity.
 			delete searchParams.group;
 			return endpoint
-				.getOrPostCancelable<BLHitGroupResultsV4 | BLHitGroupResults>(paths.collocations(indexId), searchParams, requestParameters)
-				.then(r => normalizeHitResponse(r) as BLHitGroupResults);
+				.getOrPostCancelable<RawHitResults>(paths.collocations(indexId), searchParams, requestParameters)
+				.then(r => normalizeHitResponse(r) as TParams extends { viewgroup: string } ? BLHitResults : BLHitGroupResults);
 		},
 
 		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {

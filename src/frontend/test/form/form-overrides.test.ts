@@ -11,6 +11,7 @@ describe('search form override integration', () => {
 				searchField: 'contents__nl',
 				withspans: 'true',
 				sensitive: 'false',
+				scorertype: 'coll-salience',
 				group: 'field:author',
 				sort: 'field:title',
 				context: '9',

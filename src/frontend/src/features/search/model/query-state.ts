@@ -26,7 +26,7 @@ import { reactive } from 'vue';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import { formatSummaryEntries, type CompiledFormResult, type ScopedFormQuery } from '@/features/form';
+import { formatSummaryEntries, isCollocationParams, type CompiledFormResult, type ScopedFormQuery } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -134,6 +134,11 @@ const get = {
 	/** Human-readable version of the query for use in history, summaries, etc. */
 	patternSummary: (): string | undefined => {
 		if (state.form === 'new') {
+			if (isCollocationParams(state.state.params)) {
+				const collocationTypes = new Set(['patt', 'collpatt', 'context', 'within', 'annotation']);
+				const entries = state.state.summaries.filter(entry => entry.summaryType.some(type => collocationTypes.has(type)));
+				return entries.length ? entries.map(entry => `${entry.label}: ${entry.value}`).join(' · ') : undefined;
+			}
 			return formatSummaryEntries(state.state.summaries, 'patt');
 		}
 		const formState = {

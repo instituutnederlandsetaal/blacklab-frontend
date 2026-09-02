@@ -11,7 +11,7 @@ export type EffectiveCollocationParameters = Omit<BLCollocationsParameters, 'pat
 	sensitive: boolean;
 	scorertype: BLCollocationScorer;
 	group?: never;
-	viewgroup?: never;
+	viewgroup?: string;
 };
 
 export type EffectiveSearchParameters = BLSearchParameters | EffectiveCollocationParameters;

@@ -60,6 +60,37 @@ beforeEach(() => {
 });
 
 describe('Export', () => {
+	test('exports the full collocation group through the ordinary filtered hits request', async () => {
+		const displayedResults = results();
+		Object.assign(displayedResults.summary.params, {
+			context: '3:4',
+			hitfiltercrit: 'hit:lemma:i',
+			hitfilterval: 'cws:contents%lemma:i:ship',
+			patt: 'meet([pos="N.*"], [word="water"],-3,4)',
+		});
+		const wrapper = shallowMount(Export, {
+			props: { results: displayedResults, type: 'hits' },
+			global: { mocks: { $t: (key: string) => key } },
+		});
+
+		await wrapper.get('button').trigger('click');
+
+		expect(mock.getHitsCsv).toHaveBeenCalledWith('test', {
+			context: '3:4',
+			csvdescription: 'description',
+			csvsepline: false,
+			csvsummary: true,
+			first: 0,
+			hitfiltercrit: 'hit:lemma:i',
+			hitfilterval: 'cws:contents%lemma:i:ship',
+			listmetadatavalues: 'initial-metadata',
+			listspanattributes: '',
+			listvalues: 'initial-annotation',
+			number: 20,
+			patt: 'meet([pos="N.*"], [word="water"],-3,4)',
+		});
+	});
+
 	test('reads the latest customizations at click time without mutating result parameters', async () => {
 		const displayedResults = results();
 		const originalParams = { ...displayedResults.summary.params };

@@ -152,6 +152,23 @@
 	},
 	"collocations": {
 		"heading": "Collocaties zoeken",
+		"sections": {
+			"keyword": "Woord of constructie",
+			"collocate": "Optionele beperking van collocaties",
+			"context": "Context en berekening"
+		},
+		"patternMode": "Invoermodus voor patroon",
+		"modes": {
+			"simple": "Eenvoudig",
+			"advanced": "Geavanceerd",
+			"expert": "Expert-BCQL"
+		},
+		"patternAnnotation": "Annotatie",
+		"preparingAdvanced": "Querybuilder voorbereiden…",
+		"advancedParseError": "Dit patroon kon niet naar de querybuilder worden overgezet. U kunt doorgaan in de eenvoudige of expertmodus.",
+		"restrictCollocate": "Beperk welke collocaties worden geteld",
+		"anyCollocate": "Elk token in de geselecteerde context kan als collocatie worden geteld.",
+		"collocates": "Collocaten",
 		"keywordPattern": "Trefwoordpatroon (BCQL)",
 		"keywordPatternPlaceholder": "bijv. [lemma=\"hond\"]",
 		"keywordPatternHelp": "Het woord of patroon waarvoor collocaties worden gezocht.",
@@ -164,6 +181,9 @@
 			"reltargets": "Relatiedoelen"
 		},
 		"context": "Contextvenster",
+		"before": "Tokens ervoor",
+		"after": "Tokens erna",
+		"contextRequired": "De context moet ten minste één token voor of na het trefwoord bevatten.",
 		"relationType": "Relatietype",
 		"relationTypePlaceholder": "Optioneel relatietype of reguliere expressie",
 		"within": "Binnen element",
@@ -174,7 +194,24 @@
 			"dice": "Dicecoëfficiënt",
 			"salience": "Salience"
 		},
-		"sensitive": "Hoofdletter- en accentgevoelig groeperen"
+		"sensitive": "Hoofdletter- en accentgevoelig groeperen",
+		"results": {
+			"collocate": "Collocaat",
+			"associationShort": "Associatie",
+			"association": "Associatie ({scorer})",
+			"cooccurrences": "Co-occurrences",
+			"documents": "Documenten",
+			"totalCollocates": "Totaal collocaten",
+			"columnMeanings": "Betekenis van kolommen",
+			"help": {
+				"collocate": "Het woord of de annotatiewaarde die bij het trefwoord is gevonden.",
+				"association": "De associatiesterkte, berekend met {scorer}.",
+				"cooccurrences": "Het aantal keer dat dit collocaat in het gekozen contextvenster voorkomt.",
+				"documents": "Het aantal documenten waarin deze co-occurrences voorkomen."
+			},
+			"backToCollocations": "Terug naar collocaties",
+			"openAllContexts": "Alle contexten openen"
+		}
 	},
 	"partOfSpeech": {
 		"noOptions": "Geen opties",
@@ -276,6 +313,8 @@
 			"columnLabelAfterHit": "Na Hit",
 			"sortBy": "Sorteer op {field}",
 			"sortByDescending": "Sorteer op {field} (omgekeerd)",
+			"sortedAscending": "Oplopend gesorteerd",
+			"sortedDescending": "Aflopend gesorteerd",
 			"sort_numberOfHits": "aantal hits",
 			"sort_groupName": "groepsnaam",
 			"sort_groupSize": "groepsgrootte",

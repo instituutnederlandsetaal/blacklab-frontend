@@ -19,6 +19,7 @@ import { computed } from 'vue';
 
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { Corpus } from '@/types/apptypes';
+import type { BLCollocationScorer } from '@/types/blacklabtypes';
 
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
@@ -31,18 +32,32 @@ const {
 	hits = false,
 	docs = false,
 	groups = false,
+	collocations = false,
+	collocationScorer,
 	corpus,
 	disabled = false,
 } = defineProps<{
 	hits?: boolean;
 	docs?: boolean;
 	groups?: boolean;
+	collocations?: boolean;
+	collocationScorer?: BLCollocationScorer;
 	corpus: Corpus;
 	disabled?: boolean;
 }>();
 const model = defineModel<string | null>({ default: null });
 const customizations = useCustomizations();
 const translate = useI18n();
+const associationSortLabel = computed(() => {
+	if (!collocationScorer) return translate.$t('collocations.results.associationShort').toString();
+	const scorer =
+		collocationScorer === 'coll-dice'
+			? translate.$t('collocations.scorers.dice').toString()
+			: collocationScorer === 'coll-salience'
+				? translate.$t('collocations.scorers.salience').toString()
+				: collocationScorer;
+	return translate.$t('collocations.results.association', { scorer }).toString();
+});
 function sortPair(field: string, value: string): Option[] {
 	return [
 		{ label: translate.$t('results.table.sortBy', { field }), value },
@@ -62,8 +77,14 @@ const sortOptions = computed<OptGroup[]>(() => {
 
 	if (groups) {
 		addGroups({
-			label: translate.$t('results.sort.groups'),
-			options: [...sortPair(translate.$t('results.table.sort_groupName'), 'identity'), ...sortPair(translate.$t('results.table.sort_groupSize'), 'size')],
+			label: translate.$t(collocations ? 'queryForm.collocations' : 'results.sort.groups'),
+			options: collocations
+				? [
+						...sortPair(associationSortLabel.value, 'score'),
+						...sortPair(translate.$t('collocations.results.collocate'), 'identity'),
+						...sortPair(translate.$t('collocations.results.cooccurrences'), 'size'),
+					]
+				: [...sortPair(translate.$t('results.table.sort_groupName'), 'identity'), ...sortPair(translate.$t('results.table.sort_groupSize'), 'size')],
 		});
 	}
 

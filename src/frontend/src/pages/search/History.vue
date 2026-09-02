@@ -30,7 +30,7 @@
 								})
 							}}</small>
 						</td>
-						<td>{{ entry.interface.viewedResults === 'hits' ? 'Hits' : entry.interface.viewedResults === 'docs' ? 'Documents' : entry.interface.viewedResults }}</td>
+						<td>{{ resultLabel(entry) }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0, 1000) || undefined">{{ entry.displayValues.pattern }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0, 1000) || undefined">{{ entry.displayValues.filters }}</td>
 						<td class="history-table-contain-text" :title="grouping">{{ grouping }}</td>
@@ -100,6 +100,7 @@ import { useRouter } from 'vue-router';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
+import { isCollocationParams } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
@@ -139,6 +140,13 @@ const recentHistory = computed(() => {
 		.filter((entry, index) => entry.timestamp >= sessionStart || olderEntryCount++ < shownOlderEntries.value || index < 2)
 		.map(entry => ({ entry, grouping: humanizeSerializedGroupBy(translate, entry.view.groupBy, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(' ') || '-' }));
 });
+
+function resultLabel(entry: HistoryStore.FullHistoryEntry): string {
+	if (entry.newForm?.params && isCollocationParams(entry.newForm.params)) return translate.$t('queryForm.collocations').toString();
+	if (entry.interface.viewedResults === 'hits') return translate.$t('results.resultsView.navigation.hits').toString();
+	if (entry.interface.viewedResults === 'docs') return translate.$t('results.resultsView.navigation.documents').toString();
+	return entry.interface.viewedResults ?? '-';
+}
 
 async function openShareUrl(entry: HistoryStore.FullHistoryEntry) {
 	sharingUrl.value = entry.url;

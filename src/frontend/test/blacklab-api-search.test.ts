@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import type { BLCollocationsParameters, BLHitGroupResults, BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLCollocationsParameters, BLHitGroupResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 
 import { createBlackLabApi } from '@/shared/api/blacklabApi';
 import * as ApiEndpointModule from '@/shared/api/lib/api-endpoint';
@@ -107,6 +107,20 @@ test('getCollocations retains grouped-hit normalization', async () => {
 	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
 
 	await expect(api.getCollocations('owner:corpus', { patt: '[]' })).resolves.toEqual({ hitGroups: raw.hitGroups, summary: raw.summary });
+});
+
+test('getCollocations returns normalized hits when a group is selected', async () => {
+	const raw = {
+		hits: [],
+		docInfos: {},
+		summary: { params: { patt: '[]', number: 20, viewgroup: 'lemma:ship' }, results: {} },
+	} as unknown as BLHitResults;
+	mock.getOrPostCancelable.mockReturnValueOnce(new CancelableRequest(Promise.resolve(raw), mock.cancel));
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
+
+	const request: CancelableRequest<BLHitResults> = api.getCollocations('owner:corpus', { patt: '[]', viewgroup: 'lemma:ship' });
+	await expect(request).resolves.toEqual(raw);
+	expect(mock.getOrPostCancelable).toHaveBeenCalledWith('corpora/owner:corpus/collocations/', { patt: '[]', viewgroup: 'lemma:ship', subcorpussize: true }, undefined);
 });
 
 test.each([

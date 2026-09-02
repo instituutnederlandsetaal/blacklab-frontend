@@ -32,17 +32,17 @@ vi.mock('@/app/state/root-store', () => ({
 	get: {
 		blacklabParameters: () => {
 			const view = mock.store?.getState();
-			const params = {
+			const params: Record<string, unknown> = {
 				...(mock.params as Record<string, unknown>),
 				group: view?.groupBy.length ? view.groupBy.join(',') : undefined,
 				first: view?.first,
 				number: view?.number,
 				sort: view?.sort ?? undefined,
-				viewgroup: view?.viewGroup ?? undefined,
+				...(view?.viewGroup ? { viewgroup: view.viewGroup } : {}),
 			};
-			if ((params as Record<string, unknown>).colltype) {
+			if (params.colltype) {
 				delete params.group;
-				delete params.viewgroup;
+				params.scorertype = view?.collocationScorer ?? params.scorertype;
 			}
 			return params;
 		},
@@ -393,7 +393,7 @@ describe('ResultsView', () => {
 		expect(mock.requests).toHaveLength(2);
 	});
 
-	test('dispatches collocations as grouped-only UI with the exact executed request', async () => {
+	test('dispatches a collocation list with the exact executed request and expandable rows', async () => {
 		mock.store = ResultsStore.getOrCreateModule('hits');
 		(mock.corpus as { isParallelCorpus: boolean }).isParallelCorpus = true;
 		Object.assign(mock.params as object, {
@@ -434,9 +434,9 @@ describe('ResultsView', () => {
 		expect(wrapper.findComponent({ name: 'BreadCrumbs' }).exists()).toBe(false);
 		expect(wrapper.findAll('button').some(button => button.text().includes('backToGroupedResults'))).toBe(false);
 		expect(wrapper.findComponent({ name: 'Export' }).exists()).toBe(false);
-		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ disableDetails: true, type: 'hits' });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ operation: 'collocations', type: 'hits' });
 		expect(wrapper.findComponent({ name: 'Sort' }).props()).toMatchObject({ hits: false, docs: false, groups: true });
-		expect(wrapper.findAll('.btn-group button').map(button => button.text())).toEqual(expect.arrayContaining(['table', 'hits']));
+		expect(wrapper.findAll('.btn-group button').map(button => button.text())).not.toEqual(expect.arrayContaining(['table', 'hits']));
 		const totalsRequest = wrapper.findComponent({ name: 'Totals' }).props('executedRequest') as { operation: string; params: object };
 		expect(totalsRequest.operation).toBe('collocations');
 		expect(totalsRequest.params).toBe(executedParams);
@@ -445,6 +445,85 @@ describe('ResultsView', () => {
 		expect(mock.store.getState().sort).toBe('size');
 		await nextTick();
 		expect(mock.api.getCollocations).toHaveBeenCalledTimes(2);
+	});
+
+	test('opens collocation hits with viewgroup and restores list position and association sort', async () => {
+		Object.assign(mock.params as object, {
+			patt: '[word="water"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		mock.store!.actions.range({ first: 20, number: 20 });
+		mock.store!.actions.sort('score');
+		mock.makeRows.mockReturnValue({ rows: [{ type: 'group' }] });
+		const wrapper = mountView();
+		mock.requests[0].resolve(collocationResult('[word="water"]'));
+		await flush();
+
+		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('viewgroup', 'ship', 'ship');
+		expect(mock.store!.getState()).toMatchObject({ first: 0, viewGroup: 'ship', sort: null });
+		await nextTick();
+		expect(mock.api.getCollocations).toHaveBeenCalledOnce();
+		expect(mock.api.getHits).toHaveBeenCalledOnce();
+		const [indexId, allContextsParameters, config] = mock.api.getHits.mock.calls[0];
+		expect(indexId).toBe('test');
+		expect(allContextsParameters).toEqual({
+			context: 5,
+			first: 0,
+			hitfiltercrit: 'hit:lemma:i',
+			hitfilterval: 'ship',
+			number: 20,
+			patt: 'meet([], [word="water"],-5,5)',
+		});
+		expect(config).toEqual({ headers: { 'Cache-Control': 'no-cache' } });
+
+		mock.makeRows.mockReturnValue({ rows: [{ type: 'hit' }] });
+		const allContextsResult = result(allContextsParameters.patt!);
+		Object.assign(allContextsResult.summary.params, allContextsParameters);
+		mock.requests[1].resolve(allContextsResult);
+		await flush();
+		expect(wrapper.findComponent({ name: 'BreadCrumbs' }).props('crumbs')[0].label).toBe('queryForm.collocations');
+		expect(wrapper.findComponent({ name: 'Export' }).props()).toMatchObject({ results: allContextsResult, type: 'hits' });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props()).toMatchObject({ operation: 'hits', query: allContextsResult.summary.params });
+		expect(wrapper.findComponent({ name: 'Totals' }).props('executedRequest')).toEqual({ operation: 'hits', params: allContextsParameters });
+
+		await wrapper
+			.findAll('button')
+			.find(button => button.text().includes('backToCollocations'))!
+			.trigger('click');
+		expect(mock.store!.getState()).toMatchObject({ first: 20, number: 20, viewGroup: null, sort: 'score' });
+		await nextTick();
+		expect(mock.api.getCollocations).toHaveBeenCalledTimes(2);
+		expect(mock.api.getCollocations.mock.calls[1][1]).toMatchObject({ first: 20, number: 20, patt: '[word="water"]', sort: 'score' });
+		expect(mock.api.getCollocations.mock.calls[1][1]).not.toHaveProperty('viewgroup');
+	});
+
+	test('changes the collocation scorer from the results controls and reruns from the first page', async () => {
+		Object.assign(mock.params as object, {
+			patt: '[word="water"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		mock.store!.actions.range({ first: 40, number: 20 });
+		mock.makeRows.mockReturnValue({ rows: [{ type: 'group' }] });
+		const wrapper = mountView();
+		mock.requests[0].resolve(collocationResult('[word="water"]'));
+		await flush();
+
+		const scorerToggle = wrapper.findComponent({ name: 'CollocationScorerToggle' });
+		expect(scorerToggle.props()).toMatchObject({ disabled: false, modelValue: 'coll-dice' });
+
+		scorerToggle.vm.$emit('update:modelValue', 'coll-salience');
+		await nextTick();
+		expect(mock.store!.getState()).toMatchObject({ collocationScorer: 'coll-salience', first: 0, requestedRange: null });
+		expect(mock.api.getCollocations).toHaveBeenCalledTimes(2);
+		expect(mock.api.getCollocations.mock.calls[1][1]).toMatchObject({ first: 0, scorertype: 'coll-salience' });
 	});
 
 	test('formats collocation failures as grouped and keeps incompatible controls hidden after clearing the result', async () => {
@@ -457,6 +536,7 @@ describe('ResultsView', () => {
 			scorertype: 'coll-dice',
 		});
 		mock.store!.actions.groupBy(['stale']);
+		mock.store!.actions.collocationScorer('coll-salience');
 		const wrapper = mountView();
 		mock.requests[0].reject({ title: 'failure', isCancelledRequest: false });
 		await flush();
@@ -465,6 +545,11 @@ describe('ResultsView', () => {
 		expect(wrapper.findAllComponents({ name: 'GroupBy' })).toHaveLength(0);
 		expect(wrapper.findComponent({ name: 'Export' }).exists()).toBe(false);
 		expect(wrapper.findComponent({ name: 'Totals' }).exists()).toBe(false);
+		const scorerToggle = wrapper.findComponent({ name: 'CollocationScorerToggle' });
+		expect(scorerToggle.props('modelValue')).toBe('coll-salience');
+		scorerToggle.vm.$emit('update:modelValue', 'coll-dice');
+		await nextTick();
+		expect(mock.api.getCollocations.mock.calls.at(-1)?.[1]).toMatchObject({ scorertype: 'coll-dice' });
 	});
 
 	test('renders invalid, loading, cancelled, error, retry, and empty states', async () => {

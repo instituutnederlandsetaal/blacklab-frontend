@@ -37,7 +37,7 @@ vi.mock('@/shared/blacklab-helpers/field-groups', () => ({
 }));
 vi.mock('@/shared/i18n', () => ({
 	useI18n: () => ({
-		$t: (key: string, params?: { field?: string }) => (params?.field ? `${key}:${params.field}` : key),
+		$t: (key: string, params?: { field?: string; scorer?: string }) => (params?.field ? `${key}:${params.field}` : params?.scorer ? `${key}:${params.scorer}` : key),
 	}),
 }));
 
@@ -111,5 +111,24 @@ describe('Sort', () => {
 
 		expect(mock.getAnnotationSubset).toHaveBeenLastCalledWith(['latest-annotation'], expect.anything(), expect.anything(), 'Sort', expect.anything(), expect.anything(), true);
 		expect(mock.getMetadataSubset).toHaveBeenLastCalledWith(['latest-metadata'], expect.anything(), expect.anything(), 'Sort', expect.anything(), expect.anything(), true, expect.any(Function));
+	});
+
+	test('offers association, collocate, and co-occurrence sorting for collocation groups', () => {
+		const wrapper = shallowMount(Sort, { props: { groups: true, collocations: true, collocationScorer: 'coll-dice', corpus } });
+		const options = wrapper.getComponent(SelectPicker).props('options') as OptGroup[];
+
+		expect(options).toEqual([
+			{
+				label: 'queryForm.collocations',
+				options: [
+					{ label: 'results.table.sortBy:collocations.results.association:collocations.scorers.dice', value: 'score' },
+					{ label: 'results.table.sortByDescending:collocations.results.association:collocations.scorers.dice', value: '-score' },
+					{ label: 'results.table.sortBy:collocations.results.collocate', value: 'identity' },
+					{ label: 'results.table.sortByDescending:collocations.results.collocate', value: '-identity' },
+					{ label: 'results.table.sortBy:collocations.results.cooccurrences', value: 'size' },
+					{ label: 'results.table.sortByDescending:collocations.results.cooccurrences', value: '-size' },
+				],
+			},
+		]);
 	});
 });

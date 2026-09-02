@@ -12,6 +12,7 @@ import type {
 	TokenHighlight,
 } from '@/types/apptypes';
 import type {
+	BLCollocationScorer,
 	BLDoc,
 	BLDocFieldsV4,
 	BLDocGroup,
@@ -70,12 +71,14 @@ export interface GroupRowData {
 	size: number;
 	/** Display name of the group. */
 	displayname: string;
+	/** Association score assigned by a hit-group scorer. */
+	score?: number;
 	/** Total number of documents in the total result set. */
 	'r.d': number;
 	/** Total number of hits. Unavailable for queries without CQL pattern. */
 	'r.h'?: number;
 	/** Number of documents in the group. */
-	'gr.d': number;
+	'gr.d'?: number;
 	/** Number of tokens in the group. FIXME: Remove optional flag when Jan implements. */
 	'gr.t'?: number;
 	/** Number of hits in the group. Unavailable for queries without CQL pattern. */
@@ -89,7 +92,7 @@ export interface GroupRowData {
 	/** Total search space. */
 	'sc.t': number;
 	/** Relative group size (documents) [gr.d/r.d]. Adds to 1 across all groups. */
-	'relative group size [gr.d/r.d]': number;
+	'relative group size [gr.d/r.d]'?: number;
 	/** Relative group size (hits) [gr.h/r.h]. Adds to 1 across all groups. Optional, only when CQL pattern is available. */
 	'relative group size [gr.h/r.h]'?: number;
 	/** Relative frequency (documents) [gr.d/gsc.d]. Optional because subcorpus might not be calculable. */
@@ -366,6 +369,9 @@ export type DisplaySettingsForRendering = {
 
 	/** If set, original range requested via shared URL for this active view. */
 	requestedRange: { first: number; number: number } | null;
+
+	/** Scorer used by a collocation request. Its presence selects the collocation-specific group columns. */
+	collocationScorer?: BLCollocationScorer;
 };
 
 /** Helper type, data for which we're computing a hitrow or docrow. */
@@ -546,7 +552,7 @@ const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
 function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: DisplaySettingsForRendering): { rows: GroupRowData[]; maxima: Maxima } {
 	const maxima = {} as Maxima;
 	const updateMaximum = (key: keyof Maxima, value: unknown) => {
-		if (typeof value === 'number') maxima[key] = Math.max(maxima[key] || 0, value);
+		if (typeof value === 'number' && Number.isFinite(value)) maxima[key] = Math.max(maxima[key] || 0, value);
 	};
 	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
 	const summarySubcorpus = getSubcorpusSize(results) ?? { documents: 0, tokens: 0 };
@@ -556,12 +562,13 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			type: 'group',
 			id: g.identity || defaultGroupName,
 			size: g.size,
-			displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
+			displayname: g.identityDisplay || g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
+			score: g.score,
 
 			'r.d': getMatchingDocuments(summary),
 			'r.h': getMatchingHits(summary),
 
-			'gr.d': g.numberOfDocs ?? 0,
+			'gr.d': g.numberOfDocs,
 			'gr.t': undefined, // TODO Verify for v5 api, is more specific than subcorpusSize, since should only account for docs with hits.
 			'gr.h': g.size,
 
@@ -579,6 +586,7 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			id: g.identity,
 			size: g.size,
 			displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
+			score: g.score,
 
 			'r.d': getMatchingDocuments(summary),
 			'r.h': getMatchingHits(summary),
@@ -601,16 +609,16 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 	const rows = stage1.map<GroupRowData>((row, i) => {
 		const r: GroupRowData = {
 			...row,
-			'relative group size [gr.d/r.d]': row['gr.d'] / row['r.d'],
+			'relative group size [gr.d/r.d]': row['gr.d'] != null ? row['gr.d'] / row['r.d'] : undefined,
 			'relative group size [gr.h/r.h]': row['gr.h'] && row['r.h'] ? row['gr.h'] / row['r.h'] : undefined,
 
-			'relative frequency (docs) [gr.d/gsc.d]': row['gsc.d'] ? row['gr.d'] / row['gsc.d'] : undefined,
+			'relative frequency (docs) [gr.d/gsc.d]': row['gr.d'] != null && row['gsc.d'] ? row['gr.d'] / row['gsc.d'] : undefined,
 			'relative frequency (hits) [gr.h/gsc.t]': row['gr.h'] && row['gsc.t'] ? row['gr.h'] / row['gsc.t'] : undefined,
 
-			'relative frequency (docs) [gr.d/sc.d]': row['sc.d'] ? row['gr.d'] / row['sc.d'] : undefined,
+			'relative frequency (docs) [gr.d/sc.d]': row['gr.d'] != null && row['sc.d'] ? row['gr.d'] / row['sc.d'] : undefined,
 			'relative frequency (tokens) [gr.t/sc.t]': row['gr.t'] && row['sc.t'] ? row['gr.t'] / row['sc.t'] : undefined,
 
-			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
+			'average document length [gr.t/gr.d]': row['gr.t'] && row['gr.d'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
 			muted: isOutsideRequestedResults(i, info.requestedRange, getSearchParameters(results).first),
 		};
 
@@ -846,6 +854,46 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForRen
 	/// GROUPS
 
 	if (!isGroups(results)) return { hitColumns, docColumns, groupColumns, groupModeOptions: [] };
+	if (isHitGroups(results) && info.collocationScorer) {
+		const scorerLabel =
+			info.collocationScorer === 'coll-dice'
+				? i.$t('collocations.scorers.dice').toString()
+				: info.collocationScorer === 'coll-salience'
+					? i.$t('collocations.scorers.salience').toString()
+					: info.collocationScorer;
+		groupColumns.push(
+			{
+				field: 'group',
+				key: 'collocate',
+				label: i.$t('collocations.results.collocate').toString(),
+				labelField: 'displayname',
+				sort: 'identity',
+			},
+			{
+				field: 'group',
+				key: 'association',
+				label: i.$t('collocations.results.association', { scorer: scorerLabel }).toString(),
+				labelField: 'score',
+				barField: 'score',
+				style: 'width: 60%',
+				sort: 'score',
+			},
+			{
+				field: 'group',
+				key: 'cooccurrences',
+				label: i.$t('collocations.results.cooccurrences').toString(),
+				labelField: 'gr.h',
+				sort: 'size',
+			},
+			{
+				field: 'group',
+				key: 'documents',
+				label: i.$t('collocations.results.documents').toString(),
+				labelField: 'gr.d',
+			},
+		);
+		return { hitColumns, docColumns, groupColumns, groupModeOptions: [] };
+	}
 	const groupType = isDocGroups(results) ? 'docs' : 'hits';
 	const groupedBy = getSearchParameters(results).group?.match(/field:|decade/) ? 'metadata' : 'annotation';
 	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as GroupDisplayMode[];

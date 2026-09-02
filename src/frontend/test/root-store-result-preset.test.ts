@@ -355,19 +355,20 @@ describe('compiled-form result handoff', () => {
 		expect(params).not.toHaveProperty('adjusthits');
 		expect(params).not.toHaveProperty('withspans');
 		expect(InterfaceStore.get.viewedResults()).toBe('hits');
-		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ groupBy: [], viewGroup: null, sort: '-size', groupDisplayMode: 'table' });
+		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ collocationScorer: 'coll-salience', groupBy: [], viewGroup: null, sort: '-size', groupDisplayMode: 'table' });
 	});
 
 	test('clears stale ordinary result state on a fresh collocation submit', () => {
 		resetStores();
 		const view = ViewStore.getOrCreateModule('hits');
+		view.actions.collocationScorer('coll-salience');
 		view.actions.groupBy(['field:author']);
 		view.actions.viewGroup('author:Austen');
 		view.actions.sort('field:title');
 
 		submitNewForm(snapshot(collocationParams(), { resultPreset: 'table' }));
 
-		expect(view.getState()).toMatchObject({ groupBy: [], viewGroup: null, sort: null, groupDisplayMode: 'table' });
+		expect(view.getState()).toMatchObject({ collocationScorer: 'coll-dice', groupBy: [], viewGroup: null, sort: 'score', groupDisplayMode: 'table' });
 	});
 
 	test('rejects collocations without an executable pattern or outside the proximity gate', () => {
@@ -379,11 +380,12 @@ describe('compiled-form result handoff', () => {
 		expect(RootStore.get.blacklabParameters()).toBeUndefined();
 	});
 
-	test('forces restored collocations to a sanitized copied hits view while preserving sort', () => {
+	test('forces restored collocations to a copied hits view while preserving drilldown and sort', () => {
 		resetStores();
 		const submitted = snapshot(collocationParams({ sort: '-size' }), { targetView: 'docs', resultPreset: 'table' });
 		const persistedView = {
 			...ViewStore.initialViewState,
+			collocationScorer: 'coll-salience' as const,
 			groupBy: ['field:author'],
 			viewGroup: 'author:Austen',
 			groupDisplayMode: 'docs' as const,
@@ -403,9 +405,28 @@ describe('compiled-form result handoff', () => {
 		RootStore.actions.replace(historyEntry);
 
 		expect(InterfaceStore.get.viewedResults()).toBe('hits');
-		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ groupBy: [], viewGroup: null, sort: '-size', groupDisplayMode: 'docs' });
+		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ groupBy: [], viewGroup: 'author:Austen', sort: '-size', groupDisplayMode: 'docs' });
 		expect(persistedView).toMatchObject({ groupBy: ['field:author'], viewGroup: 'author:Austen' });
 		expect(RootStore.get.blacklabParameters()).not.toHaveProperty('group');
-		expect(RootStore.get.blacklabParameters()).toMatchObject({ context: 5, sort: '-size' });
+		expect(RootStore.get.blacklabParameters()).toMatchObject({ context: 5, scorertype: 'coll-salience', sort: '-size', viewgroup: 'author:Austen' });
+	});
+
+	test('uses association score ordering when restored collocations have no explicit sort', () => {
+		resetStores();
+		const historyEntry = {
+			explore: ExploreStore.defaults,
+			filters: {},
+			gap: GapStore.defaults,
+			global: { context: 9, sampleMode: 'percentage', sampleSeed: null, sampleSize: null },
+			interface: { ...InterfaceStore.defaults, viewedResults: 'hits' },
+			newForm: snapshot(collocationParams()),
+			patterns: PatternStore.defaults,
+			view: { ...ViewStore.initialViewState, sort: null },
+		} satisfies HistoryEntry;
+
+		RootStore.actions.replace(historyEntry);
+
+		expect(ViewStore.getOrCreateModule('hits').getState().sort).toBe('score');
+		expect(RootStore.get.blacklabParameters()).toMatchObject({ sort: 'score' });
 	});
 });

@@ -48,6 +48,27 @@ describe('new-form query summary selectors', () => {
 		expect(QueryStore.get.patternSummary()).toBe('Pattern only: pattern, Multi-type: shared');
 		expect(QueryStore.get.filterSummary()).toBe('Filter only: filter, Multi-type: shared');
 	});
+
+	test('combines the researcher-facing collocation settings', () => {
+		const form = mixedSummaryForm();
+		form.params = {
+			annotation: 'word',
+			colltype: 'proximity',
+			context: 5,
+			patt: '[word="ship"]',
+			scorertype: 'coll-dice',
+			sensitive: false,
+		};
+		form.summaries = [
+			{ label: 'Word', summaryType: ['patt'], value: 'ship' },
+			{ label: 'Collocate', summaryType: ['collpatt'], value: 'Any collocate' },
+			{ label: 'Window', summaryType: ['context'], value: 'L5/R5' },
+			{ label: 'Documents', summaryType: ['filter'], value: 'year:1800-1900' },
+		];
+		QueryStore.actions.search({ form: 'new', state: form });
+
+		expect(QueryStore.get.patternSummary()).toBe('Word: ship · Collocate: Any collocate · Window: L5/R5');
+	});
 });
 
 describe('new-form query history summaries', () => {
@@ -104,5 +125,22 @@ describe('new-form query history summaries', () => {
 
 		expect(getState()[0]?.displayValues.pattern).toBe('Pattern only: pattern, Multi-type: shared');
 		expect(getState()[0]?.displayValues.filters).toBe('Filter only: filter, Multi-type: shared');
+	});
+
+	test('retains the defining collocation settings in history', () => {
+		const newForm = mixedSummaryForm();
+		newForm.params = { annotation: 'lemma', colltype: 'proximity', context: '3:4', patt: '[word="water"]', scorertype: 'coll-salience', sensitive: false };
+		newForm.summaries = [
+			{ label: 'Keyword', summaryType: ['patt'], value: '[word="water"]' },
+			{ label: 'Collocates', summaryType: ['collpatt'], value: 'Any collocate' },
+			{ label: 'Window', summaryType: ['context'], value: 'L3/R4' },
+			{ label: 'Annotation', summaryType: ['annotation'], value: 'Lemma' },
+			{ label: 'Documents', summaryType: ['filter'], value: 'Author: Austen' },
+		];
+
+		actions.addEntry({ entry: historyEntry(newForm), pattern: newForm.params.patt, url: '/test-corpus/search/hits' });
+
+		expect(getState()[0]?.displayValues.pattern).toBe('Keyword: [word="water"] · Collocates: Any collocate · Window: L3/R4 · Annotation: Lemma');
+		expect(getState()[0]?.displayValues.filters).toBe('Documents: Author: Austen');
 	});
 });

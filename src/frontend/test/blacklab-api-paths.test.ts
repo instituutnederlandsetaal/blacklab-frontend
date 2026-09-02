@@ -83,6 +83,7 @@ const routes: Array<{ name: string; invoke: (api: BlackLabApi) => CancelableRequ
 describe.each([
 	{ apiVersion: '4', blacklabVersion: '4.2.0', prefix: '', mappedQuery: { patt: '[]', includetokencount: true } },
 	{ apiVersion: '5', blacklabVersion: '5.0.0', prefix: 'corpora/', mappedQuery: undefined },
+	{ apiVersion: '5', blacklabVersion: '5.0.0-SNAPSHOT', prefix: 'corpora/', mappedQuery: undefined },
 ])('BlackLab $apiVersion paths', ({ apiVersion, blacklabVersion, prefix, mappedQuery }) => {
 	test.each(routes)('$name', async ({ invoke, method, path }) => {
 		const api = await createBlackLabApi({

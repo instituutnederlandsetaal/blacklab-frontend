@@ -10,6 +10,7 @@ import { markRaw, reactive, shallowReactive } from 'vue';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
+import type { BLCollocationScorer } from '@/types/blacklabtypes';
 
 type ModuleRootState = Record<string, ViewRootState>;
 type RequestedRange = {
@@ -25,6 +26,7 @@ type ViewRootState = {
 	number: number;
 	/** The original range requested via URL. Null means no shared URL-range context is active. */
 	requestedRange: RequestedRange | null;
+	collocationScorer: BLCollocationScorer;
 	sort: string | null;
 	viewGroup: string | null;
 	groupDisplayMode: GroupDisplayMode | null;
@@ -37,6 +39,7 @@ const initialViewState: ViewRootState = {
 	first: 0,
 	number: 20, // default page size
 	requestedRange: null,
+	collocationScorer: 'coll-dice',
 	sort: null,
 	viewGroup: null,
 	groupDisplayMode: null,
@@ -90,6 +93,11 @@ const createActions = (state: ViewRootState) => ({
 		};
 	},
 	clearRequestedRange: () => (state.requestedRange = null),
+	collocationScorer: (payload: BLCollocationScorer) => {
+		state.collocationScorer = payload;
+		state.first = 0;
+		state.requestedRange = null;
+	},
 	viewGroup: (payload: string | null) => {
 		state.viewGroup = payload;
 		state.sort = null;

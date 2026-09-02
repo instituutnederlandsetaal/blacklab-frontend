@@ -156,8 +156,10 @@ export type NormalizedBlacklabServer = Omit<BLTypes.BLServer, 'corpora'> & {
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
 export type NormalizedIndex = NormalizedIndexBase & {
 	annotatedFields: { [id: string]: NormalizedAnnotatedField };
-	/** BlackLab implementation version reported with this corpus's metadata. */
-	blacklabVersion: string;
+	/** Normalized x.y.z BlackLab version that created or last updated this corpus's index, or dev. */
+	indexerVersion: string;
+	/** Normalized x.y.z version of the BlackLab server currently serving this corpus, or dev. */
+	runtimeVersion: string;
 	/** Default Annotated Field that BlackLab searches in, if not explicity overridden in the query. */
 	mainAnnotatedField: string;
 	/**

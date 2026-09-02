@@ -1,5 +1,9 @@
 import { reactive } from 'vue';
 
+import { ApiError } from '@/shared/api/lib/api-types';
+
+const MAX_ERROR_MESSAGE_LENGTH = 500;
+
 /** A class that can retrieve items in a paginated way and exposes them along with an error and loading state. */
 export default class PaginatedGetter<T> {
 	public count: number = 0;
@@ -37,7 +41,9 @@ export default class PaginatedGetter<T> {
 				this.count += this.pageSize;
 			})
 			.catch(e => {
-				this.error = e.toString();
+				const error = ApiError.wrap(e);
+				const message = error.message.length > MAX_ERROR_MESSAGE_LENGTH ? `${error.message.slice(0, MAX_ERROR_MESSAGE_LENGTH)}…` : error.message;
+				this.error = error.title && error.title !== message ? `${error.title}: ${message}` : message;
 			})
 			.finally(() => {
 				this.loading = false;

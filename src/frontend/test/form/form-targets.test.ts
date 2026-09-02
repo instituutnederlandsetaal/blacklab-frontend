@@ -54,10 +54,11 @@ describe('form output acceptance', () => {
 		expect(isValidEmission({ name: 'context', value: 0 })).toBe(true);
 		expect(isValidEmission({ name: 'context', value: [3, 4] })).toBe(true);
 		expect(isValidEmission({ name: 'sensitive', value: false })).toBe(true);
-		for (const name of ['within', 'reltype', 'annotation', 'scorertype'] as const) {
+		for (const name of ['within', 'reltype', 'annotation'] as const) {
 			expect(isValidEmission({ name, value: 'value' })).toBe(true);
 			expect(isValidEmission({ name, value: 1 })).toBe(false);
 		}
+		expect(isValidEmission({ name: 'scorertype', value: 'coll-dice' })).toBe(false);
 		expect(isValidEmission({ name: 'collpatt', value: '[lemma="ship"]' })).toBe(false);
 		expect(isValidEmission({ name: 'colltype', value: 'unknown' })).toBe(false);
 		expect(isValidEmission({ name: 'context', value: -1 })).toBe(false);
@@ -308,7 +309,6 @@ describe('collocation target compilation', () => {
 				emission('within', ' s '),
 				emission('annotation', ' lemma '),
 				emission('sensitive', true),
-				emission('scorertype', ' coll-salience '),
 				emission('sort', [' -size ', 'identity']),
 			] as FormEmission<(typeof COLLOCATION_OUTPUTS)[number]>[],
 			issues,
@@ -324,7 +324,7 @@ describe('collocation target compilation', () => {
 			within: 's',
 			annotation: 'lemma',
 			sensitive: true,
-			scorertype: 'coll-salience',
+			scorertype: 'coll-dice',
 			sort: '-size,identity',
 		});
 		expect(issues).toEqual([]);

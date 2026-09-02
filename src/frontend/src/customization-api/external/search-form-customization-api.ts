@@ -27,8 +27,8 @@ export function createSearchFormCustomizationApi({
 	const graph: SearchFormGraphImplementation = builder;
 	const newForm: SearchFormCustomizationApi['newForm'] = (id, config = {}) => {
 		const target = (config as typeof config & { target?: AnyFormTarget }).target;
-		if (target?.supportedEndpoints.includes('collocations') && !blackLabSupportsCollocations(corpus.blacklabVersion)) {
-			throw new Error(`Collocation form target '${id}' requires BlackLab 5 or newer, or dev; this corpus reports '${corpus.blacklabVersion}'.`);
+		if (target?.supportedEndpoints.includes('collocations') && !blackLabSupportsCollocations(corpus.runtimeVersion)) {
+			throw new Error(`Collocation form target '${id}' requires BlackLab 5 or newer, or dev; this server reports '${corpus.runtimeVersion}'.`);
 		}
 		return builder.newForm(id, ContainerRenderer, config) as unknown as SearchFormContainerNode;
 	};

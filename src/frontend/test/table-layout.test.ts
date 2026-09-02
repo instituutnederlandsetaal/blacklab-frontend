@@ -160,6 +160,7 @@ describe('makeRows', () => {
 			id: 'fiction',
 			size: 20,
 			displayname: 'fiction',
+			score: undefined,
 			'r.d': 50,
 			'r.h': 80,
 			'gr.d': 8,
@@ -203,6 +204,7 @@ describe('makeRows', () => {
 			id: 'fiction',
 			size: 10,
 			displayname: 'fiction',
+			score: undefined,
 			'r.d': 50,
 			'r.h': undefined,
 			'gr.d': 10,
@@ -270,6 +272,32 @@ describe('makeRows', () => {
 });
 
 describe('grouped columns', () => {
+	test('uses dedicated scored columns for collocation results', () => {
+		const results = hitGroups('hit:lemma');
+		results.hitGroups[0].score = 8.42;
+		const info = renderingInfo();
+		info.collocationScorer = 'coll-dice';
+
+		const rows = makeRows(results, info).rows;
+		const columns = makeColumns(results, info);
+
+		expect(rows[0]).toMatchObject({ displayname: 'fiction', score: 8.42, 'gr.h': 20, 'gr.d': 8 });
+		expect(columns.groupColumns.map(column => ({ field: column.labelField, sort: column.sort }))).toEqual([
+			{ field: 'displayname', sort: 'identity' },
+			{ field: 'score', sort: 'score' },
+			{ field: 'gr.h', sort: 'size' },
+			{ field: 'gr.d', sort: undefined },
+		]);
+		expect(columns.groupColumns[1]).toMatchObject({ labelField: 'score', barField: 'score', style: 'width: 60%' });
+		expect(columns.groupColumns.map(column => column.label)).toEqual([
+			'collocations.results.collocate',
+			'collocations.results.association',
+			'collocations.results.cooccurrences',
+			'collocations.results.documents',
+		]);
+		expect(columns.groupModeOptions).toEqual([]);
+	});
+
 	test('treats grouped hit responses without a group parameter as annotation grouping', () => {
 		const results = hitGroups('hit:lemma');
 		delete results.summary.params.group;

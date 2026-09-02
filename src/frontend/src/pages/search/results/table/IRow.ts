@@ -1,5 +1,5 @@
 import type { ColumnDefs, DisplaySettingsForRendering, Maxima } from '@/pages/search/results/table/table-layout';
-import type { BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLCollocationsParameters, BLSearchParameters } from '@/types/blacklabtypes';
 
 /**
  * A base component for result rows in the results table.
@@ -14,8 +14,11 @@ export type IRowProps<T> = {
 
 	open?: boolean;
 	disabled?: boolean;
+	detailsEnabled?: boolean;
+	detailsId?: string;
 	type: 'hits' | 'docs';
-	query?: BLSearchParameters;
+	operation?: 'hits' | 'docs' | 'collocations';
+	query?: BLSearchParameters | BLCollocationsParameters;
 
 	/** which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora) */
 	hoverMatchInfos?: string[];

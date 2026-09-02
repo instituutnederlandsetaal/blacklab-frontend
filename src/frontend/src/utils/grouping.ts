@@ -58,7 +58,7 @@ type GroupByMetadata<T extends MetadataDocument | MetadataSpanAttribute = Metada
 
 type SortByGroupProperty = {
 	type: 'group-property';
-	property: 'identity' | 'size';
+	property: 'identity' | 'size' | 'score';
 };
 
 /**
@@ -263,7 +263,7 @@ export function parseSortBy(sortBy: string, results?: BLSearchResult): SortBy {
 	const inverted = sortBy.startsWith('-');
 	if (inverted) sortBy = sortBy.substring(1);
 
-	if (sortBy === 'identity' || sortBy === 'size') {
+	if (sortBy === 'identity' || sortBy === 'size' || sortBy === 'score') {
 		return {
 			type: 'group-property',
 			property: sortBy,
@@ -423,6 +423,7 @@ export function humanizeGroupByOrSortBy(i18n: Translate, g: GroupBy | SortBy, an
 		} else if (g.type === 'group-property') {
 			if (g.property === 'identity') return i18n.$t('results.table.sort_groupName').toString();
 			else if (g.property === 'size') return i18n.$t('results.table.sort_groupSize').toString();
+			else if (g.property === 'score') return i18n.$t('collocations.results.associationShort').toString();
 			else {
 				// unknown, return as-is
 				never(g.property);

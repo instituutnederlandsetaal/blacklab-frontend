@@ -152,7 +152,7 @@ describe('ResultTotals', () => {
 		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll], [replacementPoll]]);
 	});
 
-	test('uses hit counts and labels for collocation requests', async () => {
+	test('uses co-occurrence semantics and omits the token-space percentage for collocation requests', async () => {
 		const wrapper = shallowMount(ResultTotals, {
 			props: {
 				annotatedFieldId: 'contents',
@@ -164,11 +164,13 @@ describe('ResultTotals', () => {
 				initialResults: {} as BLSearchResult,
 			},
 		});
-		mock.loaders[0].publish({ ...totalsOutput({} as BLSearchResult), hitsCounted: 23, docsCounted: 47, tokensInMatchingDocuments: 230, numberOfMatchingDocuments: 470, state: 'finished' });
+		mock.loaders[0].publish({ ...totalsOutput({} as BLSearchResult), groups: 7, hitsCounted: 23, docsCounted: 47, tokensInMatchingDocuments: 230, numberOfMatchingDocuments: 470, state: 'finished' });
 		await nextTick();
 
-		expect(wrapper.text()).toContain('results.resultsTotals.hits');
-		expect(wrapper.get('.totals-text').attributes('title')).toContain('results.resultsTotals.tokens');
+		expect(wrapper.text()).toContain('collocations.results.cooccurrences');
+		expect(wrapper.text()).toContain('collocations.results.totalCollocates');
+		expect(wrapper.get('.totals-text').attributes('title')).toBeUndefined();
+		expect(wrapper.find('.totals-percentage').exists()).toBe(false);
 		expect(wrapper.text()).toContain('23');
 		expect(wrapper.text()).not.toContain('47');
 	});

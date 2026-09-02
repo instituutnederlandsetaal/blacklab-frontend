@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 
-import type { BLIndex, BLIndexV4 } from '@/types/blacklabtypes';
+import { type BLIndex, type BLIndexV4, normalizeBlackLabVersion } from '@/types/blacklabtypes';
 
-import { normalizeIndexBase } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
+import { normalizeIndexBase, normalizeServerInfo } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 
 test('uses version-specific counts while preserving the V5-only docVersions property', () => {
 	const v4: BLIndexV4 = {
@@ -31,4 +31,29 @@ test('uses version-specific counts while preserving the V5-only docVersions prop
 	expect(Object.hasOwn(normalizedV4, 'docVersions')).toBe(false);
 	expect(Object.hasOwn(normalizedV5, 'docVersions')).toBe(true);
 	expect(normalizedV5.docVersions).toBeUndefined();
+});
+
+test.each([
+	['5', '5.0.0'],
+	['5.2', '5.2.0'],
+	['5.2.1', '5.2.1'],
+	['5.2.1-SNAPSHOT', '5.2.1'],
+	['5.2.1-20260902.123456-1', '5.2.1'],
+	['dev', 'dev'],
+])('normalizes BlackLab version %s to %s', (input, expected) => {
+	expect(normalizeBlackLabVersion(input)).toBe(expected);
+});
+
+test('normalizes the server version exposed by normalized server info', () => {
+	const normalized = normalizeServerInfo({
+		apiVersion: '5',
+		blacklabBuildTime: '',
+		blacklabScmRevision: 'unknown',
+		blacklabVersion: '5.0.0-SNAPSHOT',
+		corpora: {},
+		helpPageUrl: '',
+		user: { canCreateIndex: false, loggedIn: false },
+	});
+
+	expect(normalized.blacklabVersion).toBe('5.0.0');
 });

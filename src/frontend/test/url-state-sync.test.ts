@@ -11,7 +11,7 @@ import * as RootStore from '@/app/state/root-store';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
-import { ContainerRenderer, FormBuilder, FormRuntime } from '@/features/form';
+import { ContainerRenderer, filterTextController, FormBuilder, FormRuntime, TextField } from '@/features/form';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import type { EffectiveCollocationParameters } from '@/features/search/model/results/result-types';
@@ -79,6 +79,19 @@ function createEmptyFormRuntime() {
 	return new FormRuntime(builder);
 }
 
+function createLateFilterFormRuntime() {
+	const builder = new FormBuilder({
+		corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
+		translate: createMockTranslate(),
+	});
+	const field = builder.newField('late-custom-field', filterTextController, TextField, {
+		displayName: 'Late custom field',
+		metadataFieldId: 'late-custom-field',
+	});
+	builder.newForm('search.simple', ContainerRenderer, {}).addChildren(field);
+	return { field, runtime: new FormRuntime(builder) };
+}
+
 afterEach(() => {
 	parserGet.mockReset();
 	vi.restoreAllMocks();
@@ -118,6 +131,41 @@ describe('URL state sync', () => {
 
 		expect(parserGet).toHaveBeenCalledTimes(1);
 		stop();
+	});
+
+	test('preserves late custom-field state until a replacement form can restore it', async () => {
+		window.history.replaceState(null, '');
+		InterfaceStore.actions.viewedResults(null);
+		parserGet.mockResolvedValue({ interface: { viewedResults: 'hits' }, newForm: null });
+		const replace = vi.spyOn(RootStore.actions, 'replace').mockImplementation(() => {
+			InterfaceStore.actions.viewedResults('hits');
+		});
+		const searchForms = shallowRef(createEmptyFormRuntime());
+		const { push, stop } = startTestUrlSync(searchForms, () => Promise.resolve(), {
+			'f.form': 'search.simple',
+			'f.late-custom-field': 'saved',
+			filter: 'late-custom-field:(saved)',
+			patt: '[word="water"]',
+		});
+
+		try {
+			await vi.waitFor(() => expect(replace).toHaveBeenCalled());
+			await nextTick();
+			await nextTick();
+
+			expect(push).not.toHaveBeenCalled();
+
+			const replacement = createLateFilterFormRuntime();
+			searchForms.value = replacement.runtime;
+			await vi.waitFor(() => expect(replace).toHaveBeenCalledTimes(2));
+
+			expect(replacement.runtime.state.state.value[replacement.field.id]).toEqual({ value: 'saved', caseSensitive: false });
+			expect(replacement.runtime.state.rawOverrides.value).not.toHaveProperty('filter');
+		} finally {
+			stop();
+			InterfaceStore.actions.viewedResults(null);
+			window.history.replaceState(null, '');
+		}
 	});
 
 	test('reads the URL again when the form definition changes after initial restoration', async () => {
@@ -189,6 +237,21 @@ describe('URL state sync', () => {
 		expect(restoredContext('?context=5')).toBe(5);
 	});
 
+	test('accepts a viewgroup without group-by for collocation URLs only', async () => {
+		vi.stubGlobal('CONTEXT_URL', '');
+		const { default: ActualUrlStateParserSearch } = await vi.importActual<typeof UrlStateParserSearchModule>('@/url/url-state-parser-search');
+		const dependencies = { globalResultsState: { pageSize: 20 } } as unknown as UrlStateParserSearchModule.UrlStateParserSearchDependencies;
+		const viewFor = (query: string) => {
+			const parser = new ActualUrlStateParserSearch(dependencies, new URI(`/test-corpus/search/hits${query}`));
+			return (parser as unknown as { view: (view: string) => ViewStore.ViewRootState }).view('hits');
+		};
+
+		expect(viewFor('?colltype=proximity&viewgroup=lemma%3Aship').viewGroup).toBe('lemma:ship');
+		expect(viewFor('?viewgroup=lemma%3Aship').viewGroup).toBeNull();
+		expect(viewFor('?colltype=proximity&scorertype=coll-salience').collocationScorer).toBe('coll-salience');
+		expect(viewFor('?scorertype=coll-salience').collocationScorer).toBe('coll-dice');
+	});
+
 	test('serializes every effective collocation scalar and scoped form value through router sync', async () => {
 		parserGet.mockResolvedValue({ interface: { viewedResults: null }, newForm: null });
 		const replace = vi.spyOn(RootStore.actions, 'replace').mockImplementation(() => undefined);
@@ -211,9 +274,14 @@ describe('URL state sync', () => {
 			reltype: 'dep',
 			annotation: 'lemma',
 			sensitive: true,
-			scorertype: 'coll-salience',
+			scorertype: 'coll-dice',
 		} satisfies EffectiveCollocationParameters;
-		vi.spyOn(RootStore.get, 'blacklabParameters').mockImplementation(() => ({ ...baseParams, sort: view.getState().sort ?? undefined }));
+		vi.spyOn(RootStore.get, 'blacklabParameters').mockImplementation(() => ({
+			...baseParams,
+			scorertype: view.getState().collocationScorer,
+			sort: view.getState().sort ?? undefined,
+			viewgroup: view.getState().viewGroup ?? undefined,
+		}));
 		QueryStore.actions.search({
 			form: 'new',
 			state: {
@@ -229,6 +297,8 @@ describe('URL state sync', () => {
 
 		await vi.waitFor(() => expect(replace).toHaveBeenCalled());
 		push.mockClear();
+		view.actions.collocationScorer('coll-salience');
+		view.actions.viewGroup('lemma:ship');
 		view.actions.sort('-size');
 		await vi.waitFor(() => expect(push).toHaveBeenCalled());
 
@@ -244,6 +314,7 @@ describe('URL state sync', () => {
 				sample: '25',
 				sampleseed: '123',
 				sort: '-size',
+				viewgroup: 'lemma:ship',
 				colltype: 'proximity',
 				context: '3:4',
 				within: 's',

@@ -152,6 +152,23 @@
 	},
 	"collocations": {
 		"heading": "Collocation search",
+		"sections": {
+			"keyword": "Word or construction",
+			"collocate": "Optional collocate restriction",
+			"context": "Context and calculation"
+		},
+		"patternMode": "Pattern input mode",
+		"modes": {
+			"simple": "Simple",
+			"advanced": "Advanced",
+			"expert": "Expert BCQL"
+		},
+		"patternAnnotation": "Annotation",
+		"preparingAdvanced": "Preparing the query builder…",
+		"advancedParseError": "This pattern could not be transferred to the query builder. You can continue in Simple or Expert mode.",
+		"restrictCollocate": "Restrict which collocates are counted",
+		"anyCollocate": "Any token in the selected context may be counted as a collocate.",
+		"collocates": "Collocates",
 		"keywordPattern": "Keyword pattern (BCQL)",
 		"keywordPatternPlaceholder": "e.g. [lemma=\"dog\"]",
 		"keywordPatternHelp": "The word or pattern for which to find collocates.",
@@ -164,6 +181,9 @@
 			"reltargets": "Relation targets"
 		},
 		"context": "Context window",
+		"before": "Tokens before",
+		"after": "Tokens after",
+		"contextRequired": "The context must include at least one token before or after the keyword.",
 		"relationType": "Relation type",
 		"relationTypePlaceholder": "Optional relation type or regular expression",
 		"within": "Within element",
@@ -174,7 +194,24 @@
 			"dice": "Dice coefficient",
 			"salience": "Salience"
 		},
-		"sensitive": "Case- and accent-sensitive grouping"
+		"sensitive": "Case- and accent-sensitive grouping",
+		"results": {
+			"collocate": "Collocate",
+			"associationShort": "Association",
+			"association": "Association ({scorer})",
+			"cooccurrences": "Co-occurrences",
+			"documents": "Documents",
+			"totalCollocates": "Total collocates",
+			"columnMeanings": "Column meanings",
+			"help": {
+				"collocate": "The word or annotation value found near the keyword.",
+				"association": "The association strength calculated with {scorer}.",
+				"cooccurrences": "The number of times this collocate occurs in the selected context window.",
+				"documents": "The number of documents containing these co-occurrences."
+			},
+			"backToCollocations": "Back to collocations",
+			"openAllContexts": "Open all contexts"
+		}
 	},
 	"partOfSpeech": {
 		"noOptions": "No options",
@@ -276,6 +313,8 @@
 			"columnLabelAfterHit": "After Hit",
 			"sortBy": "Sort by {field}",
 			"sortByDescending": "Sort by {field} (reverse)",
+			"sortedAscending": "Sorted ascending",
+			"sortedDescending": "Sorted descending",
 			"sort_numberOfHits": "number of hits",
 			"sort_groupName": "group name",
 			"sort_groupSize": "group size",

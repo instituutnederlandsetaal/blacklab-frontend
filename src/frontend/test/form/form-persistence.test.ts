@@ -38,6 +38,7 @@ import {
 	type FieldController,
 	type FieldControllerProps,
 	type FormEmission,
+	type TokenSequenceCreateField,
 } from '@/features/form';
 import { compileCql } from '@/features/form/model/compile/query-artifact';
 import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
@@ -197,16 +198,48 @@ describe('scoped form persistence', () => {
 
 	test('preserves collocation discriminator wire values and rejects malformed persisted values', () => {
 		const builder = createTestBuilder();
+		const embeddedExpert = createFormFieldNode('collocations.embedded-expert', expertQueryController, RawCqlField, { hideLabel: true });
 		const field = builder.newField('collocations.field', collocationController, CollocationField, {
-			annotationOptions: [],
+			annotationOptions: [{ value: 'word', label: () => 'Word' }],
+			advancedField: embeddedExpert,
+			createAnnotationField: ({ id, annotationId }: Parameters<TokenSequenceCreateField>[0]) => createFormFieldNode(id, testTextController, TestTextField, { annotationId, displayName: annotationId }),
 			defaultAnnotation: 'word',
+			defaultWithin: '',
+			expertField: embeddedExpert,
+			parsePattern: async () => null,
+			withinOptions: [],
 		});
 		const form = builder.newForm('collocations.form', ContainerRenderer, { target: createCollocationTarget('word') }).addChildren(field);
 		const codecContext = { config: field, runtime: builder.context };
-		const relationState = { ...collocationController.createDefaultState(field, builder.context), patt: '[word="ship"]', colltype: 'relsources' as const };
+		const defaults = collocationController.createDefaultState(field, builder.context);
+		const relationState = {
+			...defaults,
+			keyword: { ...defaults.keyword, mode: 'expert' as const, expert: '[word="ship"]' },
+			colltype: 'relsources' as const,
+		};
 		const encoded = collocationController.persistence.codec.encode(relationState, codecContext)!;
 
-		expect(encoded).toBe('[word\\="ship"];ct=relsources');
+		expect(encoded).toContain('v=2');
+		expect(encoded).toContain('ct=relsources');
+		expect(collocationController.persistence.codec.decode(encoded, codecContext)).toMatchObject({
+			keyword: { mode: 'expert', expert: '[word="ship"]' },
+			collocate: { enabled: false },
+			before: 5,
+			after: 5,
+			colltype: 'relsources',
+		});
+
+		const legacy = restoreForm(builder, {
+			'f.form': form.id,
+			'f.collocations': String.raw`[word\="ship"];cp=[pos="N.*"];ct=relsources;c=3:4`,
+		});
+		expect(legacy.state.state[field.id]).toMatchObject({
+			keyword: { mode: 'expert', expert: '[word="ship"]' },
+			collocate: { enabled: true, pattern: { mode: 'expert', expert: '[pos="N.*"]' } },
+			before: 3,
+			after: 4,
+			colltype: 'relsources',
+		});
 
 		const restored = restoreForm(builder, { 'f.form': form.id, 'f.collocations': encoded.replace('relsources', 'invalid') });
 		expect(restored.state.state[field.id]).toEqual(collocationController.createDefaultState(field, builder.context));
@@ -214,6 +247,15 @@ describe('scoped form persistence', () => {
 			severity: 'error',
 			message: "Could not restore persisted field 'collocations' for 'collocations.field': Cannot decode unmapped value 'invalid'.",
 		});
+
+		for (const unavailableAnnotation of ['v=2;a=removed', String.raw`[word\="ship"];a=removed`]) {
+			const unavailable = restoreForm(builder, { 'f.form': form.id, 'f.collocations': unavailableAnnotation });
+			expect(unavailable.state.state[field.id]).toEqual(collocationController.createDefaultState(field, builder.context));
+			expect(unavailable.state.issues).toContainEqual({
+				severity: 'error',
+				message: "Could not restore persisted field 'collocations' for 'collocations.field': Cannot restore collocation grouping annotation 'removed' because it is not available.",
+			});
+		}
 	});
 
 	test('restores scoped state without consuming unrelated unscoped parameters', () => {
@@ -633,7 +675,7 @@ describe('scoped form persistence', () => {
 		expect(restored.rawOverrides).toEqual({});
 	});
 
-	test('retains every externally immutable form parameter as a raw override', () => {
+	test('retains externally immutable form parameters but leaves scorer ownership to results', () => {
 		const fixture = createCanonicalFallbackFixture(true);
 		const restored = restoreFormState(fixture.definition, {
 			collpatt: '[lemma="ship"]',
@@ -645,7 +687,7 @@ describe('scoped form persistence', () => {
 			reltype: 'aligns',
 			annotation: 'lemma',
 			sensitive: 'false',
-			scorertype: 'coll-dice',
+			scorertype: 'coll-salience',
 			group: 'field:author',
 			sort: 'field:title',
 			context: '9',
@@ -662,7 +704,6 @@ describe('scoped form persistence', () => {
 			reltype: 'aligns',
 			annotation: 'lemma',
 			sensitive: false,
-			scorertype: 'coll-dice',
 		});
 		expect(compileFormNode(fixture.simple, restored, fixture.definition.context).params).toEqual({});
 	});

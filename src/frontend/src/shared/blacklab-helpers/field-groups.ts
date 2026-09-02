@@ -9,6 +9,12 @@ import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadat
 import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
 
+/** Keep concise annotation labels, adding the stable id only when visible names collide. */
+export function disambiguatedAnnotationLabel(annotation: NormalizedAnnotation, candidates: readonly NormalizedAnnotation[], i18n: Translate): string {
+	const displayName = i18n.$tAnnotDisplayName(annotation);
+	return candidates.some(candidate => candidate.id !== annotation.id && i18n.$tAnnotDisplayName(candidate) === displayName) ? `${displayName} (${annotation.id})` : displayName;
+}
+
 /** Groups always have at least one member, empty array is returned if no groups would have members. */
 export function fieldSubset<T extends { id: string }>(
 	ids: string[],
@@ -136,6 +142,7 @@ export function getAnnotationSubset(
 
 	const subset = fieldSubset(ids, groups, annotations, operation !== 'Search' ? 'Other' : undefined);
 	if (operation === 'Search') {
+		const selectedAnnotations = [...new Map(subset.flatMap(group => group.entries).map(annotation => [annotation.id, annotation])).values()];
 		return subset.map(group => {
 			const annotationGroupMock: NormalizedAnnotationGroup = {
 				annotatedFieldId: findAnnotatedFieldId(group.id),
@@ -148,7 +155,7 @@ export function getAnnotationSubset(
 				options: group.entries.map(a => ({
 					value: a.id,
 					label: () =>
-						i18n.$tAnnotDisplayName(a) +
+						disambiguatedAnnotationLabel(a, selectedAnnotations, i18n) +
 						(showGroupLabels ? ` <small class="text-muted">${i18n.$tAnnotGroupName(annotationGroupMock)}</small>` : '') +
 						(toValue(debug) ? ` <small><strong>[id: ${a.id}]</strong></small>` : ''),
 					title: () => i18n.$tAnnotDescription(a),

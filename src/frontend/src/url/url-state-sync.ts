@@ -387,6 +387,9 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			if (formDefinitionChanged && initialUrlReadStarted && !initialUrlReadComplete && !routerChanged) return;
 
 			if (storeChanged && !routerChanged && !formDefinitionChanged) {
+				// A configured form may arrive while the initial URL is being restored. Until
+				// then its scoped fields are unknown and must remain available for the rebuild.
+				if (initialUrlReadStarted && !initialUrlReadComplete) return;
 				const next = storeUrlInput.value;
 				if (!next) return;
 				urlRestoreRevision += 1;

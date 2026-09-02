@@ -71,7 +71,11 @@ export interface BlackLabApi {
 	getDocumentInfo: ApiEndpoint<BLDocument, [indexId: string, documentId: string, params?: { query?: string }]>;
 	getRelations: ApiEndpoint<BLRelationInfo, [indexId: string]>;
 	getParsePattern: ApiEndpoint<BLParsePatternResponse, [indexId: string, pattern: string]>;
-	getCollocations: ApiEndpoint<BLHitGroupResults, [indexId: string, params: BLCollocationsParameters]>;
+	getCollocations<TParams extends BLCollocationsParameters>(
+		indexId: string,
+		params: TParams,
+		requestParameters?: AxiosRequestConfig,
+	): CancelableRequest<TParams extends { viewgroup: string } ? BLHitResults : BLHitGroupResults>;
 	getHits<T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T>;
 	getHitsCsv: ApiEndpoint<Blob, [indexId: string, params: BLSearchParameters]>;
 	getDocsCsv: ApiEndpoint<Blob, [indexId: string, params: BLSearchParameters]>;

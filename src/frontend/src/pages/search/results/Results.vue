@@ -29,6 +29,8 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { isEffectiveCollocationParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
+import { useI18n } from '@/shared/i18n';
+
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
 defineOptions({
@@ -38,8 +40,11 @@ defineOptions({
 });
 
 const customizations = useCustomizations();
+const translate = useI18n();
 const resultViews = computed(() => {
 	const views = customizations.resultViews();
-	return isEffectiveCollocationParameters(RootStore.get.blacklabParameters()) ? views.filter(view => view.id === 'hits') : views;
+	return isEffectiveCollocationParameters(RootStore.get.blacklabParameters())
+		? views.filter(view => view.id === 'hits').map(view => ({ ...view, label: translate.$t('queryForm.collocations').toString(), title: translate.$t('collocations.heading').toString() }))
+		: views;
 });
 </script>

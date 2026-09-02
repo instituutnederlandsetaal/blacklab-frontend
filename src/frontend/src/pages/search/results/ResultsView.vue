@@ -4,7 +4,7 @@
 
 		<template v-if="resultComponentData && cols && renderDisplaySettings && loadedRequest">
 			<div class="crumbs-totals">
-				<BreadCrumbs v-if="!isCollocations" :crumbs="breadCrumbs" :disabled="!!request" />
+				<BreadCrumbs v-if="!isCollocations || viewGroup" :crumbs="breadCrumbs" :disabled="!!request" />
 				<Totals
 					class="result-totals"
 					:initialResults="loadedResults"
@@ -20,7 +20,7 @@
 			<div class="result-buttons-layout">
 				<Pagination slot="pagination" :page="pagination.shownPage" :page2="pagination.shownPage2" :maxPage="pagination.maxShownPage" :disabled="!!request" @change="page = $event" />
 
-				<div class="btn-group" v-if="isGroups" style="flex: none">
+				<div class="btn-group" v-if="isGroups && !isCollocations" style="flex: none">
 					<button
 						v-for="option in cols.groupModeOptions"
 						type="button"
@@ -31,11 +31,13 @@
 						{{ option }}
 					</button>
 				</div>
-				<button v-if="!isCollocations && viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
-					<span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}
+				<button v-if="viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
+					<span class="fa fa-angle-double-left"></span>
+					{{ isCollocations ? $t('collocations.results.backToCollocations') : $t('results.resultsView.navigation.backToGroupedResults') }}
 				</button>
 
 				<div style="flex-grow: 1"></div>
+				<CollocationScorerToggle v-if="isCollocations && isGroups" v-model="selectedCollocationScorer" :disabled="!!request" />
 				<div v-if="concordanceAnnotationOptions.length > 1 && id === 'hits'">
 					<label>{{ $t('results.resultsView.selectAnnotation') }}: </label>
 					<div class="btn-group">
@@ -61,10 +63,10 @@
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
 				:showTitles="showTitles.value"
 				:disabled="!!request"
-				:disableDetails="isCollocations"
+				:operation="loadedRequest.operation"
 				:query="resultComponentData.query"
 				:sort="resultComponentData.sort"
-				@changeSort="sort = sort === $event ? `-${sort}` : $event"
+				@changeSort="changeSort"
 				@viewgroup="changeViewGroup"
 			/>
 
@@ -76,15 +78,27 @@
 					{{ showTitles.value ? $t('results.table.hide') : $t('results.table.show') }} {{ $t('results.table.titles') }}
 				</button>
 
-				<Sort v-model="sort" :hits="isHits" :docs="isDocs" :groups="isGroups" :corpus="corpus" :disabled="!!request" />
+				<Sort
+					v-model="sort"
+					:hits="isHits"
+					:docs="isDocs"
+					:groups="isGroups"
+					:collocations="isCollocations && isGroups"
+					:collocation-scorer="collocationScorer"
+					:corpus="corpus"
+					:disabled="!!request"
+				/>
 
-				<Export v-if="!isCollocations && customizations.resultExportEnabled()" :results="results" :type="id" :disabled="!!request" />
+				<Export v-if="(!isCollocations || isHits) && customizations.resultExportEnabled()" :results="results" :type="id" :disabled="!!request" />
 			</div>
 		</template>
 		<div v-else-if="error != null" class="no-results-found">
 			<span class="fa fa-exclamation-triangle text-danger"></span><br />
 			<div style="text-align: initial">{{ error }}</div>
-			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty()">{{ $t('results.resultsView.tryAgain') }}</button>
+			<div class="result-error-actions">
+				<CollocationScorerToggle v-if="isCollocations && !viewGroup" v-model="selectedCollocationScorer" />
+				<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty()">{{ $t('results.resultsView.tryAgain') }}</button>
+			</div>
 		</div>
 		<div v-else-if="!valid" class="no-results-found">
 			{{ $t('results.resultsView.inactiveView') }}
@@ -113,6 +127,7 @@ import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as QueryStore from '@/features/search/model/query-state';
+import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import { isEffectiveCollocationParameters, type ExecutedSearchRequest, type GroupDisplayMode } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
@@ -123,13 +138,14 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
-import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types';
 import { getSearchParameters, getTotalAvailableResults } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { debugLog } from '@/shared/debug/debug';
 import { useI18n } from '@/shared/i18n';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
+import CollocationScorerToggle from '@/pages/search/results/CollocationScorerToggle.vue';
 import Export from '@/pages/search/results/Export.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 import Totals from '@/pages/search/results/ResultTotals.vue';
@@ -209,6 +225,13 @@ const isHits = computed(() => !!results.value && BLTypes.isHitResults(results.va
 const isDocs = computed(() => !!results.value && BLTypes.isDocResults(results.value));
 const isGroups = computed(() => !!results.value && BLTypes.isGroups(results.value));
 const isCollocations = computed(() => executedRequest.value?.operation === 'collocations' || isEffectiveCollocationParameters(RootStore.get.blacklabParameters()));
+const selectedCollocationScorer = computed<BLTypes.BLCollocationScorer>({
+	get: () => store.getState().collocationScorer,
+	set: value => {
+		if (!request.value && value !== store.getState().collocationScorer) store.actions.collocationScorer(value);
+	},
+});
+const collocationScorer = computed(() => (executedRequest.value?.operation === 'collocations' ? executedRequest.value.params.scorertype : undefined));
 
 /**
  * Pagination state for the current view.
@@ -295,7 +318,16 @@ function refresh() {
 	const currentParams = RootStore.get.blacklabParameters()!;
 	let executed: ExecutedSearchRequest;
 	if (isEffectiveCollocationParameters(currentParams)) {
-		executed = { operation: 'collocations', params: currentParams };
+		if (currentParams.viewgroup) {
+			const hitParams = createCollocationHitsParameters(currentParams);
+			if (!hitParams) {
+				setError(new ApiError('Info', 'Invalid collocation context window.', 'No results', undefined));
+				return;
+			}
+			executed = { operation: 'hits', params: hitParams };
+		} else {
+			executed = { operation: 'collocations', params: currentParams };
+		}
 	} else {
 		if (id === 'hits' && (groupBy.value.length === 0 || viewGroup.value) && corpus.value.isParallelCorpus && viewModule.getState().sort == null) viewModule.actions.sort('alignments');
 		const params = RootStore.get.blacklabParameters()!;
@@ -348,9 +380,16 @@ function leaveViewgroup() {
 		sort.value = restoreOnViewGroupLeave.value.sort;
 	} else {
 		store.actions.range({ first: 0, number: GlobalStore.getState().pageSize });
-		sort.value = null;
+		sort.value = isCollocations.value ? 'score' : null;
 	}
 	restoreOnViewGroupLeave.value = null;
+}
+
+function changeSort(sortProperty: string) {
+	const property = sortProperty.replace(/^-/, '');
+	const current = sort.value;
+	if (current?.replace(/^-/, '') !== property) sort.value = sortProperty;
+	else sort.value = current.startsWith('-') ? property : `-${property}`;
 }
 
 function changeViewGroup(groupId: string, groupDisplay: string) {
@@ -376,8 +415,12 @@ type BreadCrumb = {
 const breadCrumbs = computed<BreadCrumb[]>(() => {
 	const crumbs: BreadCrumb[] = [
 		{
-			label: id === 'hits' ? translate.$t('results.resultsView.navigation.hits') : translate.$t('results.resultsView.navigation.documents'),
-			title: translate.$t('results.resultsView.navigation.backToUngroupedResults'),
+			label: isCollocations.value
+				? translate.$t('queryForm.collocations')
+				: id === 'hits'
+					? translate.$t('results.resultsView.navigation.hits')
+					: translate.$t('results.resultsView.navigation.documents'),
+			title: isCollocations.value ? translate.$t('collocations.results.backToCollocations') : translate.$t('results.resultsView.navigation.backToUngroupedResults'),
 		},
 	];
 	if (groupBy.value.length > 0) {
@@ -391,7 +434,7 @@ const breadCrumbs = computed<BreadCrumb[]>(() => {
 	}
 	if (viewGroup.value != null) {
 		crumbs.push({
-			label: translate.$t('results.resultsView.navigation.viewingGroup', { group: viewGroupName.value }),
+			label: isCollocations.value ? viewGroupName.value : translate.$t('results.resultsView.navigation.viewingGroup', { group: viewGroupName.value }),
 			title: '',
 			deactivate: leaveViewgroup,
 		});
@@ -472,6 +515,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 		getCustomHitInfo: (hit, field, document) => customizations.hitInfoColumnContent(hit, field, document, translate),
 		getMatchInfoHighlightStyle: customizations.matchInfoHighlightStyle,
 		requestedRange,
+		collocationScorer: collocationScorer.value,
 	};
 });
 
@@ -479,7 +523,9 @@ const cols = computed(() => results.value && makeColumns(results.value, renderDi
 const rows = computed(() => results.value && makeRows(results.value, renderDisplaySettings.value));
 const resultComponentData = computed(() => {
 	if (!results.value || !cols.value || !rows.value?.rows.length) return undefined;
-	return { cols: cols.value, rows: rows.value, query: getSearchParameters(results.value), sort: sort.value };
+	const responseParameters = getSearchParameters(results.value);
+	const query = executedRequest.value?.operation === 'collocations' && BLTypes.isHitGroups(results.value) ? executedRequest.value.params : responseParameters;
+	return { cols: cols.value, rows: rows.value, query, sort: sort.value };
 });
 
 watch(
@@ -526,5 +572,14 @@ onBeforeUnmount(cancelRequest);
 	align-items: center;
 	margin: 10px 0;
 	gap: 10px;
+}
+
+.result-error-actions {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 12px;
 }
 </style>

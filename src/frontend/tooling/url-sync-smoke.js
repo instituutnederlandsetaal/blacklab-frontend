@@ -20,9 +20,11 @@ const defaultDockerImage = 'blacklab-frontend-url-sync-smoke:local';
 const defaultDockerfile = 'docker/frontend-proxy.dockerfile';
 const reservedScopedKeys = new Set(['f.form', 'f.tab']);
 const legacyFormUiKeys = new Set(['form', 'patternMode', 'exploreMode', 'activeAnnotationTab', 'activeFilterTab']);
+const standardFormNamespace = 'standard-search-form';
+const collocationsFormId = `${standardFormNamespace}/collocations-form`;
 const searchModeFormIds = {
-	simple: 'search.simple',
-	extended: 'search.extended',
+	simple: `${standardFormNamespace}/search-form/simple`,
+	extended: `${standardFormNamespace}/search-form/extended`,
 };
 
 function parseArgs(argv) {
@@ -75,6 +77,7 @@ Environment / options:
   BLF_SMOKE_SKIP_DOCKER_BUILD=true         Reuse the image tag without rebuilding.
   BLF_SMOKE_EXTERNAL_STACK=true            Do not start Docker/Vite; use --url or the default Vite URL.
   BLF_SMOKE_QUERY_SELECTOR                 Override the simple-search input selector.
+  BLF_SMOKE_COLLOCATION_QUERY              Collocation keyword. Defaults to the first query.
   BLF_SMOKE_HEADLESS=false                 Run with a visible browser.
   BLF_SMOKE_SLOWMO=100                     Slow Playwright actions down, in ms.
   BLF_SMOKE_KEEP_OPEN=true                 Leave the browser open after the run.
@@ -214,10 +217,7 @@ function startProcess(command, args, options = {}) {
 async function stopProcess(child) {
 	if (!child || child.exitCode != null || child.signalCode != null) return;
 	child.kill('SIGTERM');
-	const stopped = await Promise.race([
-		new Promise(resolve => child.once('close', resolve)),
-		wait(5000).then(() => false),
-	]);
+	const stopped = await Promise.race([new Promise(resolve => child.once('close', resolve)), wait(5000).then(() => false)]);
 	if (stopped === false && child.exitCode == null && child.signalCode == null) {
 		child.kill('SIGKILL');
 	}
@@ -282,10 +282,7 @@ async function startVite({ vitePort, frontendPort, blacklabUrl, timeout }) {
 			BLF_BLACKLAB_PROXY_TARGET: blackLabProxyOrigin(blacklabUrl),
 		},
 	});
-	const startup = await Promise.race([
-		waitForHttp(`http://localhost:${vitePort}/@vite/client`, timeout).then(() => 'ready'),
-		new Promise(resolve => child.once('close', code => resolve({ code }))),
-	]);
+	const startup = await Promise.race([waitForHttp(`http://localhost:${vitePort}/@vite/client`, timeout).then(() => 'ready'), new Promise(resolve => child.once('close', code => resolve({ code })))]);
 	if (startup !== 'ready') {
 		throw new Error(`Vite exited before becoming ready: ${JSON.stringify(startup)}`);
 	}
@@ -479,7 +476,8 @@ async function assertVisibleSearchMode(page, mode, timeout, label) {
 }
 
 async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMode = 'simple') {
-	const expectedFormId = `search.${expectedPatternMode}`;
+	const expectedFormId = searchModeFormIds[expectedPatternMode];
+	assert(expectedFormId, `No form node is configured for search mode '${expectedPatternMode}'.`);
 	await page.waitForFunction(
 		({ term, formId, legacyKeys }) => {
 			const url = new URL(window.location.href);
@@ -520,7 +518,7 @@ async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMo
 
 async function selectSearchMode(page, mode, timeout) {
 	const root = newFormRoot(page);
-	const searchTab = formNodeTab(root, 'patterns');
+	const searchTab = formNodeTab(root, `${standardFormNamespace}/section/search`);
 	await searchTab.waitFor({ state: 'visible', timeout });
 	if ((await searchTab.getAttribute('aria-selected')) !== 'true') await searchTab.click();
 
@@ -530,6 +528,126 @@ async function selectSearchMode(page, mode, timeout) {
 	await modeTab.waitFor({ state: 'visible', timeout });
 	if ((await modeTab.getAttribute('aria-selected')) !== 'true') await modeTab.click();
 	await waitForVisibleSearchMode(page, mode, timeout);
+}
+
+async function collocationsAvailable(page) {
+	return (await formNodeTab(newFormRoot(page), `${standardFormNamespace}/section/collocations`).count()) > 0;
+}
+
+async function waitForCollocationState(page, expectedPattern, timeout) {
+	await page.waitForFunction(
+		({ formId, pattern }) => {
+			const query = window.vuexModules?.query?.getState?.();
+			const url = new URL(window.location.href);
+			return (
+				query?.form === 'new' && query?.state?.formId === formId && query?.state?.params?.patt === pattern && query?.state?.params?.colltype === 'proximity' && url.searchParams.get('filter') === '*:*'
+			);
+		},
+		{ formId: collocationsFormId, pattern: expectedPattern },
+		{ timeout },
+	);
+}
+
+async function runCollocationSmoke(page, keyword, timeout) {
+	if (!(await collocationsAvailable(page))) {
+		const blacklabVersion = await page.evaluate(() => window.vuexModules?.corpus?.getState?.().corpus?.runtimeVersion ?? null);
+		console.log(`skip collocation browser flow: ${blacklabVersion ? `BlackLab ${blacklabVersion}` : 'the configured corpus'} does not expose collocations`);
+		return;
+	}
+
+	const legacyPattern = `[word="${keyword.replaceAll('"', '\\"')}"]`;
+	const legacyUrl = new URL(page.url());
+	legacyUrl.pathname = legacyUrl.pathname.replace(/\/search(?:\/.*)?$/, '/search/hits');
+	legacyUrl.search = '';
+	legacyUrl.searchParams.set('patt', legacyPattern);
+	legacyUrl.searchParams.set('filter', '*:*');
+	legacyUrl.searchParams.set('colltype', 'proximity');
+	legacyUrl.searchParams.set('context', '2:3');
+	legacyUrl.searchParams.set('annotation', 'word');
+	legacyUrl.searchParams.set('sensitive', 'false');
+	legacyUrl.searchParams.set('scorertype', 'coll-dice');
+	legacyUrl.searchParams.set('f.form', collocationsFormId);
+	legacyUrl.searchParams.set('f.collocations', String.raw`${legacyPattern.replaceAll('=', '\\=')};c=2:3;a=word;st=coll-dice`);
+
+	await page.goto(legacyUrl.href, { waitUntil: 'domcontentloaded', timeout });
+	await waitForApp(page, timeout);
+	await waitForCollocationState(page, legacyPattern, timeout);
+	const collocationsTab = formNodeTab(newFormRoot(page), `${standardFormNamespace}/section/collocations`);
+	await collocationsTab.waitFor({ state: 'visible', timeout });
+	assert((await collocationsTab.getAttribute('aria-selected')) === 'true', 'Expected legacy collocation URL to restore the Collocations form.', await snapshot(page));
+
+	const form = await activeNewForm(page, timeout);
+	const expertPattern = form.locator('.blf-collocation-pattern-editor').first().getByRole('textbox').first();
+	await expertPattern.waitFor({ state: 'visible', timeout });
+	assert((await expertPattern.inputValue()) === legacyPattern, 'Expected the legacy collocation keyword to be restored in Expert mode.', await snapshot(page));
+	console.log('ok legacy collocation URL restored the expert pattern and filter');
+
+	const groupToggle = page.locator('.results-container button.group-details-toggle').first();
+	await groupToggle.waitFor({ state: 'visible', timeout });
+	await groupToggle.focus();
+	await groupToggle.press('Enter');
+	await page.waitForFunction(element => element?.getAttribute('aria-expanded') === 'true', await groupToggle.elementHandle(), { timeout });
+
+	const details = page.locator('.results-container tr.grouprow-details:visible').first();
+	await details.waitFor({ state: 'visible', timeout });
+	const close = details.locator('button.close-concordances');
+	await close.waitFor({ state: 'visible', timeout });
+	await close.focus();
+	await close.press('Enter');
+	await page.waitForFunction(element => element?.getAttribute('aria-expanded') === 'false', await groupToggle.elementHandle(), { timeout });
+	assert(await groupToggle.evaluate(element => element === document.activeElement), 'Expected closing a group preview to return focus to its toggle.');
+	console.log('ok keyboard group expansion, close, and focus return');
+
+	await groupToggle.press('Enter');
+	const openAllContexts = page.locator('.results-container tr.grouprow-details:visible button.open-concordances').first();
+	await openAllContexts.waitFor({ state: 'visible', timeout });
+	await openAllContexts.click();
+	await page.waitForFunction(
+		() => {
+			const url = new URL(window.location.href);
+			return !!url.searchParams.get('viewgroup') && url.searchParams.get('filter') === '*:*';
+		},
+		null,
+		{ timeout },
+	);
+	await page.locator('.results-container .hits-table table.results-table').waitFor({ state: 'visible', timeout });
+	await page.locator('.results-container button:has(.fa-angle-double-left)').first().waitFor({ state: 'visible', timeout });
+	const csvButton = page.locator('.results-container button[title]').filter({ hasText: /csv/i }).first();
+	assert((await csvButton.count()) === 1 && (await csvButton.isEnabled()), 'Expected the full-context collocation view to expose an enabled CSV export.');
+	console.log('ok full-context navigation preserved the filter and exposed export');
+
+	const shareableUrl = page.url();
+	await page.reload({ waitUntil: 'domcontentloaded', timeout });
+	await waitForApp(page, timeout);
+	await page.waitForFunction(
+		url => {
+			const current = new URL(window.location.href);
+			const expected = new URL(url);
+			return current.searchParams.get('viewgroup') === expected.searchParams.get('viewgroup') && current.searchParams.get('filter') === '*:*';
+		},
+		shareableUrl,
+		{ timeout },
+	);
+	await page.locator('.results-container .hits-table table.results-table').waitFor({ state: 'visible', timeout });
+	console.log('ok shareable collocation viewgroup URL restored after reload');
+
+	const backToCollocations = page.locator('.results-container button:has(.fa-angle-double-left)').first();
+	await backToCollocations.click();
+	await page.waitForFunction(() => !new URL(window.location.href).searchParams.has('viewgroup'), null, { timeout });
+	await page.locator('.results-container .groups-table table.results-table').waitFor({ state: 'visible', timeout });
+
+	await page.setViewportSize({ width: 420, height: 900 });
+	const overflow = await page.locator('.results-container .groups-table').evaluate(element => ({
+		clientWidth: element.clientWidth,
+		overflowX: getComputedStyle(element).overflowX,
+		scrollWidth: element.scrollWidth,
+	}));
+	assert(
+		['auto', 'scroll'].includes(overflow.overflowX) && overflow.scrollWidth > overflow.clientWidth,
+		'Expected the collocation results table to scroll horizontally at a narrow viewport.',
+		overflow,
+	);
+	console.log('ok narrow collocation results use local horizontal overflow');
 }
 
 async function submitSearch(page, selectorOverride, query, timeout, mode = 'simple') {
@@ -621,6 +739,7 @@ async function run() {
 	const initialUrl = option(args, 'url', 'BLF_SMOKE_URL', `http://localhost:${vitePort}/blacklab-frontend/${corpus}/search/`);
 	const queryOne = option(args, 'queryOne', 'BLF_SMOKE_QUERY_ONE', 'schip');
 	const queryTwo = option(args, 'queryTwo', 'BLF_SMOKE_QUERY_TWO', 'schaap');
+	const collocationQuery = option(args, 'collocationQuery', 'BLF_SMOKE_COLLOCATION_QUERY', queryOne);
 	const selectorOverride = option(args, 'querySelector', 'BLF_SMOKE_QUERY_SELECTOR', null);
 	const timeout = numberOption(args, 'timeout', 'BLF_SMOKE_TIMEOUT', 20_000);
 	const headless = booleanOption(args, 'headless', 'BLF_SMOKE_HEADLESS', true);
@@ -708,6 +827,8 @@ async function run() {
 		await page.locator('.blf-form-system button[type="reset"]').first().click();
 		await waitForResetState(page, selectorOverride, timeout);
 		console.log('ok reset cleared submitted query and scoped URL params');
+
+		await runCollocationSmoke(page, collocationQuery, timeout);
 
 		console.log('url-sync smoke test passed');
 	} catch (error) {

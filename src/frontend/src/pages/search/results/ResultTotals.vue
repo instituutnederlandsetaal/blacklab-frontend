@@ -3,14 +3,14 @@
 		<div class="totals-content">
 			<Spinner v-if="(isCounting || !totals.isLoaded()) && !error" size="25" style="margin-right: 0.25em" />
 
-			<div class="totals-text" :title="percentOfSearchSpaceClarification">
+			<div class="totals-text" :title="isCollocations ? undefined : percentOfSearchSpaceClarification">
 				<div class="totals-type">
 					<div>
 						{{ $t('results.resultsTotals.total') }} {{ resultType }}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template
 						>:
 					</div>
 					<div v-if="isGroups">
-						{{ $t('results.resultsTotals.totalGroups') }}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template
+						{{ groupsLabel }}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template
 						>:
 					</div>
 					<div>{{ $t('results.resultsTotals.searchTime') }}:</div>
@@ -23,7 +23,7 @@
 					<!-- <div>{{numPrefix}}{{numPages.toLocaleString()}}{{numSuffix}}</div> -->
 				</div>
 
-				<span class="totals-percentage">
+				<span v-if="!isCollocations" class="totals-percentage">
 					<template v-if="searchSpaceCount > 0 /* might also be -1, in this case don't render -- see corpus store documentCount property */">
 						({{ frac2Percent(numResults / searchSpaceCount) }})
 					</template>
@@ -100,9 +100,17 @@ const isLimited = computed(() => value.value?.state === 'limited');
 const isPaused = computed(() => value.value?.state === 'paused');
 const isFinished = computed(() => value.value?.state === 'finished');
 
+const isCollocations = computed(() => props.executedRequest.operation === 'collocations');
 const isHits = computed(() => props.executedRequest.operation !== 'docs');
-const resultType = computed(() => (isHits.value ? $t('results.resultsTotals.hits').toString() : $t('results.resultsTotals.documents').toString()));
+const resultType = computed(() =>
+	isCollocations.value
+		? $t('collocations.results.cooccurrences').toString().toLocaleLowerCase()
+		: isHits.value
+			? $t('results.resultsTotals.hits').toString()
+			: $t('results.resultsTotals.documents').toString(),
+);
 const isGroups = computed(() => value.value?.groups != null);
+const groupsLabel = computed(() => (isCollocations.value ? $t('collocations.results.totalCollocates').toString() : $t('results.resultsTotals.totalGroups').toString()));
 const searchTime = computed(() => (value.value ? frac2Percent(value.value.searchTime / 100000, 1).replace('%', 's') : ''));
 
 const numPrefix = computed(() => (isLimited.value || isPaused.value ? '≥' : ''));

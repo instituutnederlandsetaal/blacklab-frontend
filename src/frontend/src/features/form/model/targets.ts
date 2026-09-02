@@ -48,7 +48,7 @@ function restoredString(value: string, output: FormOutputName, issues: FormIssue
 	return normalized;
 }
 
-type StringOverrideName = 'patt' | 'collpatt' | 'filter' | 'searchfield' | 'within' | 'reltype' | 'annotation' | 'scorertype';
+type StringOverrideName = 'patt' | 'collpatt' | 'filter' | 'searchfield' | 'within' | 'reltype' | 'annotation';
 
 /** Copy one typed override while preserving the correlation between its key and value. */
 function copyOverride<Key extends keyof FormOverrides>(draft: FormOverrides, overrides: Readonly<FormOverrides>, key: Key): void {
@@ -134,7 +134,7 @@ export const searchTarget = createSearchTarget();
 export const hitsSearchTarget = createSearchTarget({ targetView: 'hits', supportedEndpoints: ['hits', 'hits-grouped'], requiredOutputs: ['patt'] });
 export const docsSearchTarget = createSearchTarget({ targetView: 'docs', supportedEndpoints: ['docs', 'docs-grouped'] });
 
-export const COLLOCATION_OUTPUTS = ['patt', 'collpatt', 'filter', 'searchfield', 'colltype', 'context', 'within', 'reltype', 'annotation', 'sensitive', 'scorertype', 'sort'] as const;
+export const COLLOCATION_OUTPUTS = ['patt', 'collpatt', 'filter', 'searchfield', 'colltype', 'context', 'within', 'reltype', 'annotation', 'sensitive', 'sort'] as const;
 
 export function createCollocationTarget(defaultAnnotation: string): FormTarget<typeof COLLOCATION_OUTPUTS, CollocationParams> {
 	const fallbackAnnotation = defaultAnnotation.trim();
@@ -181,9 +181,6 @@ export function createCollocationTarget(defaultAnnotation: string): FormTarget<t
 					case 'sensitive':
 						draft.sensitive = retainFirst(draft.sensitive, emission.value, 'sensitive', issues);
 						break;
-					case 'scorertype':
-						draft.scorertype = retainFirst(draft.scorertype, nonBlank(emission.value), 'scorertype', issues);
-						break;
 					case 'sort':
 						sortSeen = true;
 						sort.push(...(emission.value?.map(item => item.trim()).filter(Boolean) ?? []));
@@ -191,14 +188,13 @@ export function createCollocationTarget(defaultAnnotation: string): FormTarget<t
 				}
 			}
 
-			applyStringOverrides(draft, overrides, ['patt', 'collpatt', 'filter', 'searchfield', 'within', 'reltype', 'annotation', 'scorertype'], issues);
+			applyStringOverrides(draft, overrides, ['patt', 'collpatt', 'filter', 'searchfield', 'within', 'reltype', 'annotation'], issues);
 			applyDefinedOverrides(draft, overrides, ['colltype', 'context', 'sensitive']);
 			if (draft.context === null) issues.push({ severity: 'error', message: `Restored override 'context' must be a safe non-negative integer or before:after pair.` });
 
 			draft.colltype ??= 'proximity';
 			draft.annotation ??= fallbackAnnotation;
 			draft.sensitive ??= false;
-			draft.scorertype ??= 'coll-dice';
 			if (draft.colltype === 'proximity' && draft.context === undefined) draft.context = 5;
 
 			if (!draft.patt) issues.push({ severity: 'error', message: "Required output 'patt' is missing." });
@@ -217,7 +213,7 @@ export function createCollocationTarget(defaultAnnotation: string): FormTarget<t
 				draft.patt = undefined;
 			}
 
-			const params: CollocationParams = { colltype: draft.colltype, annotation: draft.annotation, sensitive: draft.sensitive, scorertype: draft.scorertype };
+			const params: CollocationParams = { colltype: draft.colltype, annotation: draft.annotation, sensitive: draft.sensitive, scorertype: 'coll-dice' };
 			if (draft.patt !== undefined) params.patt = draft.patt;
 			if (draft.collpatt !== undefined) params.collpatt = draft.collpatt;
 			if (draft.filter !== undefined) params.filter = draft.filter;

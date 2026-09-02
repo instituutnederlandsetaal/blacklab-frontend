@@ -68,7 +68,6 @@ function createIndex(): NormalizedIndex {
 			{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma'], isRemainderGroup: false },
 			{ annotatedFieldId: 'contents', id: 'Other', entries: ['pos', 'internal'], isRemainderGroup: true },
 		],
-		blacklabVersion: '5.0.0',
 		contentViewable: true,
 		description: '',
 		displayName: 'Test corpus',
@@ -76,6 +75,7 @@ function createIndex(): NormalizedIndex {
 		fieldInfo: {} as NormalizedIndex['fieldInfo'],
 		id: 'test-corpus',
 		indexProgress: null,
+		indexerVersion: '4.4.0',
 		mainAnnotatedField: 'contents',
 		metadataFieldGroups: [
 			{ id: 'Bibliographic', entries: ['title', 'date'], isRemainderGroup: false },
@@ -84,6 +84,7 @@ function createIndex(): NormalizedIndex {
 		metadataFields,
 		owner: null,
 		relations: { relations: {}, spans: {} },
+		runtimeVersion: '5.0.0',
 		status: 'available',
 		textDirection: 'ltr',
 		timeModified: '',
@@ -131,12 +132,14 @@ describe('search form data dependencies', () => {
 				metadataFields: {},
 				status: 'available',
 				timeModified: '',
-				versionInfo: { blacklabVersion: '5.2.0', timeModified: '' },
+				versionInfo: { blacklabVersion: '4.4.0-SNAPSHOT', timeModified: '' },
 			} as any,
 			{ relations: {}, spans: {} },
+			'5.3.0-SNAPSHOT',
 		);
 
-		expect(index.blacklabVersion).toBe('5.2.0');
+		expect(index.indexerVersion).toBe('4.4.0');
+		expect(index.runtimeVersion).toBe('5.3.0');
 		expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
 	});
 
@@ -168,6 +171,41 @@ describe('search form data dependencies', () => {
 		if (!annotationOption || typeof annotationOption === 'string') throw new Error('Expected a query-builder annotation option.');
 		expect(optionLabel(annotationOption)).toBe('lemma');
 		expect(optionText(annotationOption.title)).toBe('lemma description');
+	});
+
+	test('accepts a feature-specific annotation selection', () => {
+		const options = createQueryBuilderOptions(
+			{
+				corpus: createIndex(),
+				customizations: createSearchFormCustomizations(),
+				blacklabApi: createMockApi().blacklabApi,
+				translate: createMockTranslate(),
+			},
+			{ annotationIds: ['word', 'lemma'], defaultAnnotationId: 'word' },
+		);
+
+		expect(optionValues(options.annotationOptions)).toEqual(['word', 'lemma']);
+		expect(options.defaultAnnotationId).toBe('word');
+	});
+
+	test('disambiguates only duplicate annotation display names', () => {
+		const index = createIndex();
+		index.annotatedFields.contents.annotations.word.defaultDisplayName = 'Word';
+		index.annotatedFields.contents.annotations.lemma.defaultDisplayName = 'Word';
+		index.annotatedFields.contents.annotations.pos.defaultDisplayName = 'Part of speech';
+		const options = createQueryBuilderOptions(
+			{
+				corpus: index,
+				customizations: createSearchFormCustomizations(),
+				blacklabApi: createMockApi().blacklabApi,
+				translate: createMockTranslate(),
+			},
+			{ annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' },
+		);
+
+		expect(optionLabel(findOption(options.annotationOptions, 'word')!)).toBe('Word (word)');
+		expect(optionLabel(findOption(options.annotationOptions, 'lemma')!)).toBe('Word (lemma)');
+		expect(optionLabel(findOption(options.annotationOptions, 'pos')!)).toBe('Part of speech');
 	});
 
 	test('delegates querybuilder autocomplete to BlackLab with the annotation target', async () => {

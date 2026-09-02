@@ -11,7 +11,7 @@ import { markRaw, shallowRef } from 'vue';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import { formatSummaryEntries, type CompiledFormResult } from '@/features/form';
+import { formatSummaryEntries, isCollocationParams, type CompiledFormResult } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -163,7 +163,12 @@ const actions = {
 			: getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const configuredAlignBy = customizations?.searchFormAlignByDefault() ?? '';
 		const patternSummary: string | undefined = entry.newForm
-			? formatSummaryEntries(entry.newForm.summaries, 'patt')
+			? isCollocationParams(entry.newForm.params)
+				? entry.newForm.summaries
+						.filter(summary => summary.summaryType.some(type => ['patt', 'collpatt', 'context', 'within', 'annotation'].includes(type)))
+						.map(summary => `${summary.label}: ${summary.value}`)
+						.join(' · ') || undefined
+				: formatSummaryEntries(entry.newForm.summaries, 'patt')
 			: entry.interface.form === 'search'
 				? getPatternStringSearch(entry.interface.patternMode, entry.patterns, configuredAlignBy, entry.filters)
 				: entry.interface.form === 'explore'

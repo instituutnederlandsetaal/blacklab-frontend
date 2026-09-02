@@ -34,7 +34,6 @@ export function extractSearchFormOverrides(query: Record<string, unknown>, paral
 	const annotation = firstNonEmpty(query, 'annotation');
 	const rawSensitive = firstNonEmpty(query, 'sensitive');
 	const sensitive = rawSensitive === 'true' ? true : rawSensitive === 'false' ? false : undefined;
-	const scorertype = firstNonEmpty(query, 'scorertype');
 	return {
 		...(patt ? { patt } : {}),
 		...(collpatt ? { collpatt } : {}),
@@ -47,6 +46,5 @@ export function extractSearchFormOverrides(query: Record<string, unknown>, paral
 		...(reltype ? { reltype } : {}),
 		...(annotation ? { annotation } : {}),
 		...(sensitive !== undefined ? { sensitive } : {}),
-		...(scorertype ? { scorertype } : {}),
 	};
 }

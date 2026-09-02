@@ -64,6 +64,10 @@ export type BLSearchParameters = {
 	sort?: string;
 	/** Also return results within this specific group (only when 'group' specified) */
 	viewgroup?: string;
+	/** Filter hits by this hit property. Must be combined with `hitfilterval`. */
+	hitfiltercrit?: string;
+	/** Serialized property value to retain when `hitfiltercrit` is specified. */
+	hitfilterval?: string;
 
 	// additionals that aren't used often
 	/** V5 only: Include the size of subcorpus. Use 'includetokencount' in V4 */
@@ -146,6 +150,13 @@ export type BLServer = BLServerBase & {
 	corpora: Record<string, BLIndex>;
 };
 export const isServerV5 = (v: BLServer | BLServerV4): v is BLServer => (v as BLServer).corpora != null;
+
+/** Normalize released and Maven snapshot versions to x.y.z. Keep nonnumeric development versions unchanged. */
+export const normalizeBlackLabVersion = (version: string): string => {
+	const trimmed = version.trim();
+	const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?/.exec(trimmed);
+	return match ? `${match[1]}.${match[2] ?? '0'}.${match[3] ?? '0'}` : trimmed;
+};
 
 /** Whether this BlackLab implementation exposes the collocations operation. */
 export const blackLabSupportsCollocations = (version: string): boolean => version === 'dev' || Number.parseInt(version, 10) > 4;
@@ -669,7 +680,7 @@ type BLGroupV4 = {
 
 type BLHitGroupV4 = BLGroupV4 & {
 	/** When grouped on annotation + metadata */
-	numberOfDocs: number;
+	numberOfDocs?: number;
 	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. If not present and subcorpussize=true was passed, use the main summary. */
 	subcorpusSize?: BLSubcorpusSize;
 };

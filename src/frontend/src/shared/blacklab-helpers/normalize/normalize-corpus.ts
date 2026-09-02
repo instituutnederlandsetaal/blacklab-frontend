@@ -102,6 +102,7 @@ export function normalizeServerInfo(server: BLTypes.BLServer | BLTypes.BLServerV
 	const baseIndices = BLTypes.isServerV5(server) ? Object.entries(server.corpora) : Object.entries(server.indices);
 	return {
 		...server,
+		blacklabVersion: BLTypes.normalizeBlackLabVersion(server.blacklabVersion),
 		corpora: Object.fromEntries(baseIndices.map(([id, index]) => [id, normalizeIndexBase(index, id)])),
 		// @ts-ignore remove legacy property in case it was present on the server object
 		indices: undefined,
@@ -232,7 +233,7 @@ function normalizeMetadataGroupsV4(blIndex: BLTypes.BLIndexMetadataV4): Normaliz
 	return metadataGroupsNormalized;
 }
 
-function normalizeIndexV4(blIndex: BLTypes.BLIndexMetadataV4, relations: BLTypes.BLRelationInfo): NormalizedIndex {
+function normalizeIndexV4(blIndex: BLTypes.BLIndexMetadataV4, relations: BLTypes.BLRelationInfo, runtimeVersion: string): NormalizedIndex {
 	const indexId = blIndex.indexName;
 	return {
 		...normalizeIndexBase(
@@ -246,7 +247,8 @@ function normalizeIndexV4(blIndex: BLTypes.BLIndexMetadataV4, relations: BLTypes
 			},
 			indexId,
 		),
-		blacklabVersion: blIndex.versionInfo.blacklabVersion,
+		indexerVersion: BLTypes.normalizeBlackLabVersion(blIndex.versionInfo.blacklabVersion),
+		runtimeVersion: BLTypes.normalizeBlackLabVersion(runtimeVersion),
 		annotatedFields: mapReduce(
 			Object.entries(blIndex.annotatedFields).map(([id, field]) => normalizeAnnotatedFieldV4(id, field)),
 			'id',
@@ -403,7 +405,7 @@ function normalizeMetadataGroupsV5(blIndex: BLTypes.BLIndexMetadata): Normalized
 	return metadataGroupsNormalized;
 }
 
-function normalizeIndexV5(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.BLRelationInfo): NormalizedIndex {
+function normalizeIndexV5(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.BLRelationInfo, runtimeVersion: string): NormalizedIndex {
 	const indexId = blIndex.corpusName;
 	return {
 		...normalizeIndexBase(
@@ -416,7 +418,8 @@ function normalizeIndexV5(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.B
 			},
 			indexId,
 		),
-		blacklabVersion: blIndex.versionInfo.blacklabVersion,
+		indexerVersion: BLTypes.normalizeBlackLabVersion(blIndex.versionInfo.blacklabVersion),
+		runtimeVersion: BLTypes.normalizeBlackLabVersion(runtimeVersion),
 		annotatedFields: mapReduce(
 			Object.entries(blIndex.annotatedFields).map(([id, field]) => normalizeAnnotatedFieldV5(id, field)),
 			'id',
@@ -468,8 +471,8 @@ function getRemnantAnnotations<TAnnotation extends BLTypes.BLAnnotation | BLType
 }
 
 /** Normalize complete BlackLab v4 or v5 corpus metadata. */
-export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata | BLTypes.BLIndexMetadataV4, relations: BLTypes.BLRelationInfo): NormalizedIndex {
-	return BLTypes.isBLIndexMetadataV5(blIndex) ? normalizeIndexV5(blIndex, relations) : normalizeIndexV4(blIndex, relations);
+export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata | BLTypes.BLIndexMetadataV4, relations: BLTypes.BLRelationInfo, runtimeVersion: string): NormalizedIndex {
+	return BLTypes.isBLIndexMetadataV5(blIndex) ? normalizeIndexV5(blIndex, relations, runtimeVersion) : normalizeIndexV4(blIndex, relations, runtimeVersion);
 }
 
 /**

@@ -20,7 +20,7 @@ import type { GroupDisplayMode } from '@/features/search/model/results/result-ty
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { Corpus } from '@/types/apptypes';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { isBLCollocationType } from '@/types/blacklabtypes';
+import { isBLCollocationType, type BLCollocationScorer } from '@/types/blacklabtypes';
 import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import parseLucene from '@/utils/luceneparser';
 
@@ -774,8 +774,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		return {
 			customState: JSON.parse(this.getString('resultViewCustomState', 'null', v => v ?? 'null')!),
 			groupBy: this.groupBy,
+			collocationScorer: this.hasCollocationType ? (this.getString('scorertype', 'coll-dice', value => value || 'coll-dice') as BLCollocationScorer) : 'coll-dice',
 			sort: this.getString('sort', null, v => (v ? v : null)),
-			viewGroup: this.getString('viewgroup', undefined, v => (v && this.groupBy.length > 0 ? v : null)),
+			viewGroup: this.getString('viewgroup', undefined, v => (v && (this.groupBy.length > 0 || this.hasCollocationType) ? v : null)),
 			groupDisplayMode: this.getString('groupDisplayMode', null, v => (['table', 'docs', 'hits', 'relative docs', 'relative hits', 'tokens'].includes(v ?? '') ? v : null)) as GroupDisplayMode | null,
 			first: this.getNumber('first', null, v => (v != null && v >= 0 ? v : null)) ?? 0,
 			number: this.getNumber('number', this.dependencies.globalResultsState.pageSize, v => (v != null && v > 0 ? v : null)) ?? 20,

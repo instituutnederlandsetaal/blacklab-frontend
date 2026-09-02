@@ -1,5 +1,5 @@
 <template>
-	<th :class="col.class" :style="col.style">
+	<th :class="col.class" :style="col.style" :aria-sort="ariaSort">
 		<slot></slot>
 		<SelectPicker
 			v-if="Array.isArray(col.sort)"
@@ -18,6 +18,8 @@
 		/>
 		<a v-else-if="col.sort" role="button" :class="['sort', { disabled: disabled }]" :title="col.title" @click="emit('changeSort', col.sort)">
 			{{ col.label }}
+			<span v-if="isActiveSort" :class="['fa', sort?.startsWith('-') ? 'fa-sort-down' : 'fa-sort-up']" aria-hidden="true"></span>
+			<span v-if="isActiveSort" class="sr-only">{{ $t(sort?.startsWith('-') ? 'results.table.sortedDescending' : 'results.table.sortedAscending') }}</span>
 			<debug
 				><b>[{{ col.debugLabel || col.key }}]</b></debug
 			>
@@ -31,15 +33,19 @@
 	</th>
 </template>
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import type { ColumnDef } from '@/pages/search/results/table/table-layout';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-defineProps<{
+const props = defineProps<{
 	disabled: boolean;
 	col: ColumnDef;
 	sort?: string | null;
 }>();
+const isActiveSort = computed(() => typeof props.col.sort === 'string' && props.sort?.replace(/^-/, '') === props.col.sort.replace(/^-/, ''));
+const ariaSort = computed(() => (isActiveSort.value ? (props.sort?.startsWith('-') ? 'descending' : 'ascending') : undefined));
 const emit = defineEmits<{
 	changeSort: [sort: string];
 }>();

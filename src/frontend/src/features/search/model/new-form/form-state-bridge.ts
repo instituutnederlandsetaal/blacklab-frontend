@@ -19,16 +19,17 @@ function prepareViews(): void {
 }
 
 export function handoffCompiledForm(result: CompiledFormResult): void {
-	const collocations = isCollocationParams(result.params);
-	const viewName = collocations ? 'hits' : (result.targetView ?? (result.params.patt ? 'hits' : 'docs'));
+	const collocationParams = isCollocationParams(result.params) ? result.params : null;
+	const viewName = collocationParams ? 'hits' : (result.targetView ?? (result.params.patt ? 'hits' : 'docs'));
 
 	QueryStore.actions.search({ form: 'new', state: result });
 	prepareViews();
 	InterfaceStore.actions.viewedResults(viewName);
 	const view = ViewStore.getOrCreateModule(viewName);
-	if (collocations) {
+	if (collocationParams) {
 		view.actions.groupBy([]);
-		if (Object.hasOwn(result.params, 'sort')) view.actions.sort(result.params.sort ?? null);
+		view.actions.collocationScorer(collocationParams.scorertype);
+		view.actions.sort(result.params.sort ?? 'score');
 		if (result.resultPreset !== undefined) view.actions.groupDisplayMode(result.resultPreset);
 		return;
 	}

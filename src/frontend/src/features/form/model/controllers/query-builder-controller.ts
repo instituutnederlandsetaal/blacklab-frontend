@@ -76,7 +76,7 @@ function tokenToPatternParts(builderToken: QueryBuilderFieldState['tokens'][numb
 }
 
 /** Compile a complete query-builder state through the shared per-token conversion. */
-function stateToPattern(state: QueryBuilderFieldState) {
+export function queryBuilderStateToPattern(state: QueryBuilderFieldState) {
 	return sequence(state.tokens.flatMap(tokenToPatternParts));
 }
 
@@ -159,7 +159,7 @@ const queryBuilderPersistenceCodec = object({
 		decode: state => ({ tokens: state.tokens }),
 	})
 	.default(({ config }) => createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId))
-	.omitWhen(state => !stateToPattern(state))
+	.omitWhen(state => !queryBuilderStateToPattern(state))
 	.refine((state, { config }) => {
 		for (const token of state.tokens) {
 			const invalidRepeat = validateRepeatBounds(token);
@@ -175,11 +175,11 @@ export const queryBuilderController = defineFieldController<'cql-query-builder',
 	persistence: { key: () => 'query', codec: queryBuilderPersistenceCodec },
 	outputs: ['patt'],
 	collect(_config, _runtime, state, emit) {
-		const pattern = stateToPattern(state);
+		const pattern = queryBuilderStateToPattern(state);
 		if (pattern) emit('patt', pattern);
 	},
 	summarize(config, runtime, state, emit) {
-		const pattern = stateToPattern(state);
+		const pattern = queryBuilderStateToPattern(state);
 		const cql = pattern && compileCql(pattern);
 		if (cql) emit({ label: toValue(config.displayName) ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql });
 	},

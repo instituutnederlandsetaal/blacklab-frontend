@@ -152,6 +152,23 @@
 	},
 	"collocations": {
 		"heading": "搭配词搜索",
+		"sections": {
+			"keyword": "词或结构",
+			"collocate": "可选搭配词限制",
+			"context": "上下文和计算"
+		},
+		"patternMode": "模式输入方式",
+		"modes": {
+			"simple": "简单",
+			"advanced": "高级",
+			"expert": "专家 BCQL"
+		},
+		"patternAnnotation": "标注",
+		"preparingAdvanced": "正在准备查询生成器…",
+		"advancedParseError": "无法将此模式传入查询生成器。您可以继续使用简单或专家模式。",
+		"restrictCollocate": "限制统计的搭配词",
+		"anyCollocate": "所选上下文中的任何 token 都可以统计为搭配词。",
+		"collocates": "搭配词",
 		"keywordPattern": "关键词模式 (BCQL)",
 		"keywordPatternPlaceholder": "例如 [lemma=\"dog\"]",
 		"keywordPatternHelp": "要查找搭配词的词或模式。",
@@ -164,6 +181,9 @@
 			"reltargets": "关系目标"
 		},
 		"context": "上下文窗口",
+		"before": "前置 token 数",
+		"after": "后置 token 数",
+		"contextRequired": "上下文必须在关键词前后至少包含一个 token。",
 		"relationType": "关系类型",
 		"relationTypePlaceholder": "可选的关系类型或正则表达式",
 		"within": "元素范围",
@@ -174,7 +194,24 @@
 			"dice": "Dice 系数",
 			"salience": "显著性"
 		},
-		"sensitive": "区分大小写和重音分组"
+		"sensitive": "区分大小写和重音分组",
+		"results": {
+			"collocate": "搭配词",
+			"associationShort": "关联度",
+			"association": "关联度 ({scorer})",
+			"cooccurrences": "共现次数",
+			"documents": "文档数",
+			"totalCollocates": "搭配词总数",
+			"columnMeanings": "列含义",
+			"help": {
+				"collocate": "关键词附近出现的词或标注值。",
+				"association": "使用 {scorer} 计算的关联强度。",
+				"cooccurrences": "此搭配词在所选上下文窗口中出现的次数。",
+				"documents": "包含这些共现的文档数。"
+			},
+			"backToCollocations": "返回搭配词",
+			"openAllContexts": "打开所有上下文"
+		}
 	},
 	"partOfSpeech": {
 		"noOptions": "没有选项",
@@ -273,6 +310,8 @@
 			"columnLabelAfterHit": "之后 命中",
 			"sortBy": "分类依据：{field}",
 			"sortByDescending": "分类依据：{field} (降序)",
+			"sortedAscending": "升序排列",
+			"sortedDescending": "降序排列",
 			"sort_numberOfHits": "number of hits",
 			"sort_groupName": "group name",
 			"sort_groupSize": "group size",

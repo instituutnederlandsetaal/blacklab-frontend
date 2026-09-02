@@ -88,7 +88,8 @@ const get = {
 				reltype: params.reltype,
 				annotation: params.annotation,
 				sensitive: params.sensitive,
-				scorertype: params.scorertype,
+				scorertype: activeView.collocationScorer,
+				...(activeView.viewGroup ? { viewgroup: activeView.viewGroup } : {}),
 			};
 		}
 
@@ -309,7 +310,11 @@ const actions = {
 			? {
 					...payload,
 					interface: { ...payload.interface, viewedResults: 'hits' },
-					view: { ...payload.view, groupBy: [], viewGroup: null },
+					view: {
+						...payload.view,
+						groupBy: [],
+						sort: payload.view.viewGroup ? payload.view.sort : (payload.view.sort ?? 'score'),
+					},
 				}
 			: payload;
 		FormManager.actions.replace(restoredPayload);

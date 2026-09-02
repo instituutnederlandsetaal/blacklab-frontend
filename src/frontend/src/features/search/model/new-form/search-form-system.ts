@@ -7,6 +7,7 @@ import type { Customizations } from '@/customization-api/internal/internal-api';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { createSearchFormNodeConstructors } from '@/customization-api/shared/form/node-constructors';
 import type { SearchFormWithinAttribute } from '@/customization-api/shared/form/search-form-overrides';
+import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
 import {
 	FormBuilder,
 	FormRuntime,
@@ -46,7 +47,8 @@ import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/ty
 import { blackLabSupportsCollocations } from '@/types/blacklabtypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
-import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
+import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
+import { disambiguatedAnnotationLabel, getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import { normalizeAnnotationUIType } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 import debug from '@/shared/debug/debug';
 import type { Translate } from '@/shared/i18n';
@@ -228,14 +230,45 @@ function createAnnotationLabels(context: BuildContext, annotationIds: string[]):
 	);
 }
 
-function createCollocationsSection(context: BuildContext, sharedFilters: FormNode | null, annotations: NormalizedAnnotation[], mainAnnotationId: string): FormNode {
-	const { builder, translate } = context;
+function createCollocationsSection(
+	context: BuildContext,
+	sharedFilters: FormNode | null,
+	annotations: NormalizedAnnotation[],
+	mainAnnotationId: string,
+	withinOptions: WithinFieldOption[],
+	sortWithinOptions: boolean,
+): FormNode {
+	const { builder, nodeConstructors, translate } = context;
+	const advancedField = createFormFieldNode(`${ids.collocationsField()}.advanced`, queryBuilderController, QueryBuilderField, {
+		options: createQueryBuilderOptions(context, {
+			annotationIds: annotations.map(annotation => annotation.id),
+			defaultAnnotationId: mainAnnotationId,
+		}),
+	});
+	const expertField = createFormFieldNode(`${ids.collocationsField()}.expert`, expertQueryController, RawCqlField, {
+		hideLabel: true,
+	});
+	const sentenceElement = context.customizations.searchFormSentenceElement();
 	const field = createFormFieldNode(ids.collocationsField(), collocationController, CollocationField, {
 		annotationOptions: annotations.map(annotation => ({
 			value: annotation.id,
-			label: () => translate.$tAnnotDisplayName(annotation).toString(),
+			label: () => disambiguatedAnnotationLabel(annotation, annotations, translate),
 		})),
+		advancedField,
+		createAnnotationField: (fieldOptions: Parameters<TokenSequenceCreateField>[0]) => {
+			const annotation = context.corpus.allAnnotationsMap[fieldOptions.annotationId];
+			if (!annotation) throw new Error(`Cannot create collocation pattern field for unknown annotation '${fieldOptions.annotationId}'.`);
+			return nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: fieldOptions.id, showLabel: false, variant: fieldOptions.inheritedVariant });
+		},
 		defaultAnnotation: mainAnnotationId,
+		defaultWithin: sentenceElement && withinOptions.some(option => option.value === sentenceElement) ? sentenceElement : '',
+		expertField,
+		parsePattern: async (cql: string) => {
+			const parsed = await parseBcql(context.blacklabApi, context.corpus.id, cql, mainAnnotationId);
+			return getQueryBuilderStateFromParsedQuery(parsed).query;
+		},
+		sortWithinOptions,
+		withinOptions,
 	});
 	const form = builder
 		.newForm(ids.collocationsForm(), ContainerRenderer, {
@@ -445,10 +478,12 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	const nodeConstructors = createSearchFormNodeConstructors({ blacklabApi, corpus, customizations, tagset, translate });
 	const context: BuildContext = { blacklabApi, builder, corpus, customizations, nodeConstructors, translate };
 	let sharedWithin: FormFieldNode | null = null;
+	let withinOptions: WithinFieldOption[] = [];
+	let sortWithinOptions = false;
 	const spans = corpus.relations.spans;
-	if (customizations.searchFormWithinEnabled() && spans && Object.keys(spans).length) {
+	if (spans && Object.keys(spans).length) {
 		const resolvedWithin = customizations.searchFormWithinOptions();
-		const withinOptions = resolvedWithin.options.map<WithinFieldOption>(option => ({
+		withinOptions = resolvedWithin.options.map<WithinFieldOption>(option => ({
 			...option,
 			label: () => translate.$tWithinElementDisplayName(option),
 			attributes: option.value
@@ -458,11 +493,14 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 					}))
 				: [],
 		}));
-		sharedWithin = createFormFieldNode(ids.withinField(), withinController, WithinField, {
-			options: withinOptions,
-			sortOptions: resolvedWithin.sorted,
-			variant: 'horizontal',
-		});
+		sortWithinOptions = resolvedWithin.sorted;
+		if (customizations.searchFormWithinEnabled()) {
+			sharedWithin = createFormFieldNode(ids.withinField(), withinController, WithinField, {
+				options: withinOptions,
+				sortOptions: sortWithinOptions,
+				variant: 'horizontal',
+			});
+		}
 	}
 	const sharedFilters = createSharedFilters(context);
 
@@ -479,8 +517,8 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	const mainAnnotation = mainAnnotatedField?.annotations[mainAnnotatedField.mainAnnotationId];
 	const collocationAnnotations = Object.values(mainAnnotatedField?.annotations ?? {}).filter(annotation => !annotation.isInternal && annotation.hasForwardIndex);
 	root.addChildren(
-		blackLabSupportsCollocations(corpus.blacklabVersion) && mainAnnotatedField && mainAnnotation && collocationAnnotations.includes(mainAnnotation)
-			? createCollocationsSection(context, sharedFilters, collocationAnnotations, mainAnnotatedField.mainAnnotationId)
+		blackLabSupportsCollocations(corpus.runtimeVersion) && mainAnnotatedField && mainAnnotation && collocationAnnotations.includes(mainAnnotation)
+			? createCollocationsSection(context, sharedFilters, collocationAnnotations, mainAnnotatedField.mainAnnotationId, withinOptions, sortWithinOptions)
 			: null,
 	);
 	customizations.customizeSearchForm(createSearchFormCustomizationApi({ builder, corpus, nodeConstructors, translate }));

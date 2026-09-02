@@ -8,9 +8,9 @@ import enUsBundle from '@assets/locales/en-us.json?raw';
 import nlNlBundle from '@assets/locales/nl-nl.json?raw';
 import zhCnBundle from '@assets/locales/zh-cn.json?raw';
 import { setup, type Preview } from '@storybook/vue3-vite';
-import { defineComponent } from 'vue';
-
 import { createMockI18n } from '@test/mocks/i18n';
+import FloatingVue from 'floating-vue';
+import { defineComponent } from 'vue';
 
 const DebugStub = defineComponent({
 	name: 'debug',
@@ -18,6 +18,7 @@ const DebugStub = defineComponent({
 });
 
 setup(app => {
+	app.use(FloatingVue);
 	app.use(
 		createMockI18n({
 			locale: 'en-us',

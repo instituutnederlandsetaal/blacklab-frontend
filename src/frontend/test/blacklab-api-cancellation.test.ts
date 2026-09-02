@@ -49,7 +49,7 @@ function v4StageOne(): BLIndexMetadataV4 {
 	} as unknown as BLIndexMetadataV4;
 }
 
-async function createApi(version: '4.2.0' | '5.0.0') {
+async function createApi(version: '4.2.0' | '5.0.0' | '5.0.0-SNAPSHOT') {
 	return createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: version });
 }
 
@@ -138,7 +138,7 @@ describe('BlackLab corpus request cancellation', () => {
 		relations.resolve(relationInfo);
 
 		await expect(request).resolves.toBe(normalized);
-		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, relationInfo);
+		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, relationInfo, '4.2.0');
 	});
 
 	test('keeps V5 to one metadata request and uses its inline relations', async () => {
@@ -151,7 +151,7 @@ describe('BlackLab corpus request cancellation', () => {
 		const normalized = { id: 'owner:corpus' };
 		mock.getCancelable.mockReturnValue(metadataRequest.request);
 		mock.normalizeIndex.mockReturnValue(normalized);
-		const api = await createApi('5.0.0');
+		const api = await createApi('5.0.0-SNAPSHOT');
 
 		const request = api.getCorpus('owner:corpus');
 		expect(mock.getCancelable).toHaveBeenCalledOnce();
@@ -159,6 +159,6 @@ describe('BlackLab corpus request cancellation', () => {
 		metadataRequest.resolve(metadata);
 
 		await expect(request).resolves.toBe(normalized);
-		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, inlineRelations);
+		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, inlineRelations, '5.0.0');
 	});
 });

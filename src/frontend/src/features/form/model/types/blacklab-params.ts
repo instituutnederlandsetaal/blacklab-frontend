@@ -44,5 +44,4 @@ export type FormOverrides = Partial<{
 	reltype: string;
 	annotation: string;
 	sensitive: boolean;
-	scorertype: BLCollocationScorer;
 }>;

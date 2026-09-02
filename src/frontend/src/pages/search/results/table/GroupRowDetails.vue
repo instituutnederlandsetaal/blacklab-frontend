@@ -4,14 +4,17 @@
 			<template v-if="concordances.results">
 				<div class="concordance-controls clearfix">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')">
-						<span class="fa fa-angle-double-left"></span> {{ $t('results.table.viewDetailedConcordances') }}
+						<span class="fa fa-angle-double-right"></span>
+						{{ operation === 'collocations' ? $t('collocations.results.openAllContexts') : $t('results.table.viewDetailedConcordances') }}
 					</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
 						<template v-if="concordances.loading"><Spinner :inline="true" /> {{ $t('results.table.loading') }}</template>
 						<template v-else>{{ $t('results.table.loadMoreConcordances') }}</template>
 					</button>
 
-					<button type="button" class="close close-concordances" :title="$t('results.table.close').toString()" @click="$emit('close')"><span>&times;</span></button>
+					<button type="button" class="close close-concordances" :aria-label="$t('results.table.close').toString()" :title="$t('results.table.close').toString()" @click="$emit('close')">
+						<span aria-hidden="true">&times;</span>
+					</button>
 				</div>
 
 				<GenericTable
@@ -24,7 +27,8 @@
 				/>
 				<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')">
-						<span class="fa fa-angle-double-left"></span> {{ $t('results.table.viewDetailedConcordances') }}
+						<span class="fa fa-angle-double-right"></span>
+						{{ operation === 'collocations' ? $t('collocations.results.openAllContexts') : $t('results.table.viewDetailedConcordances') }}
 					</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
 						<template v-if="concordances.loading"><Spinner inline /> {{ $t('results.table.loading') }}</template>
@@ -32,8 +36,11 @@
 					</button>
 				</div>
 			</template>
-			<div v-if="concordances.error != null" class="text-danger" v-html="concordances.error"></div>
-			<Spinner v-if="!concordances.results && concordances.loading" center />
+			<div v-if="concordances.error != null" class="text-danger" role="alert">{{ concordances.error }}</div>
+			<div v-if="!concordances.results && concordances.loading" role="status" aria-live="polite">
+				<Spinner center />
+				<span class="sr-only">{{ $t('results.table.loading') }}</span>
+			</div>
 		</td>
 	</tr>
 </template>
@@ -42,13 +49,16 @@
 import { computed, watch } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
+import type { EffectiveCollocationParameters } from '@/features/search/model/results/result-types';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { makeRows } from '@/pages/search/results/table/table-layout';
-import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLCollocationsParameters, BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
+import { ApiError } from '@/shared/api/lib/api-types';
 
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
@@ -64,7 +74,7 @@ const concordances = computed(
 	() =>
 		new PaginatedGetter<Rows>((oldRows, first, number) => {
 			// make a copy of the parameters so we don't clear them for all components using the summary
-			const requestParameters: BLSearchParameters = {
+			const requestParameters: BLSearchParameters | BLCollocationsParameters = {
 				...props.query,
 				// Do not clear sample/samplenum/samplecount,
 				// or we could retrieve concordances that weren't included in the input results for the grouping
@@ -76,7 +86,15 @@ const concordances = computed(
 			};
 
 			const indexId = corpus.value.id!;
-			const r = props.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters);
+			let r: Promise<BLHitResults | BLDocResults>;
+			if (props.operation === 'collocations') {
+				const hitsParameters = createCollocationHitsParameters(requestParameters as EffectiveCollocationParameters);
+				r = hitsParameters
+					? blacklab.getHits<BLHitResults>(indexId, hitsParameters)
+					: Promise.reject(new ApiError('Invalid collocation request', 'The contexts for this collocate could not be requested.', 'No results', undefined));
+			} else {
+				r = props.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters as BLSearchParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters as BLSearchParameters);
+			}
 
 			return r
 				.then(newResults => makeRows(newResults, props.info))

@@ -6,6 +6,30 @@ import { isBLError } from '@/types/blacklabtypes';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 
+const MAX_RESPONSE_DIAGNOSTIC_LENGTH = 2000;
+const MAX_RESPONSE_PREVIEW_LENGTH = 240;
+
+function responseText(data: unknown): string {
+	let text: string;
+	if (typeof data === 'string') text = data;
+	else {
+		try {
+			text = JSON.stringify(data);
+		} catch {
+			text = String(data);
+		}
+	}
+	return text.length > MAX_RESPONSE_DIAGNOSTIC_LENGTH ? `${text.slice(0, MAX_RESPONSE_DIAGNOSTIC_LENGTH)}…` : text;
+}
+
+function responsePreview(data: unknown): string {
+	const plainText = responseText(data)
+		.replace(/<[^>]*>/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
+	return plainText.length > MAX_RESPONSE_PREVIEW_LENGTH ? `${plainText.slice(0, MAX_RESPONSE_PREVIEW_LENGTH)}…` : plainText;
+}
+
 /** Normalize the query parameters recursively, removing null or undefined values, empty arrays and empty strings. */
 export function cleanQueryParams(params: null | undefined): undefined;
 export function cleanQueryParams<T extends Record<any, any>>(params: T): Partial<T>;
@@ -88,28 +112,19 @@ export async function handleError(error: AxiosError): Promise<never> {
 				return Promise.reject(new ApiError(code.textContent!, message.textContent!, response.statusText, response.status, diagnostics));
 			} else {
 				return Promise.reject(
-					new ApiError(
-						`Server returned an error (${response.statusText}) at: ${response.config.url}`,
-						xml.textContent || response.data, // return just the text of the xml document.
-						response.statusText,
-						response.status,
-					),
+					new ApiError(`Server returned an error (${response.statusText}) at: ${response.config.url}`, responsePreview(xml.textContent || response.data), response.statusText, response.status),
 				);
 			}
 		} catch {
 			// failed to parse xml but response indicated it was xml... Return the raw text instead.
-			return Promise.reject(
-				new ApiError(
-					`Server returned an error (${response.statusText}) at: ${response.config.url}`,
-					response.data, // just print the raw text we received
-					response.statusText,
-					response.status,
-				),
-			);
+			return Promise.reject(new ApiError(`Server returned an error (${response.statusText}) at: ${response.config.url}`, responsePreview(response.data), response.statusText, response.status));
 		}
 	} else {
-		const message = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-		return Promise.reject(new ApiError(`Server returned an unexpected error at: ${response.config.url}`, message, response.statusText, response.status, message));
+		const diagnostics = responseText(response.data);
+		const malformedJson = /json/i.test(contentType) && typeof response.data === 'string';
+		const preview = responsePreview(response.data);
+		const message = malformedJson ? 'The server returned malformed JSON, so the results could not be read.' : `The server returned an unexpected response${preview ? `: ${preview}` : '.'}`;
+		return Promise.reject(new ApiError(`Server returned an unexpected error at: ${response.config.url}`, message, response.statusText, response.status, diagnostics));
 	}
 }
 

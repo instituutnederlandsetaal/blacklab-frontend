@@ -7,19 +7,31 @@ import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import type { Translate } from '@/shared/i18n';
 import { optionValues } from '@/shared/utils/options';
 
-export function createQueryBuilderOptions(input: {
-	blacklabApi: BlackLabApi;
-	corpus: NormalizedIndex;
-	customizations: Pick<Customizations, 'searchFormAdvancedAnnotationIds' | 'searchFormAdvancedDefaultAnnotationId'>;
-	translate: Translate;
-}): CqlQueryBuilderOptions {
+export function createQueryBuilderOptions(
+	input: {
+		blacklabApi: BlackLabApi;
+		corpus: NormalizedIndex;
+		customizations: Pick<Customizations, 'searchFormAdvancedAnnotationIds' | 'searchFormAdvancedDefaultAnnotationId'>;
+		translate: Translate;
+	},
+	annotationSelection?: { annotationIds: string[]; defaultAnnotationId: string },
+): CqlQueryBuilderOptions {
 	const { corpus, customizations, blacklabApi, translate } = input;
 	const mainField = corpus.annotatedFields[corpus.mainAnnotatedField];
 	const allAnnotationsMap = mainField.annotations;
 	const mainAnnotationGroups = corpus.annotationGroups.filter(group => group.annotatedFieldId === corpus.mainAnnotatedField);
-	const annotationGroups = getAnnotationSubset(customizations.searchFormAdvancedAnnotationIds(), mainAnnotationGroups, allAnnotationsMap, 'Search', translate, false, false);
+	const annotationGroups = getAnnotationSubset(
+		annotationSelection?.annotationIds ?? customizations.searchFormAdvancedAnnotationIds(),
+		mainAnnotationGroups,
+		allAnnotationsMap,
+		'Search',
+		translate,
+		false,
+		false,
+	);
 	const annotationOptions = annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(group => group.options);
-	const defaultAnnotationId = customizations.searchFormAdvancedDefaultAnnotationId(optionValues(annotationOptions)) ?? '';
+	const optionIds = optionValues(annotationOptions);
+	const defaultAnnotationId = annotationSelection?.defaultAnnotationId ?? customizations.searchFormAdvancedDefaultAnnotationId(optionIds) ?? '';
 
 	return {
 		indexId: corpus.id,

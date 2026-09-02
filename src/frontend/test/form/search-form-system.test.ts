@@ -27,6 +27,7 @@ import {
 	type ParallelFieldState,
 	type TokenSequenceFieldState,
 } from '@/features/form';
+import { createCollocationSimpleFieldNode } from '@/features/form/fields/collocation-field';
 import type { SummaryViewConfig } from '@/features/form/model/views/summary-view';
 import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
@@ -134,7 +135,6 @@ function createCorpus(): Corpus {
 			{ annotatedFieldId: 'contents', entries: ['word', 'lemma', 'word_or_lemma'], fields: [annotations.word, annotations.lemma, annotations.word_or_lemma], id: 'Basics', isRemainderGroup: false },
 			{ annotatedFieldId: 'contents', entries: ['pos'], fields: [annotations.pos], id: 'Grammar', isRemainderGroup: false },
 		],
-		blacklabVersion: '5.0.0',
 		contentViewable: true,
 		description: '',
 		displayName: 'Test corpus',
@@ -144,6 +144,7 @@ function createCorpus(): Corpus {
 		hasRelations: false,
 		id: 'test-corpus',
 		indexProgress: null,
+		indexerVersion: '4.4.0',
 		isParallelCorpus: false,
 		mainAnnotatedField: 'contents',
 		metadataFieldGroups: [
@@ -160,6 +161,7 @@ function createCorpus(): Corpus {
 		parallelAnnotatedFieldsMap: {},
 		parallelFieldPrefix: '',
 		relations: { relations: {}, spans: {} },
+		runtimeVersion: '5.0.0',
 		status: 'available',
 		textDirection: 'ltr',
 		timeModified: '',
@@ -358,6 +360,7 @@ beforeEach(() => {
 	state.search.shared.searchMetadataIds = ['author', 'genre'];
 	state.search.shared.within.enabled = false;
 	state.search.shared.within.elements = [];
+	state.search.shared.within.sentenceElement = null;
 	state.search.shared.alignBy.enabled = false;
 	state.search.shared.alignBy.elements = [];
 	state.search.shared.alignBy.defaultValue = '';
@@ -384,9 +387,9 @@ describe('search form system', () => {
 		{ version: '5.0.0', available: true },
 		{ version: '6.0.0', available: true },
 		{ version: 'dev', available: true },
-	])('gates Collocations for BlackLab $version', ({ version, available }) => {
+	])('gates Collocations for BlackLab $version runtime with a BlackLab 4 index', ({ version, available }) => {
 		const corpus = createCorpus();
-		corpus.blacklabVersion = version;
+		corpus.runtimeVersion = version;
 		const definition = createDefinition(corpus).definition;
 
 		expect(definition.getContainer(ids.collocationsSection()) !== null).toBe(available);
@@ -404,14 +407,29 @@ describe('search form system', () => {
 		expect(definition.getField(ids.collocationsField())?.component).toBe(CollocationField);
 	});
 
+	test('renders the structured Collocations form through the retained field', async () => {
+		const runtime = createDefinition();
+		runtime.state.uiState.value[ids.root()] = ids.collocationsSection();
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		await nextTick();
+
+		expect(wrapper.findAll('.blf-collocation-section')).toHaveLength(3);
+		expect(wrapper.findAll('.blf-collocation-pattern-modes button')).toHaveLength(3);
+		expect(wrapper.get('.blf-collocation-section input[type="number"]').attributes('min')).toBe('0');
+	});
+
 	test('compiles the retained collocation field with its reused shared filter region', () => {
 		const runtime = createDefinition();
 		const state = runtime.state.state.value[ids.collocationsField()] as CollocationFieldState;
 		runtime.state.state.value[ids.collocationsField()] = {
 			...state,
-			patt: ' [word="ship"] ',
-			collpatt: ' [pos="N.*"] ',
-			context: '3:4',
+			keyword: { ...state.keyword, mode: 'expert', expert: ' [word="ship"] ' },
+			collocate: {
+				enabled: true,
+				pattern: { ...state.collocate.pattern, mode: 'expert', expert: ' [pos="N.*"] ' },
+			},
+			before: 3,
+			after: 4,
 			annotation: 'lemma',
 		};
 		runtime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
@@ -433,6 +451,34 @@ describe('search form system', () => {
 		});
 	});
 
+	test('restores a legacy Collocations URL and rewrites it to structured persistence', () => {
+		const runtime = createDefinition();
+		const restored = restoreSearchForm(runtime, {
+			'f.form': ids.collocationsForm(),
+			'f.collocations': String.raw`[word\="ship"];cp=[pos="N.*"];c=3:4;a=lemma;st=coll-salience`,
+		});
+		runtime.state.replaceState(restored.state);
+
+		expect(runtime.state.state.value[ids.collocationsField()]).toMatchObject({
+			keyword: { mode: 'expert', expert: '[word="ship"]' },
+			collocate: { enabled: true, pattern: { mode: 'expert', expert: '[pos="N.*"]' } },
+			before: 3,
+			after: 4,
+			annotation: 'lemma',
+		});
+		const compiled = runtime.compile(ids.collocationsForm());
+		expect(compiled.params).toMatchObject({
+			patt: '[word="ship"]',
+			collpatt: '[pos="N.*"]',
+			context: '3:4',
+			annotation: 'lemma',
+			scorertype: 'coll-dice',
+		});
+		expect(compiled.encoded['f.collocations']).toMatch(/^v=2(?:;|$)/);
+		expect(compiled.encoded['f.collocations']).not.toContain('st=');
+		expect(restored.submittedResult?.params).toMatchObject(compiled.params);
+	});
+
 	test('uses deferred labels for usable forward-index annotations from the main field only', () => {
 		const corpus = createCorpus();
 		const mainField = corpus.allAnnotatedFieldsMap.contents;
@@ -451,11 +497,15 @@ describe('search form system', () => {
 		}).runtime.value!;
 		const field = runtime.definition.getField(ids.collocationsField()) as unknown as {
 			annotationOptions: Array<{ value: string; label: () => string }>;
+			createAnnotationField: Parameters<typeof createCollocationSimpleFieldNode>[0]['createAnnotationField'];
 			defaultAnnotation: string;
+			id: string;
 		};
+		const simpleValueField = createCollocationSimpleFieldNode(field, 'keyword', 'word');
 
 		expect(field.defaultAnnotation).toBe('word');
 		expect(field.annotationOptions.map(option => option.value)).toEqual(['word', 'lemma', 'word_or_lemma', 'pos']);
+		expect(simpleValueField).toMatchObject({ showLabel: false, variant: 'simple' });
 		expect(field.annotationOptions[0].label()).toBe('en:word');
 		locale.value = 'nl';
 		expect(field.annotationOptions[0].label()).toBe('nl:word');
@@ -1068,7 +1118,8 @@ describe('search form system', () => {
 		const unregister = customizationRegistry.registerForm({
 			customize(form) {
 				const id = form.ids.queryField('simple');
-				expect(form.corpus.blacklabVersion).toBe('5.0.0');
+				expect(form.corpus.runtimeVersion).toBe('5.0.0');
+				expect(form.corpus.indexerVersion).toBe('4.4.0');
 				observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
 				expect(form).not.toHaveProperty('setAnnotationUiType');
 				form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
@@ -1109,13 +1160,13 @@ describe('search form system', () => {
 
 		try {
 			const corpus = createCorpus();
-			corpus.blacklabVersion = '4.4.0';
+			corpus.runtimeVersion = '4.4.0';
 			const definition = createDefinition(corpus).definition;
 
 			expect(definition.getForm(customFormId)).toBeNull();
 			expect(error).toHaveBeenCalledWith(
 				'Error in search form graph customization callback:',
-				expect.objectContaining({ message: "Collocation form target 'custom/collocations-form' requires BlackLab 5 or newer, or dev; this corpus reports '4.4.0'." }),
+				expect.objectContaining({ message: "Collocation form target 'custom/collocations-form' requires BlackLab 5 or newer, or dev; this server reports '4.4.0'." }),
 			);
 			expect(createDefinition().definition.getForm(customFormId)).not.toBeNull();
 		} finally {
@@ -1419,14 +1470,113 @@ describe('search form system', () => {
 			{ value: 'p', label: 'Custom paragraph', title: 'Paragraph title' },
 			{ value: 's', label: 'Custom sentence', title: null },
 		];
+		state.search.shared.within.sentenceElement = 's';
 
-		const within = createDefinition(corpus).definition.getField(ids.withinField()) as unknown as {
+		const runtime = createDefinition(corpus);
+		const within = runtime.definition.getField(ids.withinField()) as unknown as {
 			options: Array<{ value: string; label?: OptionText; title?: OptionText | null }>;
 		};
+		const collocations = runtime.definition.getField(ids.collocationsField()) as unknown as { defaultWithin: string };
 
 		expect(within.options.map(option => option.value)).toEqual(['', 'p', 's']);
 		expect(within.options.map(optionLabel)).toEqual(['', 'Custom paragraph', 'Custom sentence']);
 		expect(within.options.map(option => optionText(option.title))).toEqual([undefined, 'Paragraph title', null]);
+		expect(collocations.defaultWithin).toBe('s');
+		expect((runtime.state.state.value[ids.collocationsField()] as CollocationFieldState).within).toBe('s');
+	});
+
+	test('keeps collocation-owned within semantics when the shared search control is hidden', () => {
+		const corpus = createCorpus();
+		corpus.relations = {
+			relations: {},
+			spans: {
+				l: { count: 1 },
+				p: { count: 1 },
+			},
+		};
+		const state = UIStore.getState();
+		state.search.shared.within.enabled = true;
+		state.search.shared.within.elements = [
+			{ value: '', label: 'Document', title: null },
+			{ value: 'l', label: 'Line', title: null },
+			{ value: 'p', label: 'Paragraph', title: null },
+		];
+		state.search.shared.within.sentenceElement = 'p';
+		const system = createScopedSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			corpus: ref(corpus),
+			tagset: ref(undefined),
+			translate: createMockTranslate(),
+		});
+		const initialRuntime = system.runtime.value!;
+		expect(initialRuntime.definition.getField(ids.withinField())).not.toBeNull();
+
+		const unregister = customizationRegistry.registerForm(form => form.configureWithin({ enabled: false }));
+
+		try {
+			const replacementRuntime = system.runtime.value!;
+			const collocations = replacementRuntime.definition.getField(ids.collocationsField()) as unknown as {
+				defaultWithin: string;
+				withinOptions: Array<{ value: string }>;
+			};
+			expect(replacementRuntime).not.toBe(initialRuntime);
+			expect(replacementRuntime.definition.getField(ids.withinField())).toBeNull();
+			expect(collocations.defaultWithin).toBe('p');
+			expect(collocations.withinOptions.map(option => option.value)).toEqual(['', 'l', 'p']);
+
+			const restored = restoreSearchFormState(replacementRuntime, {
+				'f.form': ids.collocationsForm(),
+				'f.collocations': 'v=2;q={s={word;s=god}}',
+				within: 'p',
+			});
+			expect(restored.rawOverrides).not.toHaveProperty('within');
+			expect((restored.state[ids.collocationsField()] as CollocationFieldState).within).toBe('p');
+			replacementRuntime.state.replaceState(restored);
+			const compiled = replacementRuntime.compile(ids.collocationsForm());
+			expect(compiled.params).toMatchObject({ within: 'p' });
+			expect(compiled.encoded['f.collocations']).not.toContain(';w=');
+		} finally {
+			unregister();
+		}
+	});
+
+	test('rebuilds and restores a customized range filter in the collocation form', () => {
+		const system = createScopedSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			corpus: ref(createCorpus()),
+			tagset: ref(undefined),
+			translate: createMockTranslate(),
+		});
+		const initialRuntime = system.runtime.value!;
+		const unregister = customizationRegistry.registerForm({
+			customize(form) {
+				form.graph
+					.getContainer(form.ids.sharedFilters())!
+					.prependChild(
+						form.metadataMultiFieldRange(
+							{ id: 'witnessYear-range', defaultDisplayName: 'Witness Year' },
+							{ id: 'witnessYear-range', fromField: 'witness_year_from', toField: 'witness_year_to', inputType: 'number' },
+						),
+					);
+			},
+		});
+
+		try {
+			const replacementRuntime = system.runtime.value!;
+			expect(replacementRuntime).not.toBe(initialRuntime);
+			const restored = restoreSearchFormState(replacementRuntime, {
+				'f.form': ids.collocationsForm(),
+				'f.collocations': 'v=2;q={s={word;s=god}}',
+				'f.witness_year_from-witness_year_to': 'l=1300;h=1310',
+				filter: '(witness_year_from:[1300 TO 1310] AND witness_year_to:[1300 TO 1310])',
+			});
+			expect(restored.state['witnessYear-range']).toEqual({ low: '1300', high: '1310', mode: 'strict' });
+			expect(restored.rawOverrides).not.toHaveProperty('filter');
+			replacementRuntime.state.replaceState(restored);
+			expect(replacementRuntime.compile(ids.collocationsForm()).params.filter).toBe('(witness_year_from:[1300 TO 1310] AND witness_year_to:[1300 TO 1310])');
+		} finally {
+			unregister();
+		}
 	});
 
 	test('normalizes legacy within visibility hooks through the customization adapter', () => {

@@ -1,5 +1,5 @@
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
-import { isBLCollocationType, type BLCollocationScorer, type BLCollocationType } from '@/types/blacklabtypes';
+import { isBLCollocationType, type BLCollocationType } from '@/types/blacklabtypes';
 
 import { isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from './form-query-ir';
 
@@ -35,7 +35,6 @@ export type FormOutputValues = {
 	reltype: string;
 	annotation: string;
 	sensitive: boolean;
-	scorertype: BLCollocationScorer;
 };
 
 export type FormOutputName = keyof FormOutputValues;
@@ -63,7 +62,6 @@ const OUTPUT_VALIDATORS: Record<FormOutputName, (value: unknown) => boolean> = {
 	reltype: value => typeof value === 'string',
 	annotation: value => typeof value === 'string',
 	sensitive: value => typeof value === 'boolean',
-	scorertype: value => typeof value === 'string',
 };
 
 /** Validate an emission against the shared output vocabulary. */
