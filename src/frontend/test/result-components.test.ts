@@ -2,18 +2,14 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
+import { computed } from 'vue';
 
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 
 const query = vi.hoisted(() => ({ pattern: '', filters: '' }));
 
-vi.mock('@/features/search/model/query-state', () => ({
-	get: {
-		patternSummary: () => query.pattern,
-		filterSummary: () => query.filters,
-	},
-}));
+vi.mock('@/features/search/model/search-summary', () => ({ useSearchSummary: () => computed(() => ({ pattern: query.pattern, filter: query.filters })) }));
 
 describe('result support components', () => {
 	test.each([

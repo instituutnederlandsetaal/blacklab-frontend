@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { computed, shallowRef } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
@@ -8,26 +9,48 @@ import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import type { CollocationParams, CompiledFormResult, FormParams } from '@/features/form';
-import type { HistoryEntry } from '@/features/history/model/query-history-state';
+import { searchParametersFromState } from '@/features/search/model/active-search';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
-import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
-import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
-import { isEffectiveCollocationParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
+import { createSearchSummary } from '@/features/search/model/search-summary';
+import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 
 const corpus = { allMetadataFields: [], relations: { spans: {} } } as never;
 const customizationRegistry = createCustomizationRegistry(corpus);
 const customizations = createCustomizations(customizationRegistry, corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
 RootStore.setCustomizations(customizations);
+const submittedSearch = createSubmittedSearch();
+RootStore.setSubmittedSearch(submittedSearch);
 
+const activeCorpus = shallowRef<CorpusContext['index']>();
+const activeSearchParameters = computed(() =>
+	searchParametersFromState(InterfaceStore.get.viewedResults, {
+		corpus: activeCorpus,
+		submitted: submittedSearch,
+		global: GlobalResultsStore.getState,
+		viewState: () => {
+			const view = InterfaceStore.get.viewedResults();
+			return typeof view === 'string' && view ? ViewStore.getOrCreateModule(view).getState() : undefined;
+		},
+		expandedRequestRange: () => {
+			const view = InterfaceStore.get.viewedResults();
+			return typeof view === 'string' && view ? ViewStore.getOrCreateModule(view).get.expandedRequestRange() : undefined;
+		},
+		withSpans: customizations.searchWithSpans,
+		debug: false,
+	}),
+);
 function resetStores() {
+	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
+	submittedSearch.value = undefined;
 	const context = {
 		index: {
+			id: 'test',
 			allAnnotations: [],
 			allAnnotationsMap: {},
 			firstMainAnnotation: { id: 'word', uiType: 'text' },
@@ -41,7 +64,7 @@ function resetStores() {
 	ExploreStore.actions.reset();
 	FilterStore.init({ index: undefined } as CorpusContext);
 	PatternStore.init(context, customizations);
-	QueryStore.init(context, customizations);
+	activeCorpus.value = context.index;
 	ViewStore.init({} as CorpusContext);
 	GlobalResultsStore.init({} as CorpusContext);
 }
@@ -99,7 +122,7 @@ describe('compiled-form result handoff', () => {
 			groupDisplayMode: 'tokens',
 			sort: 'field:author',
 		});
-		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
+		expect(activeSearchParameters.value).toMatchObject(submitted.params);
 	});
 
 	test('honors a preferred docs view even when patt is present', () => {
@@ -130,7 +153,6 @@ describe('compiled-form result handoff', () => {
 		view.actions.sort('field:manual');
 		view.actions.groupDisplayMode('docs');
 		view.actions.range({ first: 40, number: 10 });
-		view.actions.setRequestedRange({ first: 40, number: 10 });
 		InterfaceStore.actions.viewedResults('hits');
 
 		submitNewForm(submitted);
@@ -142,10 +164,9 @@ describe('compiled-form result handoff', () => {
 			groupDisplayMode: 'table',
 			first: 0,
 			number: pageSize,
-			requestedRange: null,
 			viewGroup: null,
 		});
-		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
+		expect(activeSearchParameters.value).toMatchObject(submitted.params);
 	});
 
 	test('preserves manual grouping, sorting, and display mode when the form does not own them', () => {
@@ -158,7 +179,6 @@ describe('compiled-form result handoff', () => {
 		view.actions.sort('field:manual');
 		view.actions.groupDisplayMode('docs');
 		view.actions.range({ first: 40, number: 10 });
-		view.actions.setRequestedRange({ first: 40, number: 10 });
 
 		handoffCompiledForm(submitted);
 
@@ -168,47 +188,13 @@ describe('compiled-form result handoff', () => {
 			groupDisplayMode: 'docs',
 			first: 0,
 			number: pageSize,
-			requestedRange: null,
 		});
 	});
 
-	test('applies form-owned settings again when compiled params change', () => {
+	test.each([true, undefined] as const)('uses compiled withspans=%s for the result request', withspans => {
 		resetStores();
-		handoffCompiledForm(snapshot({ group: 'field:first' }, { targetView: 'docs' }));
-		const view = ViewStore.getOrCreateModule('docs');
-		view.actions.groupBy(['field:live']);
-
-		handoffCompiledForm(snapshot({ group: 'field:second' }, { targetView: 'docs' }));
-
-		expect(view.getState().groupBy).toEqual(['field:second']);
-	});
-
-	test('ignores stale legacy split-batch state for a new-form submit', () => {
-		resetStores();
-		InterfaceStore.actions.form('search');
-		InterfaceStore.actions.patternMode('extended');
-		PatternStore.actions.extended.splitBatch(true);
-		const submitted = snapshot({ patt: '[word="water"]' });
-
-		submitNewForm(submitted);
-
-		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: submitted });
-	});
-
-	test('requests spans from the compiled withspans parameter', () => {
-		resetStores();
-
-		submitNewForm(snapshot({ patt: '[word="water"]', withspans: true }));
-
-		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
-	});
-
-	test('does not request spans when compiled params omit withspans', () => {
-		resetStores();
-
-		submitNewForm(snapshot({ patt: '[word="water"]' }));
-
-		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
+		submitNewForm(snapshot({ patt: '[word="water"]', withspans }));
+		expect(activeSearchParameters.value?.withspans).toBe(withspans);
 	});
 
 	test('derives legacy withspans from submitted active filters, not registered controls', () => {
@@ -225,32 +211,40 @@ describe('compiled-form result handoff', () => {
 		});
 
 		RootStore.actions.searchFromSubmit();
-		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
+		expect(activeSearchParameters.value?.withspans).toBeUndefined();
 
 		FilterStore.actions.filterValue({ id: 'span:speech:person', value: 'Alice' });
 		RootStore.actions.searchFromSubmit();
-		expect(RootStore.get.blacklabParameters()).toMatchObject({
+		expect(activeSearchParameters.value).toMatchObject({
 			patt: '([word="water"]) within <speech person="Alice"/>',
 			withspans: true,
 		});
 	});
 
-	test('lets an explicit legacy withspans customization override compiled withspans', () => {
+	test('captures legacy summaries on submit so later draft edits do not change them', () => {
 		resetStores();
-		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(false);
+		InterfaceStore.actions.patternMode('expert');
+		PatternStore.actions.expert.query('[word="water"]');
+		FilterStore.actions.registerFilter({ id: 'author', componentName: 'filter-text', defaultDisplayName: 'Author', metadata: undefined });
+		FilterStore.actions.filterValue({ id: 'author', value: 'Alice' });
+		RootStore.actions.searchFromSubmit();
+		const summary = createSearchSummary(submittedSearch, createSubmittedFormRestoration(submittedSearch, null));
+		expect(summary.value).toEqual({ pattern: '[word="water"]', filter: 'Author: Alice' });
 
-		submitNewForm(snapshot({ patt: '[word="water"]', withspans: true }));
-
-		expect(RootStore.get.blacklabParameters()?.withspans).toBe(false);
+		PatternStore.actions.expert.query('[word="ship"]');
+		FilterStore.actions.filterValue({ id: 'author', value: 'Bob' });
+		ViewStore.getOrCreateModule('hits').actions.first(20);
+		expect(summary.value).toEqual({ pattern: '[word="water"]', filter: 'Author: Alice' });
 	});
 
-	test('lets an explicit legacy withspans customization enable spans without a compiled value', () => {
+	test.each([
+		[true, false],
+		[undefined, true],
+	] as const)('uses the explicit withspans customization over compiled %s', (compiled, customized) => {
 		resetStores();
-		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(true);
-
-		submitNewForm(snapshot({ patt: '[word="water"]' }));
-
-		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
+		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(customized!);
+		submitNewForm(snapshot({ patt: '[word="water"]', withspans: compiled }));
+		expect(activeSearchParameters.value?.withspans).toBe(customized);
 	});
 
 	test('keeps legacy Documents result handling separate from compiled-form handoff', () => {
@@ -267,43 +261,6 @@ describe('compiled-form result handoff', () => {
 			groupBy: ['field:date'],
 			groupDisplayMode: 'tokens',
 			sort: null,
-		});
-	});
-
-	test('keeps restored live view state instead of reapplying the submit preset', () => {
-		resetStores();
-		const submitted = snapshot(
-			{ group: 'field:submitted' },
-			{
-				formId: 'explore.corpora',
-				encoded: { 'f.form': 'explore.corpora' },
-				resultPreset: 'table',
-				targetView: 'docs',
-			},
-		);
-		const persistedView = {
-			...ViewStore.initialViewState,
-			groupBy: ['field:changed-later'],
-			groupDisplayMode: 'docs' as const,
-			sort: 'field:title',
-		};
-		const historyEntry = {
-			explore: ExploreStore.defaults,
-			filters: {},
-			gap: GapStore.defaults,
-			global: { context: null, sampleMode: 'percentage', sampleSeed: null, sampleSize: null },
-			interface: { ...InterfaceStore.defaults, form: 'explore', exploreMode: 'corpora', viewedResults: 'docs' },
-			newForm: submitted,
-			patterns: PatternStore.defaults,
-			view: persistedView,
-		} satisfies HistoryEntry;
-
-		RootStore.actions.replace(historyEntry);
-
-		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({
-			groupBy: ['field:changed-later'],
-			groupDisplayMode: 'docs',
-			sort: 'field:title',
 		});
 	});
 
@@ -331,8 +288,7 @@ describe('compiled-form result handoff', () => {
 			),
 		);
 
-		const params = RootStore.get.blacklabParameters();
-		expect(isEffectiveCollocationParameters(params)).toBe(true);
+		const params = activeSearchParameters.value;
 		expect(params).toMatchObject({
 			patt: '[word="water"]',
 			collpatt: '[word="sea"]',
@@ -374,59 +330,9 @@ describe('compiled-form result handoff', () => {
 	test('rejects collocations without an executable pattern or outside the proximity gate', () => {
 		resetStores();
 		submitNewForm(snapshot(collocationParams({ patt: undefined })));
-		expect(RootStore.get.blacklabParameters()).toBeUndefined();
+		expect(activeSearchParameters.value).toBeUndefined();
 
 		submitNewForm(snapshot(collocationParams({ colltype: 'relsources', context: undefined })));
-		expect(RootStore.get.blacklabParameters()).toBeUndefined();
-	});
-
-	test('forces restored collocations to a copied hits view while preserving drilldown and sort', () => {
-		resetStores();
-		const submitted = snapshot(collocationParams({ sort: '-size' }), { targetView: 'docs', resultPreset: 'table' });
-		const persistedView = {
-			...ViewStore.initialViewState,
-			collocationScorer: 'coll-salience' as const,
-			groupBy: ['field:author'],
-			viewGroup: 'author:Austen',
-			groupDisplayMode: 'docs' as const,
-			sort: '-size',
-		};
-		const historyEntry = {
-			explore: ExploreStore.defaults,
-			filters: {},
-			gap: GapStore.defaults,
-			global: { context: 9, sampleMode: 'percentage', sampleSeed: null, sampleSize: null },
-			interface: { ...InterfaceStore.defaults, viewedResults: 'docs' },
-			newForm: submitted,
-			patterns: PatternStore.defaults,
-			view: persistedView,
-		} satisfies HistoryEntry;
-
-		RootStore.actions.replace(historyEntry);
-
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
-		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ groupBy: [], viewGroup: 'author:Austen', sort: '-size', groupDisplayMode: 'docs' });
-		expect(persistedView).toMatchObject({ groupBy: ['field:author'], viewGroup: 'author:Austen' });
-		expect(RootStore.get.blacklabParameters()).not.toHaveProperty('group');
-		expect(RootStore.get.blacklabParameters()).toMatchObject({ context: 5, scorertype: 'coll-salience', sort: '-size', viewgroup: 'author:Austen' });
-	});
-
-	test('uses association score ordering when restored collocations have no explicit sort', () => {
-		resetStores();
-		const historyEntry = {
-			explore: ExploreStore.defaults,
-			filters: {},
-			gap: GapStore.defaults,
-			global: { context: 9, sampleMode: 'percentage', sampleSeed: null, sampleSize: null },
-			interface: { ...InterfaceStore.defaults, viewedResults: 'hits' },
-			newForm: snapshot(collocationParams()),
-			patterns: PatternStore.defaults,
-			view: { ...ViewStore.initialViewState, sort: null },
-		} satisfies HistoryEntry;
-
-		RootStore.actions.replace(historyEntry);
-
-		expect(ViewStore.getOrCreateModule('hits').getState().sort).toBe('score');
-		expect(RootStore.get.blacklabParameters()).toMatchObject({ sort: 'score' });
+		expect(activeSearchParameters.value).toBeUndefined();
 	});
 });

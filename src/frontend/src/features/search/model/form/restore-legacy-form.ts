@@ -4,27 +4,23 @@ import memoize from 'memoize-decorator';
 
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import * as TagsetModule from '@/features/corpus/model/tagset-state';
+import type * as TagsetModule from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
-import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
-import * as FilterModule from '@/features/search/model/form/filter-state';
+import type * as FilterModule from '@/features/search/model/form/filter-state';
+import type { ModuleRootState as FormState } from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
 // Results
-import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
-import * as ViewModule from '@/features/search/model/results/view-state';
+import type { SubmittedSearch } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { isBLCollocationType, type BLCollocationScorer } from '@/types/blacklabtypes';
 import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import parseLucene from '@/utils/luceneparser';
-
-import BaseUrlStateParser from './url-state-parser-base';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type { Condition, Result, Token } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
@@ -37,54 +33,34 @@ import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { unescapeRegex } from '@/shared/utils/string-utils';
 
-export type UrlStateParserSearchDependencies = {
+export type LegacyFormDependencies = {
 	blacklabApi: BlackLabApi;
 	corpus: Corpus;
 	filterState: FilterModule.FullModuleRootState;
-	globalResultsState: GlobalResultsModule.ModuleRootState;
 	tagsetState: TagsetModule.ModuleRootState;
 	customizations: Customizations;
 };
 
-export function createUrlStateParserSearchDependencies(options: { blacklabApi: BlackLabApi; corpus: Corpus; customizations: Customizations }): UrlStateParserSearchDependencies {
-	return {
-		blacklabApi: options.blacklabApi,
-		corpus: options.corpus,
-		filterState: FilterModule.getState(),
-		globalResultsState: GlobalResultsModule.getState(),
-		tagsetState: TagsetModule.getState(),
-		customizations: options.customizations,
-	};
-}
+export type LegacyFormInput = {
+	submitted: SubmittedSearch;
+	viewedResults: string | null;
+	groupBy: string[];
+	groupDisplayMode: GroupDisplayMode | null;
+};
 
-/**
- * Decode the current url into a valid page state configuration.
- * Keep everything private except the getters
- */
-export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModule.HistoryEntry> {
-	/**
-	 * MetadataFilters here are the interface components to filter a query by document metadata.
-	 * Because these can be fairly complex components, we have decided to implement decoding of the query in the Vue components.
-	 * So in order to decode the query, we need knowledge of which filters are configured.
-	 * This is done by the FilterModule, so we need that info here.
-	 */
+/** Reconstruct legacy editable fields from a submitted search and its result presentation. */
+export class LegacyFormRestorer {
 	constructor(
-		private readonly dependencies: UrlStateParserSearchDependencies,
-		uri?: URI,
+		private readonly dependencies: LegacyFormDependencies,
+		private readonly input: LegacyFormInput,
 	) {
-		super(uri);
-		try {
-			this._interfaceStateFromUrl = JSON.parse(this.getString('interface', null, v => (v.startsWith('{') ? v : null))!);
-		} catch {
-			// No big deal if we can't parse the interface state from the url, we'll just determine it from the rest of the url parameters later.
-		}
+		this._interfaceState = input.submitted.legacyInterface ? { ...input.submitted.legacyInterface } : null;
 	}
 
 	@memoize
-	public async get(): Promise<HistoryModule.HistoryEntry> {
+	public async get(): Promise<FormState> {
 		// Make sure our parsed cql is up to date (used to be a memoized getter, but we need it to be async)
-		const cql = this.getString('patt') || this.getString('query') || null;
-		await this.updateParsedCql(cql);
+		await this.updateParsedCql(this.input.submitted.params.patt ?? null);
 
 		return {
 			explore: this.explore,
@@ -92,12 +68,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			interface: this.interface,
 			patterns: this.patterns,
 			gap: this.gap,
-
-			// settings for the active results view
-			view: this.view(this.interface.viewedResults),
-			global: this.global,
-			// submitted query not parsed from url: is restored from rest of state later.
-			// new form state also not parsed here. done later at call site
 		};
 	}
 
@@ -156,39 +126,23 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	/** Within clauses that don't fit into a widget, so must remain part of the Expert query */
 	@memoize
 	get withinClausesWithoutSpanFilters(): Record<string, Record<string, any>> {
-		// Only keep within clauses that are not span filters
-		return Object.fromEntries(
-			Object.entries(this.withinClauses)
-				.map<[string, Record<string, any>]>(([spanName, attrs]) => {
-					if (Object.keys(attrs).length === 0) {
-						// No attributes, so this might be the within widget selection.
-						return [spanName, { _MAYBE_WITHIN_: true } as Record<string, any>];
-					} else {
-						const filters = this.dependencies.filterState.filters;
-						const filteredAttrs = Object.fromEntries(
-							Object.entries(attrs).filter(entry => {
-								const filter = filters[spanFilterId(spanName, entry[0])];
-								const vf = filter ? getValueFunctions(filter) : undefined;
-								return !vf?.isSpanFilter;
-							}),
-						);
-						if (Object.keys(attrs).length > 0 && Object.keys(filteredAttrs).length === 0) {
-							// All attributes were placed in span filters, so we probably don't want this
-							// to be the within widget selection.
-							return [spanName, {} as Record<string, any>];
-						} else {
-							return [spanName, filteredAttrs as Record<string, any>];
-						}
-					}
-				})
-				.filter(([_, attrs]) => Object.keys(attrs).length > 0)
-				.map(([elName, attrs]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs]),
-		);
+		const clauses: Record<string, Record<string, any>> = {};
+		for (const [spanName, attrs] of Object.entries(this.withinClauses)) {
+			const remaining = Object.fromEntries(
+				Object.entries(attrs).filter(([attrName]) => {
+					const filter = this.dependencies.filterState.filters[spanFilterId(spanName, attrName)];
+					return !filter || !getValueFunctions(filter).isSpanFilter;
+				}),
+			);
+			// Bare spans remain within-widget candidates; omit spans fully represented by filters.
+			if (!Object.keys(attrs).length || Object.keys(remaining).length) clauses[spanName] = remaining;
+		}
+		return clauses;
 	}
 
 	@memoize
 	private get filters(): FilterModule.ModuleRootState {
-		const luceneString = this.getString('filter', null, v => (v ? v : null));
+		const luceneString = this.input.submitted.params.filter;
 		const spanFilters = this.spanFilters;
 		if (luceneString == null && Object.keys(spanFilters).length === 0) {
 			return {};
@@ -202,7 +156,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				but in addition to that, there might be special filters that don't correspond directly 1-to-1 to a metadata field,
 				e.g. date-based filters that operate on separate day/month/year fields.
 				Those special filters need to be parsed first, so they can remove any values from the parsed query
-				Otherwise those values would be parsed again by the "normal" filters, leading to duplicate filters in the url state.
+				Otherwise those values would be parsed again by the "normal" filters, leading to duplicate filters in the restored state.
 
 				To do this, we create a list of all "special" filters, followed by all "normal" filters.
 				They then get a chance to parse/modify the query in that order.
@@ -235,7 +189,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				});
 			return filterValues;
 		} catch (error) {
-			debugLog('url', 'Cannot decode lucene query ', luceneString, error);
+			debugLog('form', 'Cannot decode lucene query ', luceneString, error);
 			return {};
 		}
 	}
@@ -246,11 +200,11 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	 */
 	@memoize
 	private get frequencies(): null | ExploreModule.ModuleRootState['frequency'] {
-		if (this.expertPattern.query !== '[]' || this.groupBy.length !== 1) {
+		if (this.expertPattern.query !== '[]' || this.input.groupBy.length !== 1) {
 			return null;
 		}
 
-		const group = this.groupBy[0];
+		const group = this.input.groupBy[0];
 		if (!group.startsWith('hit:')) {
 			return null;
 		}
@@ -266,23 +220,21 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get interface(): InterfaceModule.ModuleRootState {
 		try {
-			const uiStateFromUrl = this._interfaceStateFromUrl;
-			if (!uiStateFromUrl) {
-				throw new Error('No url ui state, falling back to determining from rest of parameters.');
+			const savedInterface = this._interfaceState;
+			if (!savedInterface) {
+				throw new Error('No saved interface; infer it from the submitted query.');
 			}
-			if (!this.dependencies.customizations.searchFormAdvancedEnabled() && uiStateFromUrl.form === 'search' && uiStateFromUrl.patternMode === 'advanced') {
-				uiStateFromUrl.patternMode = 'expert';
+			if (!this.dependencies.customizations.searchFormAdvancedEnabled() && savedInterface.form === 'search' && savedInterface.patternMode === 'advanced') {
+				savedInterface.patternMode = 'expert';
 			}
 			return {
 				...InterfaceModule.defaults,
-				...uiStateFromUrl,
-				// This is not contained in the 'interface' query parameters, but in the path segments of the url.
-				// hence decode seperately.
-				viewedResults: this.viewedResults,
+				...savedInterface,
+				viewedResults: this.input.viewedResults,
 			};
 		} catch {
-			// Can't parse from url, instead determine the best state based on other parameters.
-			const ui = InterfaceModule.defaults;
+			// Infer the form that can represent the submitted query.
+			const ui = { ...InterfaceModule.defaults };
 
 			// show the pattern view that can hold the query
 			// the other views will have the query placed in it as well (if it fits), but this is more of a courtesy
@@ -304,7 +256,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			}
 
 			// Open any results immediately?
-			ui.viewedResults = this.viewedResults;
+			ui.viewedResults = this.input.viewedResults;
 
 			// Explore forms have priority over normal search form
 			if (this.frequencies != null) {
@@ -324,17 +276,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get gap(): GapModule.ModuleRootState {
-		const value = this.getString('pattgapdata');
+		const value = this.input.submitted.params.pattgapdata;
 		return value ? { value } : GapModule.defaults;
-	}
-
-	/** Usually hits or docs, but might be null if no results currently viewed. May also be something different if custom views were registered. */
-	@memoize
-	private get viewedResults(): string | null {
-		// paths are already decoded, and have the base portion removed, so we can just use them directly
-		if (this.paths[1] === 'search' && this.paths.length >= 3) return this.paths[2] || null; // hits or docs, or custom view
-
-		return null;
 	}
 
 	/**
@@ -343,11 +286,11 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	 */
 	@memoize
 	private get corpora(): null | ExploreModule.ModuleRootState['corpora'] {
-		if (this.viewedResults !== 'docs') {
+		if (this.input.viewedResults !== 'docs') {
 			return null;
 		}
 
-		if (this.groupBy.length === 0) {
+		if (this.input.groupBy.length === 0) {
 			return null;
 		}
 
@@ -356,8 +299,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		return {
-			groupBy: this.groupBy[0],
-			groupDisplayMode: this.view('docs').groupDisplayMode || ExploreModule.defaults.corpora.groupDisplayMode,
+			groupBy: this.input.groupBy[0],
+			groupDisplayMode: this.input.groupDisplayMode || ExploreModule.defaults.corpora.groupDisplayMode,
 		};
 	}
 
@@ -369,11 +312,11 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	private get ngrams(): null | ExploreModule.ModuleRootState['ngram'] {
 		const allAnnotations = this.dependencies.corpus.allAnnotationsMap;
 
-		if (this.groupBy.length === 0) {
+		if (this.input.groupBy.length === 0) {
 			return null;
 		}
 
-		const group = this.groupBy[0];
+		const group = this.input.groupBy[0];
 		if (!group.startsWith('hit:')) {
 			return null;
 		}
@@ -429,25 +372,10 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		return {
 			shared: this.shared,
 			simple: this.simplePattern || { annotationValue: { id: '', value: '', case: false } },
-			extended: this.extendedPattern || { annotationValues: {}, splitBatch: false },
+			extended: this.extendedPattern || { annotationValues: {} },
 			advanced: this.advancedPattern || { query: '', targetQueries: [] },
 			expert: this.expertPattern,
 		};
-	}
-
-	@memoize
-	private get global(): GlobalResultsModule.ExternalModuleRootState {
-		return {
-			sampleMode: this.sampleMode,
-			sampleSeed: this.sampleSeed,
-			sampleSize: this.sampleSize,
-			context: this.hasCollocationType ? null : this.context,
-		};
-	}
-
-	@memoize
-	private get hasCollocationType(): boolean {
-		return isBLCollocationType(this.getString('colltype', null));
 	}
 
 	@memoize
@@ -503,7 +431,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 					if (expr.type === 'condition') {
 						const name = expr.name;
 						if (knownAnnotations[name] == null) {
-							debugLog('url', `Encountered unknown cql field ${name} while decoding query from url, ignoring.`);
+							debugLog('form', `Encountered unknown cql field ${name} while restoring the query, ignoring.`);
 							continue;
 						}
 
@@ -512,7 +440,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 						if (isTagsetAnnotation) {
 							// add value as original cql-query substring to the main tagset annotation under which the values should be stored.
-							debugLog('url', 'Relocating value for annotation ' + name + ' to tagset annotation(s) ' + tagsetInfo!.mainAnnotations);
+							debugLog('form', 'Relocating value for annotation ' + name + ' to tagset annotation(s) ' + tagsetInfo!.mainAnnotations);
 							const originalValue = `${name}="${expr.value}"`;
 
 							for (const id of tagsetInfo!.mainAnnotations) {
@@ -548,7 +476,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				const annot = knownAnnotations[id];
 				if (tagsetInfo && tagsetInfo.mainAnnotations.includes(id)) {
 					// use value as-is, already contains cql and should not have wildcards substituted.
-					debugLog('url', 'Mapping tagset annotation back to cql: ' + id + ' with values ' + values);
+					debugLog('form', 'Mapping tagset annotation back to cql: ' + id + ' with values ' + values);
 
 					return {
 						id,
@@ -564,7 +492,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			});
 			return mapReduce(decodedValues, 'id');
 		} catch (error) {
-			debugLog('url', 'Cql query could not be placed in simple/extended view', error);
+			debugLog('form', 'Cql query could not be placed in simple/extended view', error);
 			return undefined;
 		}
 	}
@@ -590,15 +518,12 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const allAttributes = within ? (this.withinClausesWithoutSpanFilters[within] ?? {}) : {};
 
 		// Which, if any, attribute filter fields should be displayed for this element?
-		const attributesAcceptedByWithinWidget = within ? this.dependencies.customizations.searchFormWithinAttributes(within).map(value => ({ value })) : [];
-		const withinAttributes = Object.fromEntries(
+		const accepted = within ? this.dependencies.customizations.searchFormWithinAttributes(within) : [];
+		return Object.fromEntries(
 			Object.entries(allAttributes)
-				.filter(([attrName, _]) => {
-					return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);
-				})
-				.map(([attrName, attrValue]) => [attrName, unescapeRegex(attrValue, { escapeWildcards: false })]),
+				.filter(([name]) => accepted.includes(name))
+				.map(([name, value]) => [name, unescapeRegex(value, { escapeWildcards: false })]),
 		);
-		return withinAttributes;
 	}
 
 	@memoize
@@ -636,7 +561,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		Which means that if "searchfield" is set, we should use that. If not, we should use "field".
 		See also "viewField" in the article module (which is "field" in BlackLab terms.)
 		*/
-		let source = this.getString('searchfield') || this.getString('searchField') || this.getString('field');
+		let source = this.input.submitted.params.searchfield ?? null;
 		if (source && !parallelFieldsMap[source]) source = null;
 		const targets = this._parsedCql ? this._parsedCql.slice(1).map(result => (result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '')) : [];
 
@@ -666,19 +591,12 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get extendedPattern() {
-		const annotationsInInterface = mapReduce(this.dependencies.customizations.searchFormExtendedAnnotationIds());
-		const parsedAnnotationValues = cloneDeep(this.annotationValues || {});
-		Object.keys(parsedAnnotationValues).forEach(annotId => {
-			if (!annotationsInInterface[annotId]) {
-				delete parsedAnnotationValues[annotId];
-			}
-		});
+		const annotationIds = this.dependencies.customizations.searchFormExtendedAnnotationIds();
+		const parsedAnnotationValues = cloneDeep(Object.fromEntries(Object.entries(this.annotationValues ?? {}).filter(([id]) => annotationIds.includes(id))));
 
 		if (Object.keys(parsedAnnotationValues).length === 0) return undefined;
 		return {
 			annotationValues: parsedAnnotationValues,
-			// This is always false, it's just a checkbox that will split up the query when it's submitted, then untick itself
-			splitBatch: false,
 		};
 	}
 
@@ -715,73 +633,10 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		};
 	}
 
-	@memoize
-	private get sampleMode(): 'count' | 'percentage' {
-		// If 'sample' exists we're in count mode, otherwise if 'samplenum' (and is valid), we're in percent mode
-		// ('sample' also has precendence for the purposes of determining samplesize)
-		if (this.getNumber('samplenum') != null) {
-			return 'count';
-		} else if (this.getNumber('sample', null, v => (v != null && v >= 0 && v <= 100 ? v : null)) != null) {
-			return 'percentage';
-		} else {
-			return GlobalResultsModule.defaults.sampleMode;
-		}
-	}
-
-	@memoize
-	private get sampleSeed(): number | null {
-		return this.getNumber('sampleseed', null);
-	}
-
-	@memoize
-	private get sampleSize(): number | null {
-		// Use 'sample' unless missing or not 0-100 (as it's percentage-based), then use 'samplenum'
-		const sample = this.getNumber('sample', null, v => (v != null && v >= 0 && v <= 100 ? v : null));
-		return sample != null ? sample : this.getNumber('samplenum', null);
-	}
-
 	// TODO these might become dynamic in the future, then we need extra manual checking to see if the value is even supported in this corpus
 	@memoize
 	private get withinClauses(): Record<string, Record<string, any>> {
 		return this._parsedCql?.[0].withinClauses ?? {};
-	}
-
-	@memoize
-	private get context(): number | null {
-		return this.getNumber('context', null, v => (v != null && v >= 0 && v <= 10 ? v : null));
-	}
-
-	@memoize
-	private get groupBy(): string[] {
-		return this.getString('group', '')!
-			.split(',')
-			.map(g => g.trim())
-			.filter(g => !!g);
-	}
-
-	/**
-	 * Get the state for a specific view.
-	 * Or when a custom module has been defined, the custom module.
-	 * @param view
-	 * @returns
-	 */
-	private view(view?: string | null): ViewModule.ViewRootState {
-		// they're the same anyway.
-		if (this.viewedResults !== view) {
-			return cloneDeep(ViewModule.initialViewState);
-		}
-
-		return {
-			customState: JSON.parse(this.getString('resultViewCustomState', 'null', v => v ?? 'null')!),
-			groupBy: this.groupBy,
-			collocationScorer: this.hasCollocationType ? (this.getString('scorertype', 'coll-dice', value => value || 'coll-dice') as BLCollocationScorer) : 'coll-dice',
-			sort: this.getString('sort', null, v => (v ? v : null)),
-			viewGroup: this.getString('viewgroup', undefined, v => (v && (this.groupBy.length > 0 || this.hasCollocationType) ? v : null)),
-			groupDisplayMode: this.getString('groupDisplayMode', null, v => (['table', 'docs', 'hits', 'relative docs', 'relative hits', 'tokens'].includes(v ?? '') ? v : null)) as GroupDisplayMode | null,
-			first: this.getNumber('first', null, v => (v != null && v >= 0 ? v : null)) ?? 0,
-			number: this.getNumber('number', this.dependencies.globalResultsState.pageSize, v => (v != null && v > 0 ? v : null)) ?? 20,
-			requestedRange: null,
-		};
 	}
 
 	// ------------------------
@@ -792,7 +647,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		try {
 			// Let BlackLab parse it, then try to interpret the parse tree
 			// for use in the simple, extended or advanced search forms.
-			this._parsedCql = bcql == null ? null : await parseBcql(this.dependencies.blacklabApi, this.paths[0], bcql, this.dependencies.corpus.firstMainAnnotation.id);
+			this._parsedCql = bcql == null ? null : await parseBcql(this.dependencies.blacklabApi, this.dependencies.corpus.id!, bcql, this.dependencies.corpus.firstMainAnnotation.id);
 			if (this._parsedCql && this._parsedCql.length === 0) this._parsedCql = null;
 			if (this._parsedCql && this._parsedCql.length > 1) {
 				const relType = this._parsedCql[1].relationType;
@@ -811,14 +666,14 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		} catch (e) {
 			// Just accept that we cannot interpret it for use in the simple, extended or advanced
 			// search modes, and use the entire query for the Expert view.
-			console.warn('BCQL query from url cannot fit in simple, extended or advanced search modes; using expert', e);
+			console.warn('Submitted BCQL query cannot fit in simple, extended or advanced search modes; using expert', e);
 			this._parsedCql = [{ query: bcql || '' }];
 			// Additionally, force the viewed form to be the expert form, which can contain any BCQL query,
 			// not just the subset that can be interpreted for the simple, extended and advanced forms.
-			this._interfaceStateFromUrl = null;
+			this._interfaceState = null;
 		}
 	}
 
 	_parsedCql: Result[] | null = null;
-	_interfaceStateFromUrl: Partial<InterfaceModule.ModuleRootState> | null = null;
+	_interfaceState: Partial<InterfaceModule.ModuleRootState> | null = null;
 }

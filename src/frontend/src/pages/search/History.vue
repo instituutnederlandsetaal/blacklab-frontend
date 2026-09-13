@@ -14,7 +14,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="({ entry, grouping }, index) in recentHistory" :key="entry.hash + (entry.interface.viewedResults || '')">
+					<tr v-for="({ entry, grouping, viewedResults, collocation }, index) in recentHistory" :key="entry.hash">
 						<td>
 							<strong>{{ index + 1 }}.</strong>
 						</td>
@@ -30,13 +30,13 @@
 								})
 							}}</small>
 						</td>
-						<td>{{ resultLabel(entry) }}</td>
+						<td>{{ resultLabel(viewedResults, collocation) }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0, 1000) || undefined">{{ entry.displayValues.pattern }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0, 1000) || undefined">{{ entry.displayValues.filters }}</td>
 						<td class="history-table-contain-text" :title="grouping">{{ grouping }}</td>
 						<td>
 							<div class="btn-group">
-								<button type="button" class="btn btn-default" @click="load(entry)">{{ $t('history.search') }}</button>
+								<button type="button" class="btn btn-default" @click="searchNavigation.open(entry.url).then(() => emit('close'))">{{ $t('history.search') }}</button>
 								<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret" /></button>
 								<ul class="dropdown-menu dropdown-menu-right">
 									<li>
@@ -93,35 +93,22 @@
 </template>
 
 <script setup lang="ts">
-import URI from 'urijs';
 import { computed, nextTick, ref, useTemplateRef } from 'vue';
-import { useRouter } from 'vue-router';
 
-import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
-import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { isCollocationParams } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
+import { useSearchNavigation } from '@/navigation/search-navigation';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
-import { useBlackLabApi } from '@/shared/api';
 import { useI18n } from '@/shared/i18n';
 import useUid from '@/shared/utils/uid';
 
 import Modal from '@/shared/ui/Modal.vue';
 
-function toRouterPath(url: string): string {
-	const relativeUrl = new URI(url).host('').protocol('').port('').toString();
-	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
-	return !context || !relativeUrl.startsWith(context) ? relativeUrl : relativeUrl.slice(context.length) || '/';
-}
-
 const emit = defineEmits<{ close: [] }>();
-const router = useRouter();
-const blacklab = useBlackLabApi();
+const searchNavigation = useSearchNavigation();
+const importHistoryUrl = HistoryStore.useHistoryImport();
 const corpus = useCorpus();
-const customizations = useCustomizations();
 const translate = useI18n();
 const importUrlInput = useTemplateRef<HTMLInputElement>('importUrlInput');
 const shareUrlInput = useTemplateRef<HTMLInputElement>('shareUrlInput');
@@ -138,14 +125,22 @@ const recentHistory = computed(() => {
 	let olderEntryCount = 0;
 	return history.value
 		.filter((entry, index) => entry.timestamp >= sessionStart || olderEntryCount++ < shownOlderEntries.value || index < 2)
-		.map(entry => ({ entry, grouping: humanizeSerializedGroupBy(translate, entry.view.groupBy, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(' ') || '-' }));
+		.map(entry => {
+			const { viewedResults, collocation, groupBy } = HistoryStore.get.details(entry);
+			return {
+				entry,
+				viewedResults,
+				collocation,
+				grouping: humanizeSerializedGroupBy(translate, groupBy, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(' ') || '-',
+			};
+		});
 });
 
-function resultLabel(entry: HistoryStore.FullHistoryEntry): string {
-	if (entry.newForm?.params && isCollocationParams(entry.newForm.params)) return translate.$t('queryForm.collocations').toString();
-	if (entry.interface.viewedResults === 'hits') return translate.$t('results.resultsView.navigation.hits').toString();
-	if (entry.interface.viewedResults === 'docs') return translate.$t('results.resultsView.navigation.documents').toString();
-	return entry.interface.viewedResults ?? '-';
+function resultLabel(viewedResults: string | null | undefined, collocation: boolean): string {
+	if (collocation) return translate.$t('queryForm.collocations').toString();
+	if (viewedResults === 'hits') return translate.$t('results.resultsView.navigation.hits').toString();
+	if (viewedResults === 'docs') return translate.$t('results.resultsView.navigation.documents').toString();
+	return viewedResults ?? '-';
 }
 
 async function openShareUrl(entry: HistoryStore.FullHistoryEntry) {
@@ -165,27 +160,20 @@ function downloadAsFile(entry: HistoryStore.FullHistoryEntry) {
 	import('file-saver').then(({ saveAs }) => saveAs(file, fileName));
 }
 
-async function load(entry: HistoryStore.HistoryEntry | HistoryStore.FullHistoryEntry) {
-	if ('url' in entry && entry.url) await router.push(toRouterPath(entry.url));
-	else RootStore.actions.replace(entry);
-	emit('close');
-}
-
 async function importFromUrl() {
 	const input = importUrlInput.value!;
 	const importUrl = input.value;
 	if (!importUrl) {
 		importUrlError.value = null;
 		importUrlVisible.value = false;
+		return;
 	}
 	if (!input.checkValidity()) {
 		importUrlError.value = 'Invalid url';
 		return;
 	}
 
-	const uri = new URI(importUrl);
-	const entry = await new UrlStateParserSearch(createUrlStateParserSearchDependencies({ blacklabApi: blacklab, corpus: corpus.value, customizations }), uri).get();
-	HistoryStore.actions.addEntry({ entry, pattern: (uri.query(true) as { patt?: string }).patt, url: importUrl });
+	await importHistoryUrl(importUrl);
 	importUrlError.value = null;
 	importUrlVisible.value = false;
 }

@@ -1,9 +1,10 @@
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
-import { isBLCollocationType, type BLCollocationType } from '@/types/blacklabtypes';
+import { isBLCollocationType } from '@/types/blacklabtypes';
 
+import type { FormOverrides } from './blacklab-params';
 import { isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from './form-query-ir';
 
-export type CollocationContext = number | readonly [number, number];
+type CollocationContext = number | readonly [number, number];
 
 function isSafeNonNegativeInteger(value: unknown): value is number {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
@@ -13,28 +14,13 @@ function isCollocationContext(value: unknown): value is CollocationContext {
 	return isSafeNonNegativeInteger(value) || (Array.isArray(value) && value.length === 2 && value.every(isSafeNonNegativeInteger));
 }
 
-export function parseCollocationContext(value: string): CollocationContext | null {
-	const parts = value.trim().split(':');
-	if ((parts.length !== 1 && parts.length !== 2) || parts.some(part => !/^\d+$/.test(part))) return null;
-	const context = parts.map(Number);
-	if (!context.every(isSafeNonNegativeInteger)) return null;
-	return context.length === 1 ? context[0] : [context[0], context[1]];
-}
-
-export type FormOutputValues = {
+export type FormOutputValues = Required<Omit<FormOverrides, 'patt' | 'collpatt' | 'filter' | 'context'>> & {
 	patt: CqlPatternNode;
 	collpatt: CqlPatternNode;
 	filter: LuceneNode;
-	searchfield: string;
 	group: readonly string[] | null;
 	sort: readonly string[] | null;
-	withspans: true;
-	colltype: BLCollocationType;
 	context: CollocationContext;
-	within: string;
-	reltype: string;
-	annotation: string;
-	sensitive: boolean;
 };
 
 export type FormOutputName = keyof FormOutputValues;
@@ -85,6 +71,7 @@ type SummaryValue = {
 export type SummaryInput = SummaryValue & { summaryType?: readonly SummaryType[] };
 export type SummaryEntry = SummaryValue & { summaryType: readonly SummaryType[] };
 
+/** Return undefined when no field contributes, so callers can fall back to raw query text. */
 export function formatSummaryEntries(entries: readonly SummaryEntry[], type: SummaryType): string | undefined {
 	const matching = entries.filter(entry => entry.summaryType.includes(type));
 	return matching.length ? matching.map(entry => `${entry.label}: ${entry.value}`).join(', ') : undefined;

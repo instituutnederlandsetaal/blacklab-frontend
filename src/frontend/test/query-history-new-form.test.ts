@@ -1,14 +1,22 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { File } from 'node:buffer';
 
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { CompiledFormResult } from '@/features/form';
-import { actions, getState, type HistoryEntry } from '@/features/history/model/query-history-state';
-import * as QueryStore from '@/features/search/model/query-state';
+import { actions, get, getState, init, setUrlDecoder } from '@/features/history/model/query-history-state';
+import { LegacyFormRestorer } from '@/features/search/model/form/restore-legacy-form';
+import { summarizeCompiledForm } from '@/features/search/model/search-summary';
+import { queryHistoryDetails, queryHistoryFromUrl } from '@/url/query-history';
+
+beforeEach(() => setUrlDecoder(queryHistoryDetails));
 
 afterEach(() => {
 	actions.clear();
-	QueryStore.actions.reset();
+	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 });
 
 const mixedSummaries: CompiledFormResult['summaries'] = [
@@ -28,25 +36,17 @@ function mixedSummaryForm(): CompiledFormResult {
 	};
 }
 
-function historyEntry(newForm: CompiledFormResult): HistoryEntry {
-	return {
-		explore: {},
-		filters: {},
-		gap: {},
-		global: {},
-		interface: { form: 'search', viewedResults: 'hits' },
-		newForm,
-		patterns: { shared: { source: null } },
-		view: { groupBy: [] },
-	} as unknown as HistoryEntry;
+function addForm(form: CompiledFormResult, query = '') {
+	const summary = summarizeCompiledForm(form);
+	actions.addEntry({ url: `/test-corpus/search/hits?patt=${encodeURIComponent(form.params.patt ?? '')}&${query}`, displayValues: { pattern: summary.pattern ?? '', filters: summary.filter ?? '' } });
 }
 
 describe('new-form query summary selectors', () => {
 	test('selects summaries by their normalized output types', () => {
-		QueryStore.actions.search({ form: 'new', state: mixedSummaryForm() });
+		const summary = summarizeCompiledForm(mixedSummaryForm());
 
-		expect(QueryStore.get.patternSummary()).toBe('Pattern only: pattern, Multi-type: shared');
-		expect(QueryStore.get.filterSummary()).toBe('Filter only: filter, Multi-type: shared');
+		expect(summary.pattern).toBe('Pattern only: pattern, Multi-type: shared');
+		expect(summary.filter).toBe('Filter only: filter, Multi-type: shared');
 	});
 
 	test('combines the researcher-facing collocation settings', () => {
@@ -65,82 +65,102 @@ describe('new-form query summary selectors', () => {
 			{ label: 'Window', summaryType: ['context'], value: 'L5/R5' },
 			{ label: 'Documents', summaryType: ['filter'], value: 'year:1800-1900' },
 		];
-		QueryStore.actions.search({ form: 'new', state: form });
+		const summary = summarizeCompiledForm(form);
 
-		expect(QueryStore.get.patternSummary()).toBe('Word: ship · Collocate: Any collocate · Window: L5/R5');
+		expect(summary.pattern).toBe('Word: ship · Collocate: Any collocate · Window: L5/R5');
 	});
 });
 
-describe('new-form query history summaries', () => {
-	test('hashes grouping criteria without changing their semantic order', () => {
-		const first = historyEntry(mixedSummaryForm());
-		first.view.groupBy = ['field:z', 'field:a'];
-
-		actions.addEntry({ entry: first, pattern: first.newForm!.params.patt, url: '/test-corpus/search/hits' });
-
-		expect(first.view.groupBy).toEqual(['field:z', 'field:a']);
-		expect(getState()[0]?.view.groupBy).toEqual(['field:z', 'field:a']);
-
-		const second = historyEntry(mixedSummaryForm());
-		second.view.groupBy = ['field:a', 'field:z'];
-		actions.addEntry({ entry: second, pattern: second.newForm!.params.patt, url: '/test-corpus/search/hits' });
-
+describe('URL query history', () => {
+	test('importing a link saves its decoded summary without loading the search', async () => {
+		const currentUrl = window.location.href;
+		const url = 'https://saved.example/test-corpus/search/hits?patt=%5Bword%3D%22water%22%5D';
+		await actions.importUrl(url, async url => ({ url, displayValues: { pattern: 'Word: water', filters: '-' } }));
+		expect(window.location.href).toBe(currentUrl);
 		expect(getState()).toHaveLength(1);
-		expect(getState()[0]?.view.groupBy).toEqual(['field:a', 'field:z']);
+		expect(getState()[0]).toMatchObject({ url, displayValues: { pattern: 'Word: water', filters: '-' } });
 	});
 
-	test('uses submitted Explore summaries instead of the legacy draft defaults', () => {
-		const newForm: CompiledFormResult = {
-			encoded: { 'f.form': 'explore.ngram' },
-			formId: 'explore.ngram',
-			params: { patt: '[] []' },
-			issues: [],
-			summaries: [
-				{ label: 'N-gram type', summaryType: ['patt'], value: 'Lemma' },
-				{ label: 'N-gram size', summaryType: ['patt'], value: '2' },
-				{ label: 'Author', summaryType: ['filter'], value: 'Austen' },
-			],
-		};
-		const entry = {
-			explore: {},
+	test('records the submitted pattern without recompiling a legacy form', async () => {
+		vi.stubGlobal('CONTEXT_URL', '/');
+		vi.spyOn(LegacyFormRestorer.prototype, 'get').mockResolvedValue({
+			interface: { form: 'search', patternMode: 'simple' },
+			patterns: { shared: {}, simple: { annotationValue: { id: 'word', value: 'water', type: undefined } } },
 			filters: {},
-			gap: {},
-			global: {},
-			interface: { exploreMode: 'ngram', form: 'explore', viewedResults: 'hits' },
-			newForm,
-			patterns: { shared: { source: null } },
-			view: { groupBy: [] },
-		} as unknown as HistoryEntry;
-
-		actions.addEntry({ entry, pattern: newForm.params.patt, url: '/test-corpus/search/hits' });
-
-		expect(getState()[0]?.displayValues.pattern).toBe('N-gram type: Lemma, N-gram size: 2');
-		expect(getState()[0]?.displayValues.filters).toBe('Author: Austen');
+		} as never);
+		const url = '/test/search/hits?query=' + encodeURIComponent('[word="water"]');
+		await expect(queryHistoryFromUrl(url, { corpus: { allAnnotationsMap: {} } } as never)).resolves.toEqual({ url, displayValues: { pattern: '[word="water"]', filters: '' } });
 	});
 
-	test('selects history summaries by their normalized output types', () => {
-		const newForm = mixedSummaryForm();
-
-		actions.addEntry({ entry: historyEntry(newForm), pattern: newForm.params.patt, url: '/test-corpus/search/hits' });
-
-		expect(getState()[0]?.displayValues.pattern).toBe('Pattern only: pattern, Multi-type: shared');
-		expect(getState()[0]?.displayValues.filters).toBe('Filter only: filter, Multi-type: shared');
+	test('does not record URLs without search results', () => {
+		for (const url of ['/test/search', '/test/docs/document']) actions.addEntry({ url });
+		expect(getState()).toEqual([]);
 	});
 
-	test('retains the defining collocation settings in history', () => {
-		const newForm = mixedSummaryForm();
-		newForm.params = { annotation: 'lemma', colltype: 'proximity', context: '3:4', patt: '[word="water"]', scorertype: 'coll-salience', sensitive: false };
-		newForm.summaries = [
-			{ label: 'Keyword', summaryType: ['patt'], value: '[word="water"]' },
-			{ label: 'Collocates', summaryType: ['collpatt'], value: 'Any collocate' },
-			{ label: 'Window', summaryType: ['context'], value: 'L3/R4' },
-			{ label: 'Annotation', summaryType: ['annotation'], value: 'Lemma' },
-			{ label: 'Documents', summaryType: ['filter'], value: 'Author: Austen' },
-		];
+	test('keeps a saved result link loadable with a trailing slash', () => {
+		const url = '/test-corpus/search/hits/?patt=[]';
+		actions.addEntry({ url });
+		expect(getState()[0].url).toBe(url);
+		expect(get.details(getState()[0])).toEqual({ viewedResults: 'hits', collocation: false, groupBy: [] });
+	});
 
-		actions.addEntry({ entry: historyEntry(newForm), pattern: newForm.params.patt, url: '/test-corpus/search/hits' });
+	test.each([
+		['pattern', 'patt=[word="water"]', 'patt=[word="ship"]'],
+		['gap values', 'patt=[word="@@"]&pattgapdata=water', 'patt=[word="@@"]&pattgapdata=ship'],
+		['filter', 'filter=author:Austen', 'filter=author:Bronte'],
+		['search field', 'searchfield=contents__nl', 'searchfield=contents__en'],
+		['collocation window', 'patt=[]&colltype=proximity&context=3', 'patt=[]&colltype=proximity&context=5'],
+	])('keeps searches with different %s settings', (_label, first, second) => {
+		for (const query of [first, second]) actions.addEntry({ url: '/test-corpus/search/hits?' + query });
+		expect(getState()).toHaveLength(2);
+	});
 
-		expect(getState()[0]?.displayValues.pattern).toBe('Keyword: [word="water"] · Collocates: Any collocate · Window: L3/R4 · Annotation: Lemma');
-		expect(getState()[0]?.displayValues.filters).toBe('Documents: Author: Austen');
+	test('deduplicates queries when only result settings differ', () => {
+		for (const query of ['first=0&number=20&sort=hit:word&scorertype=coll-dice', 'first=40&number=50&sort=-hit:word&scorertype=coll-salience']) addForm(mixedSummaryForm(), query);
+		expect(getState()).toHaveLength(1);
+	});
+
+	test('restores searches saved by the previous history version', () => {
+		const storage = new Map<string, string>();
+		vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) });
+		const url = '/test-corpus/search/hits?patt=[]';
+		window.localStorage.setItem(
+			'cf/history/test-corpus',
+			JSON.stringify({
+				version: 11,
+				indexLastModified: 'now',
+				history: [
+					{ url, timestamp: 123, hash: 5, displayValues: { pattern: 'Any word', filters: '-' }, patterns: { large: 'snapshot' }, newForm: mixedSummaryForm() },
+					{ url, timestamp: 100, hash: 6, patterns: { older: 'snapshot of the same query' } },
+				],
+			}),
+		);
+		init({ index: { id: 'test-corpus', timeModified: 'now' } } as CorpusContext);
+		expect(getState()).toHaveLength(1);
+		expect(getState()[0]).toMatchObject({ url, displayValues: { pattern: 'Any word', filters: '-' } });
+	});
+
+	test('exported searches retain Unicode queries and readable summaries when imported', async () => {
+		const url = '/日本語/search/hits?patt=[word="水😀"]';
+		actions.addEntry({ url, displayValues: { pattern: '日本語\n😀', filters: '著者: 夏目漱石' } });
+		const { file } = get.asFile(getState()[0]);
+		const contents = await new Promise<string>(resolve => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(reader.result as string);
+			reader.readAsText(file);
+		});
+		expect(contents).toContain('# Pattern: 日本語');
+		expect(contents).toContain('# Filters: 著者: 夏目漱石');
+		await expect(get.fromFile(new File([contents], 'unicode-query.txt'))).resolves.toEqual({ url });
+	});
+
+	test('imports a search file exported by the previous version', async () => {
+		const url = '/test-corpus/search/hits?patt=[]';
+		const file = new File(['# Query\n#####\n' + btoa(JSON.stringify({ version: 11, url, patterns: { old: 'snapshot' } })) + '\n#####'], 'query.txt');
+		await expect(get.fromFile(file)).resolves.toEqual({ url });
+	});
+
+	test('rejects files without a replayable URL', async () => {
+		await expect(get.fromFile(new File([btoa(JSON.stringify({ version: 12 }))], 'query.txt'))).rejects.toThrow('Could not read query file');
 	});
 });

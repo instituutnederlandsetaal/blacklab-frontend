@@ -1,47 +1,21 @@
-import type { BLCollocationScorer, BLCollocationType } from '@/types/blacklabtypes';
+import type { BLCollocationOptions, BLSearchParameters } from '@/types/blacklabtypes';
 
-type SharedFormParams = Partial<{
-	patt: string;
-	filter: string;
-	searchfield: string;
-	withspans: true;
-}>;
+export const SEARCH_STRING_PARAMS = ['patt', 'filter', 'searchfield'] as const;
+export const COLLOCATION_STRING_PARAMS = ['patt', 'collpatt', 'filter', 'searchfield', 'within', 'reltype', 'annotation'] as const;
 
-export type SearchParams = SharedFormParams &
-	Partial<{
-		group: string | null;
-		sort: string | null;
-	}> & { colltype?: never };
+type SharedFormParams = Pick<BLSearchParameters, (typeof SEARCH_STRING_PARAMS)[number]> & { withspans?: true };
 
-export type CollocationParams = SharedFormParams & {
-	colltype: BLCollocationType;
-	collpatt?: string;
-	context?: number | string;
-	within?: string;
-	reltype?: string;
-	annotation: string;
-	sensitive: boolean;
-	scorertype: BLCollocationScorer;
-	sort?: string | null;
-	group?: never;
-};
+/** Omitted group/sort presets retain result controls; null clears them. */
+export type SearchParams = SharedFormParams & { group?: string | null; sort?: string | null; colltype?: never };
+
+export type CollocationParams = SharedFormParams &
+	BLCollocationOptions &
+	Required<Pick<BLCollocationOptions, 'colltype' | 'annotation' | 'sensitive' | 'scorertype'>> & { sort?: string | null; group?: never };
 
 export type FormParams = SearchParams | CollocationParams;
 
-export function isCollocationParams(params: FormParams): params is CollocationParams {
-	return params.colltype !== undefined;
-}
-
-export type FormOverrides = Partial<{
-	patt: string;
-	collpatt: string;
-	filter: string;
-	searchfield: string;
-	withspans: true;
-	colltype: BLCollocationType;
-	context: number | string | null;
-	within: string;
-	reltype: string;
-	annotation: string;
-	sensitive: boolean;
-}>;
+/** Decoded form-owned request values are override candidates until compared with restored widgets.
+ * A null context records an invalid URL value, so compilation cannot silently use its default. */
+export type FormOverrides = Partial<Omit<CollocationParams, 'context' | 'group' | 'sort' | 'scorertype'>> & {
+	context?: CollocationParams['context'] | null;
+};

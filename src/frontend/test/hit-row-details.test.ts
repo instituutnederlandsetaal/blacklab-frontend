@@ -33,9 +33,9 @@ vi.mock('@/customization-api/internal/internal-api', () => ({
 }));
 
 const snippet = {
-	before: { punct: [] },
-	match: { punct: [] },
-	after: { punct: [] },
+	before: { punct: [], word: [] },
+	match: { punct: ['', ''], word: ['hit'] },
+	after: { punct: [''], word: [''] },
 } as unknown as BLHit;
 
 function deferredRequest<T>() {
@@ -98,13 +98,41 @@ test('renders ordered context descriptors and forwards shared hover events', asy
 	expect(contexts.map(context => context.props('hoverMatchInfos'))).toEqual([['shared'], ['shared'], ['shared']]);
 	expect(Array.from(wrapper.get('p[dir="ltr"]').element.children, element => element.tagName.toLowerCase())).toEqual(['span', 'strong', 'a', 'span']);
 	expect(wrapper.get('a').attributes()).toMatchObject({ href: '/corpus/docs/doc?field=parallel', target: '_blank' });
-	expect(contexts[0].text()).toBe('…');
-	expect(contexts[2].text()).toBe('…');
+	expect(contexts[0].text()).toBe('');
+	expect(contexts[2].text()).toBe('');
 
 	for (const context of contexts) context.vm.$emit('hover', ['relation']);
 	expect(wrapper.emitted('hover')).toEqual([[['relation']], [['relation']], [['relation']]]);
 	contexts[1].vm.$emit('unhover');
 	expect(wrapper.emitted('unhover')).toEqual([[]]);
+});
+
+test('shows ellipses only for visible surrounding context', async () => {
+	mock.getSnippet.mockReturnValue(
+		new CancelableRequest(
+			Promise.resolve({
+				before: { punct: ['', ' '], word: ['before'] },
+				match: { punct: ['', ''], word: ['hit'] },
+				after: { punct: ['', '!'], word: ['after'] },
+			} as unknown as BLHit),
+			vi.fn(),
+		),
+	);
+	const wrapper = mount(HitRowDetails, {
+		props: {
+			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
+			hoverMatchInfos: [],
+			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
+			open: true,
+			row: row(),
+			type: 'hits',
+		},
+	});
+	await flushPromises();
+
+	const contexts = wrapper.findAllComponents(HitContext);
+	expect(contexts[0].text()).toBe('…before');
+	expect(contexts[2].text()).toBe('after!…');
 });
 
 test('retains snippet and sentence requests across close and uncheck', async () => {

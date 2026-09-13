@@ -93,7 +93,7 @@ function renderingInfo(groupDisplayMode = 'table'): DisplaySettingsForRendering 
 		hasCustomHitInfoColumn: () => false,
 		getCustomHitInfo: () => null,
 		getMatchInfoHighlightStyle: () => undefined,
-		requestedRange: null,
+		selectedRange: null,
 	} as unknown as DisplaySettingsForRendering;
 }
 
@@ -145,7 +145,7 @@ describe('makeRows', () => {
 			sourceField: { id: 'contents' },
 			specialFields: {},
 			getSummary: () => '',
-			requestedRange: { first: 6, number: 1 },
+			selectedRange: { first: 6, number: 1 },
 		} as unknown as DisplaySettingsForRendering;
 
 		expect(makeRows(results, info).rows.map(row => row.muted)).toEqual([true, false, true]);

@@ -45,7 +45,7 @@ const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): strin
 	}
 };
 
-export const getPatternString = (
+const getPatternString = (
 	annotations: AppTypes.AnnotationValue[],
 	withinClauses: Record<string, Record<string, any>>,
 	/**
@@ -186,7 +186,7 @@ export function getPatternStringSearch(subForm: keyof ModuleRootStatePatterns, s
 }
 
 /** Derive within clauses from filters and the within widget (on the left), if any */
-export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters, patternState: ModuleRootStatePatterns) {
+function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters, patternState: ModuleRootStatePatterns) {
 	const withinClauses: Record<string, Record<string, any>> = {};
 	Object.entries(filtersState).forEach(([id, filterState]) => {
 		const vf = getValueFunctions(filterState);

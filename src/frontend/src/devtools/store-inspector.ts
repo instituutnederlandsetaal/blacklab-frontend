@@ -12,7 +12,6 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 
@@ -65,7 +64,6 @@ const STORE_GROUPS: StoreGroup[] = [
 		children: [
 			{ id: 'store:corpus', label: 'Corpus', readState: () => useCorpus().value, readGetters: () => {} },
 			{ id: 'store:history', label: 'History', readState: HistoryStore.getState, readGetters: () => HistoryStore.get },
-			{ id: 'store:query', label: 'Query', readState: QueryStore.getState, readGetters: () => QueryStore.get },
 			{ id: 'store:tagset', label: 'Tagset', readState: TagsetStore.getState, readGetters: () => TagsetStore.get },
 			{ id: 'store:ui', label: 'UI', readState: UIStore.getState, readGetters: () => UIStore.get },
 			{ id: 'store:article', label: 'Article', readState: ArticleStore.getState, readGetters: () => ArticleStore.get },

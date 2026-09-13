@@ -29,17 +29,18 @@ import {
 } from '@/features/form';
 import { createCollocationSimpleFieldNode } from '@/features/form/fields/collocation-field';
 import type { SummaryViewConfig } from '@/features/form/model/views/summary-view';
-import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import { restoreSubmittedForm } from '@/features/search/model/submitted-search';
 import type { Corpus, NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
+import { readSearchQuery } from '@/url/search-query';
 
 import debug from '@/shared/debug/debug';
 import { findOption, optionLabel, optionText, optionTitle, optionValues, type Options, type OptionText } from '@/shared/utils/options';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-function restoreSearchFormState(runtime: FormRuntime, query: Record<string, unknown>) {
-	return restoreSearchForm(runtime, query).state;
+function readSearchFormState(runtime: FormRuntime, query: Record<string, unknown>) {
+	return restoreSubmittedForm(runtime, readSearchQuery(query).submitted).state;
 }
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
@@ -228,8 +229,7 @@ function createScopedSearchFormSystem(options: Omit<Parameters<typeof createSear
 function createDefinition(corpus = createCorpus()) {
 	return createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		corpus: ref(corpus),
-		tagset: ref(undefined),
+		corpus,
 		translate: createMockTranslate(),
 	}).runtime.value!;
 }
@@ -257,8 +257,7 @@ function createLocalizedSearchSystem() {
 	};
 	const system = createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		corpus: ref(createCorpus()),
-		tagset: ref(undefined),
+		corpus: createCorpus(),
 		translate: translated,
 	});
 	const runtime = system.runtime.value!;
@@ -300,8 +299,8 @@ function createLocalizedPosSystem() {
 	const translate = createMockTranslate();
 	const system = createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		corpus: ref(corpus),
-		tagset: ref(normalizedTagset),
+		corpus,
+		tagset: normalizedTagset,
 		translate: {
 			...translate,
 			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) => `${locale.value}:${value.defaultDisplayName || value.id}`,
@@ -330,9 +329,8 @@ function createCustomizedWithinRuntime() {
 		() =>
 			createSearchFormSystem({
 				blacklabApi: createMockApi().blacklabApi,
-				corpus: ref(corpus),
+				corpus,
 				customizations: createCustomizations(registry, corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId),
-				tagset: ref(undefined),
 				translate: createMockTranslate(),
 			}).runtime.value!,
 	)!;
@@ -342,8 +340,7 @@ function createCustomizedWithinRuntime() {
 function createLegacyBackedSearchSystem() {
 	return createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
-		corpus: ref(createCorpus()),
-		tagset: ref(undefined),
+		corpus: createCorpus(),
 		translate: createMockTranslate(),
 	});
 }
@@ -460,8 +457,7 @@ describe('search form system', () => {
 		const translate = createMockTranslate();
 		const runtime = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			corpus: ref(corpus),
-			tagset: ref(undefined),
+			corpus,
 			translate: {
 				...translate,
 				$tAnnotDisplayName: value => `${locale.value}:${value.id}`,
@@ -717,7 +713,7 @@ describe('search form system', () => {
 
 	test('restores a scoped Documents URL through the shared form restore path', () => {
 		const runtime = createDefinition();
-		const restored = restoreSearchFormState(runtime, {
+		const restored = readSearchFormState(runtime, {
 			'f.form': ids.exploreForm('corpora'),
 			'f.explore-corpora-group-by': 'field:genre',
 			'f.explore-corpora-group-display-mode': 'docs',
@@ -798,7 +794,7 @@ describe('search form system', () => {
 
 	test('drops a restored N-gram grouping annotation that is no longer configured', () => {
 		const runtime = createDefinition();
-		const restored = restoreSearchFormState(runtime, {
+		const restored = readSearchFormState(runtime, {
 			'f.form': ids.exploreForm('ngram'),
 			'f.explore-ngram-group-by': 'removed',
 		});
@@ -850,7 +846,7 @@ describe('search form system', () => {
 		] satisfies TokenSequenceFieldState;
 		runtime.state.state.value[ids.exploreNgramGroupBy()] = 'pos';
 		const submitted = runtime.compile(ids.exploreForm('ngram'));
-		const restored = restoreSearchFormState(runtime, submitted.encoded);
+		const restored = readSearchFormState(runtime, submitted.encoded);
 		runtime.state.replaceState(restored);
 
 		expect(runtime.state.state.value[ids.exploreNgramTokens()]).toEqual([
@@ -1005,7 +1001,7 @@ describe('search form system', () => {
 
 	test('restores a canonical raw query into the expert form', () => {
 		const runtime = createDefinition();
-		const restored = restoreSearchFormState(runtime, {
+		const restored = readSearchFormState(runtime, {
 			patt: '[lemma="water"]',
 		});
 		runtime.state.replaceState(restored);
@@ -1276,8 +1272,7 @@ describe('search form system', () => {
 		try {
 			const system = createScopedSearchFormSystem({
 				blacklabApi: createMockApi().blacklabApi,
-				corpus: ref(corpus),
-				tagset: ref(undefined),
+				corpus,
 				translate: createMockTranslate(),
 			});
 			const runtime = system.runtime.value!;
@@ -1372,8 +1367,7 @@ describe('search form system', () => {
 	test('creates parallel querybuilder defaults from the replacement definition', () => {
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			corpus: ref(createParallelCorpus()),
-			tagset: ref(undefined),
+			corpus: createParallelCorpus(),
 			translate: createMockTranslate(),
 		});
 
@@ -1390,8 +1384,7 @@ describe('search form system', () => {
 	test('discards draft state and restores the URL against the replacement definition', () => {
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			corpus: ref(createCorpus()),
-			tagset: ref(undefined),
+			corpus: createCorpus(),
 			translate: createMockTranslate(),
 		});
 		const initialRuntime = system.runtime.value!;
@@ -1412,7 +1405,7 @@ describe('search form system', () => {
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
 
-		const restored = restoreSearchFormState(replacementRuntime, {
+		const restored = readSearchFormState(replacementRuntime, {
 			...committedUrlState.encoded,
 			patt: committedUrlState.params.patt,
 			filter: committedUrlState.params.filter,
@@ -1476,8 +1469,7 @@ describe('search form system', () => {
 		state.search.shared.within.sentenceElement = 'p';
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			corpus: ref(corpus),
-			tagset: ref(undefined),
+			corpus,
 			translate: createMockTranslate(),
 		});
 		const initialRuntime = system.runtime.value!;
@@ -1496,7 +1488,7 @@ describe('search form system', () => {
 			expect(collocations.defaultWithin).toBe('p');
 			expect(collocations.withinOptions.map(option => option.value)).toEqual(['', 'l', 'p']);
 
-			const restored = restoreSearchFormState(replacementRuntime, {
+			const restored = readSearchFormState(replacementRuntime, {
 				'f.form': ids.collocationsForm(),
 				'f.collocations': 'q={s={word;s=god}}',
 				within: 'p',
@@ -1515,8 +1507,7 @@ describe('search form system', () => {
 	test('rebuilds and restores a customized range filter in the collocation form', () => {
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			corpus: ref(createCorpus()),
-			tagset: ref(undefined),
+			corpus: createCorpus(),
 			translate: createMockTranslate(),
 		});
 		const initialRuntime = system.runtime.value!;
@@ -1536,7 +1527,7 @@ describe('search form system', () => {
 		try {
 			const replacementRuntime = system.runtime.value!;
 			expect(replacementRuntime).not.toBe(initialRuntime);
-			const restored = restoreSearchFormState(replacementRuntime, {
+			const restored = readSearchFormState(replacementRuntime, {
 				'f.form': ids.collocationsForm(),
 				'f.collocations': 'q={s={word;s=god}}',
 				'f.witness_year_from-witness_year_to': 'l=1300;h=1310',
@@ -1623,7 +1614,7 @@ describe('search form system', () => {
 			{ value: 'p', label: 'Paragraph', title: null },
 		];
 		const definition = createDefinition(corpus);
-		const restored = restoreSearchFormState(definition, {
+		const restored = readSearchFormState(definition, {
 			'f.form': ids.searchForm('simple'),
 			'f.word': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1644,7 +1635,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreSearchFormState(definition, {
+		const restored = readSearchFormState(definition, {
 			'f.form': ids.searchForm('extended'),
 			'f.word_or_lemma': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1671,7 +1662,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreSearchFormState(definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
+		const restored = readSearchFormState(definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
 
 		expect(restored.uiState[ids.annotationTabs()]).toBe(ids.annotationTab('Grammar'));
 		expect(restored.uiState[ids.annotationTab('Grammar')]).toBe(ids.annotationField('extended', 'contents', 'pos'));

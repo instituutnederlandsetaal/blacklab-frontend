@@ -2,10 +2,13 @@
 
 import { enableAutoUnmount, flushPromises, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref } from 'vue';
 
+import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import type { BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
+
+import { provideMockActiveSearchParameters } from './mocks/active-search-parameters';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 
@@ -21,11 +24,9 @@ const mock = vi.hoisted(() => ({
 	params: undefined as unknown,
 }));
 
-vi.mock('@/app/state/root-store', () => ({ get: { blacklabParameters: () => ({ ...(mock.params as object) }) } }));
 vi.mock('@/app/state/useCorpusContext', () => ({ useCorpus: () => ref(mock.corpus) }));
 vi.mock('@/customization-api/internal/internal-api', () => ({ useCustomizations: () => mock.customizations }));
 vi.mock('@/features/search/model/form/filter-state', () => ({ getState: () => ({ filters: {} }) }));
-vi.mock('@/features/search/model/query-state', () => ({ get: { sourceField: () => 'contents' } }));
 vi.mock('@/features/search/model/results/global-results-state', () => ({ getState: () => ({ context: 5 }) }));
 vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock.api }));
 vi.mock('@/pages/search/results/table/hit-highlighting', () => ({ getHighlightColors: vi.fn(() => ({})), mergeMatchInfos: mock.mergeMatchInfos }));
@@ -37,14 +38,21 @@ function deferredRequest<T>() {
 }
 
 function mountGroupBy() {
-	return shallowMount(GroupBy, { props: { type: 'hits' } });
+	return shallowMount(GroupBy, {
+		global: {
+			plugins: [provideMockActiveSearchParameters(computed(() => ({ ...(mock.params as EffectiveSearchParameters) })))],
+		},
+		props: { type: 'hits' },
+	});
 }
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	ResultsStore.setPageSizePreference(20);
 	ResultsStore.getOrCreateModule('hits').actions.reset({ resetGroupBy: true });
 	mock.params = reactive({ patt: '[]', first: 37, number: 50, group: 'field:title', subcorpussize: true, listvalues: 'all', sort: 'hit:word,numhits,-alignments,-hit:lemma,-numhits,alignments' });
 	mock.corpus = {
+		mainAnnotatedField: 'contents',
 		id: 'test',
 		isParallelCorpus: false,
 		allAnnotationsMap: { word: { id: 'word', defaultDisplayName: 'Word' } },

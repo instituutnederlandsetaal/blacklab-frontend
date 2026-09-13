@@ -60,28 +60,5 @@ function searchAnnotationIds(ids: string[]): void;
 
 :::
 
-## Split-Batch
-
-Split batch search is a feature that quickly allows you search for multiple terms in quick succession.
-It will split your query into many small subqueries, which are put in the history. 
-
-For example a query like `[word="a|b" & lemma="c|d"]` will result in 4 searches in the history:
-- `[lemma = "a"]`
-- `[lemma = "b"]`
-- `[word  = "c"]`
-- `[word  = "d"]`
-
-The first query in the list is submitted, and the rest is pushed into the history so the user can load them at a later moment.
-
-It can be hidden using the API:
-::: code-group
-```js [usage]
-vuexModules.ui.actions.search.extended.splitBatch.enable(false);
-```
-```ts [definition]
-function enable(status: boolean): void;
-```
-:::
-
 <!-- @include: ./_within.md -->
 

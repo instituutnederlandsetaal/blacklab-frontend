@@ -122,18 +122,7 @@
 						"
 						v-model="inputValue"
 						ref="focusOnClickOpen"
-					/><button
-						v-if="resettableModel && filteredOptions.length"
-						type="button"
-						tabindex="-1"
-						:class="['menu-button menu-reset', 'btn btn-sm btn-default']"
-						@click="
-							internalModel = {};
-							inputValue = '';
-						"
-					>
-						Reset
-					</button>
+					/><button v-if="resettableModel && filteredOptions.length" type="button" tabindex="-1" :class="['menu-button menu-reset', 'btn btn-sm btn-default']" @click="resetSelection">Reset</button>
 				</li>
 
 				<li class="menu-body">
@@ -266,7 +255,7 @@ export default defineComponent({
 		/**
 		 * Allow values that are not in options, only relevant if !editable
 		 * If true, preserve the value, though no entry will exist for it in the dropdown
-		 * If false, immediately emit a change event with a corrected value prop
+		 * If false, display only recognized values; receiving props never emits a model update
 		 */
 		allowUnknownValues: Boolean,
 		allowEmptyGroups: Boolean,
@@ -513,14 +502,18 @@ export default defineComponent({
 				allowUnknownValues: this.allowUnknownValues,
 			};
 		},
-		emitInputEventData(): any {
-			return {
-				internalModel: this.internalModel,
-				inputValue: this.inputValue,
-			};
-		},
 	},
 	methods: {
+		emitModelValue() {
+			const values = Object.keys(this.internalModel);
+			this.$emit('update:modelValue', this.editable ? this.inputValue : values.length ? (this.multiple ? values : values[0]) : null);
+		},
+		resetSelection() {
+			this.internalModel = {};
+			this.inputValue = '';
+			this.emitChangeOnClose = true;
+			this.emitModelValue();
+		},
 		focusTrigger(): void {
 			const focusOnEscClose = this.$refs.focusOnEscClose as HTMLElement | undefined;
 			focusOnEscClose?.focus();
@@ -756,6 +749,7 @@ export default defineComponent({
 			if (this.editable) {
 				// If editable, internalModel is unused
 				this.inputValue = value;
+				this.emitModelValue();
 				this.doClose();
 				return;
 			}
@@ -782,6 +776,7 @@ export default defineComponent({
 				this.$emit('select', addToModel);
 			}
 
+			if (deleteFromModel.length || addToModel) this.emitModelValue();
 			if (!this.multiple) {
 				this.doClose();
 			}
@@ -843,7 +838,7 @@ export default defineComponent({
 							this.internalModel = { [newVal]: true };
 						} else {
 							this.internalModel = {};
-						} // unknown value. Replace model with an empty one so we re-emit our correct "unset" value
+						} // Unknown value: render an empty selection.
 					} else {
 						// have (one or more) old value(s), and a new value, compare.
 						if (oldVals.length === 1 && oldVals[0] === newVal) {
@@ -853,7 +848,7 @@ export default defineComponent({
 						}  // replace whatever we had with the new value, seeing as its different.
 						else {
 							this.internalModel = {};
-						} // unknown value. Replace model with an empty one so we re-emit our correct "unset" value
+						} // Unknown value: render an empty selection.
 					}
 				}
 			} else {
@@ -890,30 +885,6 @@ export default defineComponent({
 		},
 	},
 	watch: {
-		emitInputEventData: {
-			deep: true,
-			handler() {
-				if (this.editable) {
-					this.$emit('update:modelValue', this.inputValue);
-				} else {
-					// Model only edited when actually required, so always fire input event
-					// So if this triggers we know for sure the value output also needs to change
-					// But maybe the model only changed because we got pushed a new value from props
-					// check that this is not the case.
-					const values = Object.keys(this.internalModel);
-					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length) {
-						const modelValues = new Set(this.modelValue);
-						if (values.every(v => modelValues.has(v))) {
-							return;
-						}
-					} // our modelValue prop is already up to date - don't fire.
-					if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) {
-						return;
-					}
-					this.$emit('update:modelValue', values.length ? (this.multiple ? values : values[0]) : null);
-				}
-			},
-		},
 		isOpen: {
 			immediate: true,
 			handler(cur: boolean) {

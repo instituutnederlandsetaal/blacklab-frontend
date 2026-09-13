@@ -273,7 +273,6 @@ function createCustomizationApi(
 			return { ...(currentCorpus.allAnnotatedFieldsMap[sourceField]?.annotations[annotationId] || currentCorpus.firstMainAnnotation), annotatedFieldId: sourceField };
 		},
 		searchFormExtendedAnnotationIds: () => searchFormOverrides.value.extendedAnnotationIds ?? state().search.extended.searchAnnotationIds,
-		searchFormSplitBatchEnabled: () => state().search.extended.splitBatch.enabled,
 		searchFormAnnotationControl(annotationId: string, annotatedFieldId?: string): Exclude<SearchFormAnnotationControl, 'auto'> | null {
 			return searchFormOverrides.value.annotationControls[searchFormAnnotationControlKey(annotationId, annotatedFieldId)] ?? null;
 		},

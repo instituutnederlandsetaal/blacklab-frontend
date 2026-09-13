@@ -106,7 +106,7 @@ export interface GroupRowData {
 	/** Average document length [gr.t/gr.d]. */
 	'average document length [gr.t/gr.d]'?: number;
 
-	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	/** Is this row outside the selected range? */
 	muted: boolean;
 }
 
@@ -300,21 +300,15 @@ export function snippetParts(hit: BLHitInContext, colors: Record<string, TokenHi
 }
 
 /**
- * The URL encodes first + number, which don't have to align with clean page boundaries.
- * As we want to allow users to define their own page size, but still open a page from another user with a different page boundary.
- *
- * If the results as defined in the URL (say 80-100) don't align with the user's page size,
- * we request multiple pages of results (as defined by the user's page size) so they completely cover the result range in the URL.
- * E.g. for a user page size of 50, we would request results 50-100 to cover the URL range of 80-100.
- * This means we might get more results back than the user requested in the URL.
- * We then need to highlight the results that are outside the URL range (i.e. highlighting rows 50-80 in this example).
+ * The request covers complete pages, so its results can extend beyond the selected range.
+ * For example, selecting 80–100 with page size 50 also retrieves 50–80; those extra rows are muted.
  */
-function isOutsideRequestedResults(indexInRequestedResults: number, requestedRange: { first: number; number: number } | null, firstFromBlackLab: number | undefined): boolean {
-	if (requestedRange == null) return false;
+function isOutsideSelectedResults(indexInRequestedResults: number, selectedRange: { first: number; number: number } | null, firstFromBlackLab: number | undefined): boolean {
+	if (selectedRange == null) return false;
 
 	const globalIndex = indexInRequestedResults + (Number(firstFromBlackLab) || 0);
-	const isOutsideUrlRange = globalIndex < requestedRange.first || globalIndex >= requestedRange.first + requestedRange.number;
-	return isOutsideUrlRange;
+	const isOutsideSelectedRange = globalIndex < selectedRange.first || globalIndex >= selectedRange.first + selectedRange.number;
+	return isOutsideSelectedRange;
 }
 
 // ===================
@@ -367,8 +361,8 @@ export type DisplaySettingsForRendering = {
 	getCustomHitInfo: (hit: BLHitInContext, annotatedField: NormalizedAnnotatedField, doc: BLDoc) => string | null;
 	getMatchInfoHighlightStyle: Parameters<typeof Highlights.getHighlightSections>[1];
 
-	/** If set, original range requested via shared URL for this active view. */
-	requestedRange: { first: number; number: number } | null;
+	/** The active view's selection, before expansion to complete pages. */
+	selectedRange: { first: number; number: number } | null;
 
 	/** Scorer used by a collocation request. Its presence selects the collocation-specific group columns. */
 	collocationScorer?: BLCollocationScorer;
@@ -414,7 +408,7 @@ export type HitRowData = {
 	 */
 	customHitInfo: string;
 
-	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	/** Is this row outside the selected range? */
 	muted: boolean;
 };
 
@@ -425,7 +419,7 @@ export type DocRowData = {
 	doc: BLDoc;
 	hits?: HitRowData[];
 	hit_id?: undefined;
-	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	/** Is this row outside the selected range? */
 	muted: boolean;
 };
 
@@ -444,7 +438,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRendering, indexInRe
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
 		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({ ...p, hit: s }, info, undefined, indexInRequestedResults)) : undefined,
-		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first),
+		muted: isOutsideSelectedResults(indexInRequestedResults, info.selectedRange, p.query.first),
 	};
 }
 
@@ -492,7 +486,7 @@ function makeHitRow(
 		dir: docDir(p.doc, info.dir),
 
 		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, field, p.doc) : undefined) ?? '',
-		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first),
+		muted: isOutsideSelectedResults(indexInRequestedResults, info.selectedRange, p.query.first),
 	};
 }
 
@@ -619,7 +613,7 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			'relative frequency (tokens) [gr.t/sc.t]': row['gr.t'] && row['sc.t'] ? row['gr.t'] / row['sc.t'] : undefined,
 
 			'average document length [gr.t/gr.d]': row['gr.t'] && row['gr.d'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
-			muted: isOutsideRequestedResults(i, info.requestedRange, getSearchParameters(results).first),
+			muted: isOutsideSelectedResults(i, info.selectedRange, getSearchParameters(results).first),
 		};
 
 		for (const key of Object.keys(r) as Array<keyof GroupRowData>) {

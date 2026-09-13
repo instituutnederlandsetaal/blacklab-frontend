@@ -8,30 +8,12 @@ import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 
 import { collectFormSummaryValues, collectFormValues } from './gather';
 
-/** Copy one typed override while preserving the correlation between its key and value. */
-function copyOverride<Key extends keyof FormOverrides>(target: FormOverrides, source: Readonly<FormOverrides>, key: Key): void {
-	target[key] = source[key];
-}
-
-function filterTargetEmissions<Names extends readonly FormOutputName[]>(emissions: readonly FormEmission[], acceptedOutputs: Names, issues: FormIssue[]): FormEmission<Names[number]>[] {
-	const result: FormEmission<Names[number]>[] = [];
-	for (const emission of emissions) {
-		if (!acceptedOutputs.includes(emission.name as Names[number])) {
-			issues.push({ severity: 'warning', message: `The form target does not accept output '${emission.name}'; ignoring it.` });
-			continue;
-		}
-		result.push(emission as FormEmission<Names[number]>);
-	}
-	return result;
-}
-
-function selectOverrides(candidates: Readonly<FormOverrides>, params: Readonly<FormParams>): FormOverrides {
-	const overrides: FormOverrides = {};
-	const baseline: Readonly<Partial<FormOverrides>> = params;
-	for (const key of Object.keys(candidates) as (keyof FormOverrides)[]) {
-		if (candidates[key] !== baseline[key]) copyOverride(overrides, candidates, key);
-	}
-	return overrides;
+function filterTargetEmissions(emissions: readonly FormEmission[], acceptedOutputs: readonly FormOutputName[], issues: FormIssue[]): FormEmission[] {
+	return emissions.filter(emission => {
+		if (acceptedOutputs.includes(emission.name)) return true;
+		issues.push({ severity: 'warning', message: `The form target does not accept output '${emission.name}'; ignoring it.` });
+		return false;
+	});
 }
 
 function createCompiledResult(node: FormBoundaryNode, collected: ReturnType<typeof collectFormValues>, params: FormParams, issues: FormIssue[]): CompiledFormResult {
@@ -57,7 +39,7 @@ export function compileFormNode(
 ): CompiledFormResult {
 	const collected = collectFormValues(node, state, context, schema);
 	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);
-	const params = node.target.compile(accepted as never, collected.issues, overrides);
+	const params = node.target.compile(accepted, collected.issues, overrides);
 	return createCompiledResult(node, collected, params, collected.issues);
 }
 
@@ -70,11 +52,10 @@ export function compileRestoredFormNode(
 ): { result: CompiledFormResult; overrides: FormOverrides } {
 	const collected = collectFormValues(node, state, context, schema);
 	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);
-	const baseline = node.target.compile(accepted as never, []);
-	const overrides = selectOverrides(candidates, baseline);
-	const issues = [...collected.issues];
-	const params = node.target.compile(accepted as never, issues, overrides);
-	return { result: createCompiledResult(node, collected, params, issues), overrides };
+	const baseline: FormOverrides = node.target.compile(accepted, []);
+	const overrides = Object.fromEntries(Object.entries(candidates).filter(([key, value]) => value !== baseline[key as keyof FormOverrides]));
+	const params = node.target.compile(accepted, collected.issues, overrides);
+	return { result: createCompiledResult(node, collected, params, collected.issues), overrides };
 }
 
 /** Compile the live-summary projection without resolving persistence or result-preset channels. */
@@ -87,5 +68,5 @@ export function compileFormSummary(
 ): CompiledFormSummary {
 	const collected = collectFormSummaryValues(node, state, context, fieldVisitor);
 	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);
-	return { params: node.target.compile(accepted as never, collected.issues, overrides), summaries: collected.summaries };
+	return { params: node.target.compile(accepted, collected.issues, overrides), summaries: collected.summaries };
 }

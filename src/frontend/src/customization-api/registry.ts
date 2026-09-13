@@ -15,10 +15,10 @@ export type CustomizationRegistry = {
 
 	readonly legacyApi: Readonly<ShallowRef<LegacyCustomizationApi | undefined>>;
 	/** Callbacks that configure the standard form before its graph is constructed. */
-	readonly formConfigurators: Ref<readonly SearchFormConfigurationCallback[]>;
+	readonly formConfigurators: Readonly<Ref<readonly SearchFormConfigurationCallback[]>>;
 	/** Callbacks that customize the completed form graph. */
-	readonly formCustomizers: Ref<readonly SearchFormCustomizationCallback[]>;
-	readonly resultCustomizations: Ref<readonly SearchResultsCustomization[]>;
+	readonly formCustomizers: Readonly<Ref<readonly SearchFormCustomizationCallback[]>>;
+	readonly resultCustomizations: Readonly<Ref<readonly SearchResultsCustomization[]>>;
 };
 export type CustomizationRegistryPlugin = ObjectPlugin & CustomizationRegistry;
 

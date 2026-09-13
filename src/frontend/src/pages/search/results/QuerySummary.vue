@@ -7,17 +7,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import * as QueryStore from '@/features/search/model/query-state';
+import { useSearchSummary } from '@/features/search/model/search-summary';
 
 import { useI18n } from '@/shared/i18n';
 
 const translate = useI18n();
+const querySummary = useSearchSummary();
 const summary = computed(() => {
-	const pattern = QueryStore.get.patternSummary();
-	const filters = QueryStore.get.filterSummary();
+	const { pattern, filter } = querySummary.value;
 	return [
 		pattern && `${pattern} ${translate.$t('results.querySummary.within')}`,
-		filters ? `${translate.$t('results.querySummary.documentsWhere')} ${filters}` : translate.$t('results.querySummary.allDocuments'),
+		filter ? `${translate.$t('results.querySummary.documentsWhere')} ${filter}` : translate.$t('results.querySummary.allDocuments'),
 	]
 		.filter(Boolean)
 		.join(' ');

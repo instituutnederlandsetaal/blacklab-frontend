@@ -5,18 +5,15 @@
  * Those will get their own sub-module here.
  */
 import cloneDeep from 'clone-deep';
-import { markRaw, reactive, shallowReactive } from 'vue';
+import { markRaw, reactive, shallowReactive, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
-import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
+import { expandResultRange, type ResultRange } from '@/features/search/model/results/pagination';
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import type { BLCollocationScorer } from '@/types/blacklabtypes';
 
 type ModuleRootState = Record<string, ViewRootState>;
-type RequestedRange = {
-	first: number;
-	number: number;
-};
+export type { ResultRange } from '@/features/search/model/results/pagination';
 type ViewRootState = {
 	customState: any;
 	groupBy: string[];
@@ -24,8 +21,6 @@ type ViewRootState = {
 	first: number;
 	/** The number of results to retrieve */
 	number: number;
-	/** The original range requested via URL. Null means no shared URL-range context is active. */
-	requestedRange: RequestedRange | null;
 	collocationScorer: BLCollocationScorer;
 	sort: string | null;
 	viewGroup: string | null;
@@ -38,14 +33,13 @@ const initialViewState: ViewRootState = {
 	groupBy: [],
 	first: 0,
 	number: 20, // default page size
-	requestedRange: null,
 	collocationScorer: 'coll-dice',
 	sort: null,
 	viewGroup: null,
 	groupDisplayMode: null,
 };
 
-const createActions = (state: ViewRootState) => ({
+const createActions = (state: ViewRootState, defaults: ViewRootState, pageSize: MaybeRefOrGetter<number>) => ({
 	customState: (payload: any) => (state.customState = payload),
 	groupBy: (payload: string[]) => {
 		// can't just replace array since listeners might be attached to properties in a single entry, and they won't be updated.
@@ -53,84 +47,54 @@ const createActions = (state: ViewRootState) => ({
 		state.viewGroup = null;
 		state.sort = null;
 		state.first = 0;
-		state.requestedRange = null;
 	},
 	sort: (payload: string | null) => (state.sort = payload),
-
-	/*
-	 * Pagination flow overview (hits/docs each have their own view state):
-	 * 1) Fresh submit (searchFromSubmit): all views are reset, then number is set to global.pageSize.
-	 *    This guarantees URL serialization uses the active user's configured page size instead of the
-	 *    hardcoded initial fallback (20).
-	 * 2) URL restore (replaceRoot in root store): the active view is replaced from URL first/number,
-	 *    then a requestedRange may be set when the URL span is incompatible with local page boundaries.
-	 * 3) Local page-size change (global module): first/number are re-aligned to new boundaries and
-	 *    requestedRange is cleared immediately.
-	 * 4) Local pagination/grouping interactions (first/number/range/groupBy/viewGroup actions here):
-	 *    requestedRange is cleared, because the user is now navigating in local state, not shared URL context.
-	 */
 
 	/** Set the first result offset */
 	first: (payload: number) => {
 		state.first = Math.max(0, payload);
-		state.requestedRange = null;
 	},
 	/** Set the number of results to retrieve */
 	number: (payload: number) => {
 		state.number = Math.max(1, payload);
-		state.requestedRange = null;
 	},
 	/** Convenience action to set both first and number at once */
 	range: (payload: { first: number; number: number }) => {
 		state.first = Math.max(0, payload.first);
 		state.number = Math.max(1, payload.number);
-		state.requestedRange = null;
 	},
-	setRequestedRange: (payload: RequestedRange) => {
-		state.requestedRange = {
-			first: Math.max(0, payload.first),
-			number: Math.max(1, payload.number),
-		};
-	},
-	clearRequestedRange: () => (state.requestedRange = null),
 	collocationScorer: (payload: BLCollocationScorer) => {
 		state.collocationScorer = payload;
 		state.first = 0;
-		state.requestedRange = null;
 	},
 	viewGroup: (payload: string | null) => {
 		state.viewGroup = payload;
 		state.sort = null;
 		state.first = 0;
-		state.requestedRange = null;
 	},
 	groupDisplayMode: (payload: GroupDisplayMode | null) => (state.groupDisplayMode = payload),
 
 	reset: (payload: { resetGroupBy: boolean }) => {
 		// This may case an error if the current group settings are invalid for the new view.
 		let prevGroupBy = state.groupBy;
-		Object.assign(state, cloneDeep(initialViewState));
+		Object.assign(state, cloneDeep(defaults), { first: 0, number: toValue(pageSize) });
 		if (!payload.resetGroupBy) state.groupBy = prevGroupBy;
 	},
 	replace: (payload: ViewRootState) => {
 		Object.assign(state, cloneDeep(payload));
-		if (state.requestedRange == null) {
-			state.requestedRange = null;
-		}
 	},
 });
 
-/**
- * Create a module with the given namespace and initial state.
- * @param viewName key of this module in the root store
- * @param customInitialState if you want to override part of the initial state for this part of the store. Usually only change the customState property.
- * @returns a module object with actions, getters, namespace, getState and a vuex module.
- */
-export const createViewModule = (viewName: string, customInitialState?: Partial<ViewRootState>) => {
-	const state = reactive<ViewRootState>(Object.assign(cloneDeep(initialViewState), cloneDeep(customInitialState)));
+/** Create a view using its own defaults and an explicit page-size preference. */
+export const createViewModule = (pageSize: MaybeRefOrGetter<number>, customInitialState?: Partial<ViewRootState>) => {
+	const defaults = Object.assign(cloneDeep(initialViewState), cloneDeep(customInitialState));
+	const state = reactive<ViewRootState>(Object.assign(cloneDeep(initialViewState), { number: toValue(pageSize) }, cloneDeep(customInitialState)));
 	const m = {
-		actions: markRaw(createActions(state)),
-		get: markRaw({}),
+		actions: markRaw(createActions(state, defaults, pageSize)),
+		get: markRaw({
+			selectedRange: (): ResultRange => ({ first: state.first, number: state.number }),
+			expandedRequestRange: (): ResultRange => expandResultRange(state, toValue(pageSize)),
+		}),
 		getState: () => state,
 	};
 	return m;
@@ -139,12 +103,17 @@ type ViewModule = ReturnType<typeof createViewModule>;
 
 // store the sub-modules we create so we can access them later
 const moduleCache = shallowReactive<Record<string, ViewModule>>({});
+let pageSizePreference: MaybeRefOrGetter<number>;
+function setPageSizePreference(value: MaybeRefOrGetter<number>) {
+	pageSizePreference = value;
+}
 function getOrCreateModule(view: string, initialState?: ViewRootState) {
 	if (view == null) {
 		throw new Error('view is null');
 	}
 	if (!moduleCache[view]) {
-		moduleCache[view] = createViewModule(view, initialState);
+		if (pageSizePreference === undefined) throw new Error('Result views initialized without a page-size preference.');
+		moduleCache[view] = createViewModule(() => toValue(pageSizePreference), initialState);
 	}
 	return moduleCache[view];
 }
@@ -153,10 +122,7 @@ const actions = {
 	resetFirst: () => Object.values(moduleCache).forEach(m => m.actions.first(0)),
 	resetViewGroup: () => Object.values(moduleCache).forEach(m => m.actions.viewGroup(null)),
 	resetAllViews: (props: { resetGroupBy: boolean }) => {
-		Object.values(moduleCache).forEach(m => {
-			m.actions.reset(props);
-			m.actions.number(GlobalResultsModule.getState().pageSize);
-		});
+		Object.values(moduleCache).forEach(m => m.actions.reset(props));
 	},
 	replaceView: (payload: { view: string | null; data: ViewRootState }) => {
 		if (payload.view) getOrCreateModule(payload.view).actions.replace(payload.data);
@@ -189,5 +155,5 @@ function forEachView(fn: (view: ViewRootState) => void) {
 	Object.values(moduleCache).forEach(m => fn(m.getState()));
 }
 
-export { actions, forEachView, get, getOrCreateModule, getState, init, initialState, initialViewState };
+export { actions, forEachView, get, getOrCreateModule, getState, init, initialState, initialViewState, setPageSizePreference };
 export type { ModuleRootState, ViewModule, ViewRootState };

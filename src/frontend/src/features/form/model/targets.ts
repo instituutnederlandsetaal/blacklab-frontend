@@ -1,5 +1,5 @@
 import { compileCql, compileFilter } from '@/features/form/model/compile/query-artifact';
-import type { CollocationParams, FormOverrides, FormParams, SearchParams } from '@/features/form/model/types/blacklab-params';
+import { COLLOCATION_STRING_PARAMS, SEARCH_STRING_PARAMS, type CollocationParams, type FormOverrides, type FormParams, type SearchParams } from '@/features/form/model/types/blacklab-params';
 import type { FormEmission, FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 
 export type ViewName = 'hits' | 'docs';
@@ -24,48 +24,60 @@ export type SearchTargetOptions = {
 	defaultSearchfield?: string;
 };
 
-function conflict(issues: FormIssue[], output: FormOutputName): void {
-	issues.push({
-		severity: 'warning',
-		message: `Ignoring repeated non-empty output '${output}'.`,
-	});
-}
-
 function retainFirst<T>(current: T | undefined, candidate: T | null | undefined, output: FormOutputName, issues: FormIssue[]): T | undefined {
 	if (candidate == null) return current;
 	if (current === undefined) return candidate;
-	conflict(issues, output);
+	issues.push({ severity: 'warning', message: `Ignoring repeated non-empty output '${output}'.` });
 	return current;
 }
 
-function nonBlank(value?: string): string | undefined {
-	return value?.trim() || undefined;
-}
-
-function restoredString(value: string, output: FormOutputName, issues: FormIssue[]): string | undefined {
-	const normalized = nonBlank(value);
-	if (!normalized) issues.push({ severity: 'warning', message: `Restored override '${output}' is empty after normalization; ignoring it.` });
-	return normalized;
-}
-
-type StringOverrideName = 'patt' | 'collpatt' | 'filter' | 'searchfield' | 'within' | 'reltype' | 'annotation';
-
-/** Copy one typed override while preserving the correlation between its key and value. */
-function copyOverride<Key extends keyof FormOverrides>(draft: FormOverrides, overrides: Readonly<FormOverrides>, key: Key): void {
-	draft[key] = overrides[key];
-}
-
-function applyStringOverrides(draft: FormOverrides, overrides: Readonly<FormOverrides> | undefined, keys: readonly StringOverrideName[], issues: FormIssue[]): void {
-	if (!overrides) return;
+function applyStringOverrides(draft: FormOverrides, overrides: Readonly<FormOverrides>, keys: readonly (typeof COLLOCATION_STRING_PARAMS)[number][], issues: FormIssue[]): void {
 	for (const key of keys) {
 		const value = overrides[key];
-		if (value !== undefined) draft[key] = restoredString(value, key, issues);
+		if (value === undefined) continue;
+		draft[key] = value.trim() || undefined;
+		if (!draft[key]) issues.push({ severity: 'warning', message: `Restored override '${key}' is empty after normalization; ignoring it.` });
 	}
 }
 
-function applyDefinedOverrides(draft: FormOverrides, overrides: Readonly<FormOverrides> | undefined, keys: readonly (keyof FormOverrides)[]): void {
-	if (!overrides) return;
-	for (const key of keys) if (overrides[key] !== undefined) copyOverride(draft, overrides, key);
+function compileEmissions(emissions: readonly FormEmission[], issues: FormIssue[]): FormOverrides & Pick<SearchParams, 'group' | 'sort'> {
+	const draft: FormOverrides & Pick<SearchParams, 'group' | 'sort'> = {};
+	for (const emission of emissions) {
+		switch (emission.name) {
+			case 'patt':
+			case 'collpatt':
+				draft[emission.name] = retainFirst(draft[emission.name], compileCql(emission.value), emission.name, issues);
+				break;
+			case 'filter':
+				draft.filter = retainFirst(draft.filter, compileFilter(emission.value), 'filter', issues);
+				break;
+			case 'searchfield':
+			case 'within':
+			case 'reltype':
+			case 'annotation':
+				draft[emission.name] = retainFirst(draft[emission.name], emission.value.trim() || undefined, emission.name, issues);
+				break;
+			case 'colltype':
+				draft.colltype = retainFirst(draft.colltype, emission.value, 'colltype', issues);
+				break;
+			case 'context': {
+				const context = emission.value;
+				draft.context = retainFirst(draft.context, typeof context === 'number' ? context : context.join(':'), 'context', issues);
+				break;
+			}
+			case 'sensitive':
+				draft.sensitive = retainFirst(draft.sensitive, emission.value, 'sensitive', issues);
+				break;
+			case 'group':
+			case 'sort':
+				draft[emission.name] = [draft[emission.name], ...(emission.value?.map(item => item.trim()) ?? [])].filter(Boolean).join(',') || null;
+				break;
+			case 'withspans':
+				draft.withspans = true;
+				break;
+		}
+	}
+	return draft;
 }
 
 export function createSearchTarget(options: SearchTargetOptions = {}): FormTarget<typeof SEARCH_OUTPUTS, SearchParams> {
@@ -75,49 +87,20 @@ export function createSearchTarget(options: SearchTargetOptions = {}): FormTarge
 		acceptedOutputs: SEARCH_OUTPUTS,
 		targetView: options.targetView,
 		supportedEndpoints: options.supportedEndpoints ?? ['hits', 'docs', 'hits-grouped', 'docs-grouped'],
-		compile(emissions, issues, overrides) {
-			const draft: FormOverrides = {};
-			let groupSeen = false;
-			let sortSeen = false;
-			const group: string[] = [];
-			const sort: string[] = [];
+		compile(emissions, issues, overrides = {}) {
+			const draft = compileEmissions(emissions, issues);
 
-			for (const emission of emissions) {
-				switch (emission.name) {
-					case 'patt':
-						draft.patt = retainFirst(draft.patt, compileCql(emission.value), 'patt', issues);
-						break;
-					case 'filter':
-						draft.filter = retainFirst(draft.filter, compileFilter(emission.value), 'filter', issues);
-						break;
-					case 'searchfield':
-						draft.searchfield = retainFirst(draft.searchfield, nonBlank(emission.value), 'searchfield', issues);
-						break;
-					case 'group':
-						groupSeen = true;
-						group.push(...(emission.value?.map(item => item.trim()).filter(Boolean) ?? []));
-						break;
-					case 'sort':
-						sortSeen = true;
-						sort.push(...(emission.value?.map(item => item.trim()).filter(Boolean) ?? []));
-						break;
-					case 'withspans':
-						draft.withspans = true;
-						break;
-				}
-			}
-
-			applyStringOverrides(draft, overrides, ['patt', 'filter', 'searchfield'], issues);
-			applyDefinedOverrides(draft, overrides, ['withspans']);
+			applyStringOverrides(draft, overrides, SEARCH_STRING_PARAMS, issues);
+			draft.withspans = overrides.withspans ?? draft.withspans;
 			draft.searchfield ??= defaultSearchfield;
 			const params: SearchParams = {
-				...(draft.patt !== undefined ? { patt: draft.patt } : {}),
-				...(draft.filter !== undefined ? { filter: draft.filter } : {}),
-				...(draft.searchfield !== undefined ? { searchfield: draft.searchfield } : {}),
-				...(groupSeen ? { group: group.length ? group.join(',') : null } : {}),
-				...(sortSeen ? { sort: sort.length ? sort.join(',') : null } : {}),
+				...(draft.group !== undefined ? { group: draft.group } : {}),
+				...(draft.sort !== undefined ? { sort: draft.sort } : {}),
 				...(draft.withspans !== undefined ? { withspans: draft.withspans } : {}),
 			};
+			for (const key of SEARCH_STRING_PARAMS) {
+				if (draft[key] !== undefined) params[key] = draft[key];
+			}
 			for (const output of requiredOutputs) {
 				if (output in params) continue;
 				issues.push({
@@ -142,59 +125,16 @@ export function createCollocationTarget(defaultAnnotation: string): FormTarget<t
 		acceptedOutputs: COLLOCATION_OUTPUTS,
 		targetView: 'hits',
 		supportedEndpoints: ['collocations'],
-		compile(emissions, issues, overrides) {
-			const draft: FormOverrides = {};
-			let sortSeen = false;
-			const sort: string[] = [];
+		compile(emissions, issues, overrides = {}) {
+			const draft = compileEmissions(emissions, issues);
 
-			for (const emission of emissions) {
-				switch (emission.name) {
-					case 'patt':
-						draft.patt = retainFirst(draft.patt, compileCql(emission.value), 'patt', issues);
-						break;
-					case 'collpatt':
-						draft.collpatt = retainFirst(draft.collpatt, compileCql(emission.value), 'collpatt', issues);
-						break;
-					case 'filter':
-						draft.filter = retainFirst(draft.filter, compileFilter(emission.value), 'filter', issues);
-						break;
-					case 'searchfield':
-						draft.searchfield = retainFirst(draft.searchfield, nonBlank(emission.value), 'searchfield', issues);
-						break;
-					case 'colltype':
-						draft.colltype = retainFirst(draft.colltype, emission.value, 'colltype', issues);
-						break;
-					case 'context': {
-						const context = emission.value;
-						draft.context = retainFirst(draft.context, typeof context === 'number' ? context : `${context[0]}:${context[1]}`, 'context', issues);
-						break;
-					}
-					case 'within':
-						draft.within = retainFirst(draft.within, nonBlank(emission.value), 'within', issues);
-						break;
-					case 'reltype':
-						draft.reltype = retainFirst(draft.reltype, nonBlank(emission.value), 'reltype', issues);
-						break;
-					case 'annotation':
-						draft.annotation = retainFirst(draft.annotation, nonBlank(emission.value), 'annotation', issues);
-						break;
-					case 'sensitive':
-						draft.sensitive = retainFirst(draft.sensitive, emission.value, 'sensitive', issues);
-						break;
-					case 'sort':
-						sortSeen = true;
-						sort.push(...(emission.value?.map(item => item.trim()).filter(Boolean) ?? []));
-						break;
-				}
-			}
-
-			applyStringOverrides(draft, overrides, ['patt', 'collpatt', 'filter', 'searchfield', 'within', 'reltype', 'annotation'], issues);
-			applyDefinedOverrides(draft, overrides, ['colltype', 'context', 'sensitive']);
+			applyStringOverrides(draft, overrides, COLLOCATION_STRING_PARAMS, issues);
+			if (overrides.context !== undefined) draft.context = overrides.context;
 			if (draft.context === null) issues.push({ severity: 'error', message: `Restored override 'context' must be a safe non-negative integer or before:after pair.` });
 
-			draft.colltype ??= 'proximity';
+			draft.colltype = overrides.colltype ?? draft.colltype ?? 'proximity';
 			draft.annotation ??= fallbackAnnotation;
-			draft.sensitive ??= false;
+			draft.sensitive = overrides.sensitive ?? draft.sensitive ?? false;
 			if (draft.colltype === 'proximity' && draft.context === undefined) draft.context = 5;
 
 			if (!draft.patt) issues.push({ severity: 'error', message: "Required output 'patt' is missing." });
@@ -214,14 +154,11 @@ export function createCollocationTarget(defaultAnnotation: string): FormTarget<t
 			}
 
 			const params: CollocationParams = { colltype: draft.colltype, annotation: draft.annotation, sensitive: draft.sensitive, scorertype: 'coll-dice' };
-			if (draft.patt !== undefined) params.patt = draft.patt;
-			if (draft.collpatt !== undefined) params.collpatt = draft.collpatt;
-			if (draft.filter !== undefined) params.filter = draft.filter;
-			if (draft.searchfield !== undefined) params.searchfield = draft.searchfield;
+			for (const key of COLLOCATION_STRING_PARAMS) {
+				if (draft[key] !== undefined) params[key] = draft[key];
+			}
 			if (draft.context != null) params.context = draft.context;
-			if (draft.within !== undefined) params.within = draft.within;
-			if (draft.reltype !== undefined) params.reltype = draft.reltype;
-			if (sortSeen) params.sort = sort.length ? sort.join(',') : null;
+			if (draft.sort !== undefined) params.sort = draft.sort;
 			return params;
 		},
 	};

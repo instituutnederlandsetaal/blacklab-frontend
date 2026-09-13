@@ -257,7 +257,7 @@ function renderingInfo(translate: Translate): DisplaySettingsForRendering {
 		hasCustomHitInfoColumn: () => false,
 		getCustomHitInfo: () => null,
 		getMatchInfoHighlightStyle: () => null,
-		requestedRange: null,
+		selectedRange: null,
 		collocationScorer: 'coll-dice',
 	};
 }

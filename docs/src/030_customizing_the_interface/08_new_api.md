@@ -253,4 +253,4 @@ Errors in callbacks are logged to the console. Other callbacks still run where p
 
 The old API will remain available for the forseeable future, but will eventually be removed. Avoid using an old and a new hook for the same setting. Modern form settings take precedence over old form settings. For result selectors, returning `null` lets the old behavior decide when no newer callback returns a value. A registered `hitInfoColumn` or `exportDescription` replaces the corresponding old callback.
 
-There is no new hook for split-batch searches when `splitBatch.enabled` is true. Concordance rendering and article/document-page callbacks are not covered yet either; check back later and keep using the old API for those features for now.
+Concordance rendering and article/document-page callbacks are not covered yet; check back later and keep using the old API for those features for now.

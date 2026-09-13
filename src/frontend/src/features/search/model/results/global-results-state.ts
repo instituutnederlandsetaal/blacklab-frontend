@@ -7,6 +7,7 @@ import { useLocalStorage } from '@vueuse/core';
 import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { resizeResultRange } from '@/features/search/model/results/pagination';
 import * as ViewModule from '@/features/search/model/results/view-state';
 
 const defaults = {
@@ -44,11 +45,10 @@ const get = {}; //nothing for now.
 const actions = {
 	pageSize: (pageSize: number) => {
 		if (pageSize > 0 && pageSize <= 1000 && pageSize !== state.pageSize) {
+			const previousSize = state.pageSize;
 			state.pageSize = pageSize;
 			ViewModule.forEachView(view => {
-				view.first = Math.floor(view.first / pageSize) * pageSize;
-				view.number = pageSize;
-				view.requestedRange = null;
+				Object.assign(view, resizeResultRange(view, previousSize, pageSize));
 			});
 		}
 	},
@@ -66,7 +66,7 @@ const actions = {
 	sampleSeed: (payload: number | null) => {
 		// Must have a seed when there is a size (e.g. random sampling is active)
 		if (state.sampleSize != null && payload == null) {
-			payload = Number.MAX_SAFE_INTEGER * Math.random() * (Math.random() > 0 ? 1 : -1);
+			payload = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
 		}
 		state.sampleSeed = payload;
 	},

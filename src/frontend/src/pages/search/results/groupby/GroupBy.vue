@@ -187,12 +187,11 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Slider from 'vue-3-slider-component';
 
-import * as SearchModule from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
+import { useActiveSearch } from '@/features/search/model/active-search';
 import * as FilterModule from '@/features/search/model/form/filter-state';
-import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
@@ -234,13 +233,13 @@ const {
 	results?: BLSearchResult | null;
 }>();
 
+const activeSearchParameters = useActiveSearch().parameters;
 const customizations = useCustomizations();
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
 const translate = useI18n();
 const addedCriteria = ref<GroupBy[]>([]);
 const selectedCriteriumIndex = ref(0);
-const storeValueUpdateIsOurs = ref(false);
 const active = ref(false);
 
 const storeModule = computed<ResultsStore.ViewModule>(() => ResultsStore.getOrCreateModule(type));
@@ -291,7 +290,7 @@ const tabs = computed<Option[]>(() =>
 );
 
 const firstHitPreviewQuery = computed<BLSearchParameters | undefined>(() => {
-	const current = SearchModule.get.blacklabParameters();
+	const current = activeSearchParameters.value;
 	if (!isHitParams(current)) return undefined;
 
 	const params = { ...current };
@@ -329,13 +328,13 @@ const hits = computed(() => {
 	return !loading && settled.isLoaded() && isHitResults(settled.value) ? settled.value : undefined;
 });
 const contextsize = computed(() => {
-	const params = SearchModule.get.blacklabParameters();
+	const params = activeSearchParameters.value;
 	if (!isHitParams(params)) return 5;
 	const globalContext = GlobalSearchSettingsStore.getState().context;
 	return typeof params.context === 'number' ? params.context : typeof globalContext === 'number' ? globalContext : 5;
 });
 
-const mainSearchField = computed(() => QueryStore.get.sourceField());
+const mainSearchField = computed(() => activeSearchParameters.value?.searchfield ?? corpus.value.mainAnnotatedField);
 const selectedCriterium = computed(() => addedCriteria.value[selectedCriteriumIndex.value]);
 const selectedCriteriumAsContext = computed(() => (selectedCriterium.value?.type === 'context' ? (selectedCriterium.value as GroupByContext<ContextLabel | ContextPositional>) : undefined));
 const selectedCriteriumAsLabel = computed(() =>
@@ -673,7 +672,6 @@ const parallelVersionOptions = computed<Option[]>(() => {
 });
 
 function apply() {
-	storeValueUpdateIsOurs.value = true;
 	storeModule.value.actions.groupBy(serializeSortByOrGroupBy(addedCriteria.value.filter(isValidGroupBy)));
 }
 /** Remove a tab while keeping the selected criterium aligned with its predecessor. */
@@ -753,12 +751,10 @@ function getInitialRelationPartValue(relationName: string) {
 }
 
 watch(
-	storeValue,
+	() => storeValue.value.slice(),
 	value => {
-		if (storeValueUpdateIsOurs.value) {
-			storeValueUpdateIsOurs.value = false;
-			return;
-		}
+		// Keep incomplete draft criteria while the applied grouping still matches.
+		if (stableStringify(value) === stableStringify(serializeSortByOrGroupBy(addedCriteria.value.filter(isValidGroupBy)))) return;
 		addedCriteria.value = parseGroupBy(value, results ?? undefined);
 		active.value ||= addedCriteria.value.length > 0;
 		if (selectedCriteriumIndex.value >= addedCriteria.value.length) selectedCriteriumIndex.value = addedCriteria.value.length - 1;

@@ -76,7 +76,7 @@ describe('persistence path selection', () => {
 		const expert = builder.newForm('search.expert', ContainerRenderer, {}).addChildren(raw);
 		root.addChildren(simple, expert);
 
-		const restored = restoreForm(builder, { 'f.form': simple.id }, { legacyPattern: { pattern: '[word="water"]' } });
+		const restored = restoreForm(builder, { 'f.form': simple.id }, { patt: '[word="water"]' });
 
 		expect(restored.state.uiState[root.id]).toBe(expert.id);
 		expect(restored.state.state[raw.id]).toBe('[word="water"]');

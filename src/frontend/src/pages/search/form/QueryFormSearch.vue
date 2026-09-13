@@ -51,12 +51,6 @@
 
 					<Within v-model="within" />
 
-					<div v-if="splitBatchEnabled" class="form-group">
-						<div class="col-xs-12 col-md-9 col-md-push-3 checkbox">
-							<label for="extended_split_batch"> <input type="checkbox" name="extended_split_batch" id="extended_split_batch" v-model="splitBatch" /> {{ $t('search.extended.splitBatch') }} </label>
-						</div>
-					</div>
-
 					<button v-if="useTabs || allAnnotations.length > 1" type="button" class="btn btn-default btn-sm" @click="copyExtendedQuery">{{ $t('search.advanced.copyAdvancedQuery') }}</button>
 				</div>
 			</div>
@@ -94,10 +88,8 @@
 </template>
 
 <script lang="ts">
-import URI from 'urijs';
 import { defineComponent } from 'vue';
 
-import * as RootStore from '@/app/state/root-store';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
 import * as HistoryStore from '@/features/history/model/query-history-state';
@@ -105,8 +97,8 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import { useSearchNavigation } from '@/navigation/search-navigation';
 import type * as AppTypes from '@/types/apptypes';
-import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
 import ParallelFields from './parallel/ParallelFields';
 
@@ -124,12 +116,6 @@ import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
 import SearchExpert from '@/pages/search/form/SearchExpert.vue';
 import Within from '@/pages/search/form/Within.vue';
 
-function toRouterPath(url: string): string {
-	const relativeUrl = new URI(url).host('').protocol('').port('').toString();
-	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
-	return !context || !relativeUrl.startsWith(context) ? relativeUrl : relativeUrl.slice(context.length) || '/';
-}
-
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
@@ -143,6 +129,7 @@ export default defineComponent({
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	data: () => ({
+		searchNavigation: useSearchNavigation(),
 		uid: useUid(),
 		parseQueryError: null as string | null,
 		importQueryError: null as string | null,
@@ -210,15 +197,6 @@ export default defineComponent({
 			},
 			set: PatternStore.actions.shared.within,
 		},
-		splitBatchEnabled(): boolean {
-			return this.customizations.searchFormSplitBatchEnabled() && !this.isParallelCorpus; // hide for parallel
-		},
-		splitBatch: {
-			get(): boolean {
-				return PatternStore.getState().extended.splitBatch;
-			},
-			set: PatternStore.actions.extended.splitBatch,
-		},
 		advancedEnabled(): boolean {
 			return this.customizations.searchFormAdvancedEnabled();
 		},
@@ -273,17 +251,9 @@ export default defineComponent({
 
 			const file = el.files[0];
 			HistoryStore.get
-				.fromFile(
-					file,
-					createUrlStateParserSearchDependencies({
-						blacklabApi: this.blacklab,
-						corpus: this.corpus,
-						customizations: this.customizations,
-					}),
-				)
+				.fromFile(file)
 				.then(async r => {
-					if (r.url) await this.$router.push(toRouterPath(r.url));
-					else RootStore.actions.replace(r.entry);
+					await this.searchNavigation.open(r.url);
 					this.importQueryError = null;
 				})
 				.catch(e => (this.importQueryError = e.message))

@@ -2,23 +2,23 @@
 	<div ref="root" class="results-container" :disabled="request" :style="{ minHeight: request ? '100px' : undefined }">
 		<Spinner v-if="request" overlay size="75" />
 
-		<template v-if="resultComponentData && cols && renderDisplaySettings && loadedRequest">
+		<template v-if="resultComponentData && cols && results && executedRequest">
 			<div class="crumbs-totals">
 				<BreadCrumbs v-if="!isCollocations || viewGroup" :crumbs="breadCrumbs" :disabled="!!request" />
-				<Totals
-					class="result-totals"
-					:initialResults="loadedResults"
-					:executedRequest="loadedRequest"
-					:indexId="indexId"
-					:annotatedFieldId="sourceAnnotatedFieldId"
-					@update="paginationResults = $event"
-				/>
+				<Totals class="result-totals" :initialResults="results" :executedRequest="executedRequest" :indexId="indexId" :annotatedFieldId="sourceAnnotatedFieldId" @update="paginationResults = $event" />
 			</div>
 
 			<GroupBy v-if="!isCollocations && !viewGroup" :type="id" :results="results" :disabled="!!request" />
 
 			<div class="result-buttons-layout">
-				<Pagination slot="pagination" :page="pagination.shownPage" :page2="pagination.shownPage2" :maxPage="pagination.maxShownPage" :disabled="!!request" @change="page = $event" />
+				<Pagination
+					slot="pagination"
+					:page="pagination.shownPage"
+					:page2="pagination.shownPage2"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+					@change="value => store.actions.range({ first: value * pageSize, number: pageSize })"
+				/>
 
 				<div class="btn-group" v-if="isGroups && !isCollocations" style="flex: none">
 					<button
@@ -37,7 +37,7 @@
 				</button>
 
 				<div style="flex-grow: 1"></div>
-				<CollocationScorerToggle v-if="isCollocations && isGroups" v-model="selectedCollocationScorer" :disabled="!!request" />
+				<CollocationScorerToggle v-if="isCollocations && isGroups" :model-value="selectedCollocationScorer" @update:model-value="value => (selectedCollocationScorer = value)" :disabled="!!request" />
 				<div v-if="concordanceAnnotationOptions.length > 1 && id === 'hits'">
 					<label>{{ $t('results.resultsView.selectAnnotation') }}: </label>
 					<div class="btn-group">
@@ -63,7 +63,7 @@
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
 				:showTitles="showTitles.value"
 				:disabled="!!request"
-				:operation="loadedRequest.operation"
+				:operation="executedRequest.operation"
 				:query="resultComponentData.query"
 				:sort="resultComponentData.sort"
 				@changeSort="changeSort"
@@ -71,7 +71,14 @@
 			/>
 
 			<div class="result-buttons-layout" style="border-top: 1px solid #ccc; padding-top: 15px">
-				<Pagination style="display: block" :page="pagination.shownPage" :page2="pagination.shownPage2" :maxPage="pagination.maxShownPage" :disabled="!!request" @change="page = $event" />
+				<Pagination
+					style="display: block"
+					:page="pagination.shownPage"
+					:page2="pagination.shownPage2"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+					@change="value => store.actions.range({ first: value * pageSize, number: pageSize })"
+				/>
 				<div style="flex-grow: 1"></div>
 
 				<button v-if="isHits" type="button" class="btn btn-primary btn-sm show-titles" @click="showTitles.value = !showTitles.value">
@@ -79,7 +86,8 @@
 				</button>
 
 				<Sort
-					v-model="sort"
+					:model-value="sort"
+					@update:model-value="value => (sort = value)"
 					:hits="isHits"
 					:docs="isDocs"
 					:groups="isGroups"
@@ -96,7 +104,7 @@
 			<span class="fa fa-exclamation-triangle text-danger"></span><br />
 			<div style="text-align: initial">{{ error }}</div>
 			<div class="result-error-actions">
-				<CollocationScorerToggle v-if="isCollocations && !viewGroup" v-model="selectedCollocationScorer" />
+				<CollocationScorerToggle v-if="isCollocations && !viewGroup" :model-value="selectedCollocationScorer" @update:model-value="value => (selectedCollocationScorer = value)" />
 				<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty()">{{ $t('results.resultsView.tryAgain') }}</button>
 			</div>
 		</div>
@@ -105,7 +113,7 @@
 		</div>
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
-		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
+		<div v-if="!request && !resultComponentData">
 			<button v-if="viewGroup" type="button" class="btn btn-sm btn-primary" @click="leaveViewgroup">
 				<span class="fa fa-angle-double-left" aria-hidden="true"></span>
 				{{ isCollocations ? $t('collocations.results.backToCollocations') : $t('results.resultsView.navigation.backToGroupedResults') }}
@@ -118,7 +126,7 @@
 				:page2="pagination.shownPage2"
 				:maxPage="pagination.maxShownPage"
 				:disabled="!!request"
-				@change="page = $event"
+				@change="value => store.actions.range({ first: value * pageSize, number: pageSize })"
 			/>
 		</div>
 	</div>
@@ -127,10 +135,9 @@
 <script setup lang="ts">
 import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 
-import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import * as QueryStore from '@/features/search/model/query-state';
+import { useActiveSearch } from '@/features/search/model/active-search';
 import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import { isEffectiveCollocationParameters, type ExecutedSearchRequest, type GroupDisplayMode } from '@/features/search/model/results/result-types';
@@ -162,6 +169,9 @@ import Spinner from '@/shared/ui/Spinner.vue';
  * In our case, always 'hits' or 'docs', we don't support adding another ResultsView tab with a different ID.
  * Since we use this ID to determine whether we're getting hits or docs from BlackLab, rendering and logic can depend on it as well.
  */
+const activeSearch = useActiveSearch();
+const activeSearchParameters = activeSearch.parameters;
+
 const { id, active, store } = defineProps<{
 	id: 'hits' | 'docs';
 	active: boolean;
@@ -193,10 +203,7 @@ const groupBy = computed({
 	set: (value: string[]) => store.actions.groupBy(value),
 });
 const pageSize = computed(() => GlobalStore.getState().pageSize);
-const page = computed({
-	get: () => 0, // page is not always a singular clean number
-	set: (value: number) => store.actions.range({ first: value * pageSize.value, number: pageSize.value }),
-});
+const selectedRange = computed(() => store.get.selectedRange());
 const sort = computed({
 	get: () => store.getState().sort,
 	set: (value: string | null) => {
@@ -211,24 +218,22 @@ const groupDisplayMode = computed({
 	get: () => store.getState().groupDisplayMode,
 	set: (value: GroupDisplayMode | null) => store.actions.groupDisplayMode(value),
 });
-const sourceAnnotatedFieldId = computed(QueryStore.get.sourceField);
+const sourceAnnotatedFieldId = computed(() => activeSearchParameters.value?.searchfield ?? corpus.value.mainAnnotatedField);
 const concordanceAnnotationOptions = computed<NormalizedAnnotation[]>(() => customizations.resultConcordanceAnnotationIdOptions().map(id => corpus.value.allAnnotationsMap[id]));
 const concordanceAnnotationId = computed({
 	get: customizations.resultConcordanceAnnotationId,
 	set: customizations.setResultConcordanceAnnotationId,
 });
 
-/** When these change, the form has been resubmitted, so we need to initiate a scroll event */
-const querySettings = computed(QueryStore.getState);
-
-const valid = computed(() => id !== 'hits' || BLTypes.isHitParams(RootStore.get.blacklabParameters()));
-const loadedResults = computed(() => results.value!);
-const loadedRequest = computed(() => executedRequest.value!);
+const valid = computed(() => {
+	const params = activeSearchParameters.value;
+	return !!params && (isEffectiveCollocationParameters(params) ? id === 'hits' : id !== 'hits' || BLTypes.isHitParams(params));
+});
 const indexId = computed(() => corpus.value.id!);
 const isHits = computed(() => !!results.value && BLTypes.isHitResults(results.value));
 const isDocs = computed(() => !!results.value && BLTypes.isDocResults(results.value));
 const isGroups = computed(() => !!results.value && BLTypes.isGroups(results.value));
-const isCollocations = computed(() => executedRequest.value?.operation === 'collocations' || isEffectiveCollocationParameters(RootStore.get.blacklabParameters()));
+const isCollocations = computed(() => executedRequest.value?.operation === 'collocations' || isEffectiveCollocationParameters(activeSearchParameters.value));
 const selectedCollocationScorer = computed<BLTypes.BLCollocationScorer>({
 	get: () => store.getState().collocationScorer,
 	set: value => {
@@ -251,16 +256,15 @@ const collocationScorer = computed(() => (executedRequest.value?.operation === '
 const pagination = computed(() => {
 	if (!results.value || !paginationResults.value) return { shownPage: 0, maxShownPage: 0 };
 
-	const { first, number } = store.getState();
+	const { first, number } = selectedRange.value;
 	const startPage = Math.floor(first / pageSize.value);
 	const endPage = Math.floor((first + number - 1) / pageSize.value);
-	const isExactPage = first % pageSize.value === 0 && number === pageSize.value;
 	const totalResults = getTotalAvailableResults(paginationResults.value);
 	const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize.value));
 
 	return {
 		shownPage: startPage,
-		shownPage2: !isExactPage && startPage !== endPage ? endPage : undefined,
+		shownPage2: startPage !== endPage ? endPage : undefined,
 		maxShownPage: Math.max(maxPage, startPage),
 	};
 });
@@ -302,7 +306,8 @@ function refresh() {
 	debugLog('results', 'this is when the search should be refreshed');
 	cancelRequest();
 
-	if (!valid.value) {
+	const currentParams = activeSearchParameters.value;
+	if (!currentParams || !valid.value) {
 		results.value = paginationResults.value = null;
 		executedRequest.value = null;
 		error.value = null;
@@ -317,9 +322,6 @@ function refresh() {
 		clearResults.value = false;
 	}
 
-	// If we're querying a parallel corpus, and no sort was chosen yet, sort by alignments (so aligned hits appear first).
-	const viewModule = ResultsStore.getOrCreateModule('hits');
-	const currentParams = RootStore.get.blacklabParameters()!;
 	let executed: ExecutedSearchRequest;
 	if (isEffectiveCollocationParameters(currentParams)) {
 		if (currentParams.viewgroup) {
@@ -333,9 +335,7 @@ function refresh() {
 			executed = { operation: 'collocations', params: currentParams };
 		}
 	} else {
-		if (id === 'hits' && (groupBy.value.length === 0 || viewGroup.value) && corpus.value.isParallelCorpus && viewModule.getState().sort == null) viewModule.actions.sort('alignments');
-		const params = RootStore.get.blacklabParameters()!;
-		executed = isEffectiveCollocationParameters(params) ? { operation: 'collocations', params } : { operation: id, params };
+		executed = { operation: id, params: currentParams };
 	}
 	const params = executed.params;
 
@@ -490,7 +490,6 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 	const dependencyAnnotationIds = [
 		...new Set([dependencySettings.lemma, dependencySettings.upos, dependencySettings.xpos, ...(dependencySettings.feats ?? [])].filter((annotationId): annotationId is string => !!annotationId)),
 	];
-	const { requestedRange } = store.getState();
 	const allAnnotationsMap = currentCorpus.allAnnotationsMap;
 
 	return {
@@ -506,7 +505,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 		sortableAnnotations: customizations.resultSortAnnotationIds().map(annotationId => allAnnotationsMap[annotationId]),
 		annotationGroups: currentCorpus.annotationGroups,
 		metadata: metadataIdsToShow.map(metadataId => currentCorpus.allMetadataFieldsMap[metadataId]),
-		sourceField: currentCorpus.allAnnotatedFieldsMap[QueryStore.get.sourceField()],
+		sourceField: currentCorpus.allAnnotatedFieldsMap[sourceAnnotatedFieldId.value],
 		targetFields: (currentResults?.summary.pattern?.otherFields ?? []).map(name => currentCorpus.parallelAnnotatedFieldsMap[name]),
 		specialFields: currentCorpus.fieldInfo,
 		getSummary: customizations.resultDocumentSummary,
@@ -518,7 +517,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 			BLTypes.isHitResults(searchResults) || BLTypes.isHitGroups(searchResults) ? customizations.hitInfoColumnVisible(searchResults, parallelCorpus) : false,
 		getCustomHitInfo: (hit, field, document) => customizations.hitInfoColumnContent(hit, field, document, translate),
 		getMatchInfoHighlightStyle: customizations.matchInfoHighlightStyle,
-		requestedRange,
+		selectedRange: selectedRange.value,
 		collocationScorer: collocationScorer.value,
 	};
 });
@@ -533,14 +532,23 @@ const resultComponentData = computed(() => {
 });
 
 watch(
-	querySettings,
+	[
+		() => activeSearchParameters.value?.patt,
+		() => activeSearchParameters.value?.filter,
+		() => activeSearchParameters.value?.searchfield,
+		() => {
+			const params = activeSearchParameters.value;
+			return isEffectiveCollocationParameters(params)
+				? JSON.stringify([params.colltype, params.collpatt, params.context, params.within, params.reltype, params.annotation, params.sensitive])
+				: undefined;
+		},
+	],
 	() => {
 		scroll.value = true;
 		clearResults.value = true;
 	},
-	{ deep: true },
 );
-watch(RootStore.get.blacklabParameters, () => (active ? refresh() : markDirty()));
+watch([() => corpus.value.id, activeSearchParameters], markDirty);
 watch(
 	() => active,
 	value => {

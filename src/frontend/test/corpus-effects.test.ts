@@ -15,7 +15,6 @@ const mock = vi.hoisted(() => ({
 	sourceField: vi.fn(() => 'contents'),
 }));
 
-vi.mock('@/features/search/model/query-state', () => ({ get: { filterString: mock.filterString, sourceField: mock.sourceField } }));
 vi.mock('@/features/search/resources/selected-subcorpus-count.resource', () => ({ selectedSubcorpusLoader: { next: mock.next } }));
 
 const blacklab = {} as BlackLabApi;
@@ -34,12 +33,28 @@ afterEach(() => {
 });
 
 describe('global corpus effects', () => {
+	test('refreshes the selected subcorpus when the committed query changes', async () => {
+		const first = corpus('first');
+		const { loader } = createContextLoader(context(first));
+		const params = shallowRef({ number: 20, searchfield: 'contents', filter: 'year:1800' });
+		const scope = effectScope();
+		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, params));
+		params.value = { ...params.value, filter: 'year:1900' };
+		await nextTick();
+		expect(mock.next).toHaveBeenLastCalledWith({ index: first, annotatedFieldId: 'contents', filter: 'year:1900', blacklab });
+		expect(mock.next).toHaveBeenCalledTimes(2);
+		params.value = { ...params.value, number: 50 };
+		await nextTick();
+		expect(mock.next).toHaveBeenCalledTimes(2);
+		scope.stop();
+	});
+
 	test('refreshes once when started with an already published corpus', () => {
 		const first = corpus('first');
 		const { loader } = createContextLoader(context(first));
 		const scope = effectScope();
 
-		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab));
+		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, () => ({ number: 20, searchfield: mock.sourceField(), filter: mock.filterString() })));
 
 		expect(mock.next).toHaveBeenCalledOnce();
 		expect(mock.next).toHaveBeenCalledWith({ index: first, annotatedFieldId: 'contents', filter: 'author:Austen', blacklab });
@@ -51,7 +66,7 @@ describe('global corpus effects', () => {
 		const second = corpus('second');
 		const { loader, snapshot } = createContextLoader();
 		const scope = effectScope();
-		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab));
+		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, () => ({ number: 20, searchfield: mock.sourceField(), filter: mock.filterString() })));
 
 		expect(mock.next).not.toHaveBeenCalled();
 

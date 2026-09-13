@@ -41,8 +41,8 @@ vi.mock('@/customization-api/internal/internal-api', () => ({
 }));
 vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
 vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: mock.markSettled }) }));
-vi.mock('@/navigation/router', () => ({
-	useArticleRoute: () => ({ articleRoute: ref(mock.articleRoute), updateArticleQuery: vi.fn() }),
+vi.mock('@/features/article/model/article-page-state', () => ({
+	useArticleState: () => ({ parameters: ref(mock.articleRoute), showPage: vi.fn(), showHit: vi.fn() }),
 }));
 vi.mock('@/pages/article/article', () => ({ createArticleStreams: () => mock.streams }));
 vi.mock('@/shared/api', () => ({ useBlackLabApi: vi.fn(), useFrontendApi: vi.fn() }));

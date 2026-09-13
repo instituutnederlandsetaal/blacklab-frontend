@@ -1,12 +1,10 @@
-import cloneDeep from 'clone-deep';
-
 import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
-import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { getFilterString, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import { isCollocationParams, type CompiledFormResult } from '@/features/form';
+import { type CompiledFormResult } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
@@ -14,17 +12,25 @@ import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as PatternModule from '@/features/search/model/form/pattern-state';
-import { memoize } from '@/features/search/model/form/reactive-store';
 import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
-import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
-import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ViewModule from '@/features/search/model/results/view-state';
+import { summarizeLegacySearch } from '@/features/search/model/search-summary';
+import { submittedSearchFromResult, type SubmittedSearchState } from '@/features/search/model/submitted-search';
+import type { BLSearchParameters } from '@/types/blacklabtypes';
 
-import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
-import debug, { debugLog } from '@/shared/debug/debug';
+import { debugLog } from '@/shared/debug/debug';
+import { getPatternStringSearch, getPatternStringExplore } from '@/shared/blacklab-helpers/pattern-utils';
 
-let localSearchIntentRevision = 0;
+type SearchPageState = FormManager.ModuleRootState & {
+	global: GlobalResultsModule.ExternalModuleRootState;
+	view: ViewModule.ViewRootState;
+};
+
+let submittedSearch: SubmittedSearchState;
+const setSubmittedSearch = (value: SubmittedSearchState) => {
+	submittedSearch = value;
+};
 
 let context: CorpusContext | null = null;
 let customizations: Customizations | undefined;
@@ -44,158 +50,27 @@ const get = {
 	queryBuilderActive: () => {
 		return InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'advanced';
 	},
-
-	blacklabParameters: memoize((): EffectiveSearchParameters | undefined => {
-		const activeView = get.viewedResultsSettings();
-		if (!activeView || !QueryModule.getState().form) return undefined;
-		if (GlobalResultsModule.getState().sampleSize && GlobalResultsModule.getState().sampleSeed == null) {
-			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
-		}
-
-		const debugParams = debug.value
-			? {
-					explain: true,
-					outputformat: 'json',
-				}
-			: {};
-
-		const pageSize = GlobalResultsModule.getState().pageSize;
-		const lowerPageBoundary = Math.floor(activeView.first / pageSize) * pageSize;
-		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
-
-		const globalState = GlobalResultsModule.getState();
-		const queryState = QueryModule.getState();
-		if (queryState.form === 'new' && isCollocationParams(queryState.state.params)) {
-			const params = queryState.state.params;
-			if (params.colltype !== 'proximity' || !params.patt || params.context === undefined) return undefined;
-			const sourceField = params.searchfield ?? QueryModule.get.sourceField();
-			return {
-				...debugParams,
-				first: lowerPageBoundary,
-				number: numberOfResults,
-				filter: params.filter,
-				field: sourceField,
-				searchfield: sourceField,
-				sample: globalState.sampleMode === 'percentage' && globalState.sampleSize ? globalState.sampleSize : undefined,
-				samplenum: globalState.sampleMode === 'count' && globalState.sampleSize ? globalState.sampleSize : undefined,
-				sampleseed: globalState.sampleSize != null ? globalState.sampleSeed! : undefined,
-				sort: activeView.sort ?? undefined,
-				patt: params.patt,
-				collpatt: params.collpatt,
-				colltype: params.colltype,
-				context: params.context,
-				within: params.within,
-				reltype: params.reltype,
-				annotation: params.annotation,
-				sensitive: params.sensitive,
-				scorertype: activeView.collocationScorer,
-				...(activeView.viewGroup ? { viewgroup: activeView.viewGroup } : {}),
-			};
-		}
-
-		const patt = QueryModule.get.patternString();
-		const queryNeedsSpans =
-			queryState.form === 'new'
-				? queryState.state.params.withspans
-				: queryState.form === 'search'
-					? Object.values(queryState.filters).some(filter => getValueFunctions(filter).isSpanFilter)
-					: undefined;
-		return {
-			...debugParams,
-
-			first: lowerPageBoundary,
-			number: numberOfResults,
-
-			filter: QueryModule.get.filterString(),
-			// I think we could omit searchfield in the blacklab parameters, as it should default to field,
-			// but prefer to be explicit so everything is easy to reason about and all data is present everywhere and can be used to inform the UI etc.
-			field: QueryModule.get.sourceField(),
-			searchfield: QueryModule.get.sourceField(),
-			patt,
-			pattgapdata: QueryModule.get.pattGap(),
-
-			sample: globalState.sampleMode === 'percentage' && globalState.sampleSize ? globalState.sampleSize : undefined,
-			samplenum: globalState.sampleMode === 'count' && globalState.sampleSize ? globalState.sampleSize : undefined,
-			sampleseed: globalState.sampleSize != null ? globalState.sampleSeed! : undefined,
-
-			sort: activeView.sort != null ? activeView.sort : undefined,
-			group: activeView.groupBy.join(','),
-			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
-			context: globalState.context != null ? globalState.context : undefined,
-			adjusthits: true,
-			withspans: patt ? ((customizations ? customizations.searchWithSpans(patt) : null) ?? (queryNeedsSpans || !!context?.index?.hasRelations || undefined)) : undefined,
-		};
-	}),
-	localSearchIntentRevision: () => localSearchIntentRevision,
 };
 
-/** Get the query that would be submitted if the user were to press submit right now.
- * Requires the new form system's compiled state as argument because the store can't access it directly (the new form's state is outside the store singleton) */
-function getNextQueryState(newFormState?: CompiledFormResult | null): QueryModule.ModuleRootState {
-	if (newFormState)
-		return {
-			form: 'new',
-			state: newFormState,
-		};
-
-	const sharedState = {
-		filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) : {},
-		shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
-		gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
+/** Compile the legacy draft only when it is submitted. */
+function compileLegacyQuery() {
+	const ui = InterfaceModule.getState();
+	const filters = get.filtersActive() ? FilterModule.get.activeFiltersMap() : {};
+	const patt =
+		ui.form === 'search'
+			? getPatternStringSearch(ui.patternMode, PatternModule.getState(), customizations?.searchFormAlignByDefault() ?? '', filters)
+			: getPatternStringExplore(ui.exploreMode, ExploreModule.getState(), context?.index?.allAnnotationsMap ?? {});
+	return {
+		params: {
+			patt,
+			filter: getFilterString(Object.values(filters).sort((a, b) => a.id.localeCompare(b.id))),
+			searchfield: PatternModule.get.shared().source ?? undefined,
+			pattgapdata: get.gapFillingActive() ? (GapModule.getState().value ?? undefined) : undefined,
+			withspans: Object.values(filters).some(filter => getValueFunctions(filter).isSpanFilter) || undefined,
+		} satisfies Partial<BLSearchParameters>,
+		interface: { ...ui },
+		summary: summarizeLegacySearch({ interface: ui, explore: ExploreModule.getState(), filters }, patt, context?.index?.allAnnotationsMap ?? {}),
 	};
-	const activeForm = InterfaceModule.get.form();
-	if (activeForm === 'explore') {
-		const base = { ...sharedState, form: 'explore' as const };
-
-		const exploreMode = InterfaceModule.get.exploreMode();
-		if (exploreMode === 'corpora')
-			return {
-				...base,
-				subForm: 'corpora',
-				formState: cloneDeep(ExploreModule.getState().corpora),
-			};
-		else if (exploreMode === 'frequency')
-			return {
-				...base,
-				subForm: 'frequency',
-				formState: cloneDeep(ExploreModule.getState().frequency),
-			};
-		else if (exploreMode === 'ngram')
-			return {
-				...base,
-				subForm: 'ngram',
-				formState: cloneDeep(ExploreModule.getState().ngram),
-			};
-		else throw new Error(`Unhandled explore mode ${exploreMode as any} while restoring submitted query`);
-	} else if (activeForm === 'search') {
-		const patternMode = InterfaceModule.get.patternMode();
-		const base = { ...sharedState, form: 'search' as const };
-		if (patternMode === 'simple')
-			return {
-				...base,
-				subForm: 'simple',
-				formState: cloneDeep(PatternModule.getState().simple),
-			};
-		else if (patternMode === 'advanced')
-			return {
-				...base,
-				subForm: 'advanced',
-				formState: cloneDeep(PatternModule.getState().advanced),
-			};
-		else if (patternMode === 'expert')
-			return {
-				...base,
-				subForm: 'expert',
-				formState: cloneDeep(PatternModule.getState().expert),
-			};
-		else if (patternMode === 'extended')
-			return {
-				...base,
-				subForm: 'extended',
-				formState: cloneDeep(PatternModule.getState().extended),
-			};
-		else throw new Error(`Unhandled pattern mode ${patternMode as any} while restoring submitted query`);
-	} else throw new Error(`Unhandled form ${activeForm as any} while restoring submitted query`);
 }
 
 function applyLegacyExploreResultSettings(): boolean {
@@ -223,128 +98,37 @@ function applyLegacyExploreResultSettings(): boolean {
 }
 
 const actions = {
+	/** New forms supply their compiled draft; legacy forms still use the stores. */
 	searchFromSubmit: (snapshot?: CompiledFormResult) => {
-		localSearchIntentRevision += 1;
 		if (snapshot) {
 			handoffCompiledForm(snapshot);
-			return;
-		}
-		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
-			actions.searchSplitBatches();
-			return;
+			submittedSearch.value = submittedSearchFromResult(snapshot);
+			return snapshot;
 		}
 
-		const newQueryState = getNextQueryState();
+		const query = compileLegacyQuery();
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
 
-		QueryModule.actions.search(newQueryState);
-		if (applyLegacyExploreResultSettings()) return;
-
-		const newPattern = QueryModule.get.patternString();
-		const currentView = InterfaceModule.get.viewedResults();
-		const viewedResults = !newPattern ? 'docs' : (currentView ?? 'hits');
-		InterfaceModule.actions.viewedResults(viewedResults);
-	},
-
-	searchSplitBatches: () => {
-		if (InterfaceModule.get.form() !== 'search' || InterfaceModule.get.patternMode() !== 'extended' || !PatternModule.getState().extended.splitBatch) {
-			throw new Error('Attempting to submit split batches in wrong view');
+		if (!applyLegacyExploreResultSettings()) {
+			InterfaceModule.actions.viewedResults(query.params.patt ? (InterfaceModule.get.viewedResults() ?? 'hits') : 'docs');
 		}
-
-		InterfaceModule.actions.viewedResults('hits');
-		const sharedBatchState: Omit<HistoryModule.HistoryEntry, 'patterns'> = {
-			view: ViewModule.getOrCreateModule(InterfaceModule.getState().viewedResults!).getState(),
-			explore: ExploreModule.defaults,
-			global: GlobalResultsModule.getState(),
-			interface: InterfaceModule.getState(),
-			filters: get.filtersActive() ? FilterModule.get.activeFiltersMap() : {},
-			gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
-		};
-
-		const annotations = PatternModule.get.activeAnnotations();
-		const [withinClauses] = getWithinClausesFromFilters(FilterModule.getState().filters, PatternModule.getState());
-		const submittedFormStates = annotations
-			.filter(a => a.type !== 'pos')
-			.flatMap(a => a.value.split('|').map(value => ({ ...a, value })))
-			.map<HistoryModule.HistoryEntryPatternAndUrl>(a => ({
-				entry: {
-					...sharedBatchState,
-					patterns: {
-						advanced: { query: { tokens: [], within: '', withinAttributes: {} }, targetQueries: [] },
-						expert: {
-							query: null,
-							targetQueries: [],
-						},
-						shared: PatternModule.getState().shared,
-						simple: PatternModule.getState().simple,
-						extended: {
-							annotationValues: {
-								[a.id]: a,
-							},
-							splitBatch: false,
-						},
-					},
-				},
-				pattern: getPatternString([a], withinClauses, PatternModule.getState().shared.targets, PatternModule.getState().shared.alignBy || customizations?.searchFormAlignByDefault() || ''),
-				url: '',
-			}))
-			.map(v => cloneDeep(v));
-
-		submittedFormStates.forEach(HistoryModule.actions.addEntry);
-		const mostRecent = HistoryModule.getState()[0];
-		if (mostRecent) {
-			actions.replace(mostRecent);
-		}
+		submittedSearch.value = submittedSearchFromResult(query);
+		return query;
 	},
 
 	reset: () => {
-		localSearchIntentRevision += 1;
+		submittedSearch.value = undefined;
 		FormManager.actions.reset();
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
-		QueryModule.actions.reset();
 	},
 
-	replace: (payload: HistoryModule.HistoryEntry) => {
-		const collocations = payload.newForm?.params && isCollocationParams(payload.newForm.params);
-		const restoredPayload: HistoryModule.HistoryEntry = collocations
-			? {
-					...payload,
-					interface: { ...payload.interface, viewedResults: 'hits' },
-					view: {
-						...payload.view,
-						groupBy: [],
-						sort: payload.view.viewGroup ? payload.view.sort : (payload.view.sort ?? 'score'),
-					},
-				}
-			: payload;
-		FormManager.actions.replace(restoredPayload);
-		GlobalResultsModule.actions.replace(restoredPayload.global);
+	replace: (payload: SearchPageState) => {
+		FormManager.actions.replace(payload);
+		GlobalResultsModule.actions.replace(payload.global);
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
-		if (restoredPayload.interface.viewedResults != null) {
-			const viewName = restoredPayload.interface.viewedResults;
-			ViewModule.actions.replaceView({ view: viewName, data: restoredPayload.view });
-
-			const pageSize = GlobalResultsModule.getState().pageSize;
-			const lowerPageBoundary = Math.floor(restoredPayload.view.first / pageSize) * pageSize;
-			const numberOfResults = Math.ceil((restoredPayload.view.first + restoredPayload.view.number - lowerPageBoundary) / pageSize) * pageSize;
-			const rangeNeedsExpansion = lowerPageBoundary !== restoredPayload.view.first || numberOfResults !== restoredPayload.view.number;
-
-			const restoredView = ViewModule.getOrCreateModule(viewName);
-			if (rangeNeedsExpansion) {
-				restoredView.actions.setRequestedRange({
-					first: restoredPayload.view.first,
-					number: restoredPayload.view.number,
-				});
-			} else {
-				restoredView.actions.clearRequestedRange();
-			}
-		}
-
-		if (restoredPayload.interface.viewedResults != null) {
-			QueryModule.actions.search(getNextQueryState(restoredPayload.newForm));
-		} else {
-			QueryModule.actions.reset();
-		}
+		const view = payload.interface.viewedResults;
+		if (view != null) ViewModule.actions.replaceView({ view, data: payload.view });
+		submittedSearch.value = view ? submittedSearchFromResult(compileLegacyQuery()) : undefined;
 	},
 };
 
@@ -355,6 +139,7 @@ const setCustomizations = (value: Customizations) => {
 const init = (state: CorpusContext) => {
 	debugLog('store', 'Initializing store with new corpus data', state);
 	context = state;
+	submittedSearch.value = undefined;
 
 	UIModule.init(state);
 
@@ -364,10 +149,9 @@ const init = (state: CorpusContext) => {
 	GlobalResultsModule.init(state);
 
 	TagsetModule.init(state);
-	HistoryModule.init(state, customizations);
-	QueryModule.init(state, customizations);
+	HistoryModule.init(state);
 
 	ArticleModule.init(state);
 };
 
-export { actions, get, init, setCustomizations };
+export { actions, get, init, setCustomizations, setSubmittedSearch };

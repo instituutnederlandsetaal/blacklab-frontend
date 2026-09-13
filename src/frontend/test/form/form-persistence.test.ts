@@ -45,7 +45,8 @@ import { compileCql } from '@/features/form/model/compile/query-artifact';
 import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
 import { filter, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
-import { restoreSearchForm } from '@/features/search/model/new-form/form-state-bridge';
+import { restoreSubmittedForm } from '@/features/search/model/submitted-search';
+import { readSearchQuery } from '@/url/search-query';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -57,8 +58,12 @@ import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
+function readSearchForm(runtime: Parameters<typeof restoreSubmittedForm>[0], query: Record<string, unknown>) {
+	return restoreSubmittedForm(runtime, readSearchQuery(query).submitted);
+}
+
 function restoreFormState(definition: ReturnType<typeof createTestBuilder>, query: Record<string, unknown>) {
-	return restoreSearchForm(createTestRuntime(definition), query).state;
+	return readSearchForm(createTestRuntime(definition), query).state;
 }
 
 function createSingleTextForm() {
@@ -272,7 +277,7 @@ describe('scoped form persistence', () => {
 		const form = builder.newForm('search.extended', ContainerRenderer, {}).addChildren(field);
 		const runtime = createTestRuntime(builder);
 
-		const restored = restoreSearchForm(runtime, {
+		const restored = readSearchForm(runtime, {
 			'f.form': form.id,
 			'f.word': 'water',
 			'f.removed': 'stale',
@@ -292,6 +297,7 @@ describe('scoped form persistence', () => {
 			{ severity: 'error', message: `Controller for '${field.id}' failed: compile diagnostic` },
 		]);
 
+		runtime.state.replaceState(restored.state);
 		collect.mockClear();
 		const formerResult = runtime.compile(form.id);
 		formerResult.issues.unshift(...restored.state.issues);
@@ -302,7 +308,7 @@ describe('scoped form persistence', () => {
 	test('discards baseline requiredness diagnostics resolved by a restored override', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.hits', ContainerRenderer, { target: hitsSearchTarget });
-		const restored = restoreSearchForm(createTestRuntime(builder), { 'f.form': form.id, patt: '[word="water"]' });
+		const restored = readSearchForm(createTestRuntime(builder), { 'f.form': form.id, patt: '[word="water"]' });
 
 		expect(restored.state.rawOverrides).toEqual({ patt: '[word="water"]' });
 		expect(restored.submittedResult).toMatchObject({ params: { patt: '[word="water"]' }, issues: [] });
@@ -312,20 +318,20 @@ describe('scoped form persistence', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('collocations.form', ContainerRenderer, { target: createCollocationTarget('word') });
 		const runtime = createTestRuntime(builder);
-		const canonical = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '5' });
+		const canonical = readSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '5' });
 
 		expect(canonical.state.rawOverrides).toEqual({ patt: '[word="water"]' });
 		expect(canonical.submittedResult).toMatchObject({ params: { patt: '[word="water"]', colltype: 'proximity', context: 5 }, issues: [] });
 
-		const changed = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '6' });
+		const changed = readSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '6' });
 		expect(changed.state.rawOverrides).toEqual({ patt: '[word="water"]', context: 6 });
 		expect(changed.submittedResult).toMatchObject({ params: { patt: '[word="water"]', context: 6 } });
 
-		const empty = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '' });
+		const empty = readSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '' });
 		expect(empty.state.rawOverrides).toEqual({ patt: '[word="water"]' });
 		expect(empty.submittedResult).toMatchObject({ params: { patt: '[word="water"]', colltype: 'proximity', context: 5 }, issues: [] });
 
-		const invalid = restoreSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '-1' });
+		const invalid = readSearchForm(runtime, { 'f.form': form.id, patt: '[word="water"]', colltype: 'proximity', context: '-1' });
 		expect(invalid.state.rawOverrides).toEqual({ patt: '[word="water"]', context: null });
 		expect(invalid.submittedResult?.params.patt).toBeUndefined();
 		expect(invalid.submittedResult?.issues).toContainEqual({ severity: 'error', message: "Restored override 'context' must be a safe non-negative integer or before:after pair." });
@@ -449,7 +455,7 @@ describe('scoped form persistence', () => {
 		};
 
 		expect(restoreForm(fixture.definition, query).state.rawOverrides).toEqual({});
-		expect(restoreForm(fixture.definition, query, { overrideCandidates: { patt: '[word="(?i)fire"]' } }).state.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
+		expect(restoreForm(fixture.definition, query, { patt: '[word="(?i)fire"]' }).state.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
 	});
 
 	test('renders, disables, and dismisses a patt override', async () => {

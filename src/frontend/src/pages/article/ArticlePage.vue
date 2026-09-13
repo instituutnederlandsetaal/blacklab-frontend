@@ -22,7 +22,7 @@
 						:maxPage="hitToHighlight.value.totalHits - 1"
 						:editable="false"
 						:showOffsets="false"
-						@change="hits.isLoaded() ? handleHitNavigation(hits.value[$event][0]) : void 0"
+						@change="hits.isLoaded() ? articleState.showHit(hits.value[$event][0]) : void 0"
 						@active="scrollCurrentHitIntoView"
 					/>
 				</div>
@@ -136,10 +136,10 @@ import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect
 
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
+import { useArticleState } from '@/features/article/model/article-page-state';
 import * as ArticleStore from '@/features/article/model/article-state';
 import createTooltips from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
-import { useArticleRoute } from '@/navigation/router';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 import { createArticleStreams, type Input } from './article';
@@ -164,10 +164,7 @@ const articleStreams = createArticleStreams(blacklab, useFrontendApi());
 const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
 const cfPageConfig = useCfPageConfig();
 const corpus = useCorpus();
-const { articleRoute, updateArticleQuery } = useArticleRoute(
-	() => corpus.value.allAnnotatedFieldsMap,
-	() => corpus.value.mainAnnotatedField,
-);
+const articleState = useArticleState();
 const { resultDetailedMetadataIds } = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
@@ -186,7 +183,7 @@ watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statis
 
 const inputs = computed<Input>(() => ({
 	indexId: corpus.value.id,
-	...articleRoute.value,
+	...articleState.parameters.value,
 	pageSize: cfPageConfig.value.pageSize,
 }));
 
@@ -197,18 +194,7 @@ const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value
 
 function handlePageNavigation(page: number) {
 	if (!validPaginationInfo.isLoaded() || validPaginationInfo.value.pageSize == null) return;
-	void updateArticleQuery({
-		wordstart: page * validPaginationInfo.value.pageSize,
-		wordend: (page + 1) * validPaginationInfo.value.pageSize,
-		findhit: undefined,
-	});
-}
-function handleHitNavigation(hitStart: number) {
-	void updateArticleQuery({
-		wordstart: undefined,
-		wordend: undefined,
-		findhit: hitStart,
-	});
+	void articleState.showPage(page, validPaginationInfo.value.pageSize);
 }
 function scrollCurrentHitIntoView() {
 	const hit = hitToHighlight.isLoaded() ? hitToHighlight.value.hl : null;

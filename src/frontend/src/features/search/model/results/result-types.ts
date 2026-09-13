@@ -2,8 +2,7 @@ import type { BLCollocationScorer, BLCollocationsParameters, BLSearchParameters 
 
 export type GroupDisplayMode = 'table' | 'docs' | 'hits' | 'relative docs' | 'relative hits' | 'tokens';
 
-export type EffectiveCollocationParameters = Omit<BLCollocationsParameters, 'patt' | 'number' | 'colltype' | 'context' | 'annotation' | 'sensitive' | 'scorertype' | 'group' | 'viewgroup'> & {
-	patt: string;
+export type EffectiveCollocationParameters = BLCollocationsParameters & {
 	number: number;
 	colltype: 'proximity';
 	context: number | string;
@@ -11,7 +10,6 @@ export type EffectiveCollocationParameters = Omit<BLCollocationsParameters, 'pat
 	sensitive: boolean;
 	scorertype: BLCollocationScorer;
 	group?: never;
-	viewgroup?: string;
 };
 
 export type EffectiveSearchParameters = BLSearchParameters | EffectiveCollocationParameters;

@@ -1,4 +1,4 @@
-import { computed, shallowRef, watchEffect, type ObjectPlugin, type Ref, type ShallowRef } from 'vue';
+import { computed, toValue, type MaybeRefOrGetter, type ObjectPlugin, type Ref } from 'vue';
 
 import { createFilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import type { SearchPatternMode } from '@/customization-api/external/external-api';
@@ -91,9 +91,9 @@ function createSearchFormTotals(corpus: Corpus, blacklab: BlackLabApi): SummaryT
 
 type CreateSearchFormSystemOptions = {
 	blacklabApi: BlackLabApi;
-	corpus: Ref<Corpus | undefined>;
+	corpus: MaybeRefOrGetter<Corpus | undefined>;
 	customizations: Customizations;
-	tagset: Ref<Tagset | undefined>;
+	tagset?: MaybeRefOrGetter<Tagset | undefined>;
 	translate: Translate;
 };
 
@@ -520,21 +520,15 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 }
 
 type SearchFormSystemPlugin = ObjectPlugin & {
-	runtime: ShallowRef<FormRuntime | null>;
+	runtime: Readonly<Ref<FormRuntime | null>>;
 };
 
 const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchFormSystemPlugin => {
-	const runtime = shallowRef<FormRuntime | null>(null);
-	watchEffect(
-		() => {
-			const corpus = options.corpus.value;
-			// Localized graph values are deferred getters. Keep locale and debug out of
-			// the structural dependencies so they update labels without replacing the
-			// live form session and all of its state.
-			runtime.value = corpus ? new FormRuntime(createSearchFormDefinition(corpus, options.tagset.value, options.blacklabApi, options.translate, options.customizations)) : null;
-		},
-		{ flush: 'sync' },
-	);
+	const runtime = computed(() => {
+		const corpus = toValue(options.corpus);
+		// Deferred label getters keep locale and debug changes from rebuilding the live form.
+		return corpus ? new FormRuntime(createSearchFormDefinition(corpus, toValue(options.tagset), options.blacklabApi, options.translate, options.customizations)) : null;
+	});
 	return {
 		install: app => provideSearchFormSystem(app, runtime),
 		runtime,

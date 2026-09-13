@@ -6,7 +6,6 @@ import {
 	createSearchTarget,
 	docsSearchTarget,
 	hitsSearchTarget,
-	isCollocationParams,
 	isValidEmission,
 	rawCql,
 	searchTarget,
@@ -292,7 +291,6 @@ describe('collocation target compilation', () => {
 			sensitive: false,
 			scorertype: 'coll-dice',
 		});
-		expect(isCollocationParams(params)).toBe(true);
 		expect(issues).toEqual([]);
 	});
 

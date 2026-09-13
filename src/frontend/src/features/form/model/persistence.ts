@@ -1,3 +1,4 @@
+import type { FormOverrides } from '@/features/form';
 import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field';
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { compileRestoredFormNode } from '@/features/form/model/compile/form';
@@ -5,27 +6,18 @@ import { expertQueryController, parallelController, restoreCanonicalPatternInPar
 import { findPathToNode, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@/features/form/model/persistence/schema';
 import { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
-import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
 import { restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormIssue } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
-export type RestoredFormState = NewFormState & {
+type RestoredFormState = NewFormState & {
 	issues: FormIssue[];
 };
 
 export type RestoredForm = {
 	state: RestoredFormState;
 	submittedResult: CompiledFormResult | null;
-};
-
-export type RestoreFormStateOptions = {
-	overrideCandidates?: Readonly<FormOverrides>;
-	legacyPattern?: {
-		pattern: string;
-		searchfield?: string | null;
-	};
 };
 
 type DecodedScopedParameter = { present: false } | { present: true; value: EncodedFieldValue | undefined };
@@ -35,7 +27,7 @@ function asArray(value: unknown): string[] {
 	return typeof value === 'string' ? [value] : [];
 }
 
-function findExpertFallback(definition: FormBuilder, canonicalPattern: string, canonicalSearchfield: string | null | undefined): { form: FormBoundaryNode; fieldId: string; state: unknown } | null {
+function findExpertFallback(definition: FormBuilder, canonicalPattern: string, canonicalSearchfield: string | undefined): { form: FormBoundaryNode; fieldId: string; state: unknown } | null {
 	for (const form of definition.formsList) {
 		for (const f of walkFormNodes(form, 'field')) {
 			if (f.controller.kind === expertQueryController.kind) return { form, fieldId: f.id, state: canonicalPattern };
@@ -172,9 +164,10 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 	return { uiState, issues };
 }
 
-export function restoreForm(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredForm {
+export function restoreForm(definition: FormBuilder, query: Record<string, unknown>, overrideOptions: FormOverrides = {}): RestoredForm {
+	if (!definition.formsList.length) throw new Error('Cannot restore form state because the form builder has no form nodes.');
+
 	const scopedParams = decodeScopedFormParams(query);
-	const overrideCandidates = options.overrideCandidates ?? {};
 	const requestedFormId = scopedParams.formSelector.present ? (asArray(scopedParams.formSelector.value)[0] ?? null) : null;
 	const scopedForm = definition.getForm(requestedFormId ?? '') ?? definition.formsList[0];
 	if (!scopedForm) throw new Error('Cannot restore form state because the form builder has no form nodes.');
@@ -197,7 +190,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
 	const issues: FormIssue[] = [...formSelectorIssues, ...schema.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
 	const hasScopedState = Object.keys(restoredFields.state).length > 0 || Object.keys(persistedTabs.uiState).length > 0;
-	const expertFallback = !hasScopedState && options.legacyPattern?.pattern ? findExpertFallback(definition, options.legacyPattern.pattern, options.legacyPattern.searchfield) : null;
+	const expertFallback = !hasScopedState && overrideOptions.patt ? findExpertFallback(definition, overrideOptions.patt, overrideOptions.searchfield) : null;
 	const activeForm = expertFallback?.form ?? scopedForm;
 	const finalSubmittedFormId = expertFallback ? null : submittedFormId;
 	const restoredState: NewFormState = {
@@ -215,7 +208,7 @@ export function restoreForm(definition: FormBuilder, query: Record<string, unkno
 		rawOverrides: {},
 	};
 	const activeSchema = activeForm === scopedForm ? schema : resolvePersistenceSchema(activeForm, definition.context);
-	const { result: compiled, overrides: rawOverrides } = compileRestoredFormNode(activeForm, restoredState, definition.context, overrideCandidates, activeSchema);
+	const { result: compiled, overrides: rawOverrides } = compileRestoredFormNode(activeForm, restoredState, definition.context, overrideOptions, activeSchema);
 	const state: RestoredFormState = {
 		...restoredState,
 		rawOverrides,

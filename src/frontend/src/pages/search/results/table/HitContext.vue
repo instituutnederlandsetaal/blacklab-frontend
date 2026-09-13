@@ -1,7 +1,7 @@
 <template>
 	<!-- mind the whitespace, we don't want ANY whitespace between elements. -->
 	<component v-if="html" :is="tag" :style="{ fontWeight: bold ? 'bold' : undefined }"
-		><template v-if="before">…</template
+		><template v-if="before && showEllipsis">…</template
 		><template v-for="{ text, punctuation, punctBefore, style, title, relationKeys } in renderInfo"
 			><span v-if="punct && punctBefore" v-html="punctBefore"></span
 			><span
@@ -14,9 +14,9 @@
 				:class="{ hoverable: true, hover: relationKeys && hoverMatchInfos ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			></span
 			><span v-else v-html="text"></span><span v-if="punct" v-html="punctuation"></span></template
-		><template v-if="after">…</template></component
+		><template v-if="after && showEllipsis">…</template></component
 	><component v-else :is="tag" :style="{ fontWeight: bold ? 'bold' : undefined }"
-		><template v-if="before">…</template
+		><template v-if="before && showEllipsis">…</template
 		><template v-for="{ text, punctuation, punctBefore, style, title, relationKeys } in renderInfo"
 			><template v-if="punct && punctBefore">{{ punctBefore }}</template
 			><span
@@ -29,7 +29,7 @@
 				>{{ text }}</span
 			><template v-else>{{ text }}</template
 			><template v-if="punct">{{ punctuation }}</template></template
-		><template v-if="after">…</template></component
+		><template v-if="after && showEllipsis">…</template></component
 	>
 </template>
 
@@ -104,6 +104,9 @@ const renderInfo = computed(() => {
 		};
 	});
 });
+
+// BlackLab represents absent trailing context with one empty punctuation token.
+const showEllipsis = computed(() => renderInfo.value.some(token => token.text || token.punctuation || token.punctBefore));
 </script>
 
 <style>

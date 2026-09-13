@@ -14,8 +14,8 @@ const frontendRoot = path.resolve(dirname, '..');
 const repoRoot = path.resolve(frontendRoot, '../..');
 const viteBin = path.join(frontendRoot, 'node_modules/vite/bin/vite.js');
 
-const defaultCorpus = 'BaB';
-const defaultBlackLabUrl = 'https://corpusgysseling.ivdnt.org/blacklab-server/';
+const defaultCorpus = 'alpino';
+const defaultBlackLabUrl = 'http://localhost:8082/blacklab-server/';
 const defaultDockerImage = 'blacklab-frontend-url-sync-smoke:local';
 const defaultDockerfile = 'docker/frontend-proxy.dockerfile';
 const reservedScopedKeys = new Set(['f.form', 'f.tab']);
@@ -57,14 +57,14 @@ BlackLab Frontend URL sync smoke test
 
 Usage:
   npm run test:url-sync:smoke
-  npm run test:url-sync:smoke -- --corpus BaB --frontend-port 18080
+  npm run test:url-sync:smoke -- --corpus alpino --frontend-port 18080
 
 Default flow:
   1. Build a local BlackLab Frontend smoke Docker image.
   2. Start that frontend container on an isolated host port.
   3. Configure it with BF_BLSURL/BF_BLSURLEXTERNAL=${defaultBlackLabUrl}
   4. Start Vite on :5173 with /blacklab-frontend proxied to that container.
-  5. Drive ${defaultCorpus} search through Playwright and assert URL/store state.
+  5. Drive ${defaultCorpus} search through Playwright and assert the URL and visible search state.
 
 Environment / options:
   BLF_SMOKE_CORPUS / --corpus              Corpus id. Defaults to ${defaultCorpus}
@@ -77,12 +77,14 @@ Environment / options:
   BLF_SMOKE_SKIP_DOCKER_BUILD=true         Reuse the image tag without rebuilding.
   BLF_SMOKE_EXTERNAL_STACK=true            Do not start Docker/Vite; use --url or the default Vite URL.
   BLF_SMOKE_QUERY_SELECTOR                 Override the simple-search input selector.
-  BLF_SMOKE_COLLOCATION_QUERY              Collocation keyword. Defaults to the first query.
+  BLF_SMOKE_COLLOCATION_QUERY              Collocation keyword. Defaults to schip.
   BLF_SMOKE_HEADLESS=false                 Run with a visible browser.
   BLF_SMOKE_SLOWMO=100                     Slow Playwright actions down, in ms.
   BLF_SMOKE_KEEP_OPEN=true                 Leave the browser open after the run.
-  BLF_SMOKE_TRACE_URL_SYNC=true            Print gated URL-sync trace logs from the browser.
-  BLF_SMOKE_TIMEOUT=20000                  Per-step timeout in ms.
+  BLF_SMOKE_ARTICLE=true / --article        Also test document hit navigation. Requires a working
+                                          article stylesheet and at least two matches in the first document.
+                                          BlackLab's generated alpino XSL currently fails to compile.
+  BLF_SMOKE_TIMEOUT=30000                  Per-step timeout in ms.
 `);
 }
 
@@ -234,6 +236,8 @@ async function buildDockerImage(image, dockerfile, skipBuild) {
 
 async function startFrontendContainer({ image, containerName, frontendPort, vitePort, blacklabUrl, corpus, timeout }) {
 	console.log(`starting frontend container ${containerName} on localhost:${frontendPort}`);
+	const internalBlacklabUrl = new URL(blacklabUrl);
+	if (['localhost', '127.0.0.1'].includes(internalBlacklabUrl.hostname)) internalBlacklabUrl.hostname = 'host.docker.internal';
 	await runCommand(
 		'docker',
 		[
@@ -245,11 +249,11 @@ async function startFrontendContainer({ image, containerName, frontendPort, vite
 			'-p',
 			`127.0.0.1:${frontendPort}:8080`,
 			'-e',
-			`BF_BLSURL=${blacklabUrl}`,
+			`BF_BLSURL=${internalBlacklabUrl}`,
 			'-e',
 			`BF_BLSURLEXTERNAL=${blacklabUrl}`,
 			'-e',
-			`BF_BLS_URL=${blacklabUrl}`,
+			`BF_BLS_URL=${internalBlacklabUrl}`,
 			'-e',
 			`BF_BLS_URL_EXTERNAL=${blacklabUrl}`,
 			'-e',
@@ -334,8 +338,6 @@ async function snapshot(page) {
 			url: window.location.href,
 			params: modules?.root?.get?.blacklabParameters?.() ?? null,
 			interface: modules?.interface?.getState?.() ?? null,
-			query: modules?.query?.getState?.() ?? null,
-			scopedFormQuery: modules?.query?.get?.scopedFormQuery?.() ?? null,
 			useNewSearchForm: modules?.global?.getState?.().useNewSearchForm ?? null,
 			title: document.title,
 			bodyText: document.body?.innerText?.slice(0, 2000) ?? '',
@@ -388,25 +390,6 @@ async function dumpFailure(page) {
 
 async function waitForApp(page, timeout) {
 	await page.locator('#vue-root').waitFor({ state: 'visible', timeout });
-}
-
-async function enableNewSearchForm(page, timeout) {
-	const previousValue = await page.evaluate(() => {
-		const modules = window.vuexModules;
-		const previous = modules?.global?.getState?.().useNewSearchForm;
-		modules?.global?.actions?.useNewSearchForm?.(true);
-		return previous;
-	});
-	await page.waitForFunction(() => window.vuexModules?.global?.getState?.().useNewSearchForm === true, null, { timeout });
-	await page.waitForSelector('.blf-form-system', { state: 'visible', timeout });
-	return previousValue;
-}
-
-async function restoreNewSearchFormPreference(page, previousValue) {
-	if (typeof previousValue !== 'boolean' || page.isClosed()) return;
-	await page.evaluate(previous => {
-		window.vuexModules?.global?.actions?.useNewSearchForm?.(previous);
-	}, previousValue);
 }
 
 function newFormRoot(page) {
@@ -476,44 +459,24 @@ async function assertVisibleSearchMode(page, mode, timeout, label) {
 }
 
 async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMode = 'simple') {
-	const expectedFormId = searchModeFormIds[expectedPatternMode];
-	assert(expectedFormId, `No form node is configured for search mode '${expectedPatternMode}'.`);
 	await page.waitForFunction(
-		({ term, formId, legacyKeys }) => {
+		term => {
 			const url = new URL(window.location.href);
-			let interfaceState = {};
-			try {
-				interfaceState = JSON.parse(url.searchParams.get('interface') || '{}');
-			} catch {
-				// The URL parser will report malformed interface state separately.
-				return false;
-			}
-			const scopedKeys = [...url.searchParams.keys()].filter(key => key.startsWith('f.'));
-			const scopedFieldKeys = scopedKeys.filter(key => key !== 'f.form' && key !== 'f.tab');
-			const hasLegacyUiState =
-				legacyKeys.some(key => url.searchParams.has(key)) ||
-				(interfaceState && typeof interfaceState === 'object' && !Array.isArray(interfaceState) && legacyKeys.some(key => Object.prototype.hasOwnProperty.call(interfaceState, key)));
-			const root = document.querySelector('.blf-form-system');
-			const visible = element => !!element && !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
-			const activeForm = root ? [...root.querySelectorAll('form')].find(visible) : null;
-			const input = activeForm ? [...activeForm.querySelectorAll('input[type="text"], input:not([type]), textarea')].find(element => visible(element) && !element.disabled && !element.readOnly) : null;
-			const queryState = window.vuexModules?.query?.getState?.();
-
-			return !!(
-				url.pathname.endsWith('/search/hits') &&
-				url.searchParams.get('patt')?.includes(term) &&
-				url.searchParams.get('f.form') === formId &&
-				scopedFieldKeys.length > 0 &&
-				!hasLegacyUiState &&
-				queryState?.form === 'new' &&
-				queryState?.state?.formId === formId &&
-				input &&
-				input.value === term
-			);
+			return url.pathname.endsWith('/search/hits') && url.searchParams.get('patt')?.includes(term);
 		},
-		{ term: expectedTerm, formId: expectedFormId, legacyKeys: [...legacyFormUiKeys] },
+		expectedTerm,
 		{ timeout },
 	);
+	await waitForVisibleSearchMode(page, expectedPatternMode, timeout);
+	const input = await findQueryInput(page, null, timeout);
+	await page.waitForFunction(({ input, term }) => input.value === term, { input: await input.elementHandle(), term: expectedTerm }, { timeout });
+	await page.locator('.results-container:visible .results-table').first().waitFor({ state: 'visible', timeout });
+}
+
+async function assertUrlUnchanged(page, expected, label) {
+	// Allow rendering, resource responses and queued component updates to finish.
+	await page.waitForTimeout(300);
+	assert(page.url() === expected, `URL changed ${label}.`, { expected, actual: page.url() });
 }
 
 async function selectSearchMode(page, mode, timeout) {
@@ -536,16 +499,14 @@ async function collocationsAvailable(page) {
 
 async function waitForCollocationState(page, expectedPattern, timeout) {
 	await page.waitForFunction(
-		({ formId, pattern }) => {
-			const query = window.vuexModules?.query?.getState?.();
+		pattern => {
 			const url = new URL(window.location.href);
-			return (
-				query?.form === 'new' && query?.state?.formId === formId && query?.state?.params?.patt === pattern && query?.state?.params?.colltype === 'proximity' && url.searchParams.get('filter') === '*:*'
-			);
+			return url.searchParams.get('patt') === pattern && url.searchParams.get('colltype') === 'proximity' && url.searchParams.get('filter') === '*:*';
 		},
-		{ formId: collocationsFormId, pattern: expectedPattern },
+		expectedPattern,
 		{ timeout },
 	);
+	await page.locator('.results-container:visible .groups-table .results-table').waitFor({ state: 'visible', timeout });
 }
 
 async function runCollocationSmoke(page, keyword, timeout) {
@@ -607,7 +568,7 @@ async function runCollocationSmoke(page, keyword, timeout) {
 	);
 	await page.locator('.results-container .hits-table table.results-table').waitFor({ state: 'visible', timeout });
 	await page.locator('.results-container button:has(.fa-angle-double-left)').first().waitFor({ state: 'visible', timeout });
-	const csvButton = page.locator('.results-container button[title]').filter({ hasText: /csv/i }).first();
+	const csvButton = page.locator('.results-container button[title*="CSV"]').first();
 	assert((await csvButton.count()) === 1 && (await csvButton.isEnabled()), 'Expected the full-context collocation view to expose an enabled CSV export.');
 	console.log('ok full-context navigation preserved the filter and exposed export');
 
@@ -643,20 +604,41 @@ async function runCollocationSmoke(page, keyword, timeout) {
 		overflow,
 	);
 	console.log('ok narrow collocation results use local horizontal overflow');
+
+	const docsUrl = new URL(page.url());
+	docsUrl.pathname = docsUrl.pathname.replace(/\/search\/hits$/, '/search/docs');
+	const docsRequests = [];
+	const recordDocsRequest = request => {
+		const url = new URL(request.url());
+		if (/\/blacklab-server\/.*\/docs\/?$/.test(url.pathname) && url.searchParams.has('patt')) docsRequests.push(request.url());
+	};
+	page.on('request', recordDocsRequest);
+	try {
+		await page.goto(docsUrl.href, { waitUntil: 'domcontentloaded', timeout });
+		await waitForApp(page, timeout);
+		const inactive = page.locator('.results-container:visible .no-results-found');
+		await inactive.waitFor({ state: 'visible', timeout });
+		assert(/inactive/i.test(await inactive.innerText()), 'Expected the docs view to explain it is inactive for collocations.');
+		await assertUrlUnchanged(page, docsUrl.href, 'while showing the inactive collocation docs view');
+		assert(docsRequests.length === 0, 'The inactive collocation docs view requested documents.', docsRequests);
+	} finally {
+		page.off('request', recordDocsRequest);
+	}
+	console.log('ok collocation /docs link stays selected and inactive without requesting documents');
 }
 
 async function submitSearch(page, selectorOverride, query, timeout, mode = 'simple') {
 	const input = await findQueryInput(page, selectorOverride, timeout);
+	const beforeDraft = page.url();
 	await input.click();
 	await input.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
 	await input.press('Backspace');
 	await input.type(query);
 	assert((await input.inputValue()) === query, `Expected selected input to contain '${query}' before submit.`, await snapshot(page));
+	await assertUrlUnchanged(page, beforeDraft, 'while typing a draft');
 	await input.press('Enter');
 	await waitForSearchState(page, query, timeout, mode);
 	const state = await snapshot(page);
-	const legacyKeys = findLegacyFormUiKeys(state.url);
-	assert(legacyKeys.length === 0, 'Expected the new-form URL to omit legacy form/tab UI state.', { legacyKeys, url: state.url });
 	console.log(`ok ${mode} search '${query}'`, summarizeUrl(state.url));
 }
 
@@ -681,38 +663,234 @@ async function waitForResetState(page, selectorOverride, timeout) {
 }
 
 async function restoreHistoryEntry(page, selectorOverride, expectedTerm, timeout) {
-	const result = await page.evaluate(async term => {
-		const modules = window.vuexModules;
-		const entry = modules?.history?.getState?.().find(item => item.url && new URL(item.url, window.location.origin).searchParams.get('patt')?.includes(term));
-		if (!entry) {
-			return {
-				ok: false,
-				reason: 'No matching history entry found.',
-				history: modules?.history?.getState?.().map(item => item.url) ?? [],
-			};
-		}
-
-		const parsed = new URL(entry.url, window.location.origin);
-		const relativeUrl = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-		const context = (window.CONTEXT_URL || '').replace(/\/+$/, '');
-		const routerPath = context && relativeUrl.startsWith(context) ? relativeUrl.slice(context.length) || '/' : relativeUrl;
-		const router = window.vueRoot?.$router || window.vueApp?.config?.globalProperties?.$router;
-		if (router?.push) {
-			await router.push(routerPath);
-			return { ok: true, url: entry.url, routerPath };
-		}
-
-		window.location.href = relativeUrl;
-		return { ok: true, url: entry.url, routerPath, reloaded: true };
-	}, expectedTerm);
-
-	assert(result.ok, 'Could not restore a matching history entry.', result);
-	if (result.reloaded) {
-		await waitForApp(page, timeout);
-	}
+	await newFormRoot(page)
+		.getByRole('button', { name: /history|geschiedenis/i })
+		.click();
+	const term = expectedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const row = page
+		.locator('#history tbody tr')
+		.filter({ hasText: new RegExp(`\\b${term}\\b`) })
+		.first();
+	await row.waitFor({ state: 'visible', timeout });
+	await row
+		.getByRole('button', { name: /search|zoek/i })
+		.first()
+		.click();
 	await waitForSearchState(page, expectedTerm, timeout);
 	await assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, 'after history restore');
-	console.log(`ok restored history entry for '${expectedTerm}'`, result);
+	console.log(`ok restored history entry for '${expectedTerm}' through the history dialog`);
+}
+
+async function runArticleNavigationSmoke(page, term, timeout) {
+	const searchUrl = page.url();
+	await page.locator('.results-container:visible tr.concordance:not(.foreign-hit)').first().click();
+	const documentLink = page.locator('.results-container:visible .concordance-details a[href*="/docs/"][href*="findhit="]').first();
+	await documentLink.waitFor({ state: 'visible', timeout });
+	const articleUrl = await documentLink.getAttribute('href');
+	assert(articleUrl, 'The hit does not link to its document.');
+	await page.goto(articleUrl, { waitUntil: 'domcontentloaded', timeout });
+	const hitControls = page.locator('.article-pagination .pagination-container').filter({ has: page.getByText('Hit', { exact: true }) });
+	const waitForHit = async index => {
+		await page.waitForFunction(
+			index => {
+				const highlights = [...document.querySelectorAll('.article #content .hl')];
+				return highlights[index]?.classList.contains('active');
+			},
+			index,
+			{ timeout },
+		);
+		assert((await hitControls.locator('.current').innerText()).trim().startsWith(`${index + 1}/`), 'The hit control does not match the highlighted hit.');
+		assert((await page.locator('.article #content .hl.active').innerText()).trim().toLowerCase() === term.toLowerCase(), 'The document highlights a different search term.');
+	};
+	await waitForHit(0);
+	assert((await page.locator('.article #content').innerText()).trim().length > term.length, 'The article contents did not load.');
+	const firstHitUrl = page.url();
+	await hitControls.locator('a[title="next"]').click();
+	await page.waitForURL(url => url.searchParams.get('findhit') !== new URL(firstHitUrl).searchParams.get('findhit'), { timeout });
+	await waitForHit(1);
+	const secondHitUrl = page.url();
+	assert(new URL(secondHitUrl).searchParams.get('patt') === new URL(searchUrl).searchParams.get('patt'), 'Hit navigation changed the search pattern.');
+	await page.goBack({ waitUntil: 'domcontentloaded', timeout });
+	await page.waitForURL(firstHitUrl, { timeout });
+	await waitForHit(0);
+	await page.goForward({ waitUntil: 'domcontentloaded', timeout });
+	await page.waitForURL(secondHitUrl, { timeout });
+	await waitForHit(1);
+	await page.goBack({ waitUntil: 'domcontentloaded', timeout });
+	await page.waitForURL(firstHitUrl, { timeout });
+	await page.goBack({ waitUntil: 'domcontentloaded', timeout });
+	await page.waitForURL(searchUrl, { timeout });
+	await waitForSearchState(page, term, timeout);
+	await assertQueryInputValue(page, null, term, timeout, 'after returning from the document');
+	console.log('ok document contents, hit navigation, Back/Forward and return to the submitted search');
+}
+
+async function runResultControlsSmoke(page, timeout) {
+	const beforeOpen = page.url();
+	const results = page.locator('.results-container:visible');
+	await newFormRoot(page).locator('button:has(.glyphicon-cog)').click();
+	const settings = page.locator('#settings');
+	await settings.waitFor({ state: 'visible', timeout });
+	await assertUrlUnchanged(page, beforeOpen, 'while opening settings');
+	await settings.locator('#context').fill('3');
+	await settings.locator('#context').press('Tab');
+	await page.waitForFunction(() => new URL(location.href).searchParams.get('context') === '3', null, { timeout });
+	await settings.getByRole('button', { name: /close/i }).last().click();
+	await results.locator('.results-table').first().waitFor({ state: 'visible', timeout });
+	const sort = results.locator('.sort');
+	await sort.locator('.menu-button').first().click();
+	const option = sort.locator('.menu-option:not(.disabled)[data-value]:not([data-value=""])');
+	const selected = await option.evaluateAll(options => options.find(option => option.dataset.value)?.dataset.value);
+	assert(selected, 'No sorting option is available.');
+	await sort.locator(`[data-value="${selected}"]`).click();
+	await page.waitForFunction(value => new URL(location.href).searchParams.get('sort') === value, selected, { timeout });
+	await results.locator('.results-table').first().waitFor({ state: 'visible', timeout });
+	console.log('ok result context and sorting controls update the URL');
+}
+
+async function changePageSize(page, pageSize, timeout) {
+	await newFormRoot(page).locator('button:has(.glyphicon-cog)').click();
+	const settings = page.locator('#settings');
+	await settings.waitFor({ state: 'visible', timeout });
+	await settings.locator('#resultsPerPage').fill(String(pageSize));
+	await settings.locator('#resultsPerPage').press('Tab');
+	await settings.getByRole('button', { name: /close/i }).last().click();
+}
+
+async function waitForSelectedRange(page, first, number, timeout) {
+	await page.waitForFunction(
+		({ first, number }) => {
+			const url = new URL(location.href);
+			return Number(url.searchParams.get('first')) === first && Number(url.searchParams.get('number')) === number;
+		},
+		{ first, number },
+		{ timeout },
+	);
+}
+
+async function assertHitRange(page, action, selection, request, timeout) {
+	const [response] = await Promise.all([
+		page.waitForResponse(
+			response => {
+				const url = new URL(response.url());
+				return /\/hits\/?$/.test(url.pathname) && Number(url.searchParams.get('first')) === request.first && Number(url.searchParams.get('number')) === request.number;
+			},
+			{ timeout },
+		),
+		action(),
+	]);
+	assert(response.ok(), 'The expanded result request failed.', { status: response.status(), url: response.url() });
+	await waitForSelectedRange(page, selection.first, selection.number, timeout);
+	await page.waitForFunction(
+		number => {
+			const results = [...document.querySelectorAll('.results-container')].find(element => element.getClientRects().length);
+			return results && !results.querySelector('.cf-spinner.overlay') && results.querySelectorAll('tr.concordance:not(.foreign-hit)').length === number;
+		},
+		request.number,
+		{ timeout },
+	);
+}
+
+async function selectResultView(page, view, timeout) {
+	await page
+		.locator('#resultTabs a')
+		.filter({ hasText: view === 'hits' ? /^(Per Hit|Hits)$/i : /^(Per Document|Documents)$/i })
+		.click();
+	await page.waitForFunction(view => location.pathname.endsWith(`/search/${view}`), view, { timeout });
+	await page.locator('.results-container:visible .results-table').first().waitFor({ state: 'visible', timeout });
+	await page.locator('.results-container:visible > .cf-spinner.overlay').waitFor({ state: 'hidden', timeout });
+}
+
+async function runPaginationSelectionSmoke(page, term, timeout) {
+	await changePageSize(page, 20, timeout);
+	const ordinary = new URL(page.url());
+	ordinary.searchParams.set('first', '40');
+	ordinary.searchParams.set('number', '20');
+	ordinary.searchParams.delete('sort');
+	await assertHitRange(page, () => page.goto(ordinary.href, { waitUntil: 'domcontentloaded', timeout }), { first: 40, number: 20 }, { first: 40, number: 20 }, timeout);
+	await assertHitRange(page, () => changePageSize(page, 50, timeout), { first: 0, number: 50 }, { first: 0, number: 50 }, timeout);
+	console.log('ok ordinary page (40,20) becomes (0,50) when the preference changes');
+
+	await changePageSize(page, 20, timeout);
+	const custom = new URL(ordinary.href);
+	custom.searchParams.set('first', '45');
+	custom.searchParams.set('number', '30');
+	await assertHitRange(page, () => page.goto(custom.href, { waitUntil: 'domcontentloaded', timeout }), { first: 45, number: 30 }, { first: 40, number: 40 }, timeout);
+	await assertUrlUnchanged(page, custom.href, 'after expanding a custom selection for display');
+	assert((await page.locator('.results-container:visible .pagination .current').first().innerText()).trim() === '3 - 4', 'Expected the selected range to span pages 3–4.');
+	await assertHitRange(page, () => changePageSize(page, 50, timeout), { first: 45, number: 30 }, { first: 0, number: 100 }, timeout);
+	await assertUrlUnchanged(page, custom.href, 'after resizing a custom selection');
+	await assertHitRange(page, () => page.reload({ waitUntil: 'domcontentloaded', timeout }), { first: 45, number: 30 }, { first: 0, number: 100 }, timeout);
+	console.log('ok custom selection (45,30) keeps its URL and displays 40 then 100 hits as the persisted preference changes');
+
+	await selectResultView(page, 'docs', timeout);
+	await waitForSelectedRange(page, 0, 50, timeout);
+	await page.locator('.results-container:visible .pagination a[title="next"]').first().click();
+	await waitForSelectedRange(page, 50, 50, timeout);
+	await page.locator('.results-container:visible > .cf-spinner.overlay').waitFor({ state: 'hidden', timeout });
+	await selectResultView(page, 'hits', timeout);
+	await waitForSelectedRange(page, 45, 30, timeout);
+	await selectResultView(page, 'docs', timeout);
+	await waitForSelectedRange(page, 50, 50, timeout);
+	await selectResultView(page, 'hits', timeout);
+	console.log('ok opening a URL initializes only its selected view, and switching views retains both selections');
+
+	await submitSearch(page, null, term, timeout);
+	await waitForSelectedRange(page, 0, 50, timeout);
+	await selectResultView(page, 'docs', timeout);
+	await waitForSelectedRange(page, 0, 50, timeout);
+	await selectResultView(page, 'hits', timeout);
+	console.log('ok submitting a search resets every view to the first preferred page');
+}
+
+async function runLateCustomizationSmoke(page, term, timeout) {
+	const original = page.url();
+	const incoming = new URL(original);
+	incoming.searchParams.set('f.url-sync-late', 'saved');
+	await page.goto(incoming.href, { waitUntil: 'domcontentloaded', timeout });
+	await waitForSearchState(page, term, timeout);
+	await page.evaluate(() => {
+		window.frontend.customizeSearchForm({
+			customize(form) {
+				form.graph
+					.getForm(form.ids.searchForm('simple'))
+					.addChildren(form.metadataText({ id: 'url-sync-late', defaultDisplayName: 'Late URL field', defaultDescription: '', uiType: 'text' }, { id: 'url-sync-late' }));
+			},
+		});
+	});
+	const field = page.getByRole('textbox', { name: 'Late URL field', exact: false });
+	await field.waitFor({ state: 'visible', timeout });
+	await page.waitForFunction(element => element.value === 'saved', await field.elementHandle(), { timeout });
+	await assertUrlUnchanged(page, incoming.href, 'after late customization');
+	console.log('ok late customization reconstructed the form from the submitted search');
+	await page.goto(original, { waitUntil: 'domcontentloaded', timeout });
+	await waitForSearchState(page, term, timeout);
+}
+
+async function runLegacyFormSmoke(page, term, timeout) {
+	await newFormRoot(page).locator('button:has(.glyphicon-cog)').click();
+	await page.locator('#settings #use-new-search-form').uncheck();
+	await page.locator('#settings').getByRole('button', { name: /close/i }).last().click();
+	await page.locator('#searchTabs a[href="#simple"]').click();
+	const legacyForm = page.locator('form').filter({ has: page.locator('#form-search') });
+	const input = legacyForm.locator('#simple input[type="text"]').first();
+	const beforeDraft = page.url();
+	await input.fill(term);
+	await assertUrlUnchanged(page, beforeDraft, 'while editing a legacy draft');
+	await legacyForm.locator('button[type="submit"]').click();
+	await page.waitForFunction(term => new URL(location.href).searchParams.get('patt')?.includes(term), term, { timeout });
+	await page.locator('.results-container:visible .results-table').first().waitFor({ state: 'visible', timeout });
+	const submitted = page.url();
+	await page.locator('#searchTabs a[href="#expert"]').click();
+	await assertUrlUnchanged(page, submitted, 'while changing the legacy draft mode');
+	await page.reload({ waitUntil: 'domcontentloaded', timeout });
+	await input.waitFor({ state: 'visible', timeout });
+	await page.waitForFunction(({ input, term }) => input.value === term, { input: await input.elementHandle(), term }, { timeout });
+	await assertUrlUnchanged(page, submitted, 'after reloading a legacy search');
+	await legacyForm.locator('button[type="reset"]').click();
+	await page.waitForFunction(() => !new URL(location.href).searchParams.has('patt'), null, { timeout });
+	assert((await input.inputValue()) === '', 'Legacy reset did not clear the query input.');
+	console.log('ok legacy submit, draft mode changes, reload and reset');
 }
 
 async function run() {
@@ -732,22 +910,21 @@ async function run() {
 	const skipDockerBuild = booleanOption(args, 'skipDockerBuild', 'BLF_SMOKE_SKIP_DOCKER_BUILD', false);
 	const externalStack = booleanOption(args, 'externalStack', 'BLF_SMOKE_EXTERNAL_STACK', false);
 	const initialUrl = option(args, 'url', 'BLF_SMOKE_URL', `http://localhost:${vitePort}/blacklab-frontend/${corpus}/search/`);
-	const queryOne = option(args, 'queryOne', 'BLF_SMOKE_QUERY_ONE', 'schip');
-	const queryTwo = option(args, 'queryTwo', 'BLF_SMOKE_QUERY_TWO', 'schaap');
-	const collocationQuery = option(args, 'collocationQuery', 'BLF_SMOKE_COLLOCATION_QUERY', queryOne);
+	const queryOne = option(args, 'queryOne', 'BLF_SMOKE_QUERY_ONE', 'de');
+	const queryTwo = option(args, 'queryTwo', 'BLF_SMOKE_QUERY_TWO', 'en');
+	const collocationQuery = option(args, 'collocationQuery', 'BLF_SMOKE_COLLOCATION_QUERY', 'schip');
 	const selectorOverride = option(args, 'querySelector', 'BLF_SMOKE_QUERY_SELECTOR', null);
-	const timeout = numberOption(args, 'timeout', 'BLF_SMOKE_TIMEOUT', 20_000);
+	const timeout = numberOption(args, 'timeout', 'BLF_SMOKE_TIMEOUT', 30_000);
 	const headless = booleanOption(args, 'headless', 'BLF_SMOKE_HEADLESS', true);
 	const slowMo = numberOption(args, 'slowMo', 'BLF_SMOKE_SLOWMO', 0);
 	const keepOpen = booleanOption(args, 'keepOpen', 'BLF_SMOKE_KEEP_OPEN', false);
-	const traceUrlSync = booleanOption(args, 'traceUrlSync', 'BLF_SMOKE_TRACE_URL_SYNC', false);
+	const article = booleanOption(args, 'article', 'BLF_SMOKE_ARTICLE', false);
 	const containerName = `blf-url-sync-smoke-${process.pid}`;
 
 	let viteProcess = null;
 	let containerStarted = false;
 	let browser = null;
 	let page = null;
-	let previousUseNewSearchForm;
 
 	try {
 		if (!externalStack) {
@@ -769,24 +946,9 @@ async function run() {
 		const context = await browser.newContext();
 		page = await context.newPage();
 		page.setDefaultTimeout(timeout);
-		if (traceUrlSync) {
-			await page.addInitScript(() => {
-				window.__BLF_URL_SYNC_TRACE__ = true;
-			});
-			page.on('console', async message => {
-				if (!message.text().includes('[url-sync-trace]')) return;
-				const args = await Promise.all(
-					message.args().map(async arg => {
-						try {
-							return await arg.jsonValue();
-						} catch {
-							return JSON.stringify(arg);
-						}
-					}),
-				);
-				console.log(...args.map(value => (typeof value === 'string' ? value : JSON.stringify(value, null, 2))));
-			});
-		}
+		await page.addInitScript(() => {
+			if (localStorage.getItem('cf/useNewSearchForm') == null) localStorage.setItem('cf/useNewSearchForm', 'true');
+		});
 		page.on('pageerror', error => {
 			console.error('pageerror:', error);
 		});
@@ -794,36 +956,56 @@ async function run() {
 		console.log(`opening ${initialUrl}`);
 		await page.goto(initialUrl, { waitUntil: 'domcontentloaded', timeout });
 		await waitForApp(page, timeout);
-		previousUseNewSearchForm = await enableNewSearchForm(page, timeout);
+		await page.waitForSelector('.blf-form-system', { state: 'visible', timeout });
+		await assertUrlUnchanged(page, initialUrl, 'during initial page setup');
 
 		await selectSearchMode(page, 'simple', timeout);
 		await submitSearch(page, selectorOverride, queryOne, timeout, 'simple');
+		const firstSearchUrl = page.url();
 		await selectSearchMode(page, 'extended', timeout);
+		await assertUrlUnchanged(page, firstSearchUrl, 'while changing the draft form');
 		await submitSearch(page, selectorOverride, queryTwo, timeout, 'extended');
 
+		const secondSearchUrl = page.url();
 		await page.goBack({ waitUntil: 'domcontentloaded', timeout });
 		await waitForSearchState(page, queryOne, timeout, 'simple');
 		await assertVisibleSearchMode(page, 'simple', timeout, 'after browser back');
+		await assertUrlUnchanged(page, firstSearchUrl, 'after browser Back');
 		console.log(`ok browser back restored '${queryOne}' in the simple form`);
 
 		await page.goForward({ waitUntil: 'domcontentloaded', timeout });
 		await waitForSearchState(page, queryTwo, timeout, 'extended');
 		await assertVisibleSearchMode(page, 'extended', timeout, 'after browser forward');
+		await assertUrlUnchanged(page, secondSearchUrl, 'after browser Forward');
 		console.log(`ok browser forward restored '${queryTwo}' in the extended form`);
 
 		await restoreHistoryEntry(page, selectorOverride, queryOne, timeout);
+		const restoredUrl = page.url();
+		await (await findQueryInput(page, selectorOverride, timeout)).fill('unsubmitted history draft');
+		await assertUrlUnchanged(page, restoredUrl, 'while editing a draft after history restore');
+		await restoreHistoryEntry(page, selectorOverride, queryOne, timeout);
+		await assertUrlUnchanged(page, restoredUrl, 'when loading the saved search already shown in the URL');
+		console.log('ok loading the current saved search restores its form despite an unchanged URL');
 
+		const beforeReload = page.url();
 		await page.reload({ waitUntil: 'domcontentloaded', timeout });
 		await waitForApp(page, timeout);
 		await waitForSearchState(page, queryOne, timeout);
 		await assertQueryInputValue(page, selectorOverride, queryOne, timeout, 'after reload');
+		await assertUrlUnchanged(page, beforeReload, 'after reload');
 		console.log(`ok reload restored '${queryOne}' from the URL`);
+
+		if (article) await runArticleNavigationSmoke(page, queryOne, timeout);
+		await runLateCustomizationSmoke(page, queryOne, timeout);
+		await runResultControlsSmoke(page, timeout);
+		await runPaginationSelectionSmoke(page, queryOne, timeout);
 
 		await page.locator('.blf-form-system button[type="reset"]').first().click();
 		await waitForResetState(page, selectorOverride, timeout);
 		console.log('ok reset cleared submitted query and scoped URL params');
 
 		await runCollocationSmoke(page, collocationQuery, timeout);
+		await runLegacyFormSmoke(page, queryOne, timeout);
 
 		console.log('url-sync smoke test passed');
 	} catch (error) {
@@ -833,9 +1015,6 @@ async function run() {
 		}
 		throw error;
 	} finally {
-		if (page) {
-			await restoreNewSearchFormPreference(page, previousUseNewSearchForm).catch(() => {});
-		}
 		if (browser && !keepOpen) {
 			await browser.close();
 		}

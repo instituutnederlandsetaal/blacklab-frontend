@@ -9,12 +9,12 @@ import { type CustomizationRegistry } from '@/customization-api/registry';
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
+import type { ActiveSearchParameters } from '@/features/search/model/active-search';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import { createCorpusStoreAdapter } from '@/interop/legacy-store-adapters/corpus';
@@ -37,25 +37,29 @@ export function installCustomizationApiGlobals(registry: CustomizationRegistry) 
 	(window as InteropWindow).frontend = createExternalCustomizationApi(registry);
 }
 
-export function installLegacyStoreGlobals(app: App, registry: CustomizationRegistry) {
+export function installLegacyStoreGlobals(app: App, registry: CustomizationRegistry, activeSearchParameters: ActiveSearchParameters) {
 	const corpus = app.runWithContext(() => createCorpusStoreAdapter(useCorpus()));
 
 	const vuexModules = {
 		root: {
 			get: {
 				...RootStore.get,
+				blacklabParameters: () => activeSearchParameters.value,
 				...ArticleModule.get,
 			},
 			getState: ArticleModule.getState,
 			actions: {
 				...RootStore.actions,
+				/** Compatibility for scripts that used to wrap store actions in a navigation command. */
+				navigateSearch: async (change: () => unknown) => {
+					change();
+				},
 				...ArticleModule.actions,
 			},
 			init: RootStore.init,
 		},
 		corpus,
 		history: HistoryModule,
-		query: QueryModule,
 		tagset: TagsetModule,
 		ui: UIModule,
 		explore: ExploreModule,

@@ -107,7 +107,7 @@ test('editable input opens on focus and emits its deferred change on tab close',
 	await nextTick();
 	flushFrames();
 	await input.setValue('custom');
-	expect(wrapper.emitted('update:modelValue')).toEqual([['custom'], ['custom']]);
+	expect(wrapper.emitted('update:modelValue')).toEqual([['custom']]);
 	expect(wrapper.emitted('change')).toBeUndefined();
 
 	await input.trigger('keydown', { key: 'Tab' });
@@ -203,7 +203,7 @@ test('navigates focus across enabled options with wrapping arrows and clamped pa
 	expect(focusedValue()).toBe('a');
 });
 
-test('retains selection veto, external setValue, and invalid-model correction semantics', async () => {
+test('retains selection veto and explicit external setValue without writing back received props', async () => {
 	const onBeforeSelect = vi.fn(() => false);
 	const vetoed = mount(SelectPicker, { attachTo: document.body, props: { modelValue: null, onBeforeSelect, options } });
 	await open(vetoed);
@@ -220,7 +220,10 @@ test('retains selection veto, external setValue, and invalid-model correction se
 
 	const corrected = mount(SelectPicker, { props: { modelValue: 'a', options } });
 	await corrected.setProps({ modelValue: 'missing' });
-	expect(corrected.emitted('update:modelValue')).toEqual([[null]]);
+	expect(corrected.emitted('update:modelValue')).toBeUndefined();
+	await corrected.setProps({ options: [...options, { value: 'missing', label: 'Loaded later' }] });
+	expect(corrected.text()).toContain('Loaded later');
+	expect(corrected.emitted('update:modelValue')).toBeUndefined();
 });
 
 test('allows selection when onBeforeSelect does not explicitly return false', async () => {
@@ -229,4 +232,15 @@ test('allows selection when onBeforeSelect does not explicitly return false', as
 	await wrapper.get('.menu-option[data-value="a"]').trigger('click');
 
 	expect(wrapper.emitted('update:modelValue')).toEqual([['a']]);
+});
+
+test('receiving editable values and searching options never emits a selection', async () => {
+	const editable = mount(SelectPicker, { props: { editable: true, modelValue: 'initial', options } });
+	await editable.setProps({ modelValue: 'restored' });
+	expect((editable.get('.menu-input').element as HTMLInputElement).value).toBe('restored');
+	expect(editable.emitted('update:modelValue')).toBeUndefined();
+	const picker = mount(SelectPicker, { props: { searchable: true, options } });
+	await open(picker);
+	await picker.get('.menu-search').setValue('alp');
+	expect(picker.emitted('update:modelValue')).toBeUndefined();
 });

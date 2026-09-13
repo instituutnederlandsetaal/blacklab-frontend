@@ -13,14 +13,29 @@ import Filters from '@/components/filters';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
+import { createArticlePageState, provideArticleState } from '@/features/article/model/article-page-state';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
+import * as TagsetStore from '@/features/corpus/model/tagset-state';
+import * as HistoryStore from '@/features/history/model/query-history-state';
+import { provideActiveSearch } from '@/features/search/model/active-search';
+import { createActiveSearch } from '@/features/search/model/active-search';
+import * as FilterStore from '@/features/search/model/form/filter-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import { LegacyFormRestorer } from '@/features/search/model/form/restore-legacy-form';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
+import * as ViewStore from '@/features/search/model/results/view-state';
+import { createSearchFormRestoration } from '@/features/search/model/search-form-restoration';
+import { createSearchSummary, provideSearchSummary } from '@/features/search/model/search-summary';
+import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 import { installHooksGlobal, runHooks } from '@/interop/hooks';
 import { installCorpusGlobal, installCustomizationApiGlobals, installLegacyStoreGlobals, installVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
-import startUrlSync from '@/url/url-state-sync';
+import { createArticleUrlBinding } from '@/url/article-state';
+import { queryHistoryDetails, queryHistoryFromUrl } from '@/url/query-history';
+import { createSearchUrlBinding } from '@/url/search-state';
 
 import { createApi } from '@/shared/api';
 import { createLoginSystem, type LoginSystemConfig } from '@/shared/auth/loginsystem';
@@ -78,6 +93,40 @@ async function start() {
 	const customizationRegistry = createCustomizationRegistry(corpusState.corpus);
 	const customizations = createCustomizations(customizationRegistry, corpusState.corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
 	RootStore.setCustomizations(customizations);
+	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
+	const articleState = createArticlePageState(corpusState.corpus);
+	const submittedSearch = createSubmittedSearch();
+	RootStore.setSubmittedSearch(submittedSearch);
+	HistoryStore.setUrlDecoder(queryHistoryDetails);
+	HistoryStore.provideHistoryImport(app, async url => {
+		const corpus = corpusState.corpus.value;
+		if (!corpus) return;
+		await HistoryStore.actions.importUrl(url, url =>
+			queryHistoryFromUrl(url, {
+				blacklabApi: api.blacklabApi,
+				corpus,
+				filterState: FilterStore.getState(),
+				tagsetState: TagsetStore.getState(),
+				customizations,
+			}),
+		);
+	});
+	const activeSearch = createActiveSearch(InterfaceStore.get.viewedResults, {
+		corpus: corpusState.corpus,
+		submitted: submittedSearch,
+		global: GlobalResultsStore.getState,
+		viewState: () => {
+			const view = InterfaceStore.get.viewedResults();
+			return view ? ViewStore.getOrCreateModule(view).getState() : undefined;
+		},
+		expandedRequestRange: () => {
+			const view = InterfaceStore.get.viewedResults();
+			return typeof view === 'string' && view ? ViewStore.getOrCreateModule(view).get.expandedRequestRange() : undefined;
+		},
+		withSpans: customizations.searchWithSpans,
+		debug: debugSystem.debug,
+	});
+	const activeSearchParameters = activeSearch.parameters;
 	corpusState.beforePublish(corpus => {
 		/**
 		 * Bring legacy singleton stores to the incoming generation before publishing
@@ -106,25 +155,52 @@ async function start() {
 	app.use(FloatingVue);
 	app.use(corpusState);
 	app.use(searchFormSystem);
+	provideActiveSearch(app, activeSearch);
+	provideArticleState(app, articleState);
 	app.use(customizationRegistry);
 	app.use(customizations);
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
 
-	startGlobalCorpusDependentEffects(corpusState.contextLoader, api.blacklabApi);
+	startGlobalCorpusDependentEffects(corpusState.contextLoader, api.blacklabApi, activeSearchParameters);
 
 	installStoreInspectorDevtools(app);
-	installLegacyStoreGlobals(app, customizationRegistry);
 	installCustomizationApiGlobals(customizationRegistry);
 
-	startUrlSync(router.router, {
-		blacklabApi: api.blacklabApi,
-		corpusContext: corpusState.contextLoader,
-		indexId: router.corpusId,
-		searchForms: searchFormSystem.runtime,
-		customizations,
+	const restoredForm = createSubmittedFormRestoration(submittedSearch, searchFormSystem.runtime);
+	const searchSummary = createSearchSummary(submittedSearch, restoredForm);
+	provideSearchSummary(app, searchSummary);
+	const formRestoration = createSearchFormRestoration({
+		corpus: corpusState.corpus,
+		runtime: searchFormSystem.runtime,
+		submitted: submittedSearch,
+		restoredForm,
 		beforeStateLoaded: () => runHooks('beforeStateLoaded'),
+		restoreLegacy: (corpus, submitted) => {
+			const viewedResults = InterfaceStore.get.viewedResults();
+			const view = viewedResults ? ViewStore.getOrCreateModule(viewedResults).getState() : null;
+			return new LegacyFormRestorer(
+				{ blacklabApi: api.blacklabApi, corpus, customizations, filterState: FilterStore.getState(), tagsetState: TagsetStore.getState() },
+				{
+					submitted,
+					viewedResults,
+					groupBy: view?.groupBy ?? [],
+					groupDisplayMode: view?.groupDisplayMode ?? null,
+				},
+			).get();
+		},
 	});
+	app.use(formRestoration);
+	const searchNavigation = createSearchUrlBinding(router.router, {
+		corpus: corpusState.corpus,
+		submittedSearch,
+		restoreForms: formRestoration.restore,
+		summary: searchSummary,
+	});
+
+	app.use(searchNavigation);
+	app.use(createArticleUrlBinding(router.router, articleState, corpusState.corpus));
+	installLegacyStoreGlobals(app, customizationRegistry, activeSearchParameters);
 
 	app.runWithContext(() => startCustomizationInterop());
 

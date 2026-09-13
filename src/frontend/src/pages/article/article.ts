@@ -21,8 +21,8 @@ export type Input = Partial<{
 	indexId: string | null;
 	docId: string | null;
 	patt: string | null;
-	searchfield: string | null | undefined;
-	pattgapdata: string | null | undefined;
+	searchfield: string | null;
+	pattgapdata: string | null;
 	wordstart: number | null;
 	wordend: number | null;
 	findhit: number | null;

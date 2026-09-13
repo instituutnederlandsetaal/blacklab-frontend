@@ -184,7 +184,7 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 	}
 
 	function _posFilter({ producer, operation, filter }: BCQLPositionFilterNode): Result {
-		if (operation !== 'within') throw new Error('Unknown posfilter operation: ' + operation);
+		if (operation !== 'within') throw new Error('Unknown position filter operation: ' + operation);
 		if (filter.type !== 'tags' && filter.type !== 'overlapping' && filter.type != 'posfilter') throw new Error('Unknown posfilter filter type: ' + filter.type);
 		const query = _query(producer);
 		query.withinClauses = query.withinClauses ?? {};

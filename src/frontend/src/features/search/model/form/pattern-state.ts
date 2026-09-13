@@ -39,8 +39,6 @@ type ModuleRootState = {
 		annotationValues: {
 			[annotationId: string]: AnnotationValue;
 		};
-
-		splitBatch: boolean;
 	};
 	advanced: {
 		query: CqlQueryBuilderData;
@@ -78,7 +76,6 @@ const initialState: ModuleRootState = {
 	},
 	extended: {
 		annotationValues: {},
-		splitBatch: false,
 	},
 	advanced: {
 		query: { tokens: [] },
@@ -195,13 +192,11 @@ const actions = {
 			// Never overwrite annotatedFieldId or type, even when they're submitted through here.
 			Object.assign(state.extended.annotationValues[id], safeValues);
 		},
-		splitBatch: (payload: boolean) => (state.extended.splitBatch = payload),
 		reset: () => {
 			Object.values(state.extended.annotationValues).forEach(annot => {
 				annot.value = '';
 				annot.case = false;
 			});
-			state.extended.splitBatch = false;
 		},
 	},
 	advanced: {
@@ -252,7 +247,6 @@ const actions = {
 		actions.simple.annotation(payload.simple.annotationValue);
 
 		actions.extended.reset();
-		state.extended.splitBatch = payload.extended.splitBatch;
 		Object.values(payload.extended.annotationValues).forEach(actions.extended.annotation);
 
 		actions.advanced.reset();

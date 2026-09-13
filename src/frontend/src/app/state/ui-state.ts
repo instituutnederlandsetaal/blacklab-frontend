@@ -38,9 +38,6 @@ type ModuleRootState = {
 		extended: {
 			/** Available annotation inputs in the extended search */
 			searchAnnotationIds: string[];
-			splitBatch: {
-				enabled: boolean;
-			};
 		};
 		advanced: {
 			enabled: boolean;
@@ -249,9 +246,6 @@ const initialState: ModuleRootState = {
 		},
 		extended: {
 			searchAnnotationIds: [],
-			splitBatch: {
-				enabled: true,
-			},
 		},
 		advanced: {
 			enabled: true,
@@ -394,10 +388,6 @@ const actions = {
 					_ => '',
 					r => (state.search.extended.searchAnnotationIds = r),
 				),
-
-			splitBatch: {
-				enable: (payload: boolean) => (state.search.extended.splitBatch.enabled = payload),
-			},
 
 			/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
 			within: {
@@ -732,6 +722,7 @@ const actions = {
 	},
 	global: {
 		pageGuide: {
+			// backward compat; don't break scripts that still refer to this setting
 			enable: () => {
 				console.warn('Page guide has been removed.');
 			},

@@ -1,68 +1,17 @@
-import { computed, toValue, type FunctionPlugin, type MaybeRefOrGetter } from 'vue';
-import { createRouter, createWebHistory, useRoute, useRouter, type LocationQueryRaw, type RouteLocationNormalizedLoaded, type Router } from 'vue-router';
+import { computed, type FunctionPlugin } from 'vue';
+import { createRouter, createWebHistory } from 'vue-router';
 
 import type { PageBootstrap } from '@/navigation/page-bootstrap';
 import { provideCorpusId, useCorpusId, type PageMeta } from '@/navigation/page-context';
-
-type RouteQueryPatch = Record<string, string | number | boolean | null | undefined>;
 
 function getRouteParamString(value: unknown): string | null {
 	const raw = Array.isArray(value) ? value[0] : value;
 	return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }
 
-function getStringFromRouteQuery(route: RouteLocationNormalizedLoaded, ...keys: string[]): string | null {
-	for (const key of keys) {
-		const value = getRouteParamString(route.query[key]);
-		if (value) return value;
-	}
-	return null;
-}
-
-function getNumberFromRouteQuery(route: RouteLocationNormalizedLoaded, key: string): number | null {
-	const value = getStringFromRouteQuery(route, key);
-	if (value == null) return null;
-	const parsed = Number.parseInt(value, 10);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function getAnnotatedFieldFromRouteQuery(route: RouteLocationNormalizedLoaded, fields: Record<string, unknown>, ...keys: string[]): string | null {
-	const value = getStringFromRouteQuery(route, ...keys);
-	return value && fields[value] ? value : null;
-}
-
-function updateRouteQuery(router: Router, route: RouteLocationNormalizedLoaded, patch: RouteQueryPatch) {
-	const query: LocationQueryRaw = { ...route.query };
-	for (const [key, value] of Object.entries(patch)) {
-		if (value == null) delete query[key];
-		else query[key] = String(value);
-	}
-	return router.push({ name: route.name ?? undefined, params: route.params, query });
-}
-
 // make sure we always have a route meta object
 declare module 'vue-router' {
 	interface RouteMeta extends PageMeta {}
-}
-
-function useArticleRoute(annotatedFields: MaybeRefOrGetter<Record<string, unknown>>, defaultField: MaybeRefOrGetter<string>) {
-	const route = useRoute();
-	const router = useRouter();
-	const articleRoute = computed(() => ({
-		docId: getRouteParamString(route.params.docId),
-		viewField: getAnnotatedFieldFromRouteQuery(route, toValue(annotatedFields), 'field') ?? toValue(defaultField),
-		// searchfield is canonical; searchField and field remain as backward-compatible aliases.
-		searchfield: getAnnotatedFieldFromRouteQuery(route, toValue(annotatedFields), 'searchfield', 'searchField', 'field') ?? toValue(defaultField),
-		wordstart: getNumberFromRouteQuery(route, 'wordstart'),
-		wordend: getNumberFromRouteQuery(route, 'wordend'),
-		findhit: getNumberFromRouteQuery(route, 'findhit'),
-		patt: getStringFromRouteQuery(route, 'patt', 'query'),
-		pattgapdata: getStringFromRouteQuery(route, 'pattgapdata'),
-	}));
-	return {
-		articleRoute,
-		updateArticleQuery: (patch: RouteQueryPatch) => updateRouteQuery(router, route, patch),
-	};
 }
 
 function createBlfRouter(pageBootstrap: PageBootstrap) {
@@ -164,10 +113,10 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 		corpusId,
 
 		install: (app => {
-			router.install(app);
+			app.use(router);
 			provideCorpusId(app, corpusId);
 		}) satisfies FunctionPlugin,
 	};
 }
 
-export { useArticleRoute, useCorpusId, createBlfRouter };
+export { useCorpusId, createBlfRouter };
