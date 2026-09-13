@@ -555,32 +555,27 @@ async function runCollocationSmoke(page, keyword, timeout) {
 		return;
 	}
 
-	const legacyPattern = `[word="${keyword.replaceAll('"', '\\"')}"]`;
-	const legacyUrl = new URL(page.url());
-	legacyUrl.pathname = legacyUrl.pathname.replace(/\/search(?:\/.*)?$/, '/search/hits');
-	legacyUrl.search = '';
-	legacyUrl.searchParams.set('patt', legacyPattern);
-	legacyUrl.searchParams.set('filter', '*:*');
-	legacyUrl.searchParams.set('colltype', 'proximity');
-	legacyUrl.searchParams.set('context', '2:3');
-	legacyUrl.searchParams.set('annotation', 'word');
-	legacyUrl.searchParams.set('sensitive', 'false');
-	legacyUrl.searchParams.set('scorertype', 'coll-dice');
-	legacyUrl.searchParams.set('f.form', collocationsFormId);
-	legacyUrl.searchParams.set('f.collocations', String.raw`${legacyPattern.replaceAll('=', '\\=')};c=2:3;a=word;st=coll-dice`);
+	const pattern = `[word="${keyword.replaceAll('"', '\\"')}"]`;
+	const collocationUrl = new URL(page.url());
+	collocationUrl.pathname = collocationUrl.pathname.replace(/\/search(?:\/.*)?$/, '/search/hits');
+	collocationUrl.search = '';
+	collocationUrl.searchParams.set('filter', '*:*');
+	collocationUrl.searchParams.set('f.form', collocationsFormId);
 
-	await page.goto(legacyUrl.href, { waitUntil: 'domcontentloaded', timeout });
+	await page.goto(collocationUrl.href, { waitUntil: 'domcontentloaded', timeout });
 	await waitForApp(page, timeout);
-	await waitForCollocationState(page, legacyPattern, timeout);
 	const collocationsTab = formNodeTab(newFormRoot(page), `${standardFormNamespace}/section/collocations`);
 	await collocationsTab.waitFor({ state: 'visible', timeout });
-	assert((await collocationsTab.getAttribute('aria-selected')) === 'true', 'Expected legacy collocation URL to restore the Collocations form.', await snapshot(page));
+	assert((await collocationsTab.getAttribute('aria-selected')) === 'true', 'Expected the Collocations form to be selected.', await snapshot(page));
 
 	const form = await activeNewForm(page, timeout);
+	await form.locator('.blf-collocation-pattern-editor').first().getByRole('button', { name: 'Expert' }).click();
 	const expertPattern = form.locator('.blf-collocation-pattern-editor').first().getByRole('textbox').first();
 	await expertPattern.waitFor({ state: 'visible', timeout });
-	assert((await expertPattern.inputValue()) === legacyPattern, 'Expected the legacy collocation keyword to be restored in Expert mode.', await snapshot(page));
-	console.log('ok legacy collocation URL restored the expert pattern and filter');
+	await expertPattern.fill(pattern);
+	await form.locator('button[type="submit"]').click();
+	await waitForCollocationState(page, pattern, timeout);
+	console.log('ok collocation form submitted the expert pattern and filter');
 
 	const groupToggle = page.locator('.results-container button.group-details-toggle').first();
 	await groupToggle.waitFor({ state: 'visible', timeout });

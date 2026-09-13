@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'vitest';
 
-import type { CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
-import { collocationController, createFormFieldNode, expertQueryController, queryBuilderController, type Emit, type FormEmission, type SummaryInput } from '@/features/form';
+import type { CqlAttributeData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
+import { collocationController, createFormFieldNode, type Emit, type FormEmission, type SummaryInput } from '@/features/form';
 import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
+import { collocationPatternToCql } from '@/features/form/model/controllers/collocation-controller';
 
 import { createTestContext, testTextController, TestTextField } from './helpers';
-
-import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
-import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 
 const runtime = createTestContext();
 const queryBuilderOptions = {
@@ -20,8 +18,7 @@ const queryBuilderOptions = {
 	comparatorOptions: [],
 	autocomplete: async () => [],
 } as CqlQueryBuilderOptions;
-const advancedField = createFormFieldNode('collocations.advanced', queryBuilderController, QueryBuilderField, { options: queryBuilderOptions });
-const expertField = createFormFieldNode('collocations.expert', expertQueryController, RawCqlField, { hideLabel: true });
+
 const config = {
 	kind: 'field' as const,
 	id: 'collocations.controls',
@@ -31,8 +28,7 @@ const config = {
 		{ value: 'lemma', label: () => 'Lemma' },
 	],
 	createAnnotationField: ({ id, annotationId }: { id: string; annotationId: string }) => createFormFieldNode(id, testTextController, TestTextField, { annotationId, displayName: annotationId }),
-	advancedField,
-	expertField,
+	queryBuilderOptions,
 	withinOptions: [],
 	defaultWithin: '',
 	parsePattern: async () => null,
@@ -71,8 +67,6 @@ describe('collocation controller', () => {
 			before: 5,
 			after: 5,
 			within: '',
-			colltype: 'proximity',
-			reltype: '',
 			annotation: 'word',
 			sensitive: false,
 		});
@@ -87,7 +81,6 @@ describe('collocation controller', () => {
 				before: 3,
 				after: 4,
 				within: ' s ',
-				reltype: 'ignored',
 				annotation: ' lemma ',
 				sensitive: true,
 			}),
@@ -108,6 +101,31 @@ describe('collocation controller', () => {
 		expect(collect(value)).toContainEqual({ name: 'patt', value: { type: 'cql-annotation', annotation: 'word', valueType: 'wildcard', value: 'ship' } });
 	});
 
+	test('restores saved drafts in every mode', () => {
+		const value = state();
+		value.keyword.simple.fieldState = { value: 'water' };
+		(value.keyword.advanced.tokens[0].rootAttributeGroup.entries[0] as CqlAttributeData).values = ['ship'];
+		value.keyword.expert = '[word="boat"]';
+		value.collocate.pattern.expert = '[word="sea"]';
+		const codec = collocationController.persistence.codec;
+		const context = { config, runtime };
+		const encoded = codec.encode(value, context)!;
+		const restored = codec.decode(encoded, context);
+		expect(codec.encode(restored, context)).toBe(encoded);
+		expect(restored).toMatchObject({
+			keyword: { simple: value.keyword.simple, expert: value.keyword.expert },
+			collocate: { enabled: false, pattern: { expert: '[word="sea"]' } },
+		});
+		for (const [mode, expected] of [
+			['simple', '[word="water"]'],
+			['advanced', '[word="ship"]'],
+			['expert', '[word="boat"]'],
+		] as const) {
+			restored.keyword.mode = mode;
+			expect(collocationPatternToCql(config, runtime, restored.keyword, 'keyword')).toBe(expected);
+		}
+	});
+
 	test('emits a symmetric context as a number', () => {
 		expect(collect(withExpertPatterns('[word="ship"]'))).toContainEqual({ name: 'context', value: 5 });
 	});
@@ -119,16 +137,6 @@ describe('collocation controller', () => {
 		{ before: 0, after: 0 },
 	])('emits nothing for invalid proximity context $before:$after', ({ before, after }) => {
 		expect(collect({ ...withExpertPatterns('[word="ship"]'), before, after })).toEqual([]);
-	});
-
-	test('emits only relation-applicable values for a restored relation mode', () => {
-		expect(collect({ ...withExpertPatterns('[word="ship"]'), colltype: 'relsources', within: 's', reltype: ' aligns ' })).toEqual([
-			{ name: 'patt', value: { type: 'cql-raw', cql: '[word="ship"]' } },
-			{ name: 'colltype', value: 'relsources' },
-			{ name: 'reltype', value: 'aligns' },
-			{ name: 'annotation', value: 'word' },
-			{ name: 'sensitive', value: false },
-		]);
 	});
 
 	test('assigns readable summaries to their semantic outputs', () => {

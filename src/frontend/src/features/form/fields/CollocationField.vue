@@ -1,52 +1,39 @@
 <template>
 	<div class="blf-collocation-field">
-		<fieldset class="blf-collocation-section">
-			<legend><span aria-hidden="true">1.</span> {{ $t('collocations.sections.keyword') }}</legend>
-			<p class="help-block">{{ $t('collocations.keywordPatternHelp') }}</p>
-			<CollocationPatternEditor
-				:id="id"
-				:html-id="`${htmlId}_keyword`"
-				:model-value="modelValue.keyword"
-				role="keyword"
-				:annotation-options
-				:create-annotation-field
-				:advanced-field
-				:expert-field
-				:parse-pattern
-				:disabled
-				@update:model-value="update('keyword', $event)"
-			/>
-		</fieldset>
-
-		<fieldset class="blf-collocation-section">
-			<legend><span aria-hidden="true">2.</span> {{ $t('collocations.sections.collocate') }}</legend>
-			<div class="checkbox">
-				<label>
-					<input
-						type="checkbox"
-						:disabled
-						:checked="modelValue.collocate.enabled"
-						:aria-controls="`${htmlId}_collocate_restriction`"
-						:aria-expanded="modelValue.collocate.enabled"
-						@change="update('collocate', { ...modelValue.collocate, enabled: ($event.target as HTMLInputElement).checked })"
-					/>
-					{{ $t('collocations.restrictCollocate') }}
-				</label>
-			</div>
-			<p v-if="!modelValue.collocate.enabled" class="help-block">{{ $t('collocations.anyCollocate') }}</p>
-			<div v-else :id="`${htmlId}_collocate_restriction`">
+		<fieldset v-for="(role, index) in patternRoles" :key="role" class="blf-collocation-section">
+			<legend>
+				<span aria-hidden="true">{{ index + 1 }}.</span> {{ $t(`collocations.sections.${role}`) }}
+			</legend>
+			<p v-if="role === 'keyword'" class="help-block">{{ $t('collocations.keywordPatternHelp') }}</p>
+			<template v-else>
+				<div class="checkbox">
+					<label>
+						<input
+							type="checkbox"
+							:disabled
+							:checked="modelValue.collocate.enabled"
+							:aria-controls="`${htmlId}_collocate_restriction`"
+							:aria-expanded="modelValue.collocate.enabled"
+							@change="update('collocate', { ...modelValue.collocate, enabled: ($event.target as HTMLInputElement).checked })"
+						/>
+						{{ $t('collocations.restrictCollocate') }}
+					</label>
+				</div>
+				<p v-if="!modelValue.collocate.enabled" class="help-block">{{ $t('collocations.anyCollocate') }}</p>
+			</template>
+			<div v-if="role === 'keyword' || modelValue.collocate.enabled" :id="role === 'collocate' ? `${htmlId}_collocate_restriction` : undefined">
+				<p v-if="role === 'collocate'" class="help-block">{{ $t('collocations.singleTokenCollocateHelp') }}</p>
 				<CollocationPatternEditor
 					:id="id"
-					:html-id="`${htmlId}_collocate`"
-					:model-value="modelValue.collocate.pattern"
-					role="collocate"
+					:html-id="`${htmlId}_${role}`"
+					:model-value="role === 'keyword' ? modelValue.keyword : modelValue.collocate.pattern"
+					:role
 					:annotation-options
 					:create-annotation-field
-					:advanced-field
-					:expert-field
+					:query-builder-options
 					:parse-pattern
 					:disabled
-					@update:model-value="update('collocate', { ...modelValue.collocate, pattern: $event })"
+					@update:model-value="role === 'keyword' ? update('keyword', $event) : update('collocate', { ...modelValue.collocate, pattern: $event })"
 				/>
 			</div>
 		</fieldset>
@@ -54,10 +41,10 @@
 		<fieldset class="blf-collocation-section">
 			<legend><span aria-hidden="true">3.</span> {{ $t('collocations.sections.context') }}</legend>
 			<div class="row">
-				<div class="form-group col-sm-3">
-					<label :for="`${htmlId}_before`">{{ $t('collocations.before') }}</label>
+				<div v-for="side in contextSides" :key="side" class="form-group col-sm-3">
+					<label :for="`${htmlId}_${side}`">{{ $t(`collocations.${side}`) }}</label>
 					<input
-						:id="`${htmlId}_before`"
+						:id="`${htmlId}_${side}`"
 						class="form-control"
 						type="number"
 						min="0"
@@ -65,23 +52,8 @@
 						step="1"
 						required
 						:disabled
-						:value="modelValue.before"
-						@input="update('before', Number(($event.target as HTMLInputElement).value))"
-					/>
-				</div>
-				<div class="form-group col-sm-3">
-					<label :for="`${htmlId}_after`">{{ $t('collocations.after') }}</label>
-					<input
-						:id="`${htmlId}_after`"
-						class="form-control"
-						type="number"
-						min="0"
-						:max="Number.MAX_SAFE_INTEGER"
-						step="1"
-						required
-						:disabled
-						:value="modelValue.after"
-						@input="update('after', Number(($event.target as HTMLInputElement).value))"
+						:value="modelValue[side]"
+						@input="update(side, Number(($event.target as HTMLInputElement).value))"
 					/>
 				</div>
 				<div class="form-group col-sm-6">
@@ -141,6 +113,9 @@ const props = withDefaults(defineProps<CollocationFieldComponentProps>(), {
 const emit = defineEmits<{
 	'update:modelValue': [value: CollocationFieldState];
 }>();
+
+const patternRoles = ['keyword', 'collocate'] as const;
+const contextSides = ['before', 'after'] as const;
 
 const boundaryOptions = computed(() => props.withinOptions.map(option => ({ ...option, attributes: [] })));
 const withinState = computed<WithinFieldState>(() => ({ element: props.modelValue.within || null, attributes: {} }));

@@ -36,7 +36,12 @@
 					</button>
 				</div>
 			</template>
-			<div v-if="concordances.error != null" class="text-danger" role="alert">{{ concordances.error }}</div>
+			<div v-if="concordances.error != null" class="text-danger" role="alert">
+				{{ concordances.error }}
+				<button type="button" class="btn btn-sm btn-default retry-concordances" :disabled="disabled || concordances.loading" @click="concordances.retry()">
+					{{ $t('results.resultsView.tryAgain') }}
+				</button>
+			</div>
 			<div v-if="!concordances.results && concordances.loading" role="status" aria-live="polite">
 				<Spinner center />
 				<span class="sr-only">{{ $t('results.table.loading') }}</span>

@@ -42,22 +42,24 @@
 			</div>
 		</div>
 
-		<FieldRenderer
+		<QueryBuilderField
 			v-else-if="modelValue.mode === 'advanced'"
-			:field="advancedField"
-			:model-value="modelValue.advanced"
+			:id="`${id}.${role}.advanced`"
 			:html-id="`${htmlId}_advanced`"
+			:model-value="modelValue.advanced"
+			:options="queryBuilderOptions"
 			:disabled="disabled || parsing"
-			@update:model-value="update({ ...modelValue, advanced: $event as QueryBuilderFieldState })"
+			@update:model-value="update({ ...modelValue, advanced: $event })"
 		/>
 
-		<FieldRenderer
+		<RawCqlField
 			v-else
-			:field="expertField"
-			:model-value="modelValue.expert"
+			:id="`${id}.${role}.expert`"
 			:html-id="`${htmlId}_expert`"
+			:model-value="modelValue.expert"
+			hide-label
 			:disabled="disabled || parsing"
-			@update:model-value="update({ ...modelValue, expert: $event as string })"
+			@update:model-value="update({ ...modelValue, expert: $event })"
 		/>
 
 		<p v-if="parsing" class="help-block" aria-live="polite">{{ $t('collocations.preparingAdvanced') }}</p>
@@ -70,34 +72,27 @@ import { computed, ref } from 'vue';
 
 import {
 	createCollocationSimpleFieldNode,
-	type CollocationAnnotationOption,
+	type CollocationFieldComponentProps,
 	type CollocationPatternEditorState,
 	type CollocationPatternMode,
 	type CollocationPatternRole,
 } from '@/features/form/fields/collocation-field';
-import type { QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
-import type { TokenSequenceCreateField } from '@/features/form/fields/token-sequence-field';
 import { collocationPatternToCql } from '@/features/form/model/controllers/collocation-controller';
 import { queryBuilderStateToPattern } from '@/features/form/model/controllers/query-builder-controller';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
-import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
+import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const props = withDefaults(
-	defineProps<{
-		id: string;
-		htmlId: string;
-		modelValue: CollocationPatternEditorState;
-		role: CollocationPatternRole;
-		annotationOptions: CollocationAnnotationOption[];
-		createAnnotationField: TokenSequenceCreateField;
-		advancedField: FormFieldNode;
-		expertField: FormFieldNode;
-		parsePattern: (cql: string) => Promise<QueryBuilderFieldState | null>;
-		disabled?: boolean;
-	}>(),
+	defineProps<
+		Pick<CollocationFieldComponentProps, 'id' | 'htmlId' | 'annotationOptions' | 'createAnnotationField' | 'queryBuilderOptions' | 'parsePattern' | 'disabled'> & {
+			modelValue: CollocationPatternEditorState;
+			role: CollocationPatternRole;
+		}
+	>(),
 	{ disabled: false },
 );
 const emit = defineEmits<{

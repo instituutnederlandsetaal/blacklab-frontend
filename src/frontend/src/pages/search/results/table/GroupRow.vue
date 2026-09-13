@@ -1,6 +1,13 @@
 <template>
 	<tr class="grouprow">
-		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan" :class="col.class" :style="col.style">
+		<td
+			v-for="col in cols.groupColumns"
+			:key="col.key"
+			:colspan="col.colspan"
+			:class="col.class"
+			:style="col.style"
+			:title="col.labelField === 'score' && Number.isFinite(row.score) ? String(row.score) : undefined"
+		>
 			<div v-if="col.barField" class="progress group-size-indicator">
 				<div class="progress-bar progress-bar-primary" :style="barStyle(col)">
 					{{ valueForCell(col) }}
@@ -44,6 +51,7 @@ function barStyle(col: ColumnDefGroup): Record<string, string> {
 function valueForCell(col: ColumnDefGroup): string {
 	const v = props.row[col.labelField];
 	if (v == null) return col.labelField === 'displayname' ? translate.$t('results.groupBy.groupNameWithoutValue').toString() : '—';
+	if (col.labelField === 'score' && typeof v === 'number') return Number.isFinite(v) ? v.toLocaleString(undefined, { maximumSignificantDigits: 4 }) : '—';
 	if (col.showAsPercentage && typeof v === 'number') return frac2Percent(v);
 	return v.toLocaleString();
 }

@@ -441,7 +441,7 @@ export interface SearchFormIds {
 	collocationsSectionHeading(): string;
 	/** Returns the ID of the collocation search form. */
 	collocationsForm(): string;
-	/** Returns the ID of the retained collocation field. */
+	/** Returns the ID of the collocation field. */
 	collocationsField(): string;
 	/** Returns the ID of the within control. */
 	withinField(): string;

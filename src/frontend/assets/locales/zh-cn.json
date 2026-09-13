@@ -167,6 +167,7 @@
 		"preparingAdvanced": "正在准备查询生成器…",
 		"advancedParseError": "无法将此模式传入查询生成器。您可以继续使用简单或专家模式。",
 		"restrictCollocate": "限制统计的搭配词",
+		"singleTokenCollocateHelp": "搭配词模式必须匹配单个 token，BlackLab 才能计算关联分数。您可以在该 token 上组合词元和词性等条件。关键词可以包含多个 token。",
 		"anyCollocate": "所选上下文中的任何 token 都可以统计为搭配词。",
 		"collocates": "搭配词",
 		"keywordPattern": "关键词模式 (BCQL)",
@@ -205,9 +206,9 @@
 			"columnMeanings": "列含义",
 			"help": {
 				"collocate": "关键词附近出现的词或标注值。",
-				"association": "使用 {scorer} 计算的关联强度。",
+				"association": "使用 {scorer} 计算的关联强度。按此分数排序可探索关联，按共现次数排序可查找高频组合。请结合次数和上下文解读分数。",
 				"cooccurrences": "此搭配词在所选上下文窗口中出现的次数。",
-				"documents": "包含这些共现的文档数。"
+				"documents": "包含这些共现的文档数。少量文档中的大量共现可能反映少数来源中的重复。"
 			},
 			"backToCollocations": "返回搭配词",
 			"openAllContexts": "打开所有上下文"

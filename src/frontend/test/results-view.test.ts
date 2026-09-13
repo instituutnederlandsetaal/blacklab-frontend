@@ -501,6 +501,37 @@ describe('ResultsView', () => {
 		expect(mock.api.getCollocations.mock.calls[1][1]).not.toHaveProperty('viewgroup');
 	});
 
+	test.each(['empty', 'error'])('can return from %s collocation contexts to the previous list page', async outcome => {
+		Object.assign(mock.params as object, {
+			patt: '[word="water"]',
+			colltype: 'proximity',
+			context: 5,
+			annotation: 'lemma',
+			sensitive: false,
+			scorertype: 'coll-dice',
+		});
+		mock.store!.actions.range({ first: 40, number: 20 });
+		mock.store!.actions.sort('size');
+		mock.makeRows.mockReturnValue({ rows: [{ type: 'group' }] });
+		const wrapper = mountView();
+		mock.requests[0].resolve(collocationResult('[word="water"]'));
+		await flush();
+		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('viewgroup', 'ship', 'ship');
+		await nextTick();
+		if (outcome === 'error') mock.requests[1].reject({ title: 'failure', isCancelledRequest: false });
+		else {
+			mock.makeRows.mockReturnValue({ rows: [] });
+			mock.requests[1].resolve(result('empty', 0, 0));
+		}
+		await flush();
+		await wrapper
+			.findAll('button')
+			.find(button => button.text().includes('backToCollocations'))!
+			.trigger('click');
+		expect(mock.store!.getState()).toMatchObject({ first: 40, number: 20, viewGroup: null, sort: 'size' });
+		expect(mock.api.getCollocations.mock.calls.at(-1)?.[1]).toMatchObject({ first: 40, sort: 'size' });
+	});
+
 	test('changes the collocation scorer from the results controls and reruns from the first page', async () => {
 		Object.assign(mock.params as object, {
 			patt: '[word="water"]',

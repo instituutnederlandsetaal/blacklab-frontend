@@ -407,7 +407,7 @@ describe('search form system', () => {
 		expect(definition.getField(ids.collocationsField())?.component).toBe(CollocationField);
 	});
 
-	test('renders the structured Collocations form through the retained field', async () => {
+	test('renders the structured Collocations form', async () => {
 		const runtime = createDefinition();
 		runtime.state.uiState.value[ids.root()] = ids.collocationsSection();
 		const wrapper = mount(FormSystem, { props: { runtime } });
@@ -418,7 +418,7 @@ describe('search form system', () => {
 		expect(wrapper.get('.blf-collocation-section input[type="number"]').attributes('min')).toBe('0');
 	});
 
-	test('compiles the retained collocation field with its reused shared filter region', () => {
+	test('compiles the collocation field with its shared filter region', () => {
 		const runtime = createDefinition();
 		const state = runtime.state.state.value[ids.collocationsField()] as CollocationFieldState;
 		runtime.state.state.value[ids.collocationsField()] = {
@@ -449,34 +449,6 @@ describe('search form system', () => {
 			resultPreset: 'table',
 			targetView: 'hits',
 		});
-	});
-
-	test('restores a legacy Collocations URL and rewrites it to structured persistence', () => {
-		const runtime = createDefinition();
-		const restored = restoreSearchForm(runtime, {
-			'f.form': ids.collocationsForm(),
-			'f.collocations': String.raw`[word\="ship"];cp=[pos="N.*"];c=3:4;a=lemma;st=coll-salience`,
-		});
-		runtime.state.replaceState(restored.state);
-
-		expect(runtime.state.state.value[ids.collocationsField()]).toMatchObject({
-			keyword: { mode: 'expert', expert: '[word="ship"]' },
-			collocate: { enabled: true, pattern: { mode: 'expert', expert: '[pos="N.*"]' } },
-			before: 3,
-			after: 4,
-			annotation: 'lemma',
-		});
-		const compiled = runtime.compile(ids.collocationsForm());
-		expect(compiled.params).toMatchObject({
-			patt: '[word="ship"]',
-			collpatt: '[pos="N.*"]',
-			context: '3:4',
-			annotation: 'lemma',
-			scorertype: 'coll-dice',
-		});
-		expect(compiled.encoded['f.collocations']).toMatch(/^v=2(?:;|$)/);
-		expect(compiled.encoded['f.collocations']).not.toContain('st=');
-		expect(restored.submittedResult?.params).toMatchObject(compiled.params);
 	});
 
 	test('uses deferred labels for usable forward-index annotations from the main field only', () => {
@@ -1526,7 +1498,7 @@ describe('search form system', () => {
 
 			const restored = restoreSearchFormState(replacementRuntime, {
 				'f.form': ids.collocationsForm(),
-				'f.collocations': 'v=2;q={s={word;s=god}}',
+				'f.collocations': 'q={s={word;s=god}}',
 				within: 'p',
 			});
 			expect(restored.rawOverrides).not.toHaveProperty('within');
@@ -1566,7 +1538,7 @@ describe('search form system', () => {
 			expect(replacementRuntime).not.toBe(initialRuntime);
 			const restored = restoreSearchFormState(replacementRuntime, {
 				'f.form': ids.collocationsForm(),
-				'f.collocations': 'v=2;q={s={word;s=god}}',
+				'f.collocations': 'q={s={word;s=god}}',
 				'f.witness_year_from-witness_year_to': 'l=1300;h=1310',
 				filter: '(witness_year_from:[1300 TO 1310] AND witness_year_to:[1300 TO 1310])',
 			});

@@ -106,6 +106,10 @@
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
 		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
+			<button v-if="viewGroup" type="button" class="btn btn-sm btn-primary" @click="leaveViewgroup">
+				<span class="fa fa-angle-double-left" aria-hidden="true"></span>
+				{{ isCollocations ? $t('collocations.results.backToCollocations') : $t('results.resultsView.navigation.backToGroupedResults') }}
+			</button>
 			<GroupBy v-if="!isCollocations && groupBy.length" :type="id" :results="results" :disabled="!!request" />
 			<Pagination
 				v-if="pagination.shownPage != 0"

@@ -1,8 +1,10 @@
+import { createDefaultCqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import type { CollocationFieldDefinition, CollocationFieldState, CollocationPatternEditorState, CollocationPatternRole, CollocationSimplePatternState } from '@/features/form/fields/collocation-field';
 import { createCollocationSimpleFieldNode } from '@/features/form/fields/collocation-field';
 import type { QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 import { combineCqlPatterns, compileCql } from '@/features/form/model/compile/query-artifact';
 import { bool, number, object, PersistenceCodec, scalar } from '@/features/form/model/controllers/persistence-codec';
+import { queryBuilderPersistenceCodec, queryBuilderStateToPattern } from '@/features/form/model/controllers/query-builder-controller';
 import {
 	defineFieldController,
 	encodeFieldState,
@@ -13,9 +15,7 @@ import {
 	type FieldPersistenceContext,
 	type FormRuntimeContext,
 } from '@/features/form/model/types/form-controllers';
-import { parseCollocationContext } from '@/features/form/model/types/form-output';
 import { isCqlPatternNode, rawCql, summary, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
-import type { BLCollocationType } from '@/types/blacklabtypes';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 
@@ -25,7 +25,7 @@ export type CollocationControllerConfig = {
 };
 type CollocationFieldConfig = FieldControllerProps<FieldControllerConfig<CollocationFieldDefinition, CollocationControllerConfig>>;
 type CollocationPersistenceContext = FieldPersistenceContext<CollocationFieldConfig>;
-type CollocationPatternCompilerConfig = Pick<CollocationFieldConfig, 'id' | 'createAnnotationField' | 'advancedField'>;
+type CollocationPatternCompilerConfig = Pick<CollocationFieldConfig, 'id' | 'createAnnotationField'>;
 
 function createDefaultSimpleState(config: CollocationFieldConfig, runtime: FormRuntimeContext, role: CollocationPatternRole): CollocationSimplePatternState {
 	const field = createCollocationSimpleFieldNode(config, role, config.defaultAnnotation);
@@ -39,7 +39,7 @@ function createDefaultPatternState(config: CollocationFieldConfig, runtime: Form
 	return {
 		mode: 'simple',
 		simple: createDefaultSimpleState(config, runtime, role),
-		advanced: config.advancedField.controller.createDefaultState(config.advancedField, runtime) as QueryBuilderFieldState,
+		advanced: createDefaultCqlQueryBuilderData(config.queryBuilderOptions.defaultAnnotationId),
 		expert: '',
 	};
 }
@@ -56,8 +56,6 @@ function createDefaultState(config: CollocationFieldConfig, runtime: FormRuntime
 		within: config.defaultWithin,
 		annotation: config.defaultAnnotation,
 		sensitive: false,
-		colltype: 'proximity',
-		reltype: '',
 	};
 }
 
@@ -67,9 +65,9 @@ function collocationPatternToNode(config: CollocationPatternCompilerConfig, runt
 		return cql ? rawCql(cql) : null;
 	}
 
-	const field = state.mode === 'advanced' ? config.advancedField : createCollocationSimpleFieldNode(config, role, state.simple.annotationId);
-	const fieldState = state.mode === 'advanced' ? state.advanced : state.simple.fieldState;
-	return combineCqlPatterns(gatherOutput(field, fieldState, runtime, 'patt', isCqlPatternNode), 'and');
+	if (state.mode === 'advanced') return queryBuilderStateToPattern(state.advanced);
+	const field = createCollocationSimpleFieldNode(config, role, state.simple.annotationId);
+	return combineCqlPatterns(gatherOutput(field, state.simple.fieldState, runtime, 'patt', isCqlPatternNode), 'and');
 }
 
 export function collocationPatternToCql(config: CollocationPatternCompilerConfig, runtime: FormRuntimeContext, state: CollocationPatternEditorState, role: CollocationPatternRole): string {
@@ -77,16 +75,13 @@ export function collocationPatternToCql(config: CollocationPatternCompilerConfig
 	return pattern ? (compileCql(pattern) ?? '') : '';
 }
 
-const embeddedFieldStateCodec = <State>(field: (context: CollocationPersistenceContext) => CollocationFieldConfig['advancedField'], defaultState: (context: CollocationPersistenceContext) => State) =>
-	new PersistenceCodec<State, CollocationPersistenceContext>(
-		{
-			encode: (state, context) => encodeFieldState(field(context), state, context.runtime) ?? '',
-			decode: (payload, context) => (payload ? (restoreFieldState(field(context), payload, context.runtime) as State) : defaultState(context)),
-		},
-		{ structured: true },
-	)
-		.default(defaultState)
-		.omitWhen((state, context) => encodeFieldState(field(context), state, context.runtime) === null);
+const advancedStateCodec = new PersistenceCodec<QueryBuilderFieldState, CollocationPersistenceContext>(
+	{
+		encode: (state, { config }) => queryBuilderPersistenceCodec.encode(state, { config: { options: config.queryBuilderOptions } }),
+		decode: (payload, { config }) => queryBuilderPersistenceCodec.decode(payload, { config: { options: config.queryBuilderOptions } }),
+	},
+	{ structured: true },
+);
 
 function simpleStateCodec(role: CollocationPatternRole) {
 	const wireCodec = object({
@@ -123,38 +118,25 @@ function simpleStateCodec(role: CollocationPatternRole) {
 
 function patternStateCodec(role: CollocationPatternRole) {
 	const simple = simpleStateCodec(role);
-	const advanced = embeddedFieldStateCodec<QueryBuilderFieldState>(
-		context => context.config.advancedField,
-		context => context.config.advancedField.controller.createDefaultState(context.config.advancedField, context.runtime) as QueryBuilderFieldState,
-	);
 	const expert = scalar<CollocationPersistenceContext>()
 		.default('')
 		.omitWhen(value => !value.trim());
 	const codec = object({
 		mode: scalar<CollocationPersistenceContext>().mapped({ simple: 's', advanced: 'a', expert: 'e' }).default('simple').at('m'),
 		simple: simple.at('s'),
-		advanced: advanced.at('a'),
+		advanced: advancedStateCodec.at('a'),
 		expert: expert.at('e'),
 	});
-	return codec
-		.default(context => createDefaultPatternState(context.config, context.runtime, role))
-		.omitWhen(
-			(state, context) =>
-				state.mode === 'simple' && simple.encode(state.simple, context) === null && advanced.encode(state.advanced, context) === null && expert.encode(state.expert, context) === null,
-		);
+	return codec.default(context => createDefaultPatternState(context.config, context.runtime, role)).omitWhen((state, context) => codec.encode(state, context) === '');
 }
 
 const contextValue = number<CollocationPersistenceContext>().refine(value =>
 	Number.isSafeInteger(value) && value >= 0 ? undefined : 'Collocation context values must be non-negative safe integers.',
 );
-const collocationType = scalar<CollocationPersistenceContext>().mapped({ proximity: 'proximity', relsources: 'relsources', reltargets: 'reltargets' });
 const keywordPattern = patternStateCodec('keyword');
 const collocatePattern = patternStateCodec('collocate');
 
-const versionedPersistenceCodec = object({
-	version: scalar<CollocationPersistenceContext>()
-		.refine(value => (value === '2' ? undefined : `Cannot restore collocation value with unsupported version '${value}'.`))
-		.at('v'),
+const stateCodec = object({
 	keyword: keywordPattern.at('q'),
 	collocateEnabled: bool<CollocationPersistenceContext>().default(false).at('ce'),
 	collocatePattern: collocatePattern.at('cp'),
@@ -168,86 +150,14 @@ const versionedPersistenceCodec = object({
 		.refine((value, { config }) => (findOption(config.annotationOptions, value) ? undefined : `Cannot restore collocation grouping annotation '${value}' because it is not available.`))
 		.at('a'),
 	sensitive: bool<CollocationPersistenceContext>().default(false).at('s'),
-	scorertype: scalar<CollocationPersistenceContext>().default('coll-dice').at('st'),
-	colltype: collocationType.default('proximity').at('ct'),
-	reltype: scalar<CollocationPersistenceContext>().default('').at('r'),
 }).transform<CollocationFieldState>({
-	encode: state => ({
-		version: '2',
-		keyword: state.keyword,
-		collocateEnabled: state.collocate.enabled,
-		collocatePattern: state.collocate.pattern,
-		before: state.before,
-		after: state.after,
-		within: state.within,
-		annotation: state.annotation,
-		sensitive: state.sensitive,
-		scorertype: 'coll-dice',
-		colltype: state.colltype,
-		reltype: state.reltype,
-	}),
-	decode: state => ({
-		keyword: state.keyword,
-		collocate: { enabled: state.collocateEnabled, pattern: state.collocatePattern },
-		before: state.before,
-		after: state.after,
-		within: state.within,
-		annotation: state.annotation,
-		sensitive: state.sensitive,
-		colltype: state.colltype as BLCollocationType,
-		reltype: state.reltype,
+	encode: state => ({ ...state, collocateEnabled: state.collocate.enabled, collocatePattern: state.collocate.pattern }),
+	decode: ({ collocateEnabled, collocatePattern, ...state }) => ({
+		...state,
+		collocate: { enabled: collocateEnabled, pattern: collocatePattern },
 	}),
 });
-
-const legacyPersistenceCodec = object({
-	patt: scalar<CollocationPersistenceContext>().default('').atRoot(),
-	collpatt: scalar<CollocationPersistenceContext>().default('').at('cp'),
-	colltype: collocationType.default('proximity').at('ct'),
-	context: scalar<CollocationPersistenceContext>().default('5').at('c'),
-	within: scalar<CollocationPersistenceContext>().default('').at('w'),
-	reltype: scalar<CollocationPersistenceContext>().default('').at('r'),
-	annotation: scalar<CollocationPersistenceContext>()
-		.default(({ config }) => config.defaultAnnotation)
-		.refine((value, { config }) => (findOption(config.annotationOptions, value) ? undefined : `Cannot restore collocation grouping annotation '${value}' because it is not available.`))
-		.at('a'),
-	sensitive: bool<CollocationPersistenceContext>().default(false).at('s'),
-	scorertype: scalar<CollocationPersistenceContext>().default('coll-dice').at('st'),
-});
-
-function legacyPattern(config: CollocationFieldConfig, runtime: FormRuntimeContext, role: CollocationPatternRole, cql: string): CollocationPatternEditorState {
-	return {
-		...createDefaultPatternState(config, runtime, role),
-		mode: cql.trim() ? 'expert' : 'simple',
-		expert: cql,
-	};
-}
-
-const persistenceCodec = new PersistenceCodec<CollocationFieldState, CollocationPersistenceContext>({
-	encode: (state, context) => versionedPersistenceCodec.encode(state, context),
-	decode: (payload, context) => {
-		if (payload == null) return createDefaultState(context.config, context.runtime);
-		if (payload.startsWith('v=2')) return versionedPersistenceCodec.decode(payload, context);
-
-		const legacy = legacyPersistenceCodec.decode(payload, context);
-		const parsedContext = parseCollocationContext(legacy.context);
-		if (parsedContext === null) throw new Error(`Cannot restore invalid collocation context '${legacy.context}'.`);
-		const [before, after] = typeof parsedContext === 'number' ? [parsedContext, parsedContext] : parsedContext;
-		return {
-			keyword: legacyPattern(context.config, context.runtime, 'keyword', legacy.patt),
-			collocate: {
-				enabled: !!legacy.collpatt.trim(),
-				pattern: legacyPattern(context.config, context.runtime, 'collocate', legacy.collpatt),
-			},
-			before,
-			after,
-			within: legacy.within,
-			annotation: legacy.annotation,
-			sensitive: legacy.sensitive,
-			colltype: legacy.colltype,
-			reltype: legacy.reltype,
-		};
-	},
-});
+const persistenceCodec = stateCodec.default(context => createDefaultState(context.config, context.runtime)).omitWhen((state, context) => stateCodec.encode(state, context) === '');
 
 /** @public */
 export const collocationController = defineFieldController<'collocation', CollocationFieldDefinition, CollocationControllerConfig>({
@@ -257,7 +167,7 @@ export const collocationController = defineFieldController<'collocation', Colloc
 		key: () => 'collocations',
 		codec: persistenceCodec,
 	},
-	outputs: ['patt', 'collpatt', 'colltype', 'context', 'within', 'reltype', 'annotation', 'sensitive'],
+	outputs: ['patt', 'collpatt', 'colltype', 'context', 'within', 'annotation', 'sensitive'],
 	collect(config, runtime, state, emit) {
 		if (!Number.isSafeInteger(state.before) || state.before < 0 || !Number.isSafeInteger(state.after) || state.after < 0 || state.before + state.after === 0) return;
 		const patt = collocationPatternToNode(config, runtime, state.keyword, 'keyword');
@@ -268,13 +178,9 @@ export const collocationController = defineFieldController<'collocation', Colloc
 			const collpatt = collocationPatternToNode(config, runtime, state.collocate.pattern, 'collocate');
 			if (collpatt) emit('collpatt', collpatt);
 		}
-		emit('colltype', state.colltype);
-		if (state.colltype === 'proximity') {
-			emit('context', state.before === state.after ? state.before : [state.before, state.after]);
-			if (state.within.trim()) emit('within', state.within.trim());
-		} else if (state.reltype.trim()) {
-			emit('reltype', state.reltype.trim());
-		}
+		emit('colltype', 'proximity');
+		emit('context', state.before === state.after ? state.before : [state.before, state.after]);
+		if (state.within.trim()) emit('within', state.within.trim());
 		if (state.annotation.trim()) emit('annotation', state.annotation.trim());
 		emit('sensitive', state.sensitive);
 	},

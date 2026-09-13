@@ -167,6 +167,7 @@
 		"preparingAdvanced": "Preparing the query builder…",
 		"advancedParseError": "This pattern could not be transferred to the query builder. You can continue in Simple or Expert mode.",
 		"restrictCollocate": "Restrict which collocates are counted",
+		"singleTokenCollocateHelp": "The collocate pattern must match a single token for BlackLab to calculate association scores. You can combine conditions such as lemma and part of speech on that token. The keyword may contain several tokens.",
 		"anyCollocate": "Any token in the selected context may be counted as a collocate.",
 		"collocates": "Collocates",
 		"keywordPattern": "Keyword pattern (BCQL)",
@@ -205,9 +206,9 @@
 			"columnMeanings": "Column meanings",
 			"help": {
 				"collocate": "The word or annotation value found near the keyword.",
-				"association": "The association strength calculated with {scorer}.",
+				"association": "The association strength calculated with {scorer}. Sort by this score to explore association, or by co-occurrences to find frequent combinations. Check the counts and contexts alongside the score.",
 				"cooccurrences": "The number of times this collocate occurs in the selected context window.",
-				"documents": "The number of documents containing these co-occurrences."
+				"documents": "The number of documents containing these co-occurrences. A large count in few documents may reflect repetition in a small number of sources."
 			},
 			"backToCollocations": "Back to collocations",
 			"openAllContexts": "Open all contexts"

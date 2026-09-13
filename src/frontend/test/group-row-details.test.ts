@@ -21,8 +21,12 @@ vi.mock('@/pages/search/results/table/table-layout', () => ({ definitions: [], m
 
 function deferredRequest() {
 	let resolve!: (value: unknown) => void;
-	const promise = new Promise(resolvePromise => (resolve = resolvePromise));
-	return { promise, resolve };
+	let reject!: (reason: unknown) => void;
+	const promise = new Promise((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise;
+		reject = rejectPromise;
+	});
+	return { promise, resolve, reject };
 }
 
 async function flush() {
@@ -108,7 +112,7 @@ describe('GroupRowDetails', () => {
 			patt: 'meet([pos="N.*"], [word="water"],-3,4)',
 			hitfiltercrit: 'hit:lemma:i',
 			hitfilterval: 'lemma:ship',
-			context: '3:4',
+			context: 5,
 			filter: 'author:Austen',
 			number: 12,
 			first: 0,
@@ -123,5 +127,35 @@ describe('GroupRowDetails', () => {
 			title: 'results.table.close',
 		});
 		expect(wrapper.get('button.close-concordances span').attributes('aria-hidden')).toBe('true');
+	});
+
+	test('retries a failed preview page without skipping contexts or losing the loaded page', async () => {
+		const wrapper = shallowMount(GroupRowDetails, {
+			props: {
+				row: { id: 'group-id', size: 50 } as never,
+				info: {} as never,
+				cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] },
+				type: 'hits',
+				open: false,
+				query: { patt: '[]', filter: 'author:Austen' },
+			},
+		});
+		await wrapper.setProps({ open: true });
+		mock.requests[0].reject(new Error('Temporary failure'));
+		await flush();
+		await wrapper.get('.retry-concordances').trigger('click');
+		expect(mock.api.getHits.mock.calls[1][1]).toMatchObject({ first: 0, filter: 'author:Austen', viewgroup: 'group-id' });
+		mock.requests[1].resolve({});
+		await flush();
+		const rows = wrapper.findComponent({ name: 'GenericTable' }).props('rows');
+		await wrapper.get('.concordance-controls .btn-default').trigger('click');
+		mock.requests[2].reject(new Error('Temporary failure'));
+		await flush();
+		await wrapper.get('.retry-concordances').trigger('click');
+		expect(mock.api.getHits.mock.calls[3][1]).toMatchObject({ first: 20, filter: 'author:Austen', viewgroup: 'group-id' });
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props('rows')).toBe(rows);
+		mock.requests[3].resolve({});
+		await flush();
+		expect(wrapper.find('.retry-concordances').exists()).toBe(false);
 	});
 });

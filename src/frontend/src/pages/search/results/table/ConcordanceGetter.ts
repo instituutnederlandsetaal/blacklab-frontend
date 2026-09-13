@@ -22,6 +22,11 @@ export default class PaginatedGetter<T> {
 		return reactive(this) as this;
 	}
 
+	public retry() {
+		this.error = null;
+		this.next();
+	}
+
 	/** Load the next page, if possible. */
 	public next() {
 		if (this.loading || this.error) {

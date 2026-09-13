@@ -148,7 +148,7 @@ const tokenCodec = object({
 	}),
 });
 
-const queryBuilderPersistenceCodec = object({
+export const queryBuilderPersistenceCodec = object({
 	version: scalar()
 		.refine(value => (value === CODEC_VERSION ? undefined : `Cannot restore querybuilder value with unsupported version '${value}'.`))
 		.at('v'),

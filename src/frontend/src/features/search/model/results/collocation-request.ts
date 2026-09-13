@@ -48,7 +48,9 @@ export function createCollocationHitsParameters(params: EffectiveCollocationPara
 
 	return {
 		...shared,
-		context,
+		// The query above defines which tokens count. KWIC needs enough text on both
+		// sides of the collocate to interpret narrow and asymmetric searches.
+		context: typeof context === 'string' && INLINE_TAG.test(context) ? context : Math.max(5, window.before, window.after),
 		patt: hitsPattern,
 		...(sort && hitSort && !GROUP_SORTS.has(hitSort) ? { sort } : {}),
 		hitfiltercrit: `hit:${annotation}:${sensitive ? 's' : 'i'}`,

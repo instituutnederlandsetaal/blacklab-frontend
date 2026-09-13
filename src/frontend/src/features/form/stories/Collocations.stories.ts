@@ -1,18 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import { computed, ref } from 'vue';
 
 import { COMPARATORS, createDefaultCqlQueryBuilderData, OPERATORS, type CqlAttributeData, type CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
-import {
-	annotationTextController,
-	collocationController,
-	createCollocationTarget,
-	createFormFieldNode,
-	expertQueryController,
-	FormBuilder,
-	FormRuntime,
-	queryBuilderController,
-	type FormRuntimeContext,
-} from '@/features/form';
+import { annotationTextController, collocationController, createCollocationTarget, createFormFieldNode, FormBuilder, FormRuntime, type FormRuntimeContext } from '@/features/form';
 import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
 import type { TokenSequenceCreateField } from '@/features/form/fields/token-sequence-field';
 import type { DisplaySettingsForRendering } from '@/pages/search/results/table/table-layout';
@@ -24,8 +15,6 @@ import { useI18n, type Translate } from '@/shared/i18n';
 
 import CollocationField from '../fields/CollocationField.vue';
 import TextField from '../fields/generic/TextField.vue';
-import QueryBuilderField from '../fields/QueryBuilderField.vue';
-import RawCqlField from '../fields/RawCqlField.vue';
 import ContainerRenderer from '../ui/ContainerRenderer.vue';
 import HeadingView from '../views/HeadingView.vue';
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
@@ -132,12 +121,7 @@ function createCollocationForm(translate: Translate): FormRuntime {
 	};
 	const definition = new FormBuilder(context);
 	const queryBuilderOptions = createQueryBuilderOptions(translate);
-	const advancedField = createFormFieldNode('collocations.story.advanced', queryBuilderController, QueryBuilderField, {
-		options: queryBuilderOptions,
-	});
-	const expertField = createFormFieldNode('collocations.story.expert', expertQueryController, RawCqlField, {
-		hideLabel: true,
-	});
+
 	const annotationOptions = Object.values(annotations).map(annotation => ({
 		value: annotation.id,
 		label: () => annotation.defaultDisplayName,
@@ -153,8 +137,8 @@ function createCollocationForm(translate: Translate): FormRuntime {
 				placeholder: annotationId === 'pos' ? 'e.g. NOUN' : `e.g. ${annotationId === 'lemma' ? 'flow' : 'water'}`,
 				caseSensitive: annotations[annotationId]?.caseSensitive ?? false,
 			}),
-		advancedField,
-		expertField,
+		queryBuilderOptions,
+
 		withinOptions: [
 			{ value: '', label: () => 'Anywhere in the document' },
 			{ value: 's', label: () => 'Sentence' },
@@ -190,6 +174,27 @@ export const SearchForm: Story = {
 		},
 		template: '<FormSystemStoryHarness :runtime />',
 	}),
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole('button', { name: 'Advanced' }));
+		await expect(canvas.getByDisplayValue('water')).toBeVisible();
+		await userEvent.click(canvas.getByRole('button', { name: 'Expert BCQL' }));
+		const expert = canvas.getByRole('textbox', { name: 'Corpus Query Language' });
+		await expect(expert).toHaveValue('[word="water"]');
+		await userEvent.clear(expert);
+		await userEvent.type(expert, '[[word="ship"]', { skipClick: true });
+		await userEvent.click(canvas.getByRole('button', { name: 'Simple' }));
+		await expect(canvas.getByDisplayValue('water')).toBeVisible();
+		await userEvent.click(canvas.getByRole('button', { name: 'Expert BCQL' }));
+		await expect(canvas.getByRole('textbox', { name: 'Corpus Query Language' })).toHaveValue('[word="ship"]');
+		const restrict = canvas.getByRole('checkbox', { name: 'Restrict which collocates are counted' });
+		await userEvent.click(restrict);
+		await userEvent.click(canvas.getAllByRole('button', { name: 'Expert BCQL' })[1]);
+		await userEvent.type(canvas.getAllByRole('textbox', { name: 'Corpus Query Language' })[1], '[[pos="NOUN"]');
+		await userEvent.click(restrict);
+		await userEvent.click(restrict);
+		await expect(canvas.getAllByRole('textbox', { name: 'Corpus Query Language' })[1]).toHaveValue('[pos="NOUN"]');
+	},
 };
 
 function collocationSummary(): BLSearchSummaryV5 {

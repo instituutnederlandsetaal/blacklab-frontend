@@ -239,22 +239,16 @@ function createCollocationsSection(
 	sortWithinOptions: boolean,
 ): FormNode {
 	const { builder, nodeConstructors, translate } = context;
-	const advancedField = createFormFieldNode(`${ids.collocationsField()}.advanced`, queryBuilderController, QueryBuilderField, {
-		options: createQueryBuilderOptions(context, {
-			annotationIds: annotations.map(annotation => annotation.id),
-			defaultAnnotationId: mainAnnotationId,
-		}),
-	});
-	const expertField = createFormFieldNode(`${ids.collocationsField()}.expert`, expertQueryController, RawCqlField, {
-		hideLabel: true,
-	});
 	const sentenceElement = context.customizations.searchFormSentenceElement();
 	const field = createFormFieldNode(ids.collocationsField(), collocationController, CollocationField, {
 		annotationOptions: annotations.map(annotation => ({
 			value: annotation.id,
 			label: () => disambiguatedAnnotationLabel(annotation, annotations, translate),
 		})),
-		advancedField,
+		queryBuilderOptions: createQueryBuilderOptions(context, {
+			annotationIds: annotations.map(annotation => annotation.id),
+			defaultAnnotationId: mainAnnotationId,
+		}),
 		createAnnotationField: (fieldOptions: Parameters<TokenSequenceCreateField>[0]) => {
 			const annotation = context.corpus.allAnnotationsMap[fieldOptions.annotationId];
 			if (!annotation) throw new Error(`Cannot create collocation pattern field for unknown annotation '${fieldOptions.annotationId}'.`);
@@ -262,7 +256,6 @@ function createCollocationsSection(
 		},
 		defaultAnnotation: mainAnnotationId,
 		defaultWithin: sentenceElement && withinOptions.some(option => option.value === sentenceElement) ? sentenceElement : '',
-		expertField,
 		parsePattern: async (cql: string) => {
 			const parsed = await parseBcql(context.blacklabApi, context.corpus.id, cql, mainAnnotationId);
 			return getQueryBuilderStateFromParsedQuery(parsed).query;

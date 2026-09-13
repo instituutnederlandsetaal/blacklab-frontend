@@ -40,6 +40,7 @@ import {
 	type FormEmission,
 	type TokenSequenceCreateField,
 } from '@/features/form';
+import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
 import { compileCql } from '@/features/form/model/compile/query-artifact';
 import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
 import { filter, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
@@ -196,66 +197,47 @@ describe('scoped form persistence', () => {
 		});
 	});
 
-	test('preserves collocation discriminator wire values and rejects malformed persisted values', () => {
+	test('round-trips collocation state and rejects malformed persisted values', () => {
 		const builder = createTestBuilder();
-		const embeddedExpert = createFormFieldNode('collocations.embedded-expert', expertQueryController, RawCqlField, { hideLabel: true });
 		const field = builder.newField('collocations.field', collocationController, CollocationField, {
 			annotationOptions: [{ value: 'word', label: () => 'Word' }],
-			advancedField: embeddedExpert,
+			queryBuilderOptions: { defaultAnnotationId: 'word', annotationOptions: [{ value: 'word', label: 'Word' }] } as CqlQueryBuilderOptions,
 			createAnnotationField: ({ id, annotationId }: Parameters<TokenSequenceCreateField>[0]) => createFormFieldNode(id, testTextController, TestTextField, { annotationId, displayName: annotationId }),
 			defaultAnnotation: 'word',
 			defaultWithin: '',
-			expertField: embeddedExpert,
 			parsePattern: async () => null,
 			withinOptions: [],
 		});
 		const form = builder.newForm('collocations.form', ContainerRenderer, { target: createCollocationTarget('word') }).addChildren(field);
 		const codecContext = { config: field, runtime: builder.context };
 		const defaults = collocationController.createDefaultState(field, builder.context);
-		const relationState = {
+		const collocationState = {
 			...defaults,
 			keyword: { ...defaults.keyword, mode: 'expert' as const, expert: '[word="ship"]' },
-			colltype: 'relsources' as const,
 		};
-		const encoded = collocationController.persistence.codec.encode(relationState, codecContext)!;
+		const encoded = collocationController.persistence.codec.encode(collocationState, codecContext)!;
 
-		expect(encoded).toContain('v=2');
-		expect(encoded).toContain('ct=relsources');
+		expect(encoded).toMatch(/^q=/);
 		expect(collocationController.persistence.codec.decode(encoded, codecContext)).toMatchObject({
 			keyword: { mode: 'expert', expert: '[word="ship"]' },
 			collocate: { enabled: false },
 			before: 5,
 			after: 5,
-			colltype: 'relsources',
 		});
 
-		const legacy = restoreForm(builder, {
-			'f.form': form.id,
-			'f.collocations': String.raw`[word\="ship"];cp=[pos="N.*"];ct=relsources;c=3:4`,
-		});
-		expect(legacy.state.state[field.id]).toMatchObject({
-			keyword: { mode: 'expert', expert: '[word="ship"]' },
-			collocate: { enabled: true, pattern: { mode: 'expert', expert: '[pos="N.*"]' } },
-			before: 3,
-			after: 4,
-			colltype: 'relsources',
-		});
-
-		const restored = restoreForm(builder, { 'f.form': form.id, 'f.collocations': encoded.replace('relsources', 'invalid') });
-		expect(restored.state.state[field.id]).toEqual(collocationController.createDefaultState(field, builder.context));
+		const restored = restoreForm(builder, { 'f.form': form.id, 'f.collocations': encoded.replace('m=e', 'm=invalid') });
+		expect(collocationController.persistence.codec.encode(restored.state.state[field.id] as CollocationFieldState, codecContext)).toBeNull();
 		expect(restored.state.issues).toContainEqual({
 			severity: 'error',
 			message: "Could not restore persisted field 'collocations' for 'collocations.field': Cannot decode unmapped value 'invalid'.",
 		});
 
-		for (const unavailableAnnotation of ['v=2;a=removed', String.raw`[word\="ship"];a=removed`]) {
-			const unavailable = restoreForm(builder, { 'f.form': form.id, 'f.collocations': unavailableAnnotation });
-			expect(unavailable.state.state[field.id]).toEqual(collocationController.createDefaultState(field, builder.context));
-			expect(unavailable.state.issues).toContainEqual({
-				severity: 'error',
-				message: "Could not restore persisted field 'collocations' for 'collocations.field': Cannot restore collocation grouping annotation 'removed' because it is not available.",
-			});
-		}
+		const unavailable = restoreForm(builder, { 'f.form': form.id, 'f.collocations': 'a=removed' });
+		expect(collocationController.persistence.codec.encode(unavailable.state.state[field.id] as CollocationFieldState, codecContext)).toBeNull();
+		expect(unavailable.state.issues).toContainEqual({
+			severity: 'error',
+			message: "Could not restore persisted field 'collocations' for 'collocations.field': Cannot restore collocation grouping annotation 'removed' because it is not available.",
+		});
 	});
 
 	test('restores scoped state without consuming unrelated unscoped parameters', () => {

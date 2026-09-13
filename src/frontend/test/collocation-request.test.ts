@@ -35,7 +35,7 @@ describe('createCollocationHitsParameters', () => {
 				}),
 			),
 		).toEqual({
-			context: '3:4',
+			context: 5,
 			field: 'contents',
 			filter: 'author:Austen',
 			first: 40,
@@ -59,6 +59,18 @@ describe('createCollocationHitsParameters', () => {
 	test('uses meet_within for a separate within clause and omits offsets for an inline-tag context', () => {
 		expect(createCollocationHitsParameters(parameters({ context: 5, within: 's' }))?.patt).toBe('meet_within([], [lemma="boot"], <s/>,-5,5)');
 		expect(createCollocationHitsParameters(parameters({ context: 's' }))?.patt).toBe('meet_within([], [lemma="boot"], <s/>)');
+	});
+
+	test.each(['0:1', '1:0', '3:4', '8:0', '0:8'])('gives context %s readable KWIC without widening the search', context => {
+		const result = createCollocationHitsParameters(parameters({ context, within: 's' }))!;
+		expect(result.context).toBe(context.includes('8') ? 8 : 5);
+		expect(result.patt).toContain('meet_within(');
+		const [before, after] = context.split(':').map(Number);
+		expect(result.patt).toContain(`,${before === 0 ? 1 : -before},${after === 0 ? -1 : after})`);
+	});
+
+	test('retains a full structural context for legacy inline-tag requests', () => {
+		expect(createCollocationHitsParameters(parameters({ context: 's' }))?.context).toBe('s');
 	});
 
 	test('uses the selected annotation sensitivity and retains a hits-compatible sort', () => {

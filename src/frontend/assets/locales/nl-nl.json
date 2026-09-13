@@ -167,6 +167,7 @@
 		"preparingAdvanced": "Querybuilder voorbereiden…",
 		"advancedParseError": "Dit patroon kon niet naar de querybuilder worden overgezet. U kunt doorgaan in de eenvoudige of expertmodus.",
 		"restrictCollocate": "Beperk welke collocaties worden geteld",
+		"singleTokenCollocateHelp": "Het collocaatpatroon moet één token opleveren om BlackLab associatiescores te laten berekenen. U kunt voorwaarden zoals lemma en woordsoort op dat token combineren. Het trefwoord mag uit meerdere tokens bestaan.",
 		"anyCollocate": "Elk token in de geselecteerde context kan als collocatie worden geteld.",
 		"collocates": "Collocaten",
 		"keywordPattern": "Trefwoordpatroon (BCQL)",
@@ -205,9 +206,9 @@
 			"columnMeanings": "Betekenis van kolommen",
 			"help": {
 				"collocate": "Het woord of de annotatiewaarde die bij het trefwoord is gevonden.",
-				"association": "De associatiesterkte, berekend met {scorer}.",
+				"association": "De associatiesterkte, berekend met {scorer}. Sorteer op deze score om associaties te onderzoeken, of op co-occurrences om frequente combinaties te vinden. Bekijk ook de aantallen en contexten.",
 				"cooccurrences": "Het aantal keer dat dit collocaat in het gekozen contextvenster voorkomt.",
-				"documents": "Het aantal documenten waarin deze co-occurrences voorkomen."
+				"documents": "Het aantal documenten waarin deze co-occurrences voorkomen. Veel voorkomens in weinig documenten kunnen wijzen op herhaling in een klein aantal bronnen."
 			},
 			"backToCollocations": "Terug naar collocaties",
 			"openAllContexts": "Alle contexten openen"
