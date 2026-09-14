@@ -58,9 +58,9 @@ const findings = [...typescriptCandidates.values()]
 
 if (findings.length) {
   console.warn(
-    `Low-value abstractions were found. These are functions with low cyclomatic complexity and low number of call-sites. 
-		Imports in .vue componentsa are counted as 1, test/Storybook usage counted at ${testCallWeight.toFixed(3)}, other usages as 1.
-		Documenting a helper exempts it from this rule, but should be done with consideration.
+    `Low-value abstractions found: low cyclomatic complexity and low call-sites.
+    Call-site weight: *.vue: 1, test/Storybook: ${testCallWeight.toFixed(3)}, other: 1.
+		Documenting a function exempts it, but only do this when inlining would result in overwhelmingly dense, complex, or unclear code, or when the function is genuinely public api.
 		Heuristic: e=p+v+${formatNumber(testCallWeight)}(t+tv), savings=(e-1)(complexity-1); report e=2..${maximumCallSites}, savings<${minimumSavings}, body<=${maximumBodyLines}.
 		p=production calls, v=Vue imports, t=test/Storybook calls, tv=test/Storybook Vue imports; documented helpers exempt.
 		`.replace(/\t+/g, ""),
