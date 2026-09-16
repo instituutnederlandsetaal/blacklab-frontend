@@ -24,21 +24,19 @@ configs:
   blacklab-server: 
     content: |
       ---
-      # https://blacklab.ivdnt.org/server/configuration.html
+      # BlackLab Server configuration, see https://blacklab.ivdnt.org/server/configuration.html
+      
+      # Where corpora can be found (inside the container)
+      # (list directories whose subdirectories are indexed corpora, or directories containing a single indexed corpus)
+      indexLocations:
+        - /data/index
+      
+      # Where user-created corpora will be stored (inside the container)
+      # (note that user corpora only works if authentication is enabled)
+      userIndexes: /data/user-index
+
+      # Hardcoded debug user for testing purposes (no login required)
       authentication:
         system: 
           class: AuthDebugFixed
           userId: test_user
-      indexLocations:
-        - /data/index
-      userIndexes: /data/user-index
-      parameters: 
-        processHits:
-          default: -1
-          max: -1
-        countHits:
-          default: -1
-          max: -1
-        pageSize:
-          max: -1
-        

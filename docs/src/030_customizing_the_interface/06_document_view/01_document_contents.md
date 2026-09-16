@@ -48,7 +48,7 @@ It's possible to import other XSLT files in your `article.xsl` file.
 You can put dependencies anywhere, as long as they are within the `corporaInterfaceDataDir` directory.
 E.g. import a shared library xslt file from the `default` directory:
 <FileTree>
-/etc/projectConfigs/  the location set in the corporaInterfaceDataDir setting 
+/etc/blacklab/projectconfigs/  the location set in the corporaInterfaceDataDir setting 
 	corpus-1/
 		article.xsl
 	_shared/
@@ -89,7 +89,7 @@ This allows you to provide some extra built-ins for data formats you might expec
 === Folder structure
 
 <FileTree>
-/etc/projectConfigs
+/etc/blacklab/projectconfigs
   default
     article_tei.xsl
     article_folia.xsl
@@ -101,10 +101,10 @@ This allows you to provide some extra built-ins for data formats you might expec
 ### Priority of XSLT files
 
 The first match will be chosen:
-1. The `article_<format>.xsl` file in the corpus's own directory (e.g. `/etc/projectConfigs/corpus-1/article.xsl`).
-2. The `article_<format>.xsl` file in the default directory (e.g. `/etc/projectConfigs/default/article_tei.xsl`).
-4. The `article.xsl` file in the corpus's own directory (e.g. `/etc/projectConfigs/corpus-1/article.xsl`).
-5. The `article.xsl` file in the default directory (e.g. `/etc/projectConfigs/default/article.xsl`).
+1. The `article_<format>.xsl` file in the corpus's own directory (e.g. `/etc/blacklab/projectconfigs/corpus-1/article.xsl`).
+2. The `article_<format>.xsl` file in the default directory (e.g. `/etc/blacklab/projectconfigs/default/article_tei.xsl`).
+4. The `article.xsl` file in the corpus's own directory (e.g. `/etc/blacklab/projectconfigs/corpus-1/article.xsl`).
+5. The `article.xsl` file in the default directory (e.g. `/etc/blacklab/projectconfigs/default/article.xsl`).
 6. The BlackLab generated file (if available)
 7. The `article_<format>.xsl` built-in 
 8. The `article.xsl` built-in
