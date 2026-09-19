@@ -18,7 +18,7 @@ import TableHeader from '@/pages/search/results/table/TableHeader.vue';
 enableAutoUnmount(afterEach);
 
 describe('GenericTable', () => {
-	test('renders an accessible group expansion control and neutral missing values', async () => {
+	test('renders a caret-free accessible group expansion control and neutral missing values', async () => {
 		const groupColumns = [
 			{ key: 'collocate', field: 'group', label: 'Collocate', labelField: 'displayname' },
 			{ key: 'association', field: 'group', label: 'Association', labelField: 'score' },
@@ -38,6 +38,7 @@ describe('GenericTable', () => {
 
 		const toggle = wrapper.get('button.group-details-toggle');
 		expect(toggle.attributes()).toMatchObject({ 'aria-controls': 'collocate-details', 'aria-expanded': 'false' });
+		expect(toggle.find('.fa').exists()).toBe(false);
 		expect(wrapper.text()).toContain('ship');
 		expect(wrapper.text().match(/—/g)).toHaveLength(2);
 		await toggle.trigger('click');

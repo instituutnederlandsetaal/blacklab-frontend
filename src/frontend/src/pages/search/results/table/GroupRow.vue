@@ -21,7 +21,6 @@
 				:aria-controls="detailsId"
 				@click.stop="emit('toggle')"
 			>
-				<span class="fa fa-angle-right" aria-hidden="true"></span>
 				{{ valueForCell(col) }}
 			</button>
 			<template v-else>{{ valueForCell(col) }}</template>
@@ -68,15 +67,6 @@ function valueForCell(col: ColumnDefGroup): string {
 	color: inherit;
 	padding: 0;
 	text-align: inherit;
-
-	.fa {
-		margin-right: 0.35em;
-		transition: transform 0.1s;
-	}
-
-	.grouprow.open & .fa {
-		transform: rotate(90deg);
-	}
 }
 
 .group-size-indicator {
