@@ -1,3 +1,5 @@
+import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
+
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
 import { isContainerNode } from '@/features/form/model/form-utils';
 import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@/features/form/model/persistence/schema';
@@ -26,6 +28,7 @@ type GatherContext = {
 	emissions: FormEmission[];
 	channels: GatherChannels;
 	visitedFields: Set<FormFieldNode>;
+	fieldVisitor?: typeof visitField;
 };
 
 function reportIssue(context: GatherContext, severity: FormIssue['severity'], message: string): void {
@@ -131,7 +134,7 @@ function visitContainer(node: Extract<FormNode, { kind: 'container' | 'form' }>,
 }
 
 function visitNode(node: FormNode, context: GatherContext, sink: Sink): void {
-	if (node.kind === 'field') visitField(node, context.formState?.state[node.id], context, sink);
+	if (node.kind === 'field') (context.fieldVisitor ?? visitField)(node, context.formState?.state[node.id], context, sink);
 	else if (isContainerNode(node)) visitContainer(node, context, sink);
 }
 
@@ -163,10 +166,32 @@ export function collectFormValues(node: FormBoundaryNode, formState: NewFormStat
 	return context;
 }
 
-export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext) {
+export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, fieldVisitor?: typeof visitField) {
 	const context = gather(runtime, formState, { summaries: [] });
+	context.fieldVisitor = fieldVisitor;
 	visitNode(node, context, emission => context.emissions.push(emission));
 	return { emissions: context.emissions, summaries: context.channels.summaries!, issues: context.issues };
+}
+
+/** Share reactive field work across live summaries while preserving each graph edge's emissions. */
+export function createSummaryFieldVisitor(state: MaybeRefOrGetter<NewFormState['state']>, runtime: FormRuntimeContext): typeof visitField {
+	const fields = new Map<FormFieldNode, ComputedRef<GatherContext>>();
+	return (field, _state, context, sink) => {
+		let cached = fields.get(field);
+		if (!cached) {
+			cached = computed(() => {
+				const values = gather(runtime, undefined, { summaries: [] });
+				visitField(field, toValue(state)[field.id], values, emission => values.emissions.push(emission));
+				return values;
+			});
+			fields.set(field, cached);
+		}
+		const values = cached.value;
+		values.emissions.forEach(sink);
+		context.issues.push(...values.issues);
+		if (!context.visitedFields.has(field)) values.channels.summaries!.forEach(summary => addSummary(context.channels.summaries!, field, summary));
+		context.visitedFields.add(field);
+	};
 }
 
 /** Check a field's validated semantic contributions without evaluating auxiliary channels. */

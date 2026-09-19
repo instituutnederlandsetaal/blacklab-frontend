@@ -173,12 +173,11 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 }
 
 export function restoreForm(definition: FormBuilder, query: Record<string, unknown>, options: RestoreFormStateOptions = {}): RestoredForm {
-	if (!definition.formsList.length) throw new Error('Cannot restore form state because the form builder has no form nodes.');
-
 	const scopedParams = decodeScopedFormParams(query);
 	const overrideCandidates = options.overrideCandidates ?? {};
 	const requestedFormId = scopedParams.formSelector.present ? (asArray(scopedParams.formSelector.value)[0] ?? null) : null;
-	const scopedForm = definition.formsMap[requestedFormId ?? ''] ?? definition.formsList[0];
+	const scopedForm = definition.getForm(requestedFormId ?? '') ?? definition.formsList[0];
+	if (!scopedForm) throw new Error('Cannot restore form state because the form builder has no form nodes.');
 
 	let submittedFormId: string | null = null;
 	const formSelectorIssues: FormIssue[] = [];

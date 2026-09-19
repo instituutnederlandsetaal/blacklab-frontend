@@ -78,8 +78,14 @@ export function compileRestoredFormNode(
 }
 
 /** Compile the live-summary projection without resolving persistence or result-preset channels. */
-export function compileFormSummary(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, overrides: Readonly<FormOverrides> = {}): CompiledFormSummary {
-	const collected = collectFormSummaryValues(node, state, context);
+export function compileFormSummary(
+	node: FormBoundaryNode,
+	state: NewFormState,
+	context: FormRuntimeContext,
+	overrides: Readonly<FormOverrides> = {},
+	fieldVisitor?: Parameters<typeof collectFormSummaryValues>[3],
+): CompiledFormSummary {
+	const collected = collectFormSummaryValues(node, state, context, fieldVisitor);
 	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);
 	return { params: node.target.compile(accepted as never, collected.issues, overrides), summaries: collected.summaries };
 }

@@ -429,7 +429,7 @@ describe('form model state', () => {
 			params: { patt: '[word="water"] [word="water"]', filter: '(category:(newspaper) AND category:(book))' },
 			summaries: [{ label: 'Word', value: 'water', summaryType: ['patt'] }],
 		});
-		expect(collect).toHaveBeenCalledTimes(2);
+		expect(collect).toHaveBeenCalledOnce();
 		expect(summarize).toHaveBeenCalledOnce();
 		expect(firstProducer).toHaveBeenCalledOnce();
 		expect(secondProducer).toHaveBeenCalledOnce();
@@ -455,6 +455,86 @@ describe('form model state', () => {
 		runtime.state.rawOverrides.value.patt = '[word="override"]';
 		expect(runtime.compileSummary(form.id).params.patt).toBe('[word="override"]');
 		encode.mockRestore();
+	});
+
+	test('presentation tab changes do not recompile summaries, while query-producing tabs update without recollecting fields', () => {
+		const collect = vi.fn(testTextController.collect);
+		const builder = createTestBuilder();
+		const field = builder.newField('word', { ...testTextController, collect }, TestTextField, { annotationId: 'word', displayName: 'Word' });
+		const alternate = builder.newContainer('alternate', ContainerRenderer, {});
+		const layout = builder.newContainer('layout', ContainerRenderer, { variant: 'tabs' }).addChildren(field, alternate);
+		const queryTabs = builder.newContainer('query', ContainerRenderer, { variant: 'tabs' });
+		queryTabs.prependChild(builder.newContainer('other', ContainerRenderer, {}), { outputWhenActive: emit => emit('searchfield', 'other') });
+		queryTabs.prependChild(layout, { outputWhenActive: emit => emit('searchfield', 'contents') });
+		const form = builder.newForm('form', ContainerRenderer, {}).addChildren(queryTabs);
+		const runtime = createTestRuntime(builder);
+		const summary = computed(() => runtime.compileSummary(form.id));
+		expect(summary.value.params.searchfield).toBe('contents');
+		expect(collect).toHaveBeenCalledOnce();
+
+		runtime.state.uiState.value[layout.id] = alternate.id;
+		expect(summary.value.params.searchfield).toBe('contents');
+		expect(collect).toHaveBeenCalledOnce();
+
+		runtime.state.uiState.value[queryTabs.id] = 'other';
+		expect(summary.value.params.searchfield).toBe('other');
+		expect(collect).toHaveBeenCalledOnce();
+	});
+
+	test('live summaries recollect edited fields and localized labels, but not raw overrides', () => {
+		const collect = vi.fn(testTextController.collect);
+		const summarize = vi.fn(testTextController.summarize);
+		const label = ref('Word');
+		const builder = createTestBuilder();
+		const form = builder.newForm('form', ContainerRenderer, {});
+		const controller = { ...testTextController, collect, summarize };
+		form.addChildren(
+			builder.newField('word', controller, TestTextField, { annotationId: 'word', displayName: () => label.value }),
+			builder.newField('lemma', controller, TestTextField, { annotationId: 'lemma', displayName: 'Lemma' }),
+		);
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value.word = { value: 'water' };
+		runtime.state.state.value.lemma = { value: 'fire' };
+		const summary = computed(() => runtime.compileSummary(form.id));
+		expect(summary.value.params.patt).toBe('[word="water" & lemma="fire"]');
+		expect(collect).toHaveBeenCalledTimes(2);
+		expect(summarize).toHaveBeenCalledTimes(2);
+		collect.mockClear();
+		summarize.mockClear();
+
+		(runtime.state.state.value.word as { value: string }).value = 'ice';
+		expect(summary.value.params.patt).toBe('[word="ice" & lemma="fire"]');
+		expect(collect).toHaveBeenCalledOnce();
+		expect(summarize).toHaveBeenCalledOnce();
+		collect.mockClear();
+		summarize.mockClear();
+
+		runtime.state.state.value.lemma = { value: 'steam' };
+		expect(summary.value.params.patt).toBe('[word="ice" & lemma="steam"]');
+		expect(collect).toHaveBeenCalledOnce();
+		expect(summarize).toHaveBeenCalledOnce();
+		collect.mockClear();
+		summarize.mockClear();
+
+		label.value = 'Woord';
+		expect(summary.value.summaries[0].label).toBe('Woord');
+		expect(collect).toHaveBeenCalledOnce();
+		expect(summarize).toHaveBeenCalledOnce();
+		collect.mockClear();
+		summarize.mockClear();
+
+		summary.value.summaries[0].label = 'Changed by caller';
+		summary.value.summaries[0].summaryType = ['filter'];
+		runtime.state.rawOverrides.value.patt = '[word="override"]';
+		expect(summary.value.params.patt).toBe('[word="override"]');
+		expect(summary.value.summaries[0]).toMatchObject({ label: 'Woord', summaryType: ['patt'] });
+		expect(collect).not.toHaveBeenCalled();
+		expect(summarize).not.toHaveBeenCalled();
+
+		runtime.reset();
+		expect(summary.value.summaries).toEqual([]);
+		expect(collect).toHaveBeenCalledTimes(2);
+		expect(summarize).toHaveBeenCalledTimes(2);
 	});
 
 	test('checks badge emissions without evaluating auxiliary channels', () => {

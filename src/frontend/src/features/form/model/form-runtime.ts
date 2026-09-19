@@ -1,5 +1,5 @@
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
-import { compileFormNode, compileFormSummary } from '@/features/form/model/compile';
+import { compileFormNode, compileFormSummary, createSummaryFieldVisitor } from '@/features/form/model/compile';
 import createFormState, { createDefaultFormState } from '@/features/form/model/state';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import { renderFormNode } from '@/features/form/ui/renderable-graph';
@@ -15,9 +15,11 @@ import { renderFormNode } from '@/features/form/ui/renderable-graph';
  */
 export class FormRuntime {
 	public readonly state;
+	private readonly summaryFieldVisitor;
 
 	public constructor(public readonly definition: FormBuilder) {
 		this.state = createFormState(createDefaultFormState(definition.context, ...definition.nodeList));
+		this.summaryFieldVisitor = createSummaryFieldVisitor(this.state.state, definition.context);
 	}
 
 	public renderableGraph() {
@@ -31,11 +33,12 @@ export class FormRuntime {
 		return compileFormNode(form, state, this.definition.context, state.rawOverrides);
 	}
 
+	/** Compile the live projection, recollecting only fields whose reactive dependencies changed. */
 	public compileSummary(formId: string): CompiledFormSummary {
 		const form = this.definition.getForm(formId);
 		if (!form) throw new Error(`Cannot compile summary for unknown form '${formId}'.`);
 		const state = this.state.getReactiveState();
-		return compileFormSummary(form, state, this.definition.context, state.rawOverrides);
+		return compileFormSummary(form, state, this.definition.context, state.rawOverrides, this.summaryFieldVisitor);
 	}
 
 	public reset() {
