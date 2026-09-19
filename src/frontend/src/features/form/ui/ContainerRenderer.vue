@@ -4,9 +4,9 @@
 			<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="toValue(props.title) || 'Form sections'" :class="tabClasses">
 				<template v-if="presentation['tab-badges']" #label="{ tab }">
 					{{ tab.label }}
-					<template v-if="activeQueryContributionCounts[tab.value]">
+					<template v-if="activeQueryContributionCounts[tab.value]?.value">
 						&nbsp;
-						<span class="badge">{{ activeQueryContributionCounts[tab.value] }}</span>
+						<span class="badge">{{ activeQueryContributionCounts[tab.value]?.value }}</span>
 					</template>
 				</template>
 			</Tabs>
@@ -67,16 +67,14 @@ const activeChild = computed(() => props.children.find(child => child.props.id =
 
 const tabs = computed(() => createTabs(props.id, props.children));
 
-const activeQueryContributionCounts = computed<Record<string, number>>(() => {
+const activeQueryContributionCounts = computed(() => {
 	if (!presentation.value['tab-badges']) return {};
-
-	const state = runtime.value.state.state.value;
-	const context = runtime.value.definition.context;
+	const session = runtime.value;
 	return Object.fromEntries(
 		props.children.map(child => {
-			const node = runtime.value.definition.getNode(child.props.id);
-			const count = node ? getAllNodes(node, 'field').filter(field => hasEmissions(field, state[field.id], context)).length : 0;
-			return [child.props.id, count];
+			const node = session.definition.getNode(child.props.id);
+			const contributions = node ? getAllNodes(node, 'field').map(field => computed(() => hasEmissions(field, session.state.state.value[field.id], session.definition.context))) : [];
+			return [child.props.id, computed(() => contributions.filter(contribution => contribution.value).length)];
 		}),
 	);
 });

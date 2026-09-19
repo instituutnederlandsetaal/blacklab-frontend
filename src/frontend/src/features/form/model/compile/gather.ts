@@ -124,7 +124,7 @@ function visitContainer(node: Extract<FormNode, { kind: 'container' | 'form' }>,
 		if ((SCOPED_OUTPUTS as readonly FormOutputName[]).includes(emission.name)) emissions.push(emission as ScopedEmission);
 		else sink(emission);
 	};
-	const selectedChild = node.children.find(child => child.id === context.formState?.uiState[node.id]);
+	const selectedChild = node.activeChildOutputProducers && node.children.find(child => child.id === context.formState?.uiState[node.id]);
 	const activeProducer = selectedChild ? node.activeChildOutputProducers?.[selectedChild.id] : undefined;
 	if (activeProducer) context.channels.persistence?.tabs.add(`${node.id}:${selectedChild!.id}`);
 

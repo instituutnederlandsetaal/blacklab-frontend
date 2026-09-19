@@ -605,6 +605,37 @@ describe('form system integration', () => {
 		expect(runtime.compile('search.query-only').summaries).toEqual([]);
 	});
 
+	test('badge updates only collect the edited field, including in-place edits and state replacement', async () => {
+		const collect = vi.fn<typeof testTextController.collect>((config, context, state, emit) => {
+			if (state.value) testTextController.collect(config, context, state, emit);
+		});
+		const builder = createTestBuilder();
+		const form = builder.newForm('search', ContainerRenderer, { variant: ['tabs', 'tab-badges'] });
+		const tab = builder.newContainer('tab', ContainerRenderer, { title: 'Fields' });
+		for (const id of ['word', 'lemma']) tab.addChildren(builder.newField(id, { ...testTextController, collect }, TestTextField, { annotationId: id, displayName: id }));
+		form.addChildren(tab);
+		const runtime = createTestRuntime(builder);
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		expect(collect).toHaveBeenCalledTimes(2);
+		collect.mockClear();
+
+		await wrapper.get('input[aria-label="word"]').setValue('water');
+		expect(wrapper.get('.badge').text()).toBe('1');
+		expect(collect).toHaveBeenCalledOnce();
+		collect.mockClear();
+
+		(runtime.state.state.value.lemma as { value: string }).value = 'fire';
+		await nextTick();
+		expect(wrapper.get('.badge').text()).toBe('2');
+		expect(collect).toHaveBeenCalledOnce();
+		collect.mockClear();
+
+		runtime.reset();
+		await nextTick();
+		expect(wrapper.find('.badge').exists()).toBe(false);
+		expect(collect).toHaveBeenCalledTimes(2);
+	});
+
 	test('tab badges ignore summary and frontend-only contributions', () => {
 		const builder = createTestBuilder();
 		builder
