@@ -64,7 +64,7 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 				void restore(route, source);
 			}
 		},
-		{ immediate: true, flush: 'sync' },
+		{ immediate: true },
 	);
 
 	function stop() {

@@ -86,6 +86,7 @@ function waitForRequest<T>(signal: AbortSignal, request: RequestLike<T>): Promis
 
 export function useRequestResource<I, T>(options: RequestResourceOptions<I, T>): RequestResource<I, T> {
 	const snapshot = shallowRef<RequestResourceState<T>>(EMPTY_STATE);
+	const pendingStart = shallowRef<ActiveRun<I>>();
 	let active: ActiveRun<I> | undefined;
 	let retryInput: { value: I } | undefined;
 	let disposed = false;
@@ -97,6 +98,7 @@ export function useRequestResource<I, T>(options: RequestResourceOptions<I, T>):
 	const takeActive = (run: ActiveRun<I>) => {
 		if (active !== run) return false;
 		active = undefined;
+		if (pendingStart.value === run) pendingStart.value = undefined;
 		run.controller.abort();
 		return true;
 	};
@@ -117,7 +119,7 @@ export function useRequestResource<I, T>(options: RequestResourceOptions<I, T>):
 			);
 		}
 	};
-	const trigger = (input: I) => {
+	const trigger = (input: I, defer = false) => {
 		if (disposed) return;
 		retryInput = { value: input };
 		if (active) takeActive(active);
@@ -133,7 +135,8 @@ export function useRequestResource<I, T>(options: RequestResourceOptions<I, T>):
 		};
 		active = run;
 		publish({ loading: true, settled: snapshot.value.settled });
-		void start(run);
+		if (defer) pendingStart.value = run;
+		else void start(run);
 	};
 
 	const resource: RequestResource<I, T> = {
@@ -157,17 +160,25 @@ export function useRequestResource<I, T>(options: RequestResourceOptions<I, T>):
 	};
 
 	if (options.mode === 'reactive') {
-		stopSource = watch(
+		// Abort obsolete work immediately, but batch replacement requests before rendering.
+		const stopStart = watch(pendingStart, run => {
+			if (run && active === run) void start(run);
+		});
+		const stopInput = watch(
 			() => {
 				const input = toValue(options.source);
 				return [input, input == null ? undefined : options.key ? options.key(input) : input] as const;
 			},
 			([input, key], previous) => {
 				if (input == null) resource.reset();
-				else if (previous?.[0] == null || !Object.is(previous[1], key)) trigger(input);
+				else if (previous?.[0] == null || !Object.is(previous[1], key)) trigger(input, previous !== undefined);
 			},
 			{ immediate: true, flush: 'sync' },
 		);
+		stopSource = () => {
+			stopInput();
+			stopStart();
+		};
 	}
 
 	tryOnScopeDispose(() => {

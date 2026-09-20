@@ -44,7 +44,7 @@ export function tapLoadedReactive<T>(source: RetryableLoadable<T>, cb: (value: T
 			const next = Loadable.loadable(source.state, isLoaded(source) ? source.value : undefined, source.state === LoadableState.error ? source.error : undefined);
 			if (published.value.state !== next.state || published.value.value !== next.value || published.value.error !== next.error) published.value = next;
 		},
-		{ immediate: true, flush: 'sync' },
+		{ immediate: true },
 	);
 
 	return loadableReactiveFromSnapshot(published, {

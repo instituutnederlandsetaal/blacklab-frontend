@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
-import { shallowRef } from 'vue';
+import { nextTick, shallowRef } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { createArticlePageState } from '@/features/article/model/article-page-state';
@@ -82,6 +82,7 @@ describe('article URLs', () => {
 		const binding = createArticleUrlBinding(router, state, corpus);
 		expect(state.parameters.value.docId).toBeNull();
 		corpus.value = { id: 'test', allAnnotatedFieldsMap: annotatedFields, mainAnnotatedField: 'contents' } as unknown as Corpus;
+		await nextTick();
 		expect(state.parameters.value).toMatchObject({ docId: 'doc-1', findhit: 12 });
 		state.showPage(2, 10);
 		await flushPromises();

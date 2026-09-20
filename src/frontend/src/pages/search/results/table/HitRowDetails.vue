@@ -250,17 +250,13 @@ const error = computed(() => {
 });
 
 watch(
-	() => props.row,
-	() => {
-		snippetResource.reset();
-		sentenceResource.reset();
-		sentenceShown.value = false;
-	},
-	{ flush: 'sync' },
-);
-watch(
 	[() => props.row, () => props.open],
-	([row, open]) => {
+	([row, open], [previousRow]) => {
+		if (row !== previousRow) {
+			snippetResource.reset();
+			sentenceResource.reset();
+			sentenceShown.value = false;
+		}
 		const { loading, settled } = snippetResource.state.value;
 		if (!open || !hasPositions(row) || loading || settled.isLoaded()) return;
 		snippetResource.run({

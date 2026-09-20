@@ -147,7 +147,7 @@ describe('combineLoadables', () => {
 });
 
 describe('tapLoadedReactive', () => {
-	test('runs its callback synchronously before publishing without tracking callback reads', async () => {
+	test('batches changes and checkpoints before publishing without tracking callback reads', async () => {
 		const source = createRetryableLoadable(Loadable.Loading<number>());
 		const incidental = ref(0);
 		const events: string[] = [];
@@ -159,21 +159,25 @@ describe('tapLoadedReactive', () => {
 		);
 
 		source.snapshot.value = Loadable.Loaded(1);
-		expect(events).toEqual(['checkpoint:1:0', 'consumer:1']);
+		source.snapshot.value = Loadable.Loaded(2);
+		expect(events).toEqual([]);
+		await nextTick();
+		expect(events).toEqual(['checkpoint:2:0', 'consumer:2']);
 
 		incidental.value = 1;
 		await nextTick();
-		expect(events).toEqual(['checkpoint:1:0', 'consumer:1']);
+		expect(events).toEqual(['checkpoint:2:0', 'consumer:2']);
 	});
 
-	test('blocks publication when the callback throws', () => {
+	test('blocks publication when the callback throws', async () => {
 		const source = createRetryableLoadable(Loadable.Loading<number>());
 		const failure = new Error('checkpoint failed');
 		const tapped = tapLoadedReactive(source.loadable, () => {
 			throw failure;
 		});
 
-		expect(() => (source.snapshot.value = Loadable.Loaded(1))).toThrow(failure);
+		source.snapshot.value = Loadable.Loaded(1);
+		await expect(nextTick()).rejects.toThrow(failure);
 		expect(tapped.state).toBe(LoadableState.loading);
 		expect(tapped.value).toBeUndefined();
 	});

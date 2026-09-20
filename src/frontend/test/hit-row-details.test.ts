@@ -2,6 +2,7 @@
 
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { defineComponent, nextTick, ref, shallowRef } from 'vue';
 
 import type { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 import type { BLHit } from '@/types/blacklabtypes';
@@ -155,7 +156,7 @@ test('retains snippet and sentence requests across close and uncheck', async () 
 	expect(mock.getSnippet).toHaveBeenCalledTimes(2);
 });
 
-test('resets replaced rows synchronously and activates only the final open row', async () => {
+test('resets replaced rows before activating the final open row', async () => {
 	const requests = [deferredRequest<BLHit>(), deferredRequest<BLHit>(), deferredRequest<BLHit>()];
 	mock.getSnippet.mockReset();
 	for (const pending of requests) mock.getSnippet.mockReturnValueOnce(pending.request);
@@ -184,6 +185,34 @@ test('resets replaced rows synchronously and activates only the final open row',
 	expect(mock.transformResultSnippet).toHaveBeenCalledOnce();
 	expect(mock.formatError).not.toHaveBeenCalled();
 	expect(mock.addon).toHaveBeenCalledWith(expect.objectContaining({ corpus: 'corpus', docId: 'third' }));
+});
+
+test('loads a replacement row when reopening also changes the row with open supplied first', async () => {
+	const open = ref(true);
+	const currentRow = shallowRef(row('first'));
+	const wrapper = mount(
+		defineComponent({
+			components: { HitRowDetails },
+			setup: () => ({
+				open,
+				row: currentRow,
+				cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
+				info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
+			}),
+			template: '<HitRowDetails :open="open" :row="row" :cols="cols" :info="info" type="hits" :hover-match-infos="[]" />',
+		}),
+	);
+	await flushPromises();
+	open.value = false;
+	await nextTick();
+
+	open.value = true;
+	currentRow.value = row('second');
+	await flushPromises();
+
+	expect(mock.getSnippet).toHaveBeenCalledTimes(2);
+	expect(mock.getSnippet).toHaveBeenLastCalledWith('corpus', 'second', 'parallel', 1, 2, 5);
+	expect(wrapper.findAllComponents(HitContext)).toHaveLength(3);
 });
 
 test('scope disposal suppresses noncooperative fulfillment and rejection', async () => {
