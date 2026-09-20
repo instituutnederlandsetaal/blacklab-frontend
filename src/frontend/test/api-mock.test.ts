@@ -8,12 +8,11 @@ describe('createMockApi', () => {
 		vi.restoreAllMocks();
 	});
 
-	test('returns an installable plugin with rejected default API methods', async () => {
+	test('rejects unconfigured API methods with useful diagnostics', async () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		const api = createMockApi();
 		const request = api.blacklabApi.getCorpora();
 
-		expect(api.install).toEqual(expect.any(Function));
 		expect(request).toBeInstanceOf(CancelableRequest);
 		await expect(request).rejects.toBeInstanceOf(ApiError);
 		expect(warn).toHaveBeenCalledWith(expect.stringContaining('blacklab.getCorpora'));

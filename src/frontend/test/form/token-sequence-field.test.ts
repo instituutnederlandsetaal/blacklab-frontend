@@ -18,7 +18,6 @@ import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 
 type ChildControllerConfig = {
 	annotationId: string;
@@ -176,7 +175,6 @@ describe('token sequence composite field', () => {
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		]);
-		expect(state[0].fieldState).not.toBe(state[1].fieldState);
 		(state[0].fieldState as TextFieldState).value = 'first only';
 		expect(state[1].fieldState).toEqual({ value: '', caseSensitive: false });
 	});
@@ -233,31 +231,19 @@ describe('token sequence composite field', () => {
 		});
 
 		const length = wrapper.findComponent(NumberField);
-		expect(length.props('variant')).toEqual(['large', 'horizontal']);
 		expect(length.find('.blf-field-horizontal').exists()).toBe(true);
+		expect(length.get('input[type="number"]').classes()).toContain('input-lg');
 		expect(wrapper.get('.blf-token-sequence-field').classes()).not.toContain('blf-field-horizontal');
 
 		const selectors = wrapper.findAllComponents(SelectField);
 		expect(selectors).toHaveLength(2);
-		expect(selectors.every(selector => selector.props('variant') === 'large')).toBe(true);
 		expect(selectors.every(selector => !selector.classes().includes('blf-field-horizontal'))).toBe(true);
+		expect(selectors.every(selector => selector.get('.menu-button').classes().includes('btn-lg'))).toBe(true);
 		const editors = wrapper.findAllComponents(TextField);
 		expect(editors).toHaveLength(2);
-		expect(editors.every(editor => editor.props('variant') === 'large')).toBe(true);
-	});
-
-	test('hides labels on token selectors and editors', () => {
-		const { runtime } = createFixture();
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
-		});
-
-		const selectors = wrapper.findAllComponents(SelectField);
-		const editors = wrapper.findAllComponents(TextField);
-		expect(selectors).toHaveLength(2);
-		expect(editors).toHaveLength(2);
-		expect(selectors.every(selector => selector.props('showLabel') === false)).toBe(true);
-		expect(editors.every(editor => editor.props('showLabel') === false)).toBe(true);
+		expect(editors.every(editor => editor.get('input[type="text"]').classes().includes('input-lg'))).toBe(true);
+		expect(selectors.every(selector => !selector.find('label').exists())).toBe(true);
+		expect(editors.every(editor => !editor.find('label.control-label').exists())).toBe(true);
 	});
 
 	test('growing the sequence appends fresh default tokens', async () => {
@@ -285,7 +271,7 @@ describe('token sequence composite field', () => {
 		});
 	});
 
-	test('accepts scalar selector updates and writes nested field state immutably', async () => {
+	test('accepts scalar selectors, saves child edits, and preserves a reselected token', async () => {
 		const { runtime } = createFixture();
 		const wrapper = mount(FormSystem, {
 			props: { runtime },
@@ -295,13 +281,12 @@ describe('token sequence composite field', () => {
 		await nextTick();
 		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: '' } });
 
-		wrapper.findAllComponents(FieldRenderer)[1].vm.$emit('update:modelValue', { exact: false, lemma: 'walk' });
-		await nextTick();
-		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: false, lemma: 'walk' } });
+		await wrapper.getComponent(LemmaField).get('input').setValue('walk');
+		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: 'walk' } });
 
 		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', 'lemma');
 		await nextTick();
-		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: false, lemma: 'walk' } });
+		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: 'walk' } });
 	});
 
 	test('a patt override disables and clearing it re-enables nested token editors', async () => {
@@ -311,10 +296,10 @@ describe('token sequence composite field', () => {
 		});
 		runtime.state.rawOverrides.value.patt = '[word="fixed"]';
 		await nextTick();
-		expect(wrapper.findAllComponents(TextField)[0].props('disabled')).toBe(true);
+		expect(wrapper.findAllComponents(TextField)[0].get('input[type="text"]').attributes('disabled')).toBeDefined();
 		delete runtime.state.rawOverrides.value.patt;
 		await nextTick();
-		expect(wrapper.findAllComponents(TextField)[0].props('disabled')).toBe(false);
+		expect(wrapper.findAllComponents(TextField)[0].get('input[type="text"]').attributes('disabled')).toBeUndefined();
 	});
 
 	test('shrinking then regrowing creates fresh trailing token state', async () => {
@@ -336,9 +321,6 @@ describe('token sequence composite field', () => {
 			{ fieldId: 'lemma', fieldState: { exact: false, lemma: 'lopen' } },
 		] satisfies TokenSequenceFieldState;
 		const encoded = runtime.compile('explore.ngram').encoded['f.ngram-tokens'];
-		expect(typeof encoded).toBe('string');
-		expect(encoded).toContain('f=word');
-		expect(encoded).toContain('f=lemma');
 
 		const restored = restoreFieldState(runtime.definition.getField('explore.ngram.tokens')!, encoded!, runtime.definition.context);
 		expect(restored).toEqual([

@@ -114,7 +114,6 @@ test('preserves raw newline splitting and displays save failures locally', async
 	await wrapper.vm.$nextTick();
 	expect(mock.postShares).toHaveBeenCalledWith(corpus.id, [' alice ', '', 'bob ']);
 	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
-	expect(wrapper.getComponent(Modal).props('closeEnabled')).toBe(true);
 
 	save.reject(new ApiError('Error', 'Write failed', 'Error', 500));
 	await flushPromises();

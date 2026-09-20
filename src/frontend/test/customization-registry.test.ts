@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { computed, createApp, isReactive, nextTick, reactive, ref, watchEffect } from 'vue';
+import { computed, createApp, nextTick, reactive, ref, watchEffect } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations, useCustomizations } from '@/customization-api/internal/internal-api';
@@ -39,8 +39,8 @@ describe('customization registry corpus lifecycle', () => {
 		app.use(registry);
 		app.use(customizations);
 
-		expect(app.runWithContext(useCustomizationRegistry).resultCustomizations).toBe(registry.resultCustomizations);
-		expect(app.runWithContext(useCustomizations).searchWithSpans).toBe(customizations.searchWithSpans);
+		app.runWithContext(useCustomizationRegistry).registerResults({ withSpans: true });
+		expect(app.runWithContext(useCustomizations).searchWithSpans('[]')).toBe(true);
 	});
 
 	test('useCustomizations gates access on corpus availability', () => {
@@ -53,10 +53,10 @@ describe('customization registry corpus lifecycle', () => {
 		expect(() => app.runWithContext(useCustomizations)).toThrow('useCustomizations() called without a loaded corpus.');
 
 		corpus.value = createCorpus('first');
-		expect(app.runWithContext(useCustomizations).searchWithSpans).toBe(customizations.searchWithSpans);
+		expect(app.runWithContext(useCustomizations).searchWithSpans('[]')).toBeNull();
 	});
 
-	test('tracks reactive state read through stable customization functions', async () => {
+	test('tracks reactive state read through customization functions', async () => {
 		const corpus = createCorpus('first');
 		const registry = createCustomizationRegistry(corpus);
 		const uiState = reactive({ results: { customViews: [{ id: 'first' as string }] } });
@@ -68,8 +68,6 @@ describe('customization registry corpus lifecycle', () => {
 		const observed: string[][] = [];
 		const stop = watchEffect(() => observed.push(resultViews().map(view => view.id)));
 
-		expect(isReactive(injected)).toBe(false);
-		expect(resultViews).toBe(injected.resultViews);
 		uiState.results.customViews = [{ id: 'second' }];
 		await nextTick();
 
@@ -161,8 +159,6 @@ describe('customization registry corpus lifecycle', () => {
 		registry.applyLegacyCustomization(callback);
 
 		expect(callback).toHaveBeenCalledOnce();
-		expect(callback).toHaveBeenCalledWith(registry.legacyApi.value);
-		expect(registry.legacyApi.value).not.toHaveProperty('_corpus');
 		expect(registry.legacyApi.value?.search.pattern.shouldAddWithSpans('[]')).toBe(true);
 		expect(registry.legacyApi.value?.search.metadata.createSpanFilter('utterance', 'speaker', 'auto', 'Speaker').metadata).toMatchObject({
 			options: [{ value: 'Alice' }],
@@ -175,15 +171,14 @@ describe('customization registry corpus lifecycle', () => {
 		registry.applyLegacyCustomization(customizations => {
 			customizations.search.pattern.shouldAddWithSpans = () => true;
 		});
-		registry.registerForm(() => {});
+		registry.registerForm({ configure: () => {}, customize: () => {} });
 		registry.registerResults({ withSpans: true });
-		const firstLegacy = registry.legacyApi.value;
 
 		corpus.value = createCorpus('second');
 
 		expect(registry.formConfigurators.value).toEqual([]);
+		expect(registry.formCustomizers.value).toEqual([]);
 		expect(registry.resultCustomizations.value).toEqual([]);
-		expect(registry.legacyApi.value).not.toBe(firstLegacy);
 		expect(registry.legacyApi.value?.search.pattern.shouldAddWithSpans('[]')).toBeNull();
 	});
 

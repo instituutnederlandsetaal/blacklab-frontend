@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 describe('Export', () => {
-	test('exports the full collocation group through the ordinary filtered hits request', async () => {
+	test('exports displayed collocation hits with click-time customizations without mutating the query', async () => {
 		const displayedResults = results();
 		Object.assign(displayedResults.summary.params, {
 			context: '3:4',
@@ -68,11 +68,14 @@ describe('Export', () => {
 			hitfilterval: 'cws:contents%lemma:i:ship',
 			patt: 'meet([pos="N.*"], [word="water"],-3,4)',
 		});
+		const originalParams = { ...displayedResults.summary.params };
 		const wrapper = shallowMount(Export, {
 			props: { results: displayedResults, type: 'hits' },
 			global: { mocks: { $t: (key: string) => key } },
 		});
 
+		mock.resultDetailedAnnotationIds.mockReturnValue(['latest-annotation']);
+		mock.resultDetailedMetadataIds.mockReturnValue(['latest-metadata']);
 		await wrapper.get('button').trigger('click');
 
 		expect(mock.getHitsCsv).toHaveBeenCalledWith('test', {
@@ -83,39 +86,12 @@ describe('Export', () => {
 			first: 0,
 			hitfiltercrit: 'hit:lemma:i',
 			hitfilterval: 'cws:contents%lemma:i:ship',
-			listmetadatavalues: 'initial-metadata',
+			listmetadatavalues: 'latest-metadata',
 			listspanattributes: '',
-			listvalues: 'initial-annotation',
+			listvalues: 'latest-annotation',
 			number: 20,
 			patt: 'meet([pos="N.*"], [word="water"],-3,4)',
 		});
-	});
-
-	test('reads the latest customizations at click time without mutating result parameters', async () => {
-		const displayedResults = results();
-		const originalParams = { ...displayedResults.summary.params };
-		const wrapper = shallowMount(Export, {
-			props: { results: displayedResults, type: 'hits' },
-			global: { mocks: { $t: (key: string) => key } },
-		});
-
-		expect(mock.resultDetailedAnnotationIds).not.toHaveBeenCalled();
-		expect(mock.resultDetailedMetadataIds).not.toHaveBeenCalled();
-		mock.resultDetailedAnnotationIds.mockReturnValue(['latest-annotation']);
-		mock.resultDetailedMetadataIds.mockReturnValue(['latest-metadata']);
-		await wrapper.get('button').trigger('click');
-
-		expect(mock.getHitsCsv).toHaveBeenCalledWith(
-			'test',
-			expect.objectContaining({
-				csvdescription: 'description',
-				csvsepline: false,
-				csvsummary: true,
-				listmetadatavalues: 'latest-metadata',
-				listspanattributes: '',
-				listvalues: 'latest-annotation',
-			}),
-		);
 		expect(displayedResults.summary.params).toEqual(originalParams);
 	});
 });

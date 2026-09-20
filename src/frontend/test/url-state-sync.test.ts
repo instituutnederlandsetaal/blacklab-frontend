@@ -347,11 +347,13 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('keeps independent ordinary and custom ranges across resize and view switches', async () => {
-		const { sync, activeSearchParameters } = await setup(`${path}/hits?patt=[word=%22water%22]&first=40&number=20`);
+		const { sync, router, activeSearchParameters } = await setup(`${path}/hits?patt=[word=%22water%22]&first=40&number=20`);
 		await restored(activeSearchParameters);
 		const hits = ViewStore.getOrCreateModule('hits');
 		const docs = ViewStore.getOrCreateModule('docs');
-		docs.actions.range({ first: 45, number: 30 });
+		const url = router.currentRoute.value.fullPath;
+		await sync.run(() => docs.actions.range({ first: 45, number: 30 }));
+		expect(router.currentRoute.value.fullPath).toBe(url);
 		await sync.run(() => GlobalStore.actions.pageSize(50));
 		expect(hits.get.selectedRange()).toEqual({ first: 0, number: 50 });
 		expect(docs.get.selectedRange()).toEqual({ first: 45, number: 30 });
@@ -374,11 +376,17 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('submitting a documents query removes legacy pattern aliases from the projection', async () => {
-		const { sync, router, activeSearchParameters } = await setup(`${path}/hits?query=${encodeURIComponent(pattern)}&field=contents`);
+		const incoming = `${path}/hits?query=${encodeURIComponent(pattern)}&field=contents&extension=shared#results`;
+		const { sync, router, activeSearchParameters } = await setup(incoming);
+		const browserEntries = window.history.length;
 		await restored(activeSearchParameters);
+		expect(router.currentRoute.value.fullPath).toBe(incoming);
+		expect(window.history.length).toBe(browserEntries);
 		await sync.run(() => RootStore.actions.searchFromSubmit({ ...submittedQuery(), params: {} }));
 		expect(router.currentRoute.value.query).not.toHaveProperty('query');
 		expect(router.currentRoute.value.query).not.toHaveProperty('field');
+		expect(router.currentRoute.value.query.extension).toBe('shared');
+		expect(router.currentRoute.value.hash).toBe('#results');
 		await sync.open(router.currentRoute.value.fullPath);
 		expect(activeSearchParameters.value?.patt).toBeUndefined();
 	});

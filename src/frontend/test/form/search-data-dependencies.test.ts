@@ -143,20 +143,6 @@ describe('search form data dependencies', () => {
 		expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
 	});
 
-	test('creates querybuilder options outside Vue app context', () => {
-		const index = createIndex();
-		const customizations = createSearchFormCustomizations();
-
-		const options = createQueryBuilderOptions({
-			corpus: index,
-			customizations,
-			blacklabApi: createMockApi().blacklabApi,
-			translate: createMockTranslate(),
-		});
-
-		expect(options.indexId).toBe('test-corpus');
-	});
-
 	test('builds querybuilder annotation options from the configured corpus subset', () => {
 		const options = createQueryBuilderOptions({
 			corpus: createIndex(),
@@ -165,6 +151,7 @@ describe('search form data dependencies', () => {
 			translate: createMockTranslate(),
 		});
 
+		expect(options.indexId).toBe('test-corpus');
 		expect(options.defaultAnnotationId).toBe('lemma');
 		expect(optionValues(options.annotationOptions)).toEqual(['lemma']);
 		const annotationOption = findOption(options.annotationOptions, 'lemma');

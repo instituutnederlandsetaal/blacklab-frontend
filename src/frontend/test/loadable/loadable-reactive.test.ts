@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { nextTick, ref, shallowRef, watch } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import { combine, combineOptional } from '@/shared/utils/loadable/loadable-combine';
+import { combine } from '@/shared/utils/loadable/loadable-combine';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { Loadable, LoadableState } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
@@ -41,13 +41,6 @@ async function flushPromises() {
 }
 
 describe('non-reactive loadable primitives', () => {
-	test('combine combines loaded arrays', () => {
-		const result = combine([Loadable.Loaded(1), Loadable.Loaded(2)] as const);
-
-		expect(result.state).toBe(LoadableState.loaded);
-		expect(result.value).toEqual([1, 2]);
-	});
-
 	test('combine passes through first non-loaded state', () => {
 		const result = combine([Loadable.Loaded(1), Loadable.Empty<number>(), Loadable.Loading()] as const);
 
@@ -69,20 +62,6 @@ describe('non-reactive loadable primitives', () => {
 		stream.next(lookalike);
 		expect(normalized.isLoaded() && normalized.value).toBe(lookalike);
 		stream.complete();
-	});
-
-	test('combine handles mixed plain values and loadables', () => {
-		const result = combine([Loadable.Loaded(1), { plain: true }] as const);
-
-		expect(result.state).toBe(LoadableState.loaded);
-		expect(result.value).toEqual([1, { plain: true }]);
-	});
-
-	test('combineOptional treats empty loadables as settled undefined', () => {
-		const result = combineOptional({ value: Loadable.Empty<number>(), plain: 'x' });
-
-		expect(result.state).toBe(LoadableState.loaded);
-		expect(result.value).toEqual({ value: undefined, plain: 'x' });
 	});
 });
 

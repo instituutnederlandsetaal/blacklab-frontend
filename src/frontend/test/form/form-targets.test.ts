@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import {
 	COLLOCATION_OUTPUTS,
@@ -102,29 +102,16 @@ describe('form output acceptance', () => {
 		expect(compiled).toMatchObject({ params: {}, issues: [] });
 	});
 
-	test('catches controller failures and continues with following fields', () => {
-		const first = createController(['patt'], (_config, _runtime, _state, emit) => {
-			emit('patt', rawCql('[word="water"]'));
-			throw new Error('broken controller');
-		});
-		const second = createController(['filter'], (_config, _runtime, _state, emit) => emit('filter', filter('author', 'literal', 'Austen')!));
-		const compiled = createRuntime(first, second).compile('search.form');
-
-		expect(compiled.params).toEqual({ patt: '[word="water"]', filter: 'author:(Austen)' });
-		expect(compiled.issues).toContainEqual({ severity: 'error', message: "Controller for 'search.field.0' failed: broken controller" });
-	});
-
 	test('isolates every controller channel and continues with later fields', () => {
-		const summarize = vi.fn((_config, _runtime, _state, emit) => {
-			emit({ label: 'Partial', value: 'summary' });
-			throw new Error('broken summary');
-		});
 		const first = {
 			...createController(['patt'], (_config, _runtime, _state, emit) => {
 				emit('patt', rawCql('[word="water"]'));
 				throw new Error('broken collection');
 			}),
-			summarize,
+			summarize: (_config, _runtime, _state, emit) => {
+				emit({ label: 'Partial', value: 'summary' });
+				throw new Error('broken summary');
+			},
 			persistence: {
 				...testTextController.persistence,
 				codec: testTextController.persistence.codec.refine(() => {

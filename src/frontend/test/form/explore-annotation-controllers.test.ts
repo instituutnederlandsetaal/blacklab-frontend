@@ -33,7 +33,6 @@ function summarize(controller: AnyFieldController, state: string): SummaryInput[
 
 describe('Explore annotation controllers', () => {
 	test('keep distinct kinds and mode-specific outputs', () => {
-		expect(frequencyAnnotationController).not.toBe(ngramGroupAnnotationController);
 		expect(frequencyAnnotationController.kind).toBe('explore-frequency-annotation');
 		expect(ngramGroupAnnotationController.kind).toBe('explore-ngram-group-annotation');
 		expect(frequencyAnnotationController.outputs).toEqual(['patt', 'group']);

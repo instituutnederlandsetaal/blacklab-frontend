@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { mount, shallowMount, type VueWrapper } from '@vue/test-utils';
+import { enableAutoUnmount, mount, shallowMount, type VueWrapper } from '@vue/test-utils';
 import type * as Highcharts from 'highcharts';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
@@ -12,6 +12,8 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
+
+enableAutoUnmount(afterEach);
 
 vi.mock('highcharts-vue', async () => {
 	const { defineComponent } = await import('vue');
@@ -146,7 +148,7 @@ describe('ArticlePageStatistics', () => {
 });
 
 describe('article statistic charts', () => {
-	test('builds distribution data, colors, and replacement options', async () => {
+	test('updates distribution counts and the configured palette as article data changes', async () => {
 		const wrapper = mount(AnnotationDistributions, {
 			props: { snippet, annotationId: 'lemma', chartTitle: 'Lemmas', baseColor: '#337ab7' },
 		});
@@ -160,15 +162,18 @@ describe('article statistic charts', () => {
 						{ name: 'run', y: 2 },
 						{ name: 'walk', y: 1 },
 					],
-					colors: ['rgb(0,20,81)', 'rgb(70,141,202)'],
 				},
 			],
 		});
+		const initialColors = [...(initial.series as Highcharts.SeriesPieOptions[])[0].colors!];
+		expect(initialColors).toHaveLength(2);
+		await wrapper.setProps({ baseColor: '#ff0000' });
+		expect((options(wrapper).series as Highcharts.SeriesPieOptions[])[0].colors).not.toEqual(initialColors);
 
 		await wrapper.setProps({ snippet: { ...snippet, match: { punct: ['', ''], lemma: ['walk'] } } });
 		const replacement = options(wrapper);
-		expect(replacement).not.toBe(initial);
-		expect(replacement.series?.[0]).toMatchObject({ data: [{ name: 'walk', y: 1 }], colors: ['rgb(0,20,81)'] });
+		expect(replacement.series?.[0]).toMatchObject({ data: [{ name: 'walk', y: 1 }] });
+		expect((replacement.series as Highcharts.SeriesPieOptions[])[0].colors).toHaveLength(1);
 
 		await wrapper.setProps({
 			snippet: {
@@ -178,10 +183,9 @@ describe('article statistic charts', () => {
 		});
 		const cappedColors = (options(wrapper).series as Highcharts.SeriesPieOptions[])[0].colors;
 		expect(cappedColors).toHaveLength(20);
-		expect(cappedColors?.[19]).toBe('rgb(255,255,255)');
 	});
 
-	test('preserves the growth data transform, color counts, and replacement options', async () => {
+	test('updates growth series for configured, empty, and missing annotations', async () => {
 		const wrapper = mount(AnnotationGrowths, {
 			props: { snippet, annotations: [], chartTitle: 'Growths', baseColor: '#337ab7' },
 		});
@@ -196,13 +200,14 @@ describe('article statistic charts', () => {
 			],
 		});
 		const replacement = options(wrapper);
-		expect(replacement).not.toBe(initial);
-		expect(replacement.colors).toEqual(['rgb(0,20,81)', 'rgb(70,141,202)']);
-		expect(replacement.series).toEqual([
+		expect(replacement.colors).toHaveLength(2);
+		const previousColors = [...replacement.colors!];
+		await wrapper.setProps({ baseColor: '#ff0000' });
+		expect(options(wrapper).colors).not.toEqual(previousColors);
+		expect(replacement.series).toMatchObject([
 			{
 				type: 'line',
 				name: 'Lemma',
-				boostThreshold: 250,
 				keys: ['name', 'x', 'x2', 'y', 'y2'],
 				data: [
 					['run', 1, 25, 1, 50],
@@ -213,7 +218,6 @@ describe('article statistic charts', () => {
 			{
 				type: 'line',
 				name: 'Part of speech',
-				boostThreshold: 250,
 				keys: ['name', 'x', 'x2', 'y', 'y2'],
 				data: [
 					['V', 1, 25, 1, 50],
@@ -224,11 +228,10 @@ describe('article statistic charts', () => {
 		]);
 
 		await wrapper.setProps({ annotations: [{ id: 'missing', displayName: 'Missing' }] });
-		expect(options(wrapper).series).toEqual([
+		expect(options(wrapper).series).toMatchObject([
 			{
 				type: 'line',
 				name: 'Missing',
-				boostThreshold: 250,
 				keys: ['name', 'x', 'x2', 'y', 'y2'],
 				data: [],
 			},

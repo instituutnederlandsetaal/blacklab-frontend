@@ -39,6 +39,8 @@ describe('global corpus effects', () => {
 		const params = shallowRef({ number: 20, searchfield: 'contents', filter: 'year:1800' });
 		const scope = effectScope();
 		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, params));
+		expect(mock.next).toHaveBeenCalledOnce();
+		expect(mock.next).toHaveBeenCalledWith({ index: first, annotatedFieldId: 'contents', filter: 'year:1800', blacklab });
 		params.value = { ...params.value, filter: 'year:1900' };
 		await nextTick();
 		expect(mock.next).toHaveBeenLastCalledWith({ index: first, annotatedFieldId: 'contents', filter: 'year:1900', blacklab });
@@ -46,18 +48,6 @@ describe('global corpus effects', () => {
 		params.value = { ...params.value, number: 50 };
 		await nextTick();
 		expect(mock.next).toHaveBeenCalledTimes(2);
-		scope.stop();
-	});
-
-	test('refreshes once when started with an already published corpus', () => {
-		const first = corpus('first');
-		const { loader } = createContextLoader(context(first));
-		const scope = effectScope();
-
-		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, () => ({ number: 20, searchfield: mock.sourceField(), filter: mock.filterString() })));
-
-		expect(mock.next).toHaveBeenCalledOnce();
-		expect(mock.next).toHaveBeenCalledWith({ index: first, annotatedFieldId: 'contents', filter: 'author:Austen', blacklab });
 		scope.stop();
 	});
 

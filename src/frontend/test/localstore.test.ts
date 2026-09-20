@@ -1,35 +1,15 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type {} from 'vitest/jsdom';
 import { nextTick } from 'vue';
 
 import { localStorageSynced } from '@/shared/utils/localstore';
 
-function createStorage() {
-	const items = new Map<string, string>();
-	const setItem = vi.fn((key: string, value: string) => {
-		items.set(key, value);
-	});
-	const storage = {
-		get length() {
-			return items.size;
-		},
-		clear: vi.fn(() => items.clear()),
-		getItem: vi.fn((key: string) => items.get(key) ?? null),
-		key: vi.fn((index: number) => [...items.keys()][index] ?? null),
-		removeItem: vi.fn((key: string) => items.delete(key)),
-		setItem,
-	} satisfies Storage;
-	return { setItem, storage };
-}
-
 describe('localStorageSynced', () => {
-	let setStoredItem: ReturnType<typeof createStorage>['setItem'];
-
 	beforeEach(() => {
-		const local = createStorage();
-		setStoredItem = local.setItem;
-		vi.stubGlobal('localStorage', local.storage);
+		vi.stubGlobal('localStorage', jsdom.window.localStorage);
+		localStorage.clear();
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2026-08-31T12:00:00Z'));
 	});
@@ -37,6 +17,7 @@ describe('localStorageSynced', () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.restoreAllMocks();
+		localStorage.clear();
 		vi.unstubAllGlobals();
 	});
 
@@ -60,7 +41,7 @@ describe('localStorageSynced', () => {
 		const synced = localStorageSynced('locale', 'en', true, 60);
 		const envelope = JSON.stringify({ value: 'nl', expiry: Date.now() - 1 });
 		localStorage.setItem('locale', envelope);
-		setStoredItem.mockClear();
+		const setStoredItem = vi.spyOn(Storage.prototype, 'setItem');
 
 		window.dispatchEvent(new StorageEvent('storage', { key: 'locale', newValue: envelope }));
 		await nextTick();

@@ -81,6 +81,8 @@ test('requires documents and preserves selected document, metadata, and format d
 	upload.reject(new ApiError('Error', 'Upload failed', 'Error', 500));
 	await flushPromises();
 	expect(wrapper.text()).toContain('Upload failed');
+	expect(wrapper.text()).toContain('2 document file(s)');
+	expect(wrapper.text()).toContain('metadata.csv');
 	expect(modal.props('confirmEnabled')).toBe(true);
 	expect(wrapper.emitted('success')).toBeUndefined();
 	expect(wrapper.emitted('close')).toBeUndefined();
@@ -112,7 +114,7 @@ test('emits indexing at upload completion and again before terminal success and 
 	expect(modal.props('closeEnabled')).toBe(true);
 
 	await wrapper.setProps({ corpus: corpus({ status: 'indexing' }) });
-	expect(wrapper.text()).not.toContain("files, '");
+	expect(wrapper.get('#uploadProgress').text()).not.toMatch(/undefined|null/);
 	await wrapper.setProps({ corpus: corpus({ status: 'indexing', indexProgress: { docsDone: 4, filesProcessed: 3, tokensProcessed: 5 } }) });
 	expect(wrapper.text()).toContain('3 files, 4 documents, and 5 tokens indexed so far...');
 

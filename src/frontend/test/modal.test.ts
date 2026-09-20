@@ -77,20 +77,17 @@ describe('Modal', () => {
 		expect(wrapper.emitted('confirm')).toHaveLength(1);
 	});
 
-	test('counts simultaneous modals and keeps body state until the final unmount', () => {
+	test('keeps the body scroll lock until the final modal unmounts', () => {
 		const first = mount(Modal);
-		expect(document.body.dataset.modalCount).toBe('1');
 		expect(document.body.classList.contains('modal-open')).toBe(true);
 
 		const second = mount(Modal);
-		expect(document.body.dataset.modalCount).toBe('2');
+		expect(document.body.classList.contains('modal-open')).toBe(true);
 
 		first.unmount();
-		expect(document.body.dataset.modalCount).toBe('1');
 		expect(document.body.classList.contains('modal-open')).toBe(true);
 
 		second.unmount();
-		expect(document.body.dataset.modalCount).toBe('0');
 		expect(document.body.classList.contains('modal-open')).toBe(false);
 	});
 });

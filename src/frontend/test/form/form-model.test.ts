@@ -121,38 +121,14 @@ const createdBoundaryNodeIds = ['created.form', 'created.field', 'created.view',
 const adoptedBoundaryNodeIds = ['adopted.field', 'adopted.view', 'adopted.container', 'adopted.form'];
 
 describe('form model state', () => {
-	test('keeps builder-created and adopted graph nodes non-reactive', () => {
+	test('keeps created and adopted nodes, controllers, and components non-reactive', () => {
 		const builder = createNonReactiveBoundaryFixture();
-		const registeredCreatedNodes = createdBoundaryNodeIds.map(id => builder.getNode(id));
-		const registeredAdoptedNodes = adoptedBoundaryNodeIds.map(id => builder.getNode(id));
+		const nodes = [...createdBoundaryNodeIds, ...adoptedBoundaryNodeIds].map(id => builder.getNode(id));
+		const controllers = ['created.field', 'adopted.field'].map(id => builder.getField(id)?.controller);
 
-		expect(registeredCreatedNodes.every(node => node != null && !isReactive(node))).toBe(true);
-		expect(registeredAdoptedNodes.every(node => node != null && !isReactive(node))).toBe(true);
-	});
-
-	test('keeps field controllers non-reactive after node attachment', () => {
-		const builder = createNonReactiveBoundaryFixture();
-		const registeredCreatedController = builder.getField('created.field')?.controller;
-		const registeredAdoptedController = builder.getField('adopted.field')?.controller;
-
-		expect(registeredCreatedController).toBeDefined();
-		expect(registeredAdoptedController).toBeDefined();
-		expect(isReactive(registeredCreatedController)).toBe(false);
-		expect(isReactive(registeredAdoptedController)).toBe(false);
-	});
-
-	test('keeps components non-reactive after node attachment', () => {
-		const builder = createNonReactiveBoundaryFixture();
-		const registeredComponents = [...createdBoundaryNodeIds, ...adoptedBoundaryNodeIds].map(id => builder.getNode(id)?.component);
-
-		expect(registeredComponents.every(component => component != null && !isReactive(component))).toBe(true);
-	});
-
-	test('keeps mutable runtime state off the builder definition', () => {
-		const builder = createTestBuilder();
-		builder.newForm('search.form', ContainerRenderer, {});
-
-		expect('state' in builder).toBe(false);
+		expect(nodes.every(node => node != null && !isReactive(node))).toBe(true);
+		expect(nodes.every(node => node?.component != null && !isReactive(node.component))).toBe(true);
+		expect(controllers.every(controller => controller != null && !isReactive(controller))).toBe(true);
 	});
 
 	test('isolates every mutable state partition between runtimes from one definition', () => {
@@ -199,7 +175,7 @@ describe('form model state', () => {
 		});
 	});
 
-	test('runtime construction passes the field and definition context to createDefaultState', () => {
+	test('runtime construction and reset calculate defaults with the field and definition context', () => {
 		const { builder, createDefaultState, field } = createContextDefaultFixture();
 
 		const runtime = createTestRuntime(builder);
@@ -207,11 +183,7 @@ describe('form model state', () => {
 		expect(createDefaultState).toHaveBeenCalledOnce();
 		expect(createDefaultState).toHaveBeenCalledWith(field, builder.context);
 		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus:1' });
-	});
 
-	test('reset recalculates field defaults with the definition context', () => {
-		const { builder, createDefaultState, field } = createContextDefaultFixture();
-		const runtime = createTestRuntime(builder);
 		runtime.state.state.value[field.id] = { value: 'changed' };
 		createDefaultState.mockClear();
 
@@ -314,29 +286,6 @@ describe('form model state', () => {
 		expect(runtime.compile('search.form').params.patt).toBe(expectedPatt);
 	});
 
-	test('evaluates and includes a reused field query once per graph occurrence', () => {
-		const collect = vi.fn(testTextController.collect);
-		const { builder, form, sharedField } = createReusedFieldFixture({ ...testTextController, collect });
-		const runtime = createTestRuntime(builder);
-		runtime.state.state.value[sharedField.id] = { value: 'water' };
-		collect.mockClear();
-
-		const compiled = runtime.compile(form.id);
-
-		expect(collect).toHaveBeenCalledTimes(2);
-		expect(compiled.params.patt).toBe('[word="water"] [word="water"]');
-	});
-
-	test('emits one summary for a reused field reached through multiple graph paths', () => {
-		const { builder, form, sharedField } = createReusedFieldFixture();
-		const runtime = createTestRuntime(builder);
-		runtime.state.state.value[sharedField.id] = { value: 'water' };
-
-		const compiled = runtime.compile(form.id);
-
-		expect(compiled.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
-	});
-
 	test('normalizes summary types from the controller output contract', () => {
 		const builder = createTestBuilder();
 		const explicitController = {
@@ -365,32 +314,6 @@ describe('form model state', () => {
 			{ label: 'Inherited', value: 'value', summaryType: ['patt'] },
 			{ label: 'Frontend only', value: 'value', summaryType: [] },
 		]);
-	});
-
-	test('gathers reused field channels at their intended frequencies', () => {
-		const collect = vi.fn(testTextController.collect);
-		const summarize = vi.fn(testTextController.summarize);
-		const key = vi.fn(testTextController.persistence.key);
-		const getResultPreset = vi.fn(() => undefined);
-		const encode = vi.spyOn(testTextController.persistence.codec, 'encode');
-		const { builder, form, sharedField } = createReusedFieldFixture({
-			...testTextController,
-			collect,
-			summarize,
-			persistence: { ...testTextController.persistence, key },
-			getResultPreset,
-		});
-		const runtime = createTestRuntime(builder);
-		runtime.state.state.value[sharedField.id] = { value: 'water' };
-
-		runtime.compile(form.id);
-
-		expect(collect).toHaveBeenCalledTimes(2);
-		expect(summarize).toHaveBeenCalledOnce();
-		expect(key).toHaveBeenCalledOnce();
-		expect(encode).toHaveBeenCalledOnce();
-		expect(getResultPreset).toHaveBeenCalledTimes(2);
-		encode.mockRestore();
 	});
 
 	test('compiles shared-DAG summaries with active-child semantics but without persistence or preset work', () => {

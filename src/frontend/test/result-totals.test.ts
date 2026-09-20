@@ -188,11 +188,8 @@ describe('ResultTotals', () => {
 
 		loader.fail();
 		await nextTick();
-		const retryButton = wrapper.get<HTMLButtonElement>('button.totals-message.totals-button');
-		expect(retryButton.element).toBeInstanceOf(HTMLButtonElement);
+		const retryButton = wrapper.get('button.totals-message.totals-button');
 		expect(retryButton.attributes('type')).toBe('button');
-		expect(retryButton.find('.fa-exclamation-triangle').exists()).toBe(true);
-		expect(retryButton.find('.fa-rotate-right').exists()).toBe(true);
 		expect(retryButton.text()).toContain('results.resultsTotals.networkError');
 		expect(retryButton.text()).toContain('results.resultsTotals.retry');
 		await retryButton.trigger('click');

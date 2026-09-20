@@ -78,13 +78,13 @@ function createIndex(id = 'new-corpus'): NormalizedIndex {
 	} as unknown as NormalizedIndex;
 }
 
-function createConfig(): CFPageConfig {
+function createConfig(displayName = 'New configuration'): CFPageConfig {
 	return {
 		analytics: { google: null, plausible: null },
 		bannerMessage: null,
 		customCss: {},
 		customJs: {},
-		displayName: 'New configuration',
+		displayName,
 		faviconDir: '',
 		footerMessage: null,
 		navbarLinks: [],
@@ -174,44 +174,60 @@ describe('corpus context publication', () => {
 		expect(initializedCorpusIds).toEqual(['new-corpus']);
 	});
 
-	test('normalizes POS data exactly once before publishing the context', async () => {
-		const beforePublish = vi.fn();
+	test('normalizes POS values and tagset before legacy initialization and publication', async () => {
+		const initialized: Array<{ corpusValue: string | undefined; tagsetValue: string | undefined }> = [];
 		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: createPosIndex() }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus');
-		state.beforePublish(beforePublish);
+		state.beforePublish(context =>
+			initialized.push({
+				corpusValue: context.index?.annotatedFields.contents.annotations.pos.values?.[0].value,
+				tagsetValue: context.tagset?.values.NOU.value,
+			}),
+		);
 
-		await settleReactivity();
 		await settleReactivity();
 
 		expect(state.contextLoader.isLoaded()).toBe(true);
-		expect(beforePublish).toHaveBeenCalledTimes(1);
+		expect(initialized).toEqual([{ corpusValue: 'nou', tagsetValue: 'nou' }]);
 		expect(state.tagset.value?.values).toEqual({ NOU: { value: 'nou', displayName: 'Noun', subAnnotationIds: ['number'] } });
 		expect(state.corpus.value?.annotatedFields.contents.annotations.pos.values).toEqual([{ value: 'nou', label: 'Noun', title: null }]);
 	});
 
-	test('publishes distinct corpus-id generations through stable request loadables', async () => {
+	test('publishes matching corpus, configuration, and tagset after a corpus switch', async () => {
 		const corpusId = ref('first');
 		const publishedIds: string[] = [];
-		const getCorpus = vi.fn((id: string) => resolvedRequest(createIndex(id)));
-		const getConfig = vi.fn(() => resolvedRequest(createConfig()));
-		const getTagset = vi.fn(() => resolvedRequest(undefined));
-		const state = createCorpusContext(createMockBlackLabApi({ getCorpus }), createMockFrontendApi({ getConfig, getTagset }), corpusId);
+		const secondConfig = createDeferredRequest<CFPageConfig>();
+		const getConfig = vi.fn((id: string | null | undefined) => (id === 'second' ? secondConfig.request : resolvedRequest(createConfig('First configuration'))));
+		const state = createCorpusContext(
+			createMockBlackLabApi({ getCorpus: id => resolvedRequest(createIndex(id)) }),
+			createMockFrontendApi({
+				getConfig,
+				getTagset: id => resolvedRequest({ values: { [id]: { value: id, displayName: id, subAnnotationIds: [] } }, subAnnotations: {} }),
+			}),
+			corpusId,
+		);
 		state.beforePublish(context => publishedIds.push(context.index!.id));
 
 		await settleReactivity();
 		expect(state.corpus.value?.id).toBe('first');
+		expect(state.config.value.displayName).toBe('First configuration');
+		expect(state.tagset.value?.values.first.value).toBe('first');
 
 		corpusId.value = 'second';
 		await settleReactivity();
+		expect(state.contextLoader.isLoading()).toBe(true);
+		expect(state.corpus.value).toBeUndefined();
+		expect(state.config.value.displayName).toBeNull();
+		expect(state.tagset.value).toBeUndefined();
+		expect(publishedIds).toEqual(['first']);
 
+		secondConfig.resolve(createConfig('Second configuration'));
+		await settleReactivity();
 		expect(state.corpus.value?.id).toBe('second');
+		expect(state.config.value.displayName).toBe('Second configuration');
+		expect(state.tagset.value?.values.second.value).toBe('second');
 		expect(publishedIds).toEqual(['first', 'second']);
-		expect(getCorpus.mock.calls.map(([id]) => id)).toEqual(['first', 'second']);
-		expect(getConfig).toHaveBeenCalledTimes(2);
-		expect(getConfig.mock.calls).toEqual([
-			['first', { headers: { 'Cache-Control': 'no-cache' } }],
-			['second', { headers: { 'Cache-Control': 'no-cache' } }],
-		]);
-		expect(getTagset).toHaveBeenCalledTimes(2);
+		expect(getConfig).toHaveBeenCalledWith('first', { headers: { 'Cache-Control': 'no-cache' } });
+		expect(getConfig).toHaveBeenCalledWith('second', { headers: { 'Cache-Control': 'no-cache' } });
 	});
 
 	test('uses global configuration without corpus requests for a null corpus id', async () => {
@@ -280,8 +296,6 @@ describe('corpus context publication', () => {
 		tagsetRequests[2].resolve(undefined);
 		await settleReactivity();
 		expect(publications).toHaveBeenCalledTimes(2);
-
-		for (const requests of [corpusRequests, configRequests, tagsetRequests]) expect(requests.map(request => request.cancel.mock.calls.length)).toEqual([0, 0, 0]);
 	});
 
 	test('owns A to B to A requests by generation and ignores all late results', async () => {

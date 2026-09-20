@@ -104,7 +104,7 @@ describe('createIterativeResultCountLoader', () => {
 			{ flush: 'sync' },
 		);
 
-		expect(loader.value?.results).toBe(initial);
+		expect(loader.value?.results).toEqual(initial);
 		expect(loader.value?.state).toBe('counting');
 		expect(harness.getHits).not.toHaveBeenCalled();
 
@@ -114,14 +114,14 @@ describe('createIterativeResultCountLoader', () => {
 
 		harness.hitRequests[0].resolve(intermediate);
 		await settleRequest();
-		expect(loader.value?.results).toBe(intermediate);
+		expect(loader.value?.results).toEqual(intermediate);
 
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledTimes(2);
 		harness.hitRequests[1].resolve(finished);
 		await settleRequest();
 
-		expect(loader.value?.results).toBe(finished);
+		expect(loader.value?.results).toEqual(finished);
 		expect(loader.value?.state).toBe('finished');
 		expect(updates).toEqual([intermediate, finished]);
 		await vi.advanceTimersByTimeAsync(1000);
@@ -131,30 +131,7 @@ describe('createIterativeResultCountLoader', () => {
 		loader.dispose();
 	});
 
-	test('pauses the latest counting total on timeout and cancels the active request', async () => {
-		vi.useFakeTimers();
-		const harness = apiHarness();
-		const intermediate = result('counting', 2);
-		const loader = createIterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
-
-		await vi.advanceTimersByTimeAsync(100);
-		harness.hitRequests[0].resolve(intermediate);
-		await settleRequest();
-		await vi.advanceTimersByTimeAsync(100);
-		expect(harness.getHits).toHaveBeenCalledTimes(2);
-		expect(harness.hitRequests[1].cancel).not.toHaveBeenCalled();
-
-		await vi.advanceTimersByTimeAsync(50);
-		expect(harness.hitRequests[1].cancel).toHaveBeenCalledOnce();
-		expect(loader.value?.results).toBe(intermediate);
-		expect(loader.value?.state).toBe('paused');
-		await vi.advanceTimersByTimeAsync(1000);
-		expect(harness.getHits).toHaveBeenCalledTimes(2);
-
-		loader.dispose();
-	});
-
-	test('continues from the latest paused result without restarting the active count', async () => {
+	test('pauses and cancels on timeout, then continues from the latest total without restarting an active count', async () => {
 		vi.useFakeTimers();
 		const harness = apiHarness();
 		const intermediate = result('counting', 2);
@@ -166,9 +143,12 @@ describe('createIterativeResultCountLoader', () => {
 		await settleRequest();
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledTimes(2);
+		expect(harness.hitRequests[1].cancel).not.toHaveBeenCalled();
 		await vi.advanceTimersByTimeAsync(50);
 		expect(harness.hitRequests[1].cancel).toHaveBeenCalledOnce();
 		expect(loader.value).toMatchObject({ results: intermediate, state: 'paused' });
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(harness.getHits).toHaveBeenCalledTimes(2);
 
 		loader.continueCounting();
 		expect(loader.value).toMatchObject({ results: intermediate, state: 'counting' });
@@ -194,7 +174,7 @@ describe('createIterativeResultCountLoader', () => {
 		const initial = result(state, 3);
 		const loader = createIterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 250 });
 
-		expect(loader.value?.results).toBe(initial);
+		expect(loader.value?.results).toEqual(initial);
 		expect(loader.value?.state).toBe(state);
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(harness.getHits).not.toHaveBeenCalled();
@@ -220,7 +200,7 @@ describe('createIterativeResultCountLoader', () => {
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(harness.getHits).toHaveBeenCalledOnce();
 		loader.continueCounting();
-		expect(loader.value?.results).toBe(initial);
+		expect(loader.value?.results).toEqual(initial);
 		expect(loader.error).toBeUndefined();
 
 		await vi.advanceTimersByTimeAsync(100);

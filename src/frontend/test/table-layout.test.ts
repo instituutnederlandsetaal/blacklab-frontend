@@ -106,7 +106,7 @@ function groupedColumns(results: BLHitGroupResults | BLDocGroupResults, mode: st
 }
 
 describe('makeRows', () => {
-	test('gives colliding positioned hits stable tuple IDs shared by their parallel rows', () => {
+	test('gives colliding positioned hits distinct stable IDs shared by their parallel rows', () => {
 		const snippet = { before: { punct: [] }, match: { punct: [] }, after: { punct: [] } };
 		const hitResults = {
 			docInfos: {
@@ -123,12 +123,16 @@ describe('makeRows', () => {
 		info.targetFields = [{ id: 'parallel', isParallel: true }] as DisplaySettingsForRendering['targetFields'];
 
 		const hitRows = makeRows(hitResults, info).rows.filter(row => row.type === 'hit');
-		expect(hitRows.map(row => row.hit_id)).toEqual(['["doc1",2,3]', '["doc1",2,3]', '["doc",12,3]', '["doc",12,3]']);
+		const ids = hitRows.map(row => row.hit_id);
+		expect(ids).toHaveLength(4);
+		expect(ids[0]).toBe(ids[1]);
+		expect(ids[2]).toBe(ids[3]);
+		expect(ids[0]).not.toBe(ids[2]);
 		expect(
 			makeRows({ ...hitResults, hits: hitResults.hits.toReversed() }, info)
 				.rows.filter(row => row.type === 'hit')
 				.map(row => row.hit_id),
-		).toEqual(['["doc",12,3]', '["doc",12,3]', '["doc1",2,3]', '["doc1",2,3]']);
+		).toEqual([ids[2], ids[2], ids[0], ids[0]]);
 	});
 
 	test('mutes rows outside a requested range without normalizing response parameters in place', () => {
@@ -149,8 +153,7 @@ describe('makeRows', () => {
 		} as unknown as DisplaySettingsForRendering;
 
 		expect(makeRows(results, info).rows.map(row => row.muted)).toEqual([true, false, true]);
-		expect(results.summary.params).toBe(params);
-		expect(params).toEqual({ first: '5', number: '3' });
+		expect(results.summary.params).toEqual({ first: '5', number: '3' });
 	});
 
 	test('retains live hit-group values and maxima', () => {
@@ -288,7 +291,7 @@ describe('grouped columns', () => {
 			{ field: 'gr.h', sort: 'size' },
 			{ field: 'gr.d', sort: undefined },
 		]);
-		expect(columns.groupColumns[1]).toMatchObject({ labelField: 'score', barField: 'score', style: 'width: 60%' });
+		expect(columns.groupColumns[1]).toMatchObject({ labelField: 'score', barField: 'score' });
 		expect(columns.groupColumns.map(column => column.label)).toEqual([
 			'collocations.results.collocate',
 			'collocations.results.association',

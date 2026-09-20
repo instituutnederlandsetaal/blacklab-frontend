@@ -61,7 +61,7 @@ describe('dependency tree', () => {
 		expect(wrapper.findAll('.relations path').every(node => !node.attributes('d')?.includes('NaN'))).toBe(true);
 	});
 
-	test('switches relation classes without rebuilding an imperative renderer', async () => {
+	test('shows the selected relation class', async () => {
 		const wrapper = render();
 
 		await wrapper.get('select').setValue('semantic');

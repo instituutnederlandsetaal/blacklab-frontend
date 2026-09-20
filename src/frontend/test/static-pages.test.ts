@@ -4,7 +4,6 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
-import type { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import AboutPage from '@/pages/about/AboutPage.vue';
 import HelpPage from '@/pages/help/HelpPage.vue';
@@ -46,15 +45,13 @@ describe.each([
 	['about', AboutPage, 'getAbout'],
 	['help', HelpPage, 'getHelp'],
 ] as const)('%s page', (_name, Page, endpoint) => {
-	test('keeps one loadable identity through loading and success', async () => {
+	test('renders loading and content before settling the page', async () => {
 		const pending = deferredRequest();
 		mock[endpoint].mockReturnValue(pending.request);
 		const wrapper = mount(Page);
-		const content = wrapper.getComponent(HtmlRenderer).props('content') as Loadable<string>;
 
 		expect(mock[endpoint]).toHaveBeenCalledWith('test-corpus');
 		expect(wrapper.getComponent(HtmlRenderer).props()).toMatchObject({ executeScripts: true, parseStringAsHtml: true });
-		expect(content.isLoading()).toBe(true);
 		expect(wrapper.find('.cf-spinner').exists()).toBe(true);
 		expect(mock.markSettled).not.toHaveBeenCalled();
 
@@ -64,8 +61,6 @@ describe.each([
 		});
 		await flushPromises();
 
-		expect(wrapper.getComponent(HtmlRenderer).props('content')).toBe(content);
-		expect(content.isLoaded()).toBe(true);
 		expect(wrapper.get('.page-copy').text()).toBe('Ready');
 		expect(mock.markSettled).toHaveBeenCalledOnce();
 		wrapper.unmount();

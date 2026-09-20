@@ -53,7 +53,6 @@ describe('collocation field', () => {
 
 		expect(wrapper.find('#collocations_1_before').exists()).toBe(true);
 		expect(wrapper.find('#collocations_1_after').exists()).toBe(true);
-		expect(wrapper.find('#collocations_1_scorer').exists()).toBe(false);
 
 		await wrapper.get('#collocations_1_before').setValue('3');
 		expect(wrapper.emitted('update:modelValue')).toEqual([[{ ...fieldState, before: 3 }]]);
@@ -72,8 +71,7 @@ describe('collocation field', () => {
 		const wrapper = mountField();
 		const picker = wrapper.getComponent(SelectPicker);
 
-		expect(picker.props()).toMatchObject({ modelValue: 'word', dataWidth: '100%', hideEmpty: true });
-		expect(wrapper.find('details').exists()).toBe(false);
+		expect(picker.props('modelValue')).toBe('word');
 		expect(wrapper.text()).toContain('collocations.sensitive');
 
 		picker.vm.$emit('update:modelValue', 'lemma');

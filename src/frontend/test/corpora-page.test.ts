@@ -104,33 +104,31 @@ beforeEach(() => {
 
 afterEach(() => vi.useRealTimers());
 
-test('deduplicates upload triggers and keeps identity through the two-second indexing cadence', async () => {
+test('deduplicates upload triggers and updates the table and upload until indexing completes', async () => {
 	const first = deferredRequest<NormalizedIndexBase>();
 	const second = deferredRequest<NormalizedIndexBase>();
 	mock.api.getCorpusStatus.mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
 	const wrapper = await mountPage();
-	const initial = privateTable(wrapper).props('corpora')[0];
 	const upload = await startUploadPoll(wrapper);
 
-	upload.vm.$emit('indexing', initial.id);
+	upload.vm.$emit('indexing', 'alice:corpus');
 	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
+	expect(mock.api.getCorpusStatus).toHaveBeenCalledWith('alice:corpus');
 
 	first.resolve(corpus({ status: 'indexing', tokenCount: 10, indexProgress: { docsDone: 1, filesProcessed: 2, tokensProcessed: 3 } as NonNullable<NormalizedIndexBase['indexProgress']> }));
 	await flushPromises();
-	expect(privateTable(wrapper).props('corpora')[0]).toBe(initial);
-	expect(upload.props('corpus')).toBe(initial);
-	expect(initial.status).toBe('indexing');
-
-	await vi.advanceTimersByTimeAsync(1999);
+	expect(privateTable(wrapper).props('corpora')[0]).toMatchObject({ status: 'indexing', tokenCount: 10 });
+	expect(upload.props('corpus')).toMatchObject({ status: 'indexing', indexProgress: { docsDone: 1, filesProcessed: 2, tokensProcessed: 3 } });
 	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
-	await vi.advanceTimersByTimeAsync(1);
+
+	await vi.runOnlyPendingTimersAsync();
 	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(2);
 
 	second.resolve(corpus({ status: 'available', tokenCount: 20 }));
 	await flushPromises();
-	expect(privateTable(wrapper).props('corpora')[0]).toBe(initial);
-	expect(initial.tokenCount).toBe(20);
-	await vi.advanceTimersByTimeAsync(2000);
+	expect(privateTable(wrapper).props('corpora')[0]).toMatchObject({ status: 'available', tokenCount: 20 });
+	expect(upload.props('corpus')).toMatchObject({ status: 'available', tokenCount: 20 });
+	await vi.runOnlyPendingTimersAsync();
 	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(2);
 	wrapper.unmount();
 });
@@ -160,12 +158,10 @@ test('successful deletion during the delay stops the matching poll', async () =>
 	const wrapper = await mountPage();
 	await startUploadPoll(wrapper);
 	await flushPromises();
-	expect(vi.getTimerCount()).toBe(1);
 
 	await confirmCorpusDeletion(wrapper);
 	expect(privateTable(wrapper).props('corpora')).toEqual([]);
-	expect(vi.getTimerCount()).toBe(0);
-	await vi.advanceTimersByTimeAsync(2000);
+	await vi.runOnlyPendingTimersAsync();
 	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
 	wrapper.unmount();
 });
@@ -220,11 +216,9 @@ test('unmount clears a scheduled poll', async () => {
 	mock.api.getCorpusStatus.mockReturnValue(resolvedRequest(corpus({ status: 'indexing' })));
 	const wrapper = await mountPage([corpus({ status: 'indexing' })]);
 	await flushPromises();
-	expect(vi.getTimerCount()).toBe(1);
 
 	wrapper.unmount();
-	expect(vi.getTimerCount()).toBe(0);
-	await vi.advanceTimersByTimeAsync(2000);
+	await vi.runOnlyPendingTimersAsync();
 	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
 });
 

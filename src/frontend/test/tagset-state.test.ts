@@ -101,7 +101,7 @@ describe('tagset processing', () => {
 		]);
 	});
 
-	test('does not replace normalized corpus values when normalization is repeated', () => {
+	test('preserves normalized values and names when normalization is repeated', () => {
 		const pos = annotation('pos', 'Part of speech', [{ value: 'NOU', label: 'Noun' }]);
 		const configured: Tagset = {
 			values: { NOU: { value: 'NOU', displayName: 'Noun', subAnnotationIds: [] } },
@@ -109,9 +109,9 @@ describe('tagset processing', () => {
 		};
 
 		normalizeTagset(pos, { pos }, configured);
-		const normalizedValues = pos.values;
-		normalizeTagset(pos, { pos }, configured);
+		const repeated = normalizeTagset(pos, { pos }, configured);
 
-		expect(pos.values).toBe(normalizedValues);
+		expect(pos.values).toEqual([{ value: 'nou', label: 'Noun', title: null }]);
+		expect(repeated.values).toEqual({ NOU: { value: 'nou', displayName: 'Noun', subAnnotationIds: [] } });
 	});
 });

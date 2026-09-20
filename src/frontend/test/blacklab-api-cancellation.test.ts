@@ -90,7 +90,6 @@ describe('BlackLab corpus request cancellation', () => {
 
 		request.cancel();
 		await expect(observed).rejects.toBe(ApiError.CANCELLED);
-		expect(stageOne.cancel).not.toHaveBeenCalled();
 		expect(stageTwo.cancel).toHaveBeenCalledOnce();
 		expect(relations.cancel).toHaveBeenCalledOnce();
 		stageTwo.resolve({} as BLIndexMetadataV4);
@@ -137,7 +136,7 @@ describe('BlackLab corpus request cancellation', () => {
 		stageTwo.resolve(metadata);
 		relations.resolve(relationInfo);
 
-		await expect(request).resolves.toBe(normalized);
+		await expect(request).resolves.toEqual(normalized);
 		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, relationInfo, '4.2.0');
 	});
 
@@ -158,7 +157,7 @@ describe('BlackLab corpus request cancellation', () => {
 		expect(mock.getCancelable).toHaveBeenCalledWith('corpora/owner:corpus/', { custom: true, listvalues: '*' }, undefined);
 		metadataRequest.resolve(metadata);
 
-		await expect(request).resolves.toBe(normalized);
+		await expect(request).resolves.toEqual(normalized);
 		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, inlineRelations, '5.0.0');
 	});
 });

@@ -6,7 +6,7 @@ import { nextTick, ref } from 'vue';
 
 import type { Corpus } from '@/types/apptypes';
 
-import type { OptGroup } from '@/shared/utils/options';
+import { optionText, type OptGroup } from '@/shared/utils/options';
 
 import Sort from '@/pages/search/results/Sort.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
@@ -56,6 +56,7 @@ const corpus = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	mock.sortOptionGroup.mockImplementation(group => group);
 	annotationIds.value = [];
 	annotationLabels.value = false;
 	metadataIds.value = [];
@@ -68,12 +69,13 @@ beforeEach(() => {
 
 describe('Sort', () => {
 	test('keeps built-in sort pairs and customization order', () => {
+		mock.sortOptionGroup.mockImplementation(group => ({ ...group, label: `custom:${optionText(group.label) ?? ''}` }));
 		const wrapper = shallowMount(Sort, {
 			props: { hits: true, docs: true, groups: true, corpus },
 		});
 		const options = wrapper.getComponent(SelectPicker).props('options') as OptGroup[];
 
-		expect(options.map(group => group.label)).toEqual(['results.sort.groups', 'results.sort.parallelCorpus', 'results.sort.documents']);
+		expect(options.map(group => group.label)).toEqual(['custom:results.sort.groups', 'custom:results.sort.parallelCorpus', 'custom:results.sort.documents']);
 		expect(options.map(group => group.options)).toEqual([
 			[
 				{ label: 'results.table.sortBy:results.table.sort_groupName', value: 'identity' },
@@ -90,7 +92,6 @@ describe('Sort', () => {
 				{ label: 'results.table.sortByDescending:results.table.sort_numberOfHits', value: '-numhits' },
 			],
 		]);
-		expect(mock.sortOptionGroup.mock.calls.map(([group]) => group.label)).toEqual(['results.sort.groups', 'results.sort.parallelCorpus', 'results.sort.documents']);
 	});
 
 	test('uses the latest reactive sort customizations', async () => {

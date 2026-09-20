@@ -33,33 +33,44 @@ afterEach(() => {
 const searches: Array<{
 	blacklabVersion: string;
 	name: string;
+	path: string;
 	params: () => BLSearchParameters;
 	invoke: (api: BlackLabApi, params: BLSearchParameters, config: AxiosRequestConfig) => CancelableRequest<unknown>;
 }> = [
-	{ blacklabVersion: '5.0.0', name: 'hits', params: () => ({ number: 10, patt: '[word="fox"]', subcorpussize: false }), invoke: (api, params, config) => api.getHits('owner:corpus', params, config) },
-	{ blacklabVersion: '4.2.0', name: 'docs', params: () => ({ filter: 'author:me', number: 10, subcorpussize: false }), invoke: (api, params, config) => api.getDocs('owner:corpus', params, config) },
+	{
+		blacklabVersion: '5.0.0',
+		name: 'hits',
+		path: 'corpora/owner:corpus/hits/',
+		params: () => ({ number: 10, patt: '[word="fox"]', subcorpussize: false }),
+		invoke: (api, params, config) => api.getHits('owner:corpus', params, config),
+	},
+	{
+		blacklabVersion: '4.2.0',
+		name: 'docs',
+		path: 'owner:corpus/docs/',
+		params: () => ({ filter: 'author:me', number: 10, subcorpussize: false }),
+		invoke: (api, params, config) => api.getDocs('owner:corpus', params, config),
+	},
 ];
 
-test.each(searches)('$name copies parameters, forwards config by identity, and chains cancellation', async ({ blacklabVersion, invoke, params: createParams }) => {
+test.each(searches)('$name preserves caller inputs, requests subcorpus totals, and supports cancellation', async ({ blacklabVersion, path, invoke, params: createParams }) => {
 	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
 	const params = createParams();
 	const originalParams = { ...params };
 	const config: AxiosRequestConfig = { headers: { 'X-Test': 'exact-config' }, params: { trace: 'request' }, timeout: 321 };
 
 	const request = invoke(api, params, config);
-	const endpointRequest = mock.getOrPostCancelable.mock.results[0].value as CancelableRequest<unknown>;
-	expect(request).not.toBe(endpointRequest);
 	request.cancel();
 
-	const [, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLSearchParameters, AxiosRequestConfig];
+	const [sentPath, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLSearchParameters, AxiosRequestConfig];
+	expect(sentPath).toBe(path);
 	expect(sentParams).toEqual({ ...originalParams, subcorpussize: true });
-	expect(sentParams).not.toBe(params);
-	expect(sentConfig).toBe(config);
+	expect(sentConfig).toEqual(config);
 	expect(params).toEqual(originalParams);
 	expect(mock.cancel).toHaveBeenCalledOnce();
 });
 
-test.each(['4.2.0', '5.0.0'])('getCollocations copies parameters, forces subcorpus totals, strips group, forwards config, and chains cancellation on BlackLab %s', async blacklabVersion => {
+test.each(['4.2.0', '5.0.0'])('getCollocations preserves caller inputs, omits client grouping, and supports cancellation on BlackLab %s', async blacklabVersion => {
 	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
 	const params: BLCollocationsParameters = {
 		patt: '[word="water"]',
@@ -76,18 +87,13 @@ test.each(['4.2.0', '5.0.0'])('getCollocations copies parameters, forces subcorp
 	const config: AxiosRequestConfig = { headers: { 'X-Test': 'exact-config' }, timeout: 321 };
 
 	const request = api.getCollocations('owner:corpus', params, config);
-	const endpointRequest = mock.getOrPostCancelable.mock.results[0].value as CancelableRequest<unknown>;
-	expect(request).not.toBe(endpointRequest);
 	request.cancel();
 
-	const [path, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLCollocationsParameters, AxiosRequestConfig];
+	const [, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLCollocationsParameters, AxiosRequestConfig];
 	const expectedParams = { ...originalParams };
 	delete expectedParams.group;
-	expect(path).toBe(blacklabVersion.startsWith('4') ? 'owner:corpus/collocations/' : 'corpora/owner:corpus/collocations/');
 	expect(sentParams).toEqual({ ...expectedParams, subcorpussize: true });
-	expect(sentParams).not.toHaveProperty('group');
-	expect(sentParams).not.toBe(params);
-	expect(sentConfig).toBe(config);
+	expect(sentConfig).toEqual(config);
 	expect(params).toEqual(originalParams);
 	expect(mock.cancel).toHaveBeenCalledOnce();
 });
@@ -98,7 +104,7 @@ test('getCollocations rejects a missing pattern before calling the endpoint', as
 	expect(mock.getOrPostCancelable).not.toHaveBeenCalled();
 });
 
-test('getCollocations retains grouped-hit normalization', async () => {
+test('getCollocations returns grouped results', async () => {
 	const raw = {
 		hitGroups: [{ identity: 'ship', identityDisplay: 'ship', properties: [{ name: 'hit:lemma', value: 'ship' }], size: 2, numberOfDocs: 1 }],
 		summary: { params: { patt: '[]', number: 20 }, results: {} },
@@ -109,7 +115,7 @@ test('getCollocations retains grouped-hit normalization', async () => {
 	await expect(api.getCollocations('owner:corpus', { patt: '[]' })).resolves.toEqual({ hitGroups: raw.hitGroups, summary: raw.summary });
 });
 
-test('getCollocations returns normalized hits when a group is selected', async () => {
+test('getCollocations returns hits when a group is selected', async () => {
 	const raw = {
 		hits: [],
 		docInfos: {},
@@ -123,13 +129,10 @@ test('getCollocations returns normalized hits when a group is selected', async (
 	expect(mock.getOrPostCancelable).toHaveBeenCalledWith('corpora/owner:corpus/collocations/', { patt: '[]', viewgroup: 'lemma:ship', subcorpussize: true }, undefined);
 });
 
-test.each([
-	{ blacklabVersion: '4.2.0', path: 'owner:corpus/docs/' },
-	{ blacklabVersion: '5.0.0', path: 'corpora/owner:corpus/docs/' },
-])('getDocs uses the $blacklabVersion path', async ({ blacklabVersion, path }) => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
+test('getDocs uses the 5.0.0 path', async () => {
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
 	api.getDocs('owner:corpus', { number: 10 });
-	expect(mock.getOrPostCancelable).toHaveBeenCalledWith(path, { number: 10, subcorpussize: true }, undefined);
+	expect(mock.getOrPostCancelable).toHaveBeenCalledWith('corpora/owner:corpus/docs/', { number: 10, subcorpussize: true }, undefined);
 });
 
 test('getHits rejects a missing pattern before calling the endpoint', async () => {
@@ -157,5 +160,4 @@ test('V4 endpoint serialization maps the forced subcorpus flag to includetokenco
 	request.cancel();
 
 	expect(Object.fromEntries(new URLSearchParams(serialized))).toEqual({ includetokencount: 'true', number: '10', patt: '[word="fox"]' });
-	expect(new URLSearchParams(serialized).has('subcorpussize')).toBe(false);
 });

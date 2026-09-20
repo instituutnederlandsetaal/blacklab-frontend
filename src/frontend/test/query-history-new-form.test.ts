@@ -36,11 +36,6 @@ function mixedSummaryForm(): CompiledFormResult {
 	};
 }
 
-function addForm(form: CompiledFormResult, query = '') {
-	const summary = summarizeCompiledForm(form);
-	actions.addEntry({ url: `/test-corpus/search/hits?patt=${encodeURIComponent(form.params.patt ?? '')}&${query}`, displayValues: { pattern: summary.pattern ?? '', filters: summary.filter ?? '' } });
-}
-
 describe('new-form query summary selectors', () => {
 	test('selects summaries by their normalized output types', () => {
 		const summary = summarizeCompiledForm(mixedSummaryForm());
@@ -81,11 +76,10 @@ describe('URL query history', () => {
 		expect(getState()[0]).toMatchObject({ url, displayValues: { pattern: 'Word: water', filters: '-' } });
 	});
 
-	test('records the submitted pattern without recompiling a legacy form', async () => {
+	test('uses the legacy pattern alias in imported search summaries', async () => {
 		vi.stubGlobal('CONTEXT_URL', '/');
 		vi.spyOn(LegacyFormRestorer.prototype, 'get').mockResolvedValue({
-			interface: { form: 'search', patternMode: 'simple' },
-			patterns: { shared: {}, simple: { annotationValue: { id: 'word', value: 'water', type: undefined } } },
+			interface: { form: 'search' },
 			filters: {},
 		} as never);
 		const url = '/test/search/hits?query=' + encodeURIComponent('[word="water"]');
@@ -116,7 +110,8 @@ describe('URL query history', () => {
 	});
 
 	test('deduplicates queries when only result settings differ', () => {
-		for (const query of ['first=0&number=20&sort=hit:word&scorertype=coll-dice', 'first=40&number=50&sort=-hit:word&scorertype=coll-salience']) addForm(mixedSummaryForm(), query);
+		for (const query of ['first=0&number=20&sort=hit:word&scorertype=coll-dice', 'first=40&number=50&sort=-hit:word&scorertype=coll-salience'])
+			actions.addEntry({ url: '/test-corpus/search/hits?patt=[]&' + query });
 		expect(getState()).toHaveLength(1);
 	});
 

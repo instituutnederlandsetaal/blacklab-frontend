@@ -75,6 +75,8 @@ describe('parallel hit highlighting', () => {
 
 		mergeMatchInfos(data);
 
-		expect(data.hits[0].otherFields!.contents__a.matchInfos!.align).toBe(targetOwn);
+		expect(getHighlightSections(data.hits[0].otherFields!.contents__a.matchInfos!, () => null)).toEqual([
+			expect.objectContaining({ key: 'align', relationType: 'target-own', sourceStart: 1, sourceEnd: 2, targetStart: 10, targetEnd: 11 }),
+		]);
 	});
 });

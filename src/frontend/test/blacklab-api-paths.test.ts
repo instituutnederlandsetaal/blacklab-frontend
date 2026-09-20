@@ -29,13 +29,11 @@ beforeEach(() => {
 			deleteCancelable: record('DELETE'),
 			getCancelable: record('GET'),
 			getOrPostCancelable: record('GET_OR_POST'),
-			postCancelable: record('POST'),
 		} as unknown as Endpoint);
 });
 
 const corpusId = 'owner:corpus';
 const routes: Array<{ name: string; invoke: (api: BlackLabApi) => CancelableRequest<unknown>; path: (prefix: string) => string; method: string }> = [
-	{ name: 'server root', invoke: api => api.getServerInfo(), path: () => './', method: 'GET' },
 	{ name: 'corpus status', invoke: api => api.getCorpusStatus(corpusId), path: prefix => `${prefix}${corpusId}/status/`, method: 'GET' },
 	{
 		name: 'annotated field',
@@ -84,8 +82,8 @@ describe.each([
 	{ apiVersion: '4', blacklabVersion: '4.2.0', prefix: '', mappedQuery: { patt: '[]', includetokencount: true } },
 	{ apiVersion: '5', blacklabVersion: '5.0.0', prefix: 'corpora/', mappedQuery: undefined },
 	{ apiVersion: '5', blacklabVersion: '5.0.0-SNAPSHOT', prefix: 'corpora/', mappedQuery: undefined },
-])('BlackLab $apiVersion paths', ({ apiVersion, blacklabVersion, prefix, mappedQuery }) => {
-	test.each(routes)('$name', async ({ invoke, method, path }) => {
+])('BlackLab $blacklabVersion paths', ({ apiVersion, blacklabVersion, prefix, mappedQuery }) => {
+	test('server root selects the API version and query compatibility', async () => {
 		const api = await createBlackLabApi({
 			baseUrl: '/blacklab',
 			user: null,
@@ -93,11 +91,19 @@ describe.each([
 			axiosOptions: { params: { existing: 'value' } },
 		});
 
-		invoke(api).cancel();
+		api.getServerInfo().cancel();
 
-		expect(mock.requests).toEqual([{ method, url: path(prefix) }]);
+		expect(mock.requests).toEqual([{ method: 'GET', url: './' }]);
 		const settings = vi.mocked(createEndpoint).mock.calls[0][0] as EndpointSettings;
 		expect(settings.axiosOptions?.params).toEqual({ existing: 'value', api: apiVersion });
 		expect(settings.mapQueryParams?.({ patt: '[]', subcorpussize: true })).toEqual(mappedQuery);
+	});
+
+	test.each(routes)('$name', async ({ invoke, method, path }) => {
+		const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
+
+		invoke(api).cancel();
+
+		expect(mock.requests).toEqual([{ method, url: path(prefix) }]);
 	});
 });

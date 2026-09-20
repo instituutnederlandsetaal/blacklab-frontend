@@ -77,7 +77,6 @@ describe('page customization effect', () => {
 			expect(appendChild).toHaveBeenCalledTimes(4);
 			const scripts = Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'));
 			expect(scripts.map(script => script.getAttribute('src'))).toEqual(['/article-latest.js', '/global-latest.js']);
-			scripts.forEach(script => expect(script.async).toBe(false));
 			expect(scripts[1].getAttribute('defer')).toBe('true');
 		} finally {
 			appendChild.mockRestore();

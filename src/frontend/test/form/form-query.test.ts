@@ -70,6 +70,7 @@ describe('semantic query compilation', () => {
 			},
 		);
 		expect(node).toEqual(booleanNode('or', [filterRange('start', '20200101', '20211231')!, filterRange('end', '20200101', '20211231')!]));
+		expect(node && compileFilter(node)).toBe('(start:[20200101 TO 20211231] OR end:[20200101 TO 20211231])');
 	});
 
 	test.each([

@@ -195,9 +195,8 @@ describe('page customization', () => {
 			expect(disposedWhileConnected).toHaveBeenCalledOnce();
 			expect(customizations.formConfigurators.value).toHaveLength(initialCount);
 
-			const afterDispose = customizations.formConfigurators.value;
 			unregister();
-			expect(customizations.formConfigurators.value).toBe(afterDispose);
+			expect(customizations.formConfigurators.value).toHaveLength(initialCount);
 		} finally {
 			unregister();
 			scope.stop();
@@ -208,7 +207,7 @@ describe('page customization', () => {
 		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/late.js', async: true } }]);
 		const scope = effectScope();
 		scope.run(() => useCustomJs(entries));
-		const initialRegistrations = customizations.formConfigurators.value;
+		const initialRegistrations = [...customizations.formConfigurators.value];
 
 		try {
 			await nextTick();
@@ -223,7 +222,7 @@ describe('page customization', () => {
 				currentScript.mockRestore();
 			}
 
-			expect(customizations.formConfigurators.value).toBe(initialRegistrations);
+			expect(customizations.formConfigurators.value).toEqual(initialRegistrations);
 		} finally {
 			scope.stop();
 		}

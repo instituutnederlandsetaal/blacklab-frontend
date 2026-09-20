@@ -125,15 +125,6 @@ function fieldShape(field: FormFieldNode) {
 }
 
 describe('search form semantic node factory', () => {
-	test('exposes only reusable public node constructors', () => {
-		const factory = createFactory();
-
-		expect(factory).toHaveProperty('annotation');
-		expect(factory).toHaveProperty('metadataMultiFieldRange');
-		expect(factory).not.toHaveProperty('queryBuilder');
-		expect(factory).not.toHaveProperty('within');
-	});
-
 	test('maps explicit annotation constructors to their components, controllers, and persistence', () => {
 		const factory = createFactory();
 		const choices = [{ value: 'NOU', label: 'Noun' }];

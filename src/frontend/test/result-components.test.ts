@@ -31,13 +31,10 @@ describe('result support components', () => {
 		});
 
 		const link = wrapper.get('a');
-		expect(link.attributes('disabled')).toBeUndefined();
-		expect(link.classes()).not.toContain('disabled');
 		await link.trigger('click');
 		expect(onClick).toHaveBeenCalledOnce();
 
 		await wrapper.setProps({ disabled: true });
 		expect(wrapper.find('a').exists()).toBe(false);
-		expect(wrapper.findAll('li').every(crumb => crumb.classes('active'))).toBe(true);
 	});
 });

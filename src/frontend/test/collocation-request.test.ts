@@ -58,19 +58,17 @@ describe('createCollocationHitsParameters', () => {
 
 	test('uses meet_within for a separate within clause and omits offsets for an inline-tag context', () => {
 		expect(createCollocationHitsParameters(parameters({ context: 5, within: 's' }))?.patt).toBe('meet_within([], [lemma="boot"], <s/>,-5,5)');
-		expect(createCollocationHitsParameters(parameters({ context: 's' }))?.patt).toBe('meet_within([], [lemma="boot"], <s/>)');
+		expect(createCollocationHitsParameters(parameters({ context: 's' }))).toMatchObject({ patt: 'meet_within([], [lemma="boot"], <s/>)', context: 's' });
 	});
 
-	test.each(['0:1', '1:0', '3:4', '8:0', '0:8'])('gives context %s readable KWIC without widening the search', context => {
-		const result = createCollocationHitsParameters(parameters({ context, within: 's' }))!;
-		expect(result.context).toBe(context.includes('8') ? 8 : 5);
-		expect(result.patt).toContain('meet_within(');
-		const [before, after] = context.split(':').map(Number);
-		expect(result.patt).toContain(`,${before === 0 ? 1 : -before},${after === 0 ? -1 : after})`);
-	});
-
-	test('retains a full structural context for legacy inline-tag requests', () => {
-		expect(createCollocationHitsParameters(parameters({ context: 's' }))?.context).toBe('s');
+	test.each([
+		['0:1', 5, 'meet_within([], [lemma="boot"], <s/>,1,1)'],
+		['1:0', 5, 'meet_within([], [lemma="boot"], <s/>,-1,-1)'],
+		['3:4', 5, 'meet_within([], [lemma="boot"], <s/>,-3,4)'],
+		['8:0', 8, 'meet_within([], [lemma="boot"], <s/>,-8,-1)'],
+		['0:8', 8, 'meet_within([], [lemma="boot"], <s/>,1,8)'],
+	] as const)('gives context %s readable KWIC without widening the search', (context, kwicContext, patt) => {
+		expect(createCollocationHitsParameters(parameters({ context, within: 's' }))).toMatchObject({ context: kwicContext, patt });
 	});
 
 	test('uses the selected annotation sensitivity and retains a hits-compatible sort', () => {

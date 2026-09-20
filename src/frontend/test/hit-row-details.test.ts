@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import type { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 import type { BLHit } from '@/types/blacklabtypes';
@@ -10,6 +10,8 @@ import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
+
+enableAutoUnmount(afterEach);
 
 const mock = vi.hoisted(() => ({
 	addon: vi.fn(),
@@ -67,6 +69,20 @@ function row(docPid = 'doc'): HitRowData {
 	} as unknown as HitRowData;
 }
 
+function renderDetails(props: { open?: boolean; row?: HitRowData; hoverMatchInfos?: string[]; info?: DisplaySettingsForRendering } = {}) {
+	return mount(HitRowDetails, {
+		props: {
+			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
+			hoverMatchInfos: [],
+			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
+			open: true,
+			row: row(),
+			type: 'hits',
+			...props,
+		},
+	});
+}
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mock.addon.mockReturnValue(null);
@@ -76,27 +92,15 @@ beforeEach(() => {
 	mock.getSnippet.mockReturnValue(new CancelableRequest(Promise.resolve(snippet), vi.fn()));
 });
 
-test('renders ordered context descriptors and forwards shared hover events', async () => {
-	const wrapper = mount(HitRowDetails, {
-		props: {
-			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
-			hoverMatchInfos: ['shared'],
-			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
-			open: false,
-			row: row(),
-			type: 'hits',
-		},
-	});
+test('renders ordered concordance parts and forwards shared hover events', async () => {
+	const wrapper = renderDetails({ open: false, hoverMatchInfos: ['shared'] });
 	await wrapper.setProps({ open: true });
 	await flushPromises();
 
 	const contexts = wrapper.findAllComponents(HitContext);
-	expect(contexts.map(context => context.props('tag'))).toEqual(['span', 'strong', 'span']);
-	expect(contexts.map(context => context.props('bold'))).toEqual([false, true, false]);
-	expect(contexts.map(context => context.props('before'))).toEqual([true, false, false]);
-	expect(contexts.map(context => context.props('after'))).toEqual([false, false, true]);
 	expect(contexts.map(context => context.props('hoverMatchInfos'))).toEqual([['shared'], ['shared'], ['shared']]);
 	expect(Array.from(wrapper.get('p[dir="ltr"]').element.children, element => element.tagName.toLowerCase())).toEqual(['span', 'strong', 'a', 'span']);
+	expect(wrapper.get('strong').text()).toBe('hit');
 	expect(wrapper.get('a').attributes()).toMatchObject({ href: '/corpus/docs/doc?field=parallel', target: '_blank' });
 	expect(contexts[0].text()).toBe('');
 	expect(contexts[2].text()).toBe('');
@@ -118,16 +122,7 @@ test('shows ellipses only for visible surrounding context', async () => {
 			vi.fn(),
 		),
 	);
-	const wrapper = mount(HitRowDetails, {
-		props: {
-			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
-			hoverMatchInfos: [],
-			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
-			open: true,
-			row: row(),
-			type: 'hits',
-		},
-	});
+	const wrapper = renderDetails();
 	await flushPromises();
 
 	const contexts = wrapper.findAllComponents(HitContext);
@@ -142,16 +137,7 @@ test('retains snippet and sentence requests across close and uncheck', async () 
 	mock.corpus.hasRelations = true;
 	mock.sentenceElement = 's';
 
-	const wrapper = mount(HitRowDetails, {
-		props: {
-			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
-			hoverMatchInfos: [],
-			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
-			open: false,
-			row: row(),
-			type: 'hits',
-		},
-	});
+	const wrapper = renderDetails({ open: false });
 	await wrapper.setProps({ open: true });
 	await wrapper.setProps({ open: false });
 	expect(requests[0].cancel).not.toHaveBeenCalled();
@@ -175,16 +161,7 @@ test('resets replaced rows synchronously and activates only the final open row',
 	for (const pending of requests) mock.getSnippet.mockReturnValueOnce(pending.request);
 	mock.addon.mockReturnValue({ name: 'test' });
 
-	const wrapper = mount(HitRowDetails, {
-		props: {
-			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
-			hoverMatchInfos: [],
-			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
-			open: true,
-			row: row('first'),
-			type: 'hits',
-		},
-	});
+	const wrapper = renderDetails({ row: row('first') });
 	await wrapper.setProps({ open: false, row: row('second') });
 	expect(requests[0].cancel).toHaveBeenCalledOnce();
 	expect(mock.getSnippet).toHaveBeenCalledOnce();
@@ -214,18 +191,10 @@ test('scope disposal suppresses noncooperative fulfillment and rejection', async
 	const rejected = deferredRequest<BLHit>();
 	const highlight = vi.fn();
 	mock.getSnippet.mockReset().mockReturnValueOnce(fulfilled.request).mockReturnValueOnce(rejected.request);
-	const props = {
-		cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
-		hoverMatchInfos: [],
-		info: { detailedAnnotations: [], getMatchInfoHighlightStyle: highlight, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
-		open: true,
-		row: row(),
-		type: 'hits' as const,
-	};
-
-	const fulfilledWrapper = mount(HitRowDetails, { props });
+	const info = { detailedAnnotations: [], getMatchInfoHighlightStyle: highlight, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering;
+	const fulfilledWrapper = renderDetails({ info });
 	fulfilledWrapper.unmount();
-	const rejectedWrapper = mount(HitRowDetails, { props });
+	const rejectedWrapper = renderDetails({ info });
 	rejectedWrapper.unmount();
 	expect(fulfilled.cancel).toHaveBeenCalledOnce();
 	expect(rejected.cancel).toHaveBeenCalledOnce();
@@ -242,16 +211,7 @@ test('retries a failed snippet without exposing the retained error while loading
 	const requests = [deferredRequest<BLHit>(), deferredRequest<BLHit>()];
 	mock.getSnippet.mockReset();
 	for (const pending of requests) mock.getSnippet.mockReturnValueOnce(pending.request);
-	const wrapper = mount(HitRowDetails, {
-		props: {
-			cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] } as ColumnDefs,
-			hoverMatchInfos: [],
-			info: { detailedAnnotations: [], getMatchInfoHighlightStyle: () => undefined, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering,
-			open: true,
-			row: row(),
-			type: 'hits',
-		},
-	});
+	const wrapper = renderDetails();
 	requests[0].reject(new Error('failed snippet'));
 	await flushPromises();
 	expect(wrapper.get('p.text-danger').text()).toContain('failed snippet');

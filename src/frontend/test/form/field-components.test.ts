@@ -89,7 +89,6 @@ describe('generic form field components', () => {
 		expect(checkbox.findAll('label')[0].attributes('title')).toBe('First option');
 		await checkbox.findAll('input')[1].setValue(true);
 		await checkbox.findAll('input')[0].setValue(false);
-		await checkbox.setProps({ description: undefined });
 		expect(checkbox.emitted('update:modelValue')).toEqual([[['a', 'b']], [[]]]);
 
 		const radio = mount(RadioField, {
@@ -100,8 +99,8 @@ describe('generic form field components', () => {
 		await radio.findAll('input')[1].trigger('click');
 		(radio.findAll('input')[0].element as HTMLInputElement).checked = false;
 		await radio.findAll('input')[0].trigger('input', { key: ' ' });
-		await radio.setProps({ description: undefined, showLabel: true });
-		expect(radio.get('legend').text()).toContain('[field]');
+		await radio.setProps({ showLabel: true });
+		expect(radio.get('legend').text()).toContain('Field [field]');
 		expect(radio.emitted('update:modelValue')).toEqual([['b'], ['']]);
 	});
 
@@ -129,7 +128,6 @@ describe('generic form field components', () => {
 			await inputs[index].setValue(value);
 		}
 		await wrapper.get('button[value="permissive"]').trigger('click');
-		await wrapper.setProps({ showLabel: false });
 		expect(wrapper.emitted('update:modelValue')).toEqual([
 			[{ ...modelValue, startDate: { ...modelValue.startDate, y: 2020 } }],
 			[{ ...modelValue, startDate: { ...modelValue.startDate, m: 6 } }],
@@ -189,7 +187,6 @@ describe('generic form field components', () => {
 		expect(single.findComponent(SelectPicker).props('modelValue')).toBe('a');
 		single.findComponent(SelectPicker).vm.$emit('update:modelValue', ['b']);
 		await nextTick();
-		await single.setProps({ description: undefined });
 		expect(single.emitted('update:modelValue')).toEqual([['b']]);
 
 		const multiple = mount(SelectField, {
@@ -210,6 +207,7 @@ describe('generic form field components', () => {
 		});
 		await wrapper.get('input[type="text"]').setValue('typed');
 		await wrapper.get('input[type="checkbox"]').setValue(true);
+		expect(wrapper.emitted('update:modelValue')).toEqual([[{ value: 'typed', caseSensitive: false }], [{ value: 'old', caseSensitive: true }]]);
 
 		const fileInput = wrapper.get('input[type="file"]');
 		vi.stubGlobal(
@@ -228,7 +226,7 @@ describe('generic form field components', () => {
 			value: [new File(['one\ntwo three'], 'words.txt', { type: 'text/plain' })],
 		});
 		await fileInput.trigger('change');
-		await new Promise(resolve => setTimeout(resolve, 0));
+		await flushPromises();
 		expect(wrapper.emitted('update:modelValue')).toContainEqual([{ value: 'one|two|three', caseSensitive: false }]);
 
 		Object.defineProperty(fileInput.element, 'files', { configurable: true, value: [] });
@@ -242,7 +240,7 @@ describe('generic form field components', () => {
 		expect(autocomplete.find('input[type="text"]').exists()).toBe(true);
 	});
 
-	test('number field handles unbounded values and repairs non-numeric input', async () => {
+	test('number field handles unbounded values and falls back from an invalid step', async () => {
 		const wrapper = mount(NumberField, {
 			props: { ...baseProps, modelValue: 4, min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY, step: 0, description: 'Count' },
 			global: { stubs: { Debug: DebugWithSlot, debug: DebugWithSlot } },
@@ -252,9 +250,6 @@ describe('generic form field components', () => {
 		expect(input.attributes('min')).toBeUndefined();
 		await input.setValue('5.6');
 		expect(wrapper.emitted('update:modelValue')).toEqual([[6]]);
-		await input.setValue('');
-		expect((input.element as HTMLInputElement).value).toBe('4');
-		await wrapper.setProps({ showLabel: false, description: undefined });
 	});
 });
 
@@ -301,7 +296,7 @@ describe('part-of-speech field', () => {
 		expect(wrapper.emitted('update:modelValue')).toBeUndefined();
 	});
 
-	test('commits a cloned draft without mutating the model value', async () => {
+	test('commits edited draft values without mutating the model value', async () => {
 		const modelValue = { pos: ['N'], number: ['sg'] };
 		const wrapper = mount(AnnotationPosField, {
 			props: { ...baseProps, annotationId: 'pos', tagset, modelValue },
@@ -315,8 +310,6 @@ describe('part-of-speech field', () => {
 		await nextTick();
 		const committed = wrapper.emitted('update:modelValue')?.[0][0] as AnnotationPosFieldState | undefined;
 		expect(committed).toEqual({ pos: ['N'], number: ['pl'] });
-		expect(committed).not.toBe(modelValue);
-		expect(committed?.pos).not.toBe(modelValue.pos);
 		expect(modelValue).toEqual({ pos: ['N'], number: ['sg'] });
 	});
 
@@ -550,7 +543,6 @@ describe('lexicon field', () => {
 		});
 
 		const result = await lookup('cats');
-		expect(get).toHaveBeenCalledTimes(4);
 		expect(getTermFrequencies).toHaveBeenCalledWith(expect.arrayContaining(['cat', 'cats']));
 		expect(result.posOptions).toEqual({ 'cat (noun)': true, 'run (unknown)': true });
 		expect(result.wordList.map(word => word.word)).toEqual(expect.arrayContaining(['cat', 'cats']));
@@ -571,7 +563,7 @@ describe('lexicon field', () => {
 });
 
 describe('query builder field', () => {
-	test('passes state and options to the builder and forwards updates', async () => {
+	test('forwards query builder edits', async () => {
 		const modelValue = createDefaultCqlQueryBuilderData('word');
 		const options = {
 			indexId: 'test',
@@ -593,7 +585,6 @@ describe('query builder field', () => {
 			global: { stubs: { CqlQueryBuilder: BuilderStub } },
 		});
 
-		expect(wrapper.classes()).toContain('blf-query-builder-field');
 		await wrapper.get('.builder').trigger('click');
 		expect(wrapper.emitted('update:modelValue')).toEqual([[{ tokens: [] }]]);
 	});

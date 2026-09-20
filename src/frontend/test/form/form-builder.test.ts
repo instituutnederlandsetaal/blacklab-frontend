@@ -39,13 +39,11 @@ function createSharedFieldGraph() {
 }
 
 describe('form graph builder editing', () => {
-	test('keeps every attached editor function non-enumerable and out of rendered props', () => {
+	test('keeps editor functions out of rendered props', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newContainer('parent', ContainerRenderer, {});
 		const editorKeys = ownFunctionKeys(parent);
 
-		expect(editorKeys.length).toBeGreaterThan(0);
-		for (const key of editorKeys) expect(Object.getOwnPropertyDescriptor(parent, key)?.enumerable).toBe(false);
 		const rendered = createTestRuntime(builder).renderableGraph();
 		expect(editorKeys.filter(key => Object.hasOwn(rendered.props, key))).toEqual([]);
 	});
@@ -149,16 +147,15 @@ describe('form graph builder editing', () => {
 		const left = builder.newContainer('left', ContainerRenderer, {});
 		const right = builder.newContainer('right', ContainerRenderer, {});
 		const shared = newTextField(builder, 'shared');
-		const leftContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'left-selected')!);
-		const rightContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'right-selected')!);
+		const leftContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'left')!);
+		const rightContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'right')!);
 		left.prependChild(shared, { outputWhenActive: leftContribution });
 		right.prependChild(shared, { outputWhenActive: rightContribution });
 		root.addChildren(left, right);
 
 		builder.replaceNode(shared.id, replacementTextField(shared.id));
 
-		expect(left.activeChildOutputProducers?.[shared.id]).toBe(leftContribution);
-		expect(right.activeChildOutputProducers?.[shared.id]).toBe(rightContribution);
+		expect(createTestRuntime(builder).compile(root.id).params.filter).toBe('(type:(left) AND type:(right))');
 	});
 
 	test('replaceNode rejects a replacement with a different id', () => {

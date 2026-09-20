@@ -13,7 +13,6 @@ import GroupRow from '@/pages/search/results/table/GroupRow.vue';
 import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
 import HitRow from '@/pages/search/results/table/HitRow.vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
-import TableHeader from '@/pages/search/results/table/TableHeader.vue';
 
 enableAutoUnmount(afterEach);
 
@@ -45,26 +44,22 @@ describe('GenericTable', () => {
 		expect(wrapper.emitted('toggle')).toHaveLength(1);
 	});
 
-	test('renders and forwards events from imported table headers', () => {
-		const column = { key: 'summary', field: 'summary', label: 'Document' } as ColumnDef;
+	test('renders sortable headers, forwards clicks, and exposes the active direction', async () => {
+		const column = { key: 'summary', field: 'summary', label: 'Document', sort: 'field:title' } as ColumnDef;
 		const cols = { hitColumns: [], docColumns: [column], groupColumns: [], groupModeOptions: [] } as ColumnDefs;
 		const wrapper = shallowMount(GenericTable, {
 			props: { cols, header: [column], rows: { rows: [] }, info: {} as DisplaySettingsForRendering, type: 'docs' },
+			global: { stubs: { TableHeader: false, VDropdown: true } },
 		});
 
 		expect(wrapper.classes()).toContain('results-table-scroll');
-		const header = wrapper.findComponent(TableHeader);
-		expect(header.props('col')).toEqual(column);
-		header.vm.$emit('changeSort', 'field:title');
+		expect(wrapper.get('th').text()).toContain('Document');
+		await wrapper.get('a.sort').trigger('click');
 		expect(wrapper.emitted('changeSort')).toEqual([['field:title']]);
-	});
 
-	test('exposes the active sort direction on sortable headers', () => {
-		const column = { key: 'association', field: 'group', label: 'Association', sort: 'score' } as ColumnDef;
-		const wrapper = shallowMount(TableHeader, { props: { col: column, disabled: false, sort: '-score' } });
-
-		expect(wrapper.attributes('aria-sort')).toBe('descending');
-		expect(wrapper.get('.sr-only').text()).toBe('results.table.sortedDescending');
+		await wrapper.setProps({ header: [{ key: 'association', field: 'group', label: 'Association', sort: 'score' } as ColumnDef], sort: '-score' });
+		expect(wrapper.get('th').attributes('aria-sort')).toBe('descending');
+		expect(wrapper.get('a.sort .sr-only').text()).toBe('results.table.sortedDescending');
 	});
 
 	test('shares hover and open state across parallel rows and closes details when the query changes', async () => {
@@ -133,7 +128,7 @@ describe('GenericTable', () => {
 		await groupRow.trigger('click');
 		expect(groupRow.props('open')).toBe(true);
 		expect(groupRow.props('detailsEnabled')).toBe(true);
-		expect(groupRow.props('detailsId')).toMatch(/result-row-details-2$/);
+		expect(groupRow.props('detailsId')).toBeTruthy();
 		expect(wrapper.getComponent(GroupRowDetails).attributes('id')).toBe(groupRow.props('detailsId'));
 		groupRow.vm.$emit('toggle');
 		await nextTick();

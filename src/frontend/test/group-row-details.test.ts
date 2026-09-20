@@ -42,16 +42,11 @@ beforeEach(() => {
 		mock.requests.push(request);
 		return request.promise;
 	});
-	mock.api.getCollocations.mockImplementation(() => {
-		const request = deferredRequest();
-		mock.requests.push(request);
-		return request.promise;
-	});
 	mock.makeRows.mockImplementation(() => ({ rows: Array.from({ length: 11 }, () => ({ type: 'hit' })) }));
 });
 
 describe('GroupRowDetails', () => {
-	test('preserves sampling while overriding the detail range, group, and sort without rendering debug text', async () => {
+	test('preserves sampling while overriding the detail range, group, and sort', async () => {
 		const wrapper = shallowMount(GroupRowDetails, {
 			props: {
 				row: { id: 'group-id', size: 50 } as never,
@@ -80,7 +75,6 @@ describe('GroupRowDetails', () => {
 
 		expect(mock.api.getHits.mock.calls[1][1]).toMatchObject({ first: 20, number: 20, viewgroup: 'group-id', sample: 10, sampleseed: 3 });
 		expect(wrapper.text()).toContain('results.table.loading');
-		expect(wrapper.text()).not.toContain('HOI');
 	});
 
 	test('converts a collocation group to a hits request for inline context previews', async () => {
@@ -147,13 +141,16 @@ describe('GroupRowDetails', () => {
 		expect(mock.api.getHits.mock.calls[1][1]).toMatchObject({ first: 0, filter: 'author:Austen', viewgroup: 'group-id' });
 		mock.requests[1].resolve({});
 		await flush();
-		const rows = wrapper.findComponent({ name: 'GenericTable' }).props('rows');
+		const loadedRows = wrapper
+			.findComponent({ name: 'GenericTable' })
+			.props('rows')
+			.rows.map((row: object) => ({ ...row }));
 		await wrapper.get('.concordance-controls .btn-default').trigger('click');
 		mock.requests[2].reject(new Error('Temporary failure'));
 		await flush();
 		await wrapper.get('.retry-concordances').trigger('click');
 		expect(mock.api.getHits.mock.calls[3][1]).toMatchObject({ first: 20, filter: 'author:Austen', viewgroup: 'group-id' });
-		expect(wrapper.findComponent({ name: 'GenericTable' }).props('rows')).toBe(rows);
+		expect(wrapper.findComponent({ name: 'GenericTable' }).props('rows').rows).toEqual(loadedRows);
 		mock.requests[3].resolve({});
 		await flush();
 		expect(wrapper.find('.retry-concordances').exists()).toBe(false);

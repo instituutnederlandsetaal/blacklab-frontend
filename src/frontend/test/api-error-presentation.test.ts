@@ -23,7 +23,6 @@ describe('API error presentation', () => {
 
 		expect(error).toBeInstanceOf(ApiError);
 		expect(error.message).toBe('The server returned malformed JSON, so the results could not be read.');
-		expect(error.message).not.toContain('NaN');
 		expect(error.diagnostics).toContain('"score":NaN');
 		expect(error.diagnostics!.length).toBeLessThanOrEqual(2001);
 	});

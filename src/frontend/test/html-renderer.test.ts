@@ -1,13 +1,18 @@
 // @vitest-environment jsdom
 
-import { mount } from '@vue/test-utils';
-import { describe, expect, test, vi } from 'vitest';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
+
+enableAutoUnmount(afterEach);
+afterEach(() => {
+	delete document.body.dataset.rendererScript;
+});
 
 async function settleContentRender() {
 	await nextTick();
@@ -47,27 +52,20 @@ describe('HtmlRenderer', () => {
 		await wrapper.setProps({ content: Loadable.Loaded('<p class="probe">Rendered content</p>') });
 		await settleContentRender();
 
-		expect(wrapper.find('.probe').text()).toBe('Rendered content');
 		expect(events).toEqual(['ready', 'settled']);
-		expect(wrapper.emitted('ready')).toHaveLength(1);
-		expect(wrapper.emitted('settled')).toHaveLength(1);
 	});
 
 	test('settles errors after their live DOM is rendered without emitting ready', async () => {
-		const ready = vi.fn();
-		const settled = vi.fn();
+		const settled = vi.fn(() => expect(wrapper.get('.text-danger').text()).toBe('Could not render'));
 		const wrapper = mount(HtmlRenderer, {
-			props: { content: Loadable.Loading(), onReady: ready, onSettled: settled },
+			props: { content: Loadable.Loading(), onSettled: settled },
 		});
 
 		await wrapper.setProps({ content: Loadable.LoadingError(new ApiError('Error', 'Could not render', 'Error', 500)) });
 		await settleContentRender();
 
-		expect(wrapper.get('.text-danger').text()).toBe('Could not render');
-		expect(ready).not.toHaveBeenCalled();
 		expect(settled).toHaveBeenCalledOnce();
 		expect(wrapper.emitted('ready')).toBeUndefined();
-		expect(wrapper.emitted('settled')).toHaveLength(1);
 	});
 
 	test('renders bare HTML elements', async () => {
@@ -99,21 +97,24 @@ describe('HtmlRenderer', () => {
 
 	test('does not activate script elements by default', async () => {
 		const wrapper = mount(HtmlRenderer, {
+			attachTo: document.body,
 			props: {
-				content: Loadable.Loaded('<p>Before</p><script>window.__serverRenderedContentProbe = true;</script>'),
+				content: Loadable.Loaded('<p>Before</p><script>document.body.dataset.rendererScript = "executed";</script>'),
 				parseStringAsHtml: true,
 			},
 		});
 
 		await settleContentRender();
 
-		expect(wrapper.get('script').text()).toContain('__serverRenderedContentProbe');
+		expect(wrapper.get('script').text()).toContain('rendererScript');
+		expect(document.body.dataset.rendererScript).toBeUndefined();
 	});
 
 	test('activates script elements when explicitly enabled', async () => {
 		const wrapper = mount(HtmlRenderer, {
+			attachTo: document.body,
 			props: {
-				content: Loadable.Loaded('<p>Before</p><script data-probe="yes">window.__serverRenderedContentProbe = true;</script>'),
+				content: Loadable.Loaded('<p>Before</p><script data-probe="yes">document.body.dataset.rendererScript = "executed";</script>'),
 				executeScripts: true,
 				parseStringAsHtml: true,
 			},
@@ -123,6 +124,6 @@ describe('HtmlRenderer', () => {
 
 		const script = wrapper.get('script[data-probe="yes"]');
 		expect(script.attributes('data-probe')).toBe('yes');
-		expect(script.text()).toContain('__serverRenderedContentProbe');
+		expect(document.body.dataset.rendererScript).toBe('executed');
 	});
 });

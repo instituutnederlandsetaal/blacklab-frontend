@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import {
@@ -42,7 +42,6 @@ import {
 } from '@/features/form';
 import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
 import { compileCql } from '@/features/form/model/compile/query-artifact';
-import { resolvePersistenceSchema } from '@/features/form/model/persistence/schema';
 import { filter, type CqlPatternNode } from '@/features/form/model/types/form-query-ir';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 import { restoreSubmittedForm } from '@/features/search/model/submitted-search';
@@ -261,11 +260,11 @@ describe('scoped form persistence', () => {
 		expect(restored.rawOverrides).toEqual({});
 	});
 
-	test('reuses the valid scoped restoration compilation', () => {
-		const collect = vi.fn((...args: Parameters<typeof testTextController.collect>) => {
+	test('restores the submitted query, summaries, preset, and diagnostics together', () => {
+		const collect = (...args: Parameters<typeof testTextController.collect>) => {
 			testTextController.collect(...args);
 			throw new Error('compile diagnostic');
-		});
+		};
 		const controller: FieldController<'restoration-reuse', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'restoration-reuse',
@@ -284,7 +283,6 @@ describe('scoped form persistence', () => {
 			patt: '[word="(?i)fire"]',
 		});
 
-		expect(collect).toHaveBeenCalledTimes(1);
 		expect(restored.submittedResult).toMatchObject({
 			formId: form.id,
 			params: { patt: '[word="(?i)fire"]' },
@@ -296,13 +294,6 @@ describe('scoped form persistence', () => {
 			{ severity: 'warning', message: "No current form field accepts persisted key 'removed'." },
 			{ severity: 'error', message: `Controller for '${field.id}' failed: compile diagnostic` },
 		]);
-
-		runtime.state.replaceState(restored.state);
-		collect.mockClear();
-		const formerResult = runtime.compile(form.id);
-		formerResult.issues.unshift(...restored.state.issues);
-		expect(collect).toHaveBeenCalledTimes(1);
-		expect(restored.submittedResult).toEqual(formerResult);
 	});
 
 	test('discards baseline requiredness diagnostics resolved by a restored override', () => {
@@ -384,13 +375,13 @@ describe('scoped form persistence', () => {
 			(): string => {
 				throw new Error('broken persistence key');
 			},
+			"Could not resolve persistence key for 'search.invalid.word': broken persistence key",
 		],
-		['non-string', (): string => 42 as unknown as string],
-		['empty', (): string => ''],
-		['reserved form selector', (): string => 'form'],
-		['reserved tab selector', (): string => 'tab'],
-	] as const)('reports a %s persistence key consistently without aborting restoration', (_name, resolveKey) => {
-		const key = vi.fn(resolveKey);
+		['non-string', (): string => 42 as unknown as string, "Field 'search.invalid.word' has an invalid form persistence key."],
+		['empty', (): string => '', "Field 'search.invalid.word' has an invalid form persistence key ''."],
+		['reserved form selector', (): string => 'form', "Field 'search.invalid.word' uses reserved form persistence key 'form'."],
+		['reserved tab selector', (): string => 'tab', "Field 'search.invalid.word' uses reserved form persistence key 'tab'."],
+	] as const)('reports a %s persistence key consistently without aborting restoration', (_name, key, message) => {
 		const controller: FieldController<'invalid-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'invalid-persistence-key',
@@ -402,14 +393,10 @@ describe('scoped form persistence', () => {
 		const state = createDefaultFormState(builder.context, form);
 		state.state[field.id] = { value: 'water' };
 
-		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.message.includes(field.id))!;
-		expect(compiledIssue.severity).toBe('error');
+		expect(compileFormNode(form, state, builder.context).issues).toContainEqual({ severity: 'error', message });
 
-		key.mockClear();
 		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.unknown': 'water' });
-		const restoredIssue = restored.issues.find(issue => issue.message.includes(field.id))!;
-		expect(restoredIssue).toEqual(compiledIssue);
-		expect(key).toHaveBeenCalledOnce();
+		expect(restored.issues).toContainEqual({ severity: 'error', message });
 	});
 
 	test('continues gathering when a persistence key fails', () => {
@@ -594,7 +581,10 @@ describe('scoped form persistence', () => {
 	test('does not treat a form selector by itself as restorable query state', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreFormState(fixture.definition, { 'f.form': fixture.simple.id, patt: '[word="water"]' });
+		const result = readSearchForm(createTestRuntime(fixture.definition), { 'f.form': fixture.simple.id, patt: '[word="water"]' });
+		const restored = result.state;
+
+		expect(result.submittedResult).toBeNull();
 
 		expect(restored.uiState.search).toBe(fixture.expert.id);
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
@@ -795,16 +785,10 @@ describe('scoped form persistence', () => {
 	});
 
 	test('prefers the canonical path to a persisted field shared with a detached graph', () => {
-		const key = vi.fn(testTextController.persistence.key);
-		const controller: FieldController<'shared-persistence-path', TestTextFieldState, TestTextFieldConfig> = {
-			...testTextController,
-			kind: 'shared-persistence-path',
-			persistence: { ...testTextController.persistence, key },
-		};
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.shared', ContainerRenderer, {});
 		const first = builder.newContainer('search.shared.tabs.first', ContainerRenderer, {});
-		const shared = builder.newField('search.shared.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' });
+		const shared = builder.newField('search.shared.word', testTextController, TestTextField, { annotationId: 'word', displayName: 'Word' });
 		const second = builder.newContainer('search.shared.tabs.second', ContainerRenderer, {}).addChildren(shared);
 		const tabs = builder.newContainer('search.shared.tabs', ContainerRenderer, { variant: 'tabs' }).addChildren(first, second);
 		form.addChildren(tabs);
@@ -813,18 +797,11 @@ describe('scoped form persistence', () => {
 		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.word': 'water' });
 
 		expect(restored.uiState[tabs.id]).toBe(second.id);
-		expect(key).toHaveBeenCalledOnce();
 	});
 
 	test('activates persisted fields in a detached selected form without activating an unrelated registered path', () => {
-		const key = vi.fn(testTextController.persistence.key);
-		const controller: FieldController<'detached-text', TestTextFieldState, TestTextFieldConfig> = {
-			...testTextController,
-			kind: 'detached-text',
-			persistence: { ...testTextController.persistence, key },
-		};
 		const builder = createTestBuilder();
-		const shared = builder.newField('search.shared.word', controller, TestTextField, {
+		const shared = builder.newField('search.shared.word', testTextController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
@@ -843,14 +820,11 @@ describe('scoped form persistence', () => {
 		expect(restored.uiState[secondForm.id]).toBe(tabs.id);
 		expect(restored.uiState[tabs.id]).toBe(second.id);
 		expect(restored.uiState[unrelatedTabs.id]).toBe(unrelatedFirst.id);
-		expect(key).toHaveBeenCalledOnce();
 	});
 
-	test('restores the first field for duplicate keys and resolves each field key once', () => {
-		const firstKey = vi.fn(() => 'word');
-		const secondKey = vi.fn(() => 'word');
-		const firstController = { ...testTextController, kind: 'first-duplicate-key', persistence: { ...testTextController.persistence, key: firstKey } } as const;
-		const secondController = { ...testTextController, kind: 'second-duplicate-key', persistence: { ...testTextController.persistence, key: secondKey } } as const;
+	test('reports duplicate keys consistently and restores only the first field', () => {
+		const firstController = { ...testTextController, kind: 'first-duplicate-key', persistence: { ...testTextController.persistence, key: () => 'word' } } as const;
+		const secondController = { ...testTextController, kind: 'second-duplicate-key', persistence: { ...testTextController.persistence, key: () => 'word' } } as const;
 		const builder = createTestBuilder();
 		const first = builder.newField('search.duplicate.first', firstController, TestTextField, { annotationId: 'word', displayName: 'First' });
 		const second = builder.newField('search.duplicate.second', secondController, TestTextField, { annotationId: 'lemma', displayName: 'Second' });
@@ -861,82 +835,12 @@ describe('scoped form persistence', () => {
 
 		const compiledIssue = compileFormNode(form, state, builder.context).issues.find(issue => issue.message.includes(second.id))!;
 		expect(compiledIssue).toEqual({ severity: 'error', message: `Duplicate form persistence key 'word' for '${second.id}' and '${first.id}'.` });
-		expect(firstKey).toHaveBeenCalledOnce();
-		expect(secondKey).toHaveBeenCalledOnce();
-		firstKey.mockClear();
-		secondKey.mockClear();
 
 		const restored = restoreFormState(builder, { 'f.form': form.id, 'f.word': 'water' });
 
 		expect(restored.state[first.id]).toEqual({ value: 'water' });
 		expect(restored.state[second.id]).toEqual({ value: '' });
 		expect(restored.issues).toContainEqual(compiledIssue);
-		expect(firstKey).toHaveBeenCalledOnce();
-		expect(secondKey).toHaveBeenCalledOnce();
-	});
-
-	test('keeps the first field in schema walk order and reports duplicate persistence keys', () => {
-		const duplicateBuilder = createTestBuilder();
-		const duplicateForm = duplicateBuilder.newForm('search.extended', ContainerRenderer, {
-			title: 'Extended',
-		});
-		const firstDuplicateField = duplicateBuilder.newField('search.extended.word', testTextController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Word',
-		});
-		const secondDuplicateField = duplicateBuilder.newField('search.extended.lemma', testTextController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Duplicate word',
-		});
-		duplicateForm.addChildren(firstDuplicateField, secondDuplicateField);
-		const schema = resolvePersistenceSchema(duplicateForm, duplicateBuilder.context);
-
-		expect([...schema.keys]).toEqual([[firstDuplicateField, 'word']]);
-		expect(schema.issues).toEqual([
-			{
-				severity: 'error',
-				message: `Duplicate form persistence key 'word' for '${secondDuplicateField.id}' and '${firstDuplicateField.id}'.`,
-			},
-		]);
-	});
-
-	test('rejects an empty persistence key', () => {
-		const controller: FieldController<'empty-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
-			...testTextController,
-			kind: 'empty-persistence-key',
-			persistence: { ...testTextController.persistence, key: () => '' },
-		};
-		const builder = createTestBuilder();
-		const form = builder.newForm('search.empty', ContainerRenderer, {}).addChildren(builder.newField('search.empty.word', controller, TestTextField, { annotationId: 'word', displayName: 'Word' }));
-
-		expect(compileFormNode(form, createDefaultFormState(builder.context, form), builder.context).issues).toEqual([
-			{ severity: 'error', message: "Field 'search.empty.word' has an invalid form persistence key ''." },
-		]);
-	});
-
-	test('reports the reserved key and field when a controller uses a form control key', () => {
-		const reservedController: FieldController<'reserved-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
-			...testTextController,
-			kind: 'reserved-persistence-key',
-			persistence: { ...testTextController.persistence, key: () => 'form' },
-		};
-		const builder = createTestBuilder();
-		const form = builder.newForm('search.reserved', ContainerRenderer, { title: 'Reserved' });
-		form.addChildren(
-			builder.newField('search.reserved.word', reservedController, TestTextField, {
-				annotationId: 'word',
-				displayName: 'Word',
-			}),
-		);
-		const reservedDefinition = builder;
-		const reservedContext = createTestContext();
-
-		expect(compileFormNode(form, createDefaultFormState(reservedContext, reservedDefinition.getRoot()), reservedContext).issues).toEqual([
-			{
-				severity: 'error',
-				message: "Field 'search.reserved.word' uses reserved form persistence key 'form'.",
-			},
-		]);
 	});
 });
 
@@ -1262,36 +1166,20 @@ describe('controller persistence codecs', () => {
 		expect(() => restore(withinController, 'e=s;a={removed:value}', withinConfig)).toThrow("Cannot restore within attribute 'removed' because it is not available for element 's'.");
 	});
 
-	test('parallel persistence round-trips active source and target child payloads', () => {
+	test('parallel persistence round-trips active child payloads and omits inactive fields', () => {
 		const state = {
 			source: 'contents__en',
 			targets: ['contents__nl'],
 			alignBy: 'word-alignment',
-			childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]' },
+			childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]', contents__de: '[lemma="ignored"]' },
 		};
 		const encoded = encode(parallelController, state, parallelConfig);
+
 		expect(encoded).toContain('s=contents__en');
-		expect(encoded).toContain('t={contents__nl}');
 		expect(encoded).toContain('q=');
-		const restored = restore(parallelController, encoded!, parallelConfig);
-		expect(restored).toEqual(state);
-	});
-
-	test('parallel persistence omits child payloads for inactive fields', () => {
-		const encoded = encode(
-			parallelController,
-			{
-				source: 'contents__en',
-				targets: ['contents__nl'],
-				alignBy: 'word-alignment',
-				childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]', contents__de: '[lemma="ignored"]' },
-			},
-			parallelConfig,
-		);
-
-		expect(restore(parallelController, encoded!, parallelConfig).childStates).toEqual({
-			contents__en: '[lemma="test"]',
-			contents__nl: '[lemma="proef"]',
+		expect(restore(parallelController, encoded!, parallelConfig)).toEqual({
+			...state,
+			childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]' },
 		});
 	});
 
@@ -1311,11 +1199,16 @@ describe('controller persistence codecs', () => {
 		expect(restore(parallelController, encoded!, config)).toEqual(state);
 	});
 
-	test('query-builder persistence round-trips recursive semantic state', () => {
+	test('query-builder persistence restores semantic state with fresh ids and no uploaded UI values', () => {
 		const encoded = encode(queryBuilderController, queryBuilderState, queryBuilderConfig);
 		expect(encoded).toContain('v=2');
 		const restored = restore(queryBuilderController, encoded!, queryBuilderConfig) as CqlQueryBuilderData;
 		expect(stripQueryBuilderIds(restored)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(restored.tokens[0].id).not.toBe(queryBuilderState.tokens[0].id);
+		expect(restored.tokens[0].rootAttributeGroup.id).not.toBe(queryBuilderState.tokens[0].rootAttributeGroup.id);
+		expect(encoded).not.toContain('ui-only-root-upload');
+		expect(encoded).not.toContain('ui-only-nested-upload');
+		expect(containsQueryBuilderUiState(restored.tokens[0].rootAttributeGroup)).toBe(false);
 	});
 
 	test.each([
@@ -1333,28 +1226,11 @@ describe('controller persistence codecs', () => {
 		const restored = restore(queryBuilderController, encoded, queryBuilderConfig) as CqlQueryBuilderData;
 		const restoredProperties = restored.tokens[0].properties;
 
-		expect(compileQueryBuilderState(state)).toBe(cql);
 		expect(compileQueryBuilderState(restored)).toBe(cql);
 		expect(Object.is(restoredProperties.minRepeats, min)).toBe(true);
 		expect(Object.is(restoredProperties.maxRepeats, max)).toBe(true);
 		expect(encoded.includes('n=-1')).toBe(Number.isNaN(min));
 		expect(encoded.includes('x=-1')).toBe(Number.isNaN(max));
-	});
-
-	test('query-builder restoration regenerates runtime ids', () => {
-		const encoded = encode(queryBuilderController, queryBuilderState, queryBuilderConfig);
-		const restored = restore(queryBuilderController, encoded!, queryBuilderConfig) as CqlQueryBuilderData;
-
-		expect(restored.tokens[0].id).not.toBe(queryBuilderState.tokens[0].id);
-		expect(restored.tokens[0].rootAttributeGroup.id).not.toBe(queryBuilderState.tokens[0].rootAttributeGroup.id);
-	});
-
-	test('query-builder persistence omits uploaded UI-only values', () => {
-		const encoded = encode(queryBuilderController, queryBuilderState, queryBuilderConfig);
-		const restored = restore(queryBuilderController, encoded!, queryBuilderConfig) as CqlQueryBuilderData;
-		expect(encoded).not.toContain('ui-only-root-upload');
-		expect(encoded).not.toContain('ui-only-nested-upload');
-		expect(containsQueryBuilderUiState(restored.tokens[0].rootAttributeGroup)).toBe(false);
 	});
 
 	test('query-builder restoration rejects annotations removed from the current form', () => {

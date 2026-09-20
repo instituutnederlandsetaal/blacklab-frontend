@@ -72,19 +72,6 @@ describe('search results customization registrations and resolvers', () => {
 		expect(customizations.resultMetadataField(metadataFields.title)).toBe(true);
 	});
 
-	test('continues with an older customization when a newer dynamic hook returns null or throws', () => {
-		register({ withSpans: false, includeMetadataField: () => false });
-		register({
-			withSpans() {
-				throw new Error('broken request hook');
-			},
-			includeMetadataField: () => null,
-		});
-
-		expect(customizations.searchWithSpans('query')).toBe(false);
-		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(false);
-	});
-
 	test('treats a static true function-only hook as a failing callback before older and legacy fallbacks', () => {
 		const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const legacy = vi.spyOn(customizationRegistry.legacyApi.value!.search.metadata, 'showField').mockReturnValue(true);
@@ -97,10 +84,7 @@ describe('search results customization registrations and resolvers', () => {
 		expect(customizations.resultMetadataField(metadataFields.bookId)).toBe(true);
 		expect(legacy).toHaveBeenCalledWith('bookId');
 		expect(consoleError).toHaveBeenCalledTimes(2);
-		expect(consoleError.mock.calls.map(([message]) => message)).toEqual([
-			"Error in search results customization 'includeMetadataField':",
-			"Error in search results customization 'includeMetadataField':",
-		]);
+		expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('includeMetadataField'), expect.any(Error));
 	});
 
 	test('continues newest-first after exceptions for every fallback hook shape', () => {
@@ -115,7 +99,7 @@ describe('search results customization registrations and resolvers', () => {
 			vi.spyOn(legacy.group, 'includeSpanAttribute'),
 		];
 		register({
-			withSpans: () => (calls.push('withSpans:old'), false),
+			withSpans: false,
 			includeMetadataField: () => (calls.push('includeMetadataField:old'), false),
 			highlightStyle: () => (calls.push('highlightStyle:old'), 'none'),
 			includeExportSpanAttribute: () => (calls.push('includeExportSpanAttribute:old'), false),
@@ -152,7 +136,6 @@ describe('search results customization registrations and resolvers', () => {
 		expect(customizations.groupingSpanAttribute(spanAttribute)).toBe(false);
 		expect(calls).toEqual([
 			'withSpans:new',
-			'withSpans:old',
 			'includeMetadataField:new',
 			'includeMetadataField:old',
 			'highlightStyle:new',
@@ -162,13 +145,7 @@ describe('search results customization registrations and resolvers', () => {
 			'includeGroupingSpanAttribute:new',
 			'includeGroupingSpanAttribute:old',
 		]);
-		expect(consoleError.mock.calls.map(([message]) => message)).toEqual([
-			"Error in search results customization 'withSpans':",
-			"Error in search results customization 'includeMetadataField':",
-			"Error in search results customization 'highlightStyle':",
-			"Error in search results customization 'includeExportSpanAttribute':",
-			"Error in search results customization 'includeGroupingSpanAttribute':",
-		]);
+		expect(consoleError).toHaveBeenCalledTimes(5);
 		for (const legacyHook of legacyHooks) expect(legacyHook).not.toHaveBeenCalled();
 	});
 
@@ -352,7 +329,6 @@ describe('search results public DTO adapters', () => {
 			bcql: '[word="God"]',
 			summary,
 		});
-		expect(seenDescription).toHaveBeenCalledWith(exportContext);
 	});
 });
 

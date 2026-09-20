@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
+
 import { createMockApi, rejectedRequest, resolvedRequest } from '@test/mocks/api';
 import { filter, firstValueFrom, map, type Observable } from 'rxjs';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, type EffectScope } from 'vue';
 
 import type { Input } from '@/pages/article/article';
@@ -40,18 +42,6 @@ afterEach(() => {
 	scope.stop();
 });
 
-beforeAll(() => {
-	vi.stubGlobal('document', {
-		createElement: () => ({
-			innerHTML: '',
-			querySelectorAll: () => [],
-		}),
-	});
-});
-
-afterAll(() => {
-	vi.unstubAllGlobals();
-});
 const mock_hit_in_doc: BLHitInDoc = {
 	after: { punct: [] },
 	before: { punct: [] },
@@ -136,7 +126,7 @@ function hitResultsAt(...starts: number[]): BLHitResults {
 	};
 }
 
-function createTestStreams(hits: BLHitResults = values.MOCK_HITS) {
+function createTestStreams(hits: BLHitResults = values.MOCK_HITS, contents = '') {
 	const { blacklabApi: blacklab, frontendApi: frontend } = createMockApi({
 		blacklab: {
 			getHits: hits,
@@ -144,7 +134,7 @@ function createTestStreams(hits: BLHitResults = values.MOCK_HITS) {
 			getSnippet: hits.hits[0] ?? values.MOCK_HITS.hits[0],
 		},
 		frontend: {
-			getDocumentContents: '',
+			getDocumentContents: contents,
 			getDocumentMetadata: '<dl><dt>title</dt><dd>Test</dd></dl>',
 		},
 	});
@@ -165,16 +155,10 @@ const baseInputs: Input = {
 };
 
 describe('hits$', () => {
-	test('should be empty initially', () => {
-		const { hits$ } = createTestStreams();
-		const hitsOutput = loadableFromStream(hits$);
-
-		expect(hitsOutput).toMatchObject({ state: LoadableState.empty });
-	});
-
-	test('Should find the hits', async () => {
+	test('loads document hit ranges from an empty state', async () => {
 		const { hits$, input$ } = createTestStreams();
 		const hitsOutput = loadableFromStream(hits$);
+		expect(hitsOutput.state).toBe(LoadableState.empty);
 
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(hits$);
@@ -187,6 +171,8 @@ describe('hits$', () => {
 		const { hits$, input$ } = createTestStreams();
 		const hitsOutput = loadableFromStream(hits$);
 
+		input$.next(baseInputs);
+		await promiseFromLoadableStream(hits$);
 		input$.next({ ...baseInputs, docId: undefined });
 		await promiseFromLoadableStream(hits$);
 
@@ -199,6 +185,8 @@ describe('hits$', () => {
 		const { hits$, input$ } = createTestStreams();
 		const hitsOutput = loadableFromStream(hits$);
 
+		input$.next(baseInputs);
+		await promiseFromLoadableStream(hits$);
 		input$.next({ ...baseInputs, indexId: undefined });
 		await promiseFromLoadableStream(hits$);
 
@@ -209,7 +197,7 @@ describe('hits$', () => {
 });
 
 describe('metadata$', () => {
-	test('Should be empty initially', async () => {
+	test('loads document JSON and metadata HTML after receiving a document', async () => {
 		const { metadata$, input$ } = createTestStreams();
 		const output = loadableFromStream(metadata$);
 
@@ -219,12 +207,6 @@ describe('metadata$', () => {
 		expect(output.state).toBe(LoadableState.empty);
 		expect(output.value).toBeUndefined();
 		expect(output.error).toBeUndefined();
-	});
-
-	test('Should load the metadata', async () => {
-		const { metadata$, input$ } = createTestStreams();
-		const output = loadableFromStream(metadata$);
-
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(metadata$);
 
@@ -236,7 +218,7 @@ describe('metadata$', () => {
 });
 
 describe('validPaginationParameters$', () => {
-	test('Should be empty initially', () => {
+	test('waits for a document and chooses the page containing the selected hit', async () => {
 		const { validPaginationParameters$, input$ } = createTestStreams();
 		const output = loadableFromStream(validPaginationParameters$);
 
@@ -245,12 +227,6 @@ describe('validPaginationParameters$', () => {
 		expect(output.state).toBe(LoadableState.empty);
 		expect(output.value).toBeUndefined();
 		expect(output.error).toBeUndefined();
-	});
-
-	test('Should fix the pagination parameters to match the findHit', async () => {
-		const { validPaginationParameters$, input$ } = createTestStreams();
-		const output = loadableFromStream(validPaginationParameters$);
-
 		input$.next({
 			...baseInputs,
 			findhit: values.MOCK_HITS.hits[0].start,
@@ -367,15 +343,17 @@ describe('hitToHighlight$', () => {
 		});
 	});
 
-	test('Should retain the midpoint exact match for duplicate hit starts', async () => {
+	test('selects a visible matching hit when multiple hits share a start', async () => {
 		const duplicateHits = hitResultsAt(53, 53, 125);
-		const { hitToHighlight$, input$ } = createTestStreams(duplicateHits);
+		const { hitToHighlight$, input$ } = createTestStreams(duplicateHits, '<span class="hl">first</span><span class="hl">second</span>');
 		const output = loadableFromStream(hitToHighlight$);
 
 		input$.next({ ...baseInputs, findhit: 53 });
 		await promiseFromLoadableStream(hitToHighlight$);
 
-		expect(output.value).toMatchObject({ totalHits: 3, hitIndexToHighlight: 1 });
+		expect(output.value).toMatchObject({ totalHits: 3, isHitVisible: true });
+		expect(duplicateHits.hits[output.value!.hitIndexToHighlight].start).toBe(53);
+		expect(output.value!.hl?.textContent).toBe(['first', 'second'][output.value!.hitIndexToHighlight]);
 	});
 
 	test('Should handle an empty hit list', async () => {

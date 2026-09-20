@@ -257,7 +257,7 @@ describe('Results tabs', () => {
 });
 
 describe('ResultsView', () => {
-	test('derives page labels and highlighting from its own custom range with a live preference', async () => {
+	test('keeps custom range highlighting while page labels and clicks follow the live page-size preference', async () => {
 		const global = mock.globalState as { pageSize: number };
 		mock.store!.actions.range({ first: 45, number: 30 });
 		const { plugin } = searchStatePlugin();
@@ -273,6 +273,13 @@ describe('ResultsView', () => {
 		expect(pagination.props()).toMatchObject({ page: 0, page2: 1, maxPage: 2 });
 		expect(table.props('info').selectedRange).toEqual({ first: 45, number: 30 });
 		expect(mock.api.getHits.mock.calls.at(-1)?.[1]).toMatchObject({ first: 0, number: 100 });
+
+		mock.requests.at(-1)!.resolve(result('first', 205));
+		await flush();
+		pagination.vm.$emit('change', 3);
+		await nextTick();
+		expect(mock.store!.get.selectedRange()).toEqual({ first: 150, number: 50 });
+		expect(mock.api.getHits.mock.calls.at(-1)?.[1]).toMatchObject({ first: 150, number: 50 });
 	});
 
 	test('changes display mode without refetching and requests a newly submitted query', async () => {
@@ -469,7 +476,7 @@ describe('ResultsView', () => {
 		expect(wrapper.findAll('.btn-group button').map(button => button.text())).not.toEqual(expect.arrayContaining(['table', 'hits']));
 		const totalsRequest = wrapper.findComponent({ name: 'Totals' }).props('executedRequest') as { operation: string; params: object };
 		expect(totalsRequest.operation).toBe('collocations');
-		expect(totalsRequest.params).toBe(executedParams);
+		expect(totalsRequest.params).toEqual(executedParams);
 
 		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('changeSort', 'size');
 		expect(mock.store.getState().sort).toBe('size');
@@ -691,18 +698,4 @@ test('does not request documents before active search parameters are available',
 	});
 	await flush();
 	expect(mock.api.getDocs).not.toHaveBeenCalled();
-});
-
-test('uses the displayed page size for page clicks when the preference has changed', async () => {
-	mock.store!.actions.range({ first: 40, number: 20 });
-	const wrapper = mountView();
-	mock.requests[0].resolve(result('first'));
-	await flush();
-	(mock.globalState as { pageSize: number }).pageSize = 50;
-	await nextTick();
-	const pagination = wrapper.findComponent({ name: 'Pagination' });
-	expect(pagination.props('page')).toBe(0);
-	pagination.vm.$emit('change', 3);
-	await nextTick();
-	expect(mock.store!.getState()).toMatchObject({ first: 150, number: 50 });
 });

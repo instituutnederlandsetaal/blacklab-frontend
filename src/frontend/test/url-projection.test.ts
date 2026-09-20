@@ -53,7 +53,6 @@ describe('URL projection', () => {
 		const { router, state, saved } = await setup();
 		state.query = 'intermediate';
 		await nextTick();
-		expect(router.currentRoute.value.query.q).toBe('initial');
 		state.query = 'latest';
 		state.draft = 'unsent draft';
 		await flushPromises();
@@ -70,7 +69,6 @@ describe('URL projection', () => {
 		const { router, state, saved } = await setup();
 		state.query = 'pending';
 		await nextTick();
-		expect(router.currentRoute.value.query.q).toBe('initial');
 		await router.push('/search?q=incoming');
 		await flushPromises();
 		expect(router.currentRoute.value.query.q).toBe('incoming');

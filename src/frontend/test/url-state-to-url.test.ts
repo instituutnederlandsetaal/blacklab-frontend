@@ -1,18 +1,14 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
-import { actions, getState } from '@/features/search/model/results/global-results-state';
+import { getState } from '@/features/search/model/results/global-results-state';
 import { initialViewState } from '@/features/search/model/results/view-state';
 import { submittedSearchFromResult } from '@/features/search/model/submitted-search';
 import { createSearchPageQuery, readSearchQuery, readSearchResultSettings } from '@/url/search-query';
 
 const defaults = { ...getState(), context: null, sampleSeed: null, sampleSize: null };
 
-afterEach(() => {
-	actions.reset();
-});
-
 describe('search URL serialization', () => {
-	test('a new-form submission persists its identity in scoped params and replaces old params', () => {
+	test('a new-form documents submission serializes its identity and filter', () => {
 		const submitted = submittedSearchFromResult({ formId: 'explore.corpora', encoded: { 'f.form': 'explore.corpora' }, issues: [], params: { filter: 'author:Austen' }, summaries: [] });
 		const result = createSearchPageQuery({ submitted, global: defaults, view: initialViewState });
 		expect(result).toMatchObject({ 'f.form': 'explore.corpora', filter: 'author:Austen' });
@@ -23,7 +19,8 @@ describe('search URL serialization', () => {
 	test('preserves repeated scoped form values through submission and result changes', () => {
 		const encoded = { 'f.form': 'search.extended', 'f.tabs': ['search:extended', 'filters:author'], 'f.author': ['Austen', 'Brontë'] };
 		const submitted = submittedSearchFromResult({ formId: 'search.extended', encoded, issues: [], params: { patt: '[]' }, summaries: [] });
-		expect(createSearchPageQuery({ submitted, global: defaults, view: initialViewState })).toMatchObject(encoded);
+		const query = createSearchPageQuery({ submitted, global: defaults, view: { ...initialViewState, first: 40, sort: 'hit:word' } });
+		expect(query).toMatchObject({ ...encoded, first: 40, sort: 'hit:word' });
 	});
 
 	test('clears removed result settings and retains collocation context independently of snippet context', () => {

@@ -55,7 +55,6 @@ describe('useRequestResource ownership', () => {
 
 		resource.run(undefined);
 		resource.cancel();
-		expect('cancel' in plainPromise).toBe(false);
 		pending.resolve(1);
 		await flushPromises();
 
@@ -202,6 +201,9 @@ describe('RequestRun and lifecycle', () => {
 		scope.stop();
 		expect(pending.cancel).toHaveBeenCalledOnce();
 		resource.run();
+		pending.resolve(1);
+		await flushPromises();
+		expect(resource.state.value).toMatchObject({ loading: false, settled: { value: undefined, error: undefined } });
 		expect(resource.state.value.settled.isEmpty()).toBe(true);
 	});
 
@@ -226,6 +228,11 @@ describe('RequestRun and lifecycle', () => {
 		await flushPromises();
 		expect(resource.state.value.loading).toBe(false);
 		expect(resource.state.value.settled.error?.message).toBe('nope');
-		expect(snapshots).toHaveLength(4);
+		expect(snapshots.map(({ loading, settled }) => [loading, settled.value, settled.error?.message])).toEqual([
+			[true, undefined, undefined],
+			[false, 1, undefined],
+			[true, 1, undefined],
+			[false, undefined, 'nope'],
+		]);
 	});
 });

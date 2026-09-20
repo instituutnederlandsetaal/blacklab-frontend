@@ -48,7 +48,7 @@ test.each(['close', 'unmount'] as const)('%s before the opening frame cannot ins
 	expect(add.mock.calls.filter(([type]) => type === 'click')).toHaveLength(0);
 });
 
-test('reowns listeners when the teleport container changes and keeps scroll positioning', async () => {
+test('keeps one positioning listener through teleport changes and stops it on unmount', async () => {
 	const ancestor = document.createElement('div');
 	const first = document.createElement('div');
 	const second = document.createElement('div');
@@ -60,6 +60,7 @@ test('reowns listeners when the teleport container changes and keeps scroll posi
 	document.body.append(ancestor, first, second);
 	const wrapper = mount(SelectPicker, { attachTo: ancestor, props: { container: '#picker-first', options } });
 	const reposition = vi.spyOn(wrapper.vm as unknown as { reposition(): void }, 'reposition');
+	const close = vi.spyOn(wrapper.vm as unknown as { doClose(): void }, 'doClose');
 
 	await open(wrapper);
 	flushFrames();
@@ -67,21 +68,23 @@ test('reowns listeners when the teleport container changes and keeps scroll posi
 	ancestor.dispatchEvent(new Event('scroll'));
 	expect(reposition).toHaveBeenCalledOnce();
 	expect(first.querySelector('.combobox-menu')).not.toBeNull();
-	const firstOwner = (wrapper.vm as unknown as { globalListeners: AbortController }).globalListeners;
 
 	await wrapper.setProps({ container: '#picker-second' });
-	expect(firstOwner.signal.aborted).toBe(true);
 	expect(first.querySelector('.combobox-menu')).toBeNull();
 	expect(second.querySelector('.combobox-menu')).not.toBeNull();
-	const secondOwner = (wrapper.vm as unknown as { globalListeners: AbortController }).globalListeners;
-	expect(secondOwner).not.toBe(firstOwner);
 	reposition.mockClear();
 	ancestor.dispatchEvent(new Event('scroll'));
 	window.dispatchEvent(new Event('resize'));
 	expect(reposition).toHaveBeenCalledTimes(2);
 
 	wrapper.unmount();
-	expect(secondOwner.signal.aborted).toBe(true);
+	reposition.mockClear();
+	close.mockClear();
+	document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+	ancestor.dispatchEvent(new Event('scroll'));
+	window.dispatchEvent(new Event('resize'));
+	expect(reposition).not.toHaveBeenCalled();
+	expect(close).not.toHaveBeenCalled();
 });
 
 test('keeps internal multiple selection open and emits one deferred change on outside click', async () => {

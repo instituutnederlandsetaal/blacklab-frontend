@@ -4,7 +4,7 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { customRef, effectScope, isReactive, nextTick, ref, toValue, type EffectScope } from 'vue';
+import { effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
@@ -14,7 +14,7 @@ import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import {
-	CollocationField,
+	AnnotationPosField,
 	FormSystem,
 	RangeField,
 	SelectField,
@@ -66,25 +66,6 @@ function metadataField(id: string, overrides: Partial<NormalizedMetadataField> =
 		id,
 		uiType: 'text',
 		...overrides,
-	};
-}
-
-function countedRef<T>(initialValue: T) {
-	let reads = 0;
-	let value = initialValue;
-	return {
-		reads: () => reads,
-		value: customRef<T>((track, trigger) => ({
-			get() {
-				track();
-				reads++;
-				return value;
-			},
-			set(nextValue) {
-				value = nextValue;
-				trigger();
-			},
-		})),
 	};
 }
 
@@ -393,15 +374,12 @@ describe('search form system', () => {
 		expect(definition.getForm(ids.collocationsForm()) !== null).toBe(available);
 	});
 
-	test('builds Collocations as the third root section with one direct field and the shared filters', () => {
+	test('adds Collocations after Search and Explore with its public heading', () => {
 		const runtime = createDefinition();
 		const definition = runtime.definition;
 
 		expect(definition.getRoot().children.map(node => node.id)).toEqual([ids.searchSection(), ids.exploreSection(), ids.collocationsSection()]);
-		expect(definition.getContainer(ids.collocationsSection())?.children.map(node => node.id)).toEqual([ids.collocationsSectionHeading(), ids.collocationsForm()]);
-		expect(definition.getNode(ids.collocationsSectionHeading())?.kind).toBe('view');
-		expect(definition.getForm(ids.collocationsForm())?.children.map(node => node.id)).toEqual([ids.collocationsField(), ids.sharedFiltersRegion()]);
-		expect(definition.getField(ids.collocationsField())?.component).toBe(CollocationField);
+		expect(definition.getView(ids.collocationsSectionHeading())).not.toBeNull();
 	});
 
 	test('renders the structured Collocations form', async () => {
@@ -490,49 +468,44 @@ describe('search form system', () => {
 		expect(definition.getField(ids.collocationsField())).toBeNull();
 	});
 
-	test('tracks tagset and customization dependencies only while a corpus is loaded', () => {
-		const corpus = countedRef<Corpus | undefined>(undefined);
-		const tagset = countedRef<Tagset | undefined>(undefined);
+	test('builds forms only for a loaded corpus and updates controls when its tagset changes', () => {
+		const corpus = ref<Corpus>();
+		const tagset = ref<Tagset>();
 		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
-			corpus: corpus.value,
-			tagset: tagset.value,
+			corpus,
+			tagset,
 			translate: createMockTranslate(),
 		});
-		let configurationRuns = 0;
-		const unregisterPresent = customizationRegistry.registerForm(() => configurationRuns++);
+		const configure = vi.fn();
+		const unregisterPresent = customizationRegistry.registerForm(configure);
 		let unregisterAbsent = () => {};
 
 		try {
 			expect(system.runtime.value).toBeNull();
-			expect(corpus.reads()).toBe(1);
-			expect(tagset.reads()).toBe(0);
+			expect(configure).not.toHaveBeenCalled();
 
-			tagset.value.value = {} as Tagset;
-			expect(corpus.reads()).toBe(1);
-			expect(tagset.reads()).toBe(0);
+			tagset.value = { values: { NOU: { value: 'NOU', displayName: 'Noun', subAnnotationIds: [] } }, subAnnotations: {} };
+			expect(system.runtime.value).toBeNull();
+			expect(configure).not.toHaveBeenCalled();
 
-			corpus.value.value = createCorpus();
-			const initialRuntime = system.runtime.value;
-			expect(initialRuntime).not.toBeNull();
-			expect(isReactive(initialRuntime)).toBe(false);
-			expect(tagset.reads()).toBe(1);
-			expect(configurationRuns).toBe(1);
+			const loadedCorpus = createCorpus();
+			loadedCorpus.allAnnotationsMap.pos.uiType = 'pos';
+			corpus.value = loadedCorpus;
+			expect(system.runtime.value!.definition.getField(ids.annotationField('extended', 'contents', 'pos'))?.component).toBe(AnnotationPosField);
+			expect(configure).toHaveBeenCalled();
 
-			tagset.value.value = undefined;
-			expect(system.runtime.value).not.toBe(initialRuntime);
-			expect(tagset.reads()).toBe(2);
+			tagset.value = undefined;
+			expect(system.runtime.value!.definition.getField(ids.annotationField('extended', 'contents', 'pos'))?.component).toBe(TextField);
 
 			unregisterPresent();
-			corpus.value.value = undefined;
+			corpus.value = undefined;
 			expect(system.runtime.value).toBeNull();
-			const readsAfterTeardown = corpus.reads();
-			const tagsetReadsAfterTeardown = tagset.reads();
-
-			tagset.value.value = {} as Tagset;
-			unregisterAbsent = customizationRegistry.registerForm(() => configurationRuns++);
-			expect(corpus.reads()).toBe(readsAfterTeardown);
-			expect(tagset.reads()).toBe(tagsetReadsAfterTeardown);
+			configure.mockClear();
+			tagset.value = { values: {}, subAnnotations: {} };
+			unregisterAbsent = customizationRegistry.registerForm(configure);
+			expect(system.runtime.value).toBeNull();
+			expect(configure).not.toHaveBeenCalled();
 		} finally {
 			unregisterPresent();
 			unregisterAbsent();
@@ -569,8 +542,7 @@ describe('search form system', () => {
 		await nextTick();
 
 		expect(picker.get('.menu-button').text()).toContain('nl:word');
-		expect(system.runtime.value).toBe(runtime);
-		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeLocaleChange);
+		expect(system.runtime.value!.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeLocaleChange);
 	});
 
 	test('adds and removes debug IDs without replacing runtime state', async () => {
@@ -585,19 +557,17 @@ describe('search form system', () => {
 
 		debug.value = true;
 		await nextTick();
-		expect(system.runtime.value).toBe(runtime);
 		expect(optionLabel(annotationOption)).toContain('[id: word]');
 		expect(optionLabel(metadataOption)).toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).toContain('[id: word]');
-		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeDebugChange);
+		expect(system.runtime.value!.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeDebugChange);
 
 		debug.value = false;
 		await nextTick();
 		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
 		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
-		expect(system.runtime.value).toBe(runtime);
-		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeDebugChange);
+		expect(system.runtime.value!.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeDebugChange);
 	});
 
 	test('resolves deferred locale labels in Explore summaries', () => {
@@ -652,8 +622,6 @@ describe('search form system', () => {
 		const first = summary.createTotals();
 		const second = summary.createTotals();
 
-		expect(first).not.toBe(second);
-		expect(first.state).not.toBe(second.state);
 		first.update({});
 		expect(toValue(first.state).status).toBe('loaded');
 		expect(toValue(second.state).status).toBe('loading');
@@ -697,8 +665,7 @@ describe('search form system', () => {
 		locale.value = 'nl';
 		await nextTick();
 
-		expect(system.runtime.value).toBe(runtime);
-		expect(runtime.state.state.value[fieldId]).toEqual(stateBeforeLocaleChange);
+		expect(system.runtime.value!.state.state.value[fieldId]).toEqual(stateBeforeLocaleChange);
 	});
 
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
@@ -1064,18 +1031,6 @@ describe('search form system', () => {
 		expect(definition.compile(ids.searchForm('simple')).params).toEqual({ patt: '[word="water"]' });
 	});
 
-	test('replaces the runtime and definition when legacy configuration changes', () => {
-		const state = UIStore.getState();
-		const system = createLegacyBackedSearchSystem();
-		const initialRuntime = system.runtime.value!;
-		const initialDefinition = initialRuntime.definition;
-
-		state.search.simple.searchAnnotationId = 'lemma';
-
-		expect(system.runtime.value).not.toBe(initialRuntime);
-		expect(system.runtime.value!.definition).not.toBe(initialDefinition);
-	});
-
 	test('runs modern graph customization after applying legacy configuration', () => {
 		UIStore.getState().search.simple.searchAnnotationId = 'lemma';
 		const observedAnnotations: string[] = [];
@@ -1107,7 +1062,6 @@ describe('search form system', () => {
 
 			unregister();
 			registered = false;
-			expect(system.runtime.value).not.toBe(customizedRuntime);
 			expect(system.runtime.value!.definition.getField(ids.queryField('simple'))?.component).toBe(TextField);
 			expect(system.runtime.value!.definition.getForm(customFormId)).toBeNull();
 		} finally {
@@ -1205,20 +1159,15 @@ describe('search form system', () => {
 		}
 	});
 
-	test('evaluates metadata visibility once per corpus field and rebuilds after unregistering', () => {
+	test('applies modern metadata visibility and restores legacy visibility after unregistering', () => {
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.metadata, 'showField').mockImplementation(id => id !== 'genre');
-		const visited: string[] = [];
 		const unregister = customizationRegistry.registerForm(form => {
-			form.filterMetadataFields(field => {
-				visited.push(field.id);
-				return field.id !== 'author';
-			});
+			form.filterMetadataFields(field => field.id !== 'author');
 		});
 
 		try {
 			const system = createLegacyBackedSearchSystem();
 			const exploreGroupBy = system.runtime.value!.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options };
-			expect(visited).toEqual(['author', 'genre']);
 			expect(system.runtime.value!.definition.getField(ids.metadataFilter('author'))).toBeNull();
 			expect(system.runtime.value!.definition.getField(ids.metadataFilter('genre'))).not.toBeNull();
 			expect(optionValues(exploreGroupBy.options)).toEqual(['field:genre']);
@@ -1403,7 +1352,6 @@ describe('search form system', () => {
 		UIStore.getState().search.advanced.defaultSearchAnnotationId = 'word';
 
 		const replacementRuntime = system.runtime.value!;
-		expect(replacementRuntime).not.toBe(initialRuntime);
 
 		const restored = readSearchFormState(replacementRuntime, {
 			...committedUrlState.encoded,
@@ -1483,7 +1431,6 @@ describe('search form system', () => {
 				defaultWithin: string;
 				withinOptions: Array<{ value: string }>;
 			};
-			expect(replacementRuntime).not.toBe(initialRuntime);
 			expect(replacementRuntime.definition.getField(ids.withinField())).toBeNull();
 			expect(collocations.defaultWithin).toBe('p');
 			expect(collocations.withinOptions.map(option => option.value)).toEqual(['', 'l', 'p']);
@@ -1510,7 +1457,7 @@ describe('search form system', () => {
 			corpus: createCorpus(),
 			translate: createMockTranslate(),
 		});
-		const initialRuntime = system.runtime.value!;
+		expect(system.runtime.value!.definition.getField('witnessYear-range')).toBeNull();
 		const unregister = customizationRegistry.registerForm({
 			customize(form) {
 				form.graph
@@ -1526,7 +1473,6 @@ describe('search form system', () => {
 
 		try {
 			const replacementRuntime = system.runtime.value!;
-			expect(replacementRuntime).not.toBe(initialRuntime);
 			const restored = readSearchFormState(replacementRuntime, {
 				'f.form': ids.collocationsForm(),
 				'f.collocations': 'q={s={word;s=god}}',

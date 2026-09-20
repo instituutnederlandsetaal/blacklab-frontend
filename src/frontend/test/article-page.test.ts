@@ -104,11 +104,12 @@ function mountArticle() {
 describe('ArticlePage bootstrap settlement', () => {
 	test('settles only after rendered content is inside the live article', async () => {
 		const wrapper = mountArticle();
+		expect(mock.markSettled).not.toHaveBeenCalled();
 		const marker = document.createElement('p');
 		marker.className = 'article-marker';
 		marker.textContent = 'Ready';
 		mock.markSettled.mockImplementationOnce(() => {
-			expect(wrapper.get('.article .article-marker').element).toBe(marker);
+			expect(wrapper.get('.article .article-marker').text()).toBe('Ready');
 		});
 
 		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: marker }));
@@ -185,7 +186,7 @@ describe('ArticlePage statistics tab', () => {
 	});
 });
 
-test('resolves reactive detailed metadata IDs inside the computed', async () => {
+test('updates the displayed metadata when customized field IDs change', async () => {
 	const detailedMetadataIds = ref(['title']);
 	mock.resultDetailedMetadataIds.mockImplementation(() => detailedMetadataIds.value);
 	mock.corpus = {
@@ -228,12 +229,12 @@ test('replaces and disposes tooltip contexts with article contents', async () =>
 
 	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));
 	await nextTick();
-	expect(mock.createTooltips).toHaveBeenNthCalledWith(2, expect.objectContaining({ mode: 'title' }), firstCleanup);
+	expect(mock.createTooltips).toHaveBeenCalledWith(expect.objectContaining({ mode: 'title' }), firstCleanup);
 
 	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));
 	await nextTick();
 	expect(firstCleanup).toHaveBeenCalledOnce();
-	expect(mock.createTooltips).toHaveBeenNthCalledWith(4, expect.objectContaining({ mode: 'title' }), secondCleanup);
+	expect(mock.createTooltips).toHaveBeenCalledWith(expect.objectContaining({ mode: 'title' }), secondCleanup);
 
 	wrapper.unmount();
 	expect(secondCleanup).toHaveBeenCalledOnce();

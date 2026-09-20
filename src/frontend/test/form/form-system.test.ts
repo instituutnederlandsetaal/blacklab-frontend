@@ -2,7 +2,7 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
-import { defineComponent, h, nextTick, onMounted, onUnmounted, shallowRef, toRaw } from 'vue';
+import { defineComponent, h, nextTick, ref, shallowRef, toRaw } from 'vue';
 
 import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormResult, type FormRuntime } from '@/features/form';
 import { annotation } from '@/features/form/model/types/form-query-ir';
@@ -266,23 +266,6 @@ describe('form system integration', () => {
 		expect(wrapper.get('[data-testid="parent-form-probe"] .state').text()).toContain('water');
 	});
 
-	test('submit emits the mounted form runtime compilation', async () => {
-		const builder = createTestBuilder();
-		const form = builder.newForm('search.simple', ContainerRenderer, {
-			title: 'Simple',
-		});
-		const runtime = createTestRuntime(builder);
-		const compiled = runtime.compile(form.id);
-		const compile = vi.spyOn(runtime, 'compile').mockReturnValue(compiled);
-		const wrapper = mount(FormSystem, { props: { runtime } });
-
-		await wrapper.get('form').trigger('submit');
-
-		expect(compile).toHaveBeenCalledOnce();
-		expect(compile).toHaveBeenCalledWith(form.id);
-		expect(wrapper.emitted('submit')).toEqual([[compiled]]);
-	});
-
 	test('reset restores form state and emits one scoped reset event', async () => {
 		const fixture = createSingleFormFixture();
 		fixture.runtime.state.state.value['search.simple.word'] = {
@@ -362,98 +345,56 @@ describe('form system integration', () => {
 		expect(extendedSubmit).not.toHaveBeenCalled();
 	});
 
-	test('runtime prop replacement refreshes rendered controls', async () => {
+	test('runtime replacement refreshes controls and injected reads while isolating write-back', async () => {
 		const oldRuntime = createLabeledRuntime('Old word');
 		const newRuntime = createLabeledRuntime('New word');
-		const currentRuntime = shallowRef(oldRuntime);
-		const Harness = defineComponent({
-			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
-		});
-		const wrapper = mount(Harness);
-		expect(wrapper.find('input[aria-label="Old word"]').exists()).toBe(true);
-
-		currentRuntime.value = newRuntime;
-		await nextTick();
-
-		expect(wrapper.find('input[aria-label="Old word"]').exists()).toBe(false);
-		expect(wrapper.find('input[aria-label="New word"]').exists()).toBe(true);
-	});
-
-	test('only runtime identity changes remount the rendered subtree', async () => {
-		const mounted = vi.fn();
-		const disposed = vi.fn();
-		const Probe = defineComponent({
-			setup() {
-				onMounted(mounted);
-				onUnmounted(disposed);
-				return () => h('span', { 'data-testid': 'runtime-probe' });
-			},
-		});
-		const createRuntime = () => {
-			const builder = createTestBuilder();
-			builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(builder.newView('search.simple.probe', Probe, {}));
-			return createTestRuntime(builder);
-		};
-		const runtimeA = createRuntime();
-		const runtimeB = createRuntime();
-		const currentRuntime = shallowRef(runtimeA);
-		const Harness = defineComponent({
-			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
-		});
-		mount(Harness);
-
-		runtimeA.state.rawOverrides.value.patt = 'same runtime';
-		await nextTick();
-		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([1, 0]);
-
-		currentRuntime.value = runtimeB;
-		await nextTick();
-		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([2, 1]);
-
-		currentRuntime.value = runtimeA;
-		await nextTick();
-		expect([mounted.mock.calls.length, disposed.mock.calls.length]).toEqual([3, 2]);
-	});
-
-	test('runtime prop replacement refreshes injected runtime consumers', async () => {
-		const oldRuntime = createLabeledRuntime('Old word');
-		const newRuntime = createLabeledRuntime('New word');
-		oldRuntime.state.state.value['search.simple.word'] = { value: 'old draft' };
-		newRuntime.state.state.value['search.simple.word'] = { value: 'new draft' };
-		const currentRuntime = shallowRef(oldRuntime);
-		const Harness = defineComponent({
-			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
-		});
-		const wrapper = mount(Harness);
-
-		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="old draft"]');
-
-		currentRuntime.value = newRuntime;
-		await nextTick();
-
-		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="new draft"]');
-	});
-
-	test('write-back after runtime replacement leaves the previous runtime isolated', async () => {
-		const oldRuntime = createLabeledRuntime('Old word');
-		const newRuntime = createLabeledRuntime('New word');
+		newRuntime.state.state.value['search.simple.word'] = { value: 'new initial' };
 		const currentRuntime = shallowRef(oldRuntime);
 		const Harness = defineComponent({
 			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
 		});
 		const wrapper = mount(Harness);
 		await wrapper.get('input[aria-label="Old word"]').setValue('old draft');
+		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="old draft"]');
 
 		currentRuntime.value = newRuntime;
 		await nextTick();
+
+		expect(wrapper.find('input[aria-label="Old word"]').exists()).toBe(false);
+		expect((wrapper.get('input[aria-label="New word"]').element as HTMLInputElement).value).toBe('new initial');
+		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="new initial"]');
+
 		await wrapper.get('input[aria-label="New word"]').setValue('new draft');
 
-		expect(newRuntime.state.state.value['search.simple.word']).toEqual({
-			value: 'new draft',
+		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="new draft"]');
+		expect(newRuntime.state.state.value['search.simple.word']).toEqual({ value: 'new draft' });
+		expect(oldRuntime.state.state.value['search.simple.word']).toEqual({ value: 'old draft' });
+	});
+
+	test('runtime state updates preserve a mounted view’s local draft', async () => {
+		const DraftView = defineComponent({
+			setup() {
+				const draft = ref('');
+				return () =>
+					h('input', {
+						'aria-label': 'Local draft',
+						value: draft.value,
+						onInput: (event: Event) => {
+							draft.value = (event.target as HTMLInputElement).value;
+						},
+					});
+			},
 		});
-		expect(oldRuntime.state.state.value['search.simple.word']).toEqual({
-			value: 'old draft',
-		});
+		const builder = createTestBuilder();
+		builder.newForm('search.simple', ContainerRenderer, {}).addChildren(builder.newView('search.simple.draft', DraftView, {}));
+		const runtime = createTestRuntime(builder);
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		await wrapper.get('input[aria-label="Local draft"]').setValue('unfinished draft');
+
+		runtime.state.rawOverrides.value.patt = '[word="override"]';
+		await nextTick();
+
+		expect((wrapper.get('input[aria-label="Local draft"]').element as HTMLInputElement).value).toBe('unfinished draft');
 	});
 
 	test('replaceState refreshes a mounted value and preserves its write-back binding', async () => {

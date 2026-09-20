@@ -7,11 +7,11 @@ type ExpectedPart = {
 	end: number;
 	value: string;
 	isQuoted?: boolean;
-	sourceValue?: string;
 };
 
-const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
+const cases: Array<{ name: string; value: string; expect: ExpectedPart[] }> = [
 	{
+		name: 'a quoted phrase',
 		value: '"the simplest"',
 		expect: [
 			{
@@ -23,6 +23,7 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 		],
 	},
 	{
+		name: 'terms and adjacent empty quotes',
 		value: 'this is " a test """ ',
 		expect: [
 			{
@@ -44,6 +45,7 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 		],
 	},
 	{
+		name: 'ordinary unquoted terms',
 		value: 'regular string',
 		expect: [
 			{
@@ -59,6 +61,7 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 		],
 	},
 	{
+		name: 'terms separated by mixed whitespace',
 		value: '  starting with a few \t spaces \r\nhelp',
 		expect: [
 			{
@@ -94,6 +97,7 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 		],
 	},
 	{
+		name: 'mixed quoted and unquoted terms',
 		value: '"normal everyday" string "with some quotes"',
 		expect: [
 			{
@@ -116,13 +120,13 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 		],
 	},
 	{
+		name: 'escaped quotes inside a quoted phrase',
 		value: String.raw`"keeps \"quotes\" literal" after`,
 		expect: [
 			{
 				start: 0,
 				end: 26,
 				value: 'keeps "quotes" literal',
-				sourceValue: String.raw`keeps \"quotes\" literal`,
 				isQuoted: true,
 			},
 			{
@@ -133,13 +137,13 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 		],
 	},
 	{
+		name: 'an escaped quote in an unquoted term',
 		value: String.raw`keeps\"quote literal`,
 		expect: [
 			{
 				start: 0,
 				end: 12,
 				value: 'keeps"quote',
-				sourceValue: String.raw`keeps\"quote`,
 			},
 			{
 				start: 13,
@@ -151,20 +155,8 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 ];
 
 describe('tokenizeString', () => {
-	test.each(cases)('splits %j into expected terms', ({ value: fullValue, expect: expected }) => {
-		const split = tokenizeString(fullValue, true);
-		expect(split).toHaveLength(expected.length);
-
-		split.forEach((part, index) => {
-			const { start, end, value, sourceValue, isQuoted } = expected[index];
-			expect(part.start).toBe(start);
-			expect(part.end).toBe(end);
-			expect(part.isQuoted).toBe(isQuoted ?? false);
-			expect(part.value).toBe(value);
-
-			const expand = part.isQuoted ? 1 : 0;
-			expect(fullValue.substring(part.start + expand, part.end - expand)).toBe(sourceValue ?? value);
-		});
+	test.each(cases)('splits $name into terms with source offsets', ({ value, expect: expected }) => {
+		expect(tokenizeString(value, true)).toEqual(expected.map(part => ({ ...part, isQuoted: part.isQuoted ?? false })));
 	});
 });
 
@@ -336,7 +328,7 @@ describe('escapeLucene', () => {
 		expect(escapeLucene(value, options)).toBe(expected);
 	});
 
-	test.each(luceneEscapeCases.filter(testCase => testCase.options?.escapeRegex !== false && testCase.options?.escapeWildcards !== false))('roundtrips $name', ({ value, options }) => {
-		expect(unescapeLucene(escapeLucene(value, options))).toBe(value);
+	test.each(luceneEscapeCases.filter(testCase => testCase.options?.escapeRegex !== false && testCase.options?.escapeWildcards !== false))('unescapes $name', ({ value, expected }) => {
+		expect(unescapeLucene(expected)).toBe(value);
 	});
 });

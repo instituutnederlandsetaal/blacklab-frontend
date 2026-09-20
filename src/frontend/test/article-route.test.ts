@@ -32,8 +32,10 @@ describe('article URLs', () => {
 		stop();
 	});
 
-	test('prefers the canonical pattern alias', async () => {
-		const { state, stop } = await setup({ patt: 'canonical', query: 'legacy' });
+	test('accepts the legacy pattern alias and prefers the canonical pattern', async () => {
+		const { router, state, stop } = await setup({ query: 'legacy' });
+		expect(state.parameters.value.patt).toBe('legacy');
+		await router.push({ query: { patt: 'canonical', query: 'legacy' } });
 		expect(state.parameters.value.patt).toBe('canonical');
 		stop();
 	});

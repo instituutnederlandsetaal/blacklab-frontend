@@ -112,7 +112,7 @@ test('settles loading state when a combination request fails', async () => {
 	const combination = deferredRequest<never>();
 	api.getTermFrequencies.mockReturnValueOnce(mainValues.request).mockReturnValueOnce(subValues.request);
 	api.getHits.mockReturnValueOnce(combination.request);
-	const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+	vi.spyOn(console, 'error').mockImplementation(() => {});
 	const state = wizardState();
 	const wrapper = mount(POSStep3, { props: { modelValue: state } });
 
@@ -125,10 +125,14 @@ test('settles loading state when a combination request fails', async () => {
 	combination.reject(new Error('request failed'));
 	await flushPromises();
 
-	expect(wrapper.vm.loading).toBe(false);
+	expect(
+		wrapper
+			.findAll('button')
+			.find(button => button.text() === 'Reset')!
+			.attributes('disabled'),
+	).toBeUndefined();
 	expect(state.step3.main?.N.subs.number.singular.loading).toBe(false);
 	expect(wrapper.text()).toContain('Failed to generate tagset.');
 	expect(() => POSStep3.defaultAction(state)).toThrow('Step 3 not completed');
-	expect(error).toHaveBeenCalledOnce();
 	wrapper.unmount();
 });

@@ -1,6 +1,6 @@
 import { EMPTY, map, Observable, of, Subject, switchMap } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { computed, effectScope, nextTick } from 'vue';
+import { computed, effectScope, watch } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState } from '@/shared/utils/loadable/loadable-core';
@@ -23,12 +23,6 @@ const error = Loadable.LoadingError<number>(apiError);
 const empty = Loadable.Empty<number>();
 const dummyObject = { a: 1 };
 
-const eachState = [
-	['loading', loading],
-	['loaded', loaded],
-	['error', error],
-	['empty', empty],
-] as const;
 const eachCheck = [
 	['isLoadable', isLoadable],
 	['isEmpty', isEmpty],
@@ -52,21 +46,19 @@ function allValuesFrom<T>(o: Observable<T>): Promise<T[]> {
 
 describe('Loadable state checks', () => {
 	test.each(eachCheck)('%s Should return false for non-loadable object', (_, f) => expect(f(dummyObject)).toBe(false));
-	test.each(eachState)('%s isLoadable', (_, v) => expect(Loadable.isLoadable(v)).toBe(true));
-	test('isLoaded should return true for loaded', () => expect(Loadable.isLoaded(loaded) && loaded.isLoaded()).toBe(true));
-	test('isLoading should return true for loading', () => expect(Loadable.isLoading(loading) && loading.isLoading()).toBe(true));
-	test('isError should return true for error', () => expect(Loadable.isError(error) && error.isError()).toBe(true));
-	test('isEmpty should return true for empty', () => expect(Loadable.isEmpty(empty) && empty.isEmpty()).toBe(true));
-});
-
-describe('value checks', () => {
-	test('error contains the error', () => expect(error.error).toBe(apiError));
-	test('loaded contains the value', () => expect(loaded.value).toBe(1));
-	test('empty contains no value', () => expect(empty.value).toBe(undefined));
-	test('loading contains no value', () => expect(loading.value).toBe(undefined));
-	test('loaded contains no error', () => expect(loaded.error).toBe(undefined));
-	test('empty contains no error', () => expect(empty.error).toBe(undefined));
-	test('loading contains no error', () => expect(loading.error).toBe(undefined));
+	test.each([
+		['loading', loading, LoadableState.loading, undefined, undefined],
+		['loaded', loaded, LoadableState.loaded, 1, undefined],
+		['error', error, LoadableState.error, undefined, apiError],
+		['empty', empty, LoadableState.empty, undefined, undefined],
+	] as const)('%s has a coherent snapshot and matching predicates', (_, value, state, expectedValue, expectedError) => {
+		expect(Loadable.isLoadable(value)).toBe(true);
+		expect(value).toMatchObject({ state, value: expectedValue, error: expectedError });
+		expect(value.error).toBe(expectedError);
+		const expected = [state === LoadableState.loading, state === LoadableState.loaded, state === LoadableState.error, state === LoadableState.empty];
+		expect([Loadable.isLoading(value), Loadable.isLoaded(value), Loadable.isError(value), Loadable.isEmpty(value)]).toEqual(expected);
+		expect([value.isLoading(), value.isLoaded(), value.isError(), value.isEmpty()]).toEqual(expected);
+	});
 });
 
 describe('Loadable helpers', () => {
@@ -86,19 +78,13 @@ describe('combineLoadables', () => {
 		test(name + ' should return proper value when used with an array', () => {
 			const combined = combiner([loaded, dummyObject, loaded] as const);
 			expect(combined.isLoaded()).toBe(true);
-			expect(combined.value![0]).toBe(1);
-			expect(combined.value![1].a).toBe(1);
-			expect(combined.value![2]).toBe(1);
-			expect(Loadable.isLoadable(combined)).toBe(true);
+			expect(combined.value).toEqual([1, dummyObject, 1]);
 		});
 		test(name + ' should return proper value when used with an object', () => {
 			const toCombine = { a: loaded, b: dummyObject, c: loaded };
 			const combinedObj = combiner(toCombine);
 			expect(combinedObj.isLoaded()).toBe(true);
-			expect(combinedObj.value!.a).toBe(1);
-			expect(combinedObj.value!.b.a).toBe(1);
-			expect(combinedObj.value!.c).toBe(1);
-			expect(Loadable.isLoadable(combinedObj)).toBe(true);
+			expect(combinedObj.value).toEqual({ a: 1, b: dummyObject, c: 1 });
 		});
 		test(name + ' with a loading value should return the loading state', () => {
 			const combinedObj = combiner({ a: loading, b: dummyObject, c: loaded });
@@ -118,10 +104,7 @@ describe('combineLoadables', () => {
 				d: Loadable.Loaded(null),
 			});
 			expect(combinedWithNull.isLoaded()).toBe(true);
-			expect(combinedWithNull.value!.a).toBe(null);
-			expect(combinedWithNull.value!.b).toBe(undefined);
-			expect(combinedWithNull.value!.c).toBe(undefined);
-			expect(combinedWithNull.value!.d).toBe(null);
+			expect(combinedWithNull.value).toEqual({ a: null, b: undefined, c: undefined, d: null });
 		});
 	}
 	sharedCombineTests('combineLoadables', combineLoadables);
@@ -139,7 +122,7 @@ describe('combineLoadables', () => {
 	});
 });
 
-describe('loadedIfNotNull', () => {
+describe('withRequiredKeys', () => {
 	type T = { [K in keyof typeof dummyObject]?: undefined | null | (typeof dummyObject)[K] } & {
 		b?: number | null | undefined;
 	};
@@ -147,11 +130,10 @@ describe('loadedIfNotNull', () => {
 		// When given a (set of) keys, check inside the object.
 		expect(withRequiredKeys<T>('a' as const)(dummyObject)).toEqual(Loadable.Loaded(dummyObject));
 		expect(withRequiredKeys<T>('a')({ a: null })).toEqual(empty);
-		expect(withRequiredKeys<T>('a')({ a: null })).toEqual(empty);
 		expect(withRequiredKeys<T>('a', 'b')(dummyObject)).toEqual(empty); // b key not present -> empty
 		expect(withRequiredKeys<T>('a', 'b')({ a: null, b: null })).toEqual(empty); // a and b keys are null -> empty
 		expect(withRequiredKeys<T>('a', 'b')({ a: null, b: 1 })).toEqual(empty); // a key is null -> empty
-		expect(withRequiredKeys<T>('a', 'b')({ a: 1, b: 1 })).toEqual(Loadable.Loaded({ a: 1, b: 1 })); // b key is null -> empty
+		expect(withRequiredKeys<T>('a', 'b')({ a: 1, b: 1 })).toEqual(Loadable.Loaded({ a: 1, b: 1 }));
 
 		// When given no keys, check the object itself.
 		expect(withRequiredKeys<T>()(null as any)).toEqual(empty);
@@ -167,7 +149,6 @@ describe('toObservable', () => {
 	const successRequest = () => new CancelableRequest(Promise.resolve(successValue), () => {});
 	const failRequest = () => new CancelableRequest(Promise.reject(failValue), () => {});
 
-	test('should return an observable', () => expect(successRequest().toObservable()).toBeInstanceOf(Observable));
 	test('for a success, should emit [Loading, Loaded]', () => expect(allValuesFrom(successRequest().toObservable())).resolves.toEqual([loading, Loadable.Loaded(successValue)]));
 	test('for a failure, should emit [Loading, Error]', () => expect(allValuesFrom(failRequest().toObservable())).resolves.toEqual([loading, Loadable.LoadingError(failValue)]));
 	test.each([
@@ -226,31 +207,27 @@ describe('loadableFromStream', () => {
 		ob$.complete();
 	});
 
-	test('wraps plain values and mirrors loadable states', () => {
-		const ob$ = new Subject<number>();
+	test('publishes coherent snapshots to synchronous consumers', () => {
+		const ob$ = new Subject<Loadable<{ html: string }> | { html: string }>();
 		const o = loadableFromStream(ob$);
-		ob$.next(1);
-		expect(o.isLoaded() && o.value).toBe(1);
-		ob$.complete();
-	});
-
-	test('publishes each state, value, and error atomically', async () => {
-		const ob$ = new Subject<{ html: string }>();
-		const o = loadableFromStream(ob$);
-		const mappedValues: Array<{ html: string } | undefined> = [];
-		const mapped = computed(() =>
-			Loadable.map(o, value => {
-				mappedValues.push(value);
-				return value?.html ?? 'missing';
-			}),
+		const snapshots: unknown[] = [];
+		const mapped = computed(() => Loadable.map(o, value => value.html));
+		const stop = watch(
+			() => [o.state, o.value, o.error],
+			snapshot => snapshots.push(snapshot),
+			{ flush: 'sync' },
 		);
 
 		ob$.next({ html: '<p>Rendered content</p>' });
-		await nextTick();
-
-		expect(mapped.value.state).toBe(LoadableState.loaded);
-		expect(mapped.value.value).toBe('<p>Rendered content</p>');
-		expect(mappedValues).toEqual([{ html: '<p>Rendered content</p>' }]);
+		expect(mapped.value).toMatchObject({ state: LoadableState.loaded, value: '<p>Rendered content</p>' });
+		ob$.next(Loadable.Loading());
+		ob$.next(Loadable.LoadingError(apiError));
+		expect(snapshots).toEqual([
+			[LoadableState.loaded, { html: '<p>Rendered content</p>' }, undefined],
+			[LoadableState.loading, undefined, undefined],
+			[LoadableState.error, undefined, apiError],
+		]);
+		stop();
 		ob$.complete();
 	});
 
@@ -328,7 +305,7 @@ describe('createInteractiveLoadable', () => {
 		loadable.dispose();
 	});
 
-	test('publishes exactly one emitted state and wraps raw errors', () => {
+	test('mirrors emitted states and wraps raw errors', () => {
 		const output$ = new Subject<Loadable<number>>();
 		const loadable = createInteractiveLoadable<number, number>(() => output$, 0);
 		const emittedError = new ApiError('Failed', 'Try again', 'Server error', 500);
@@ -424,7 +401,7 @@ describe('combineLoadableStreamsIncludingEmpty', () => {
 			loading,
 			Loadable.Loaded([loaded.value, loaded.value, loaded.value]),
 		]));
-	test('does not emit repeated empty states', async () =>
+	test('emits optional empty inputs as loaded undefined values', async () =>
 		expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded), of(loaded), of(empty, empty, loaded)]))).resolves.toEqual([
 			Loadable.Loaded([loaded.value, loaded.value, undefined]),
 			Loadable.Loaded([loaded.value, loaded.value, undefined]),
@@ -434,10 +411,4 @@ describe('combineLoadableStreamsIncludingEmpty', () => {
 		await expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded.value)]))).resolves.toEqual([Loadable.Loaded([loaded.value])]);
 		await expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded.value), of(loaded)]))).resolves.toEqual([Loadable.Loaded([loaded.value, loaded.value])]);
 	});
-});
-
-describe('Empty stream handling in combineLoadableStreams and combineLoadableStreamsIncludingEmpty', () => {
-	test('combineLoadableStreams does not emit if one stream is empty', async () => expect(allValuesFrom(combineLoadableStreams([of(loaded), EMPTY, of(loaded)]))).resolves.toEqual([]));
-	test('combineLoadableStreamsIncludingEmpty does not emit if one stream is empty', async () =>
-		expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded), EMPTY, of(loaded)]))).resolves.toEqual([]));
 });
