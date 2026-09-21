@@ -7,19 +7,15 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
-function prepareViews(): void {
-	for (const view of Object.values(ViewStore.getState())) {
-		view.first = 0;
-		view.number = GlobalResultsStore.getState().pageSize;
-		view.viewGroup = null;
-	}
-}
-
 export function handoffCompiledForm(result: CompiledFormResult): void {
 	const collocationParams = result.params.colltype !== undefined ? result.params : null;
 	const viewName = collocationParams ? 'hits' : (result.targetView ?? (result.params.patt ? 'hits' : 'docs'));
 
-	prepareViews();
+	ViewStore.forEachView(view => {
+		view.first = 0;
+		view.number = GlobalResultsStore.getState().pageSize;
+		view.viewGroup = null;
+	});
 	InterfaceStore.actions.viewedResults(viewName);
 	const view = ViewStore.getOrCreateModule(viewName);
 	if (collocationParams) {
