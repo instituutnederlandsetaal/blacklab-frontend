@@ -51,7 +51,7 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 			{
 				name: 'corpus',
 				path: '/:corpus',
-				redirect: '/:corpus/search',
+				redirect: r => ({ name: 'search', params: { corpus: r.params.corpus } }),
 				component: () => import('@/pages/corpus/CorpusPage.vue'),
 				children: [
 					{
