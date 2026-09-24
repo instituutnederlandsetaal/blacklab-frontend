@@ -389,6 +389,13 @@ const actions = {
 					r => (state.search.extended.searchAnnotationIds = r),
 				),
 
+			// Keep old customization scripts working; split-batch search is no longer available.
+			splitBatch: {
+				enable: (_enabled: boolean) => {
+					console.warn('Split-batch search has been removed.');
+				},
+			},
+
 			/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
 			within: {
 				/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
