@@ -77,7 +77,7 @@ async function setup(
 		beforeStateLoaded = () => Promise.resolve(),
 		// Unsupported BCQL must survive as a raw pattern when BlackLab cannot parse it.
 		getParsePattern = () => rejectedRequest('unsupported pattern'),
-	}: { beforeStateLoaded?: () => Promise<unknown>; getParsePattern?: BlackLabApi['getParsePattern'] } = {},
+	}: { beforeStateLoaded?: (runtime: Ref<FormRuntime | null>) => Promise<unknown>; getParsePattern?: BlackLabApi['getParsePattern'] } = {},
 ) {
 	window.history.replaceState({}, '', base + url);
 	const router = createRouter({
@@ -115,7 +115,7 @@ async function setup(
 		runtime,
 		submitted: submittedSearch,
 		restoredForm,
-		beforeStateLoaded,
+		beforeStateLoaded: () => beforeStateLoaded(runtime),
 		restoreLegacy: (corpus, submitted) => {
 			const viewedResults = InterfaceStore.get.viewedResults();
 			const view = viewedResults ? ViewStore.getOrCreateModule(viewedResults).getState() : null;
@@ -178,6 +178,24 @@ afterEach(() => {
 });
 
 describe('search URLs and browser history', () => {
+	test('runs beforeStateLoaded once per corpus even when the hook rebuilds the form', async () => {
+		const beforeStateLoaded = vi.fn(async (runtime: Ref<FormRuntime | null>) => {
+			runtime.value = form({ withField: true });
+		});
+		const { runtime, loadedCorpus, sync, activeSearchParameters } = await setup(undefined, { beforeStateLoaded });
+		await restored(activeSearchParameters);
+		expect(beforeStateLoaded).toHaveBeenCalledTimes(1);
+
+		runtime.value = form({ withField: true });
+		await sync.run(() => undefined);
+		await sync.open(`${path}/hits?patt=${encodeURIComponent('[word="later"]')}`);
+		await restored(activeSearchParameters, '[word="later"]');
+		expect(beforeStateLoaded).toHaveBeenCalledTimes(1);
+
+		loadedCorpus.value = { ...corpus };
+		await vi.waitFor(() => expect(beforeStateLoaded).toHaveBeenCalledTimes(2));
+	});
+
 	test('waits for the incoming search form to finish restoring before the initial page is ready', async () => {
 		const gate = deferred();
 		const { activeSearchParameters, sync } = await setup(undefined, { beforeStateLoaded: () => gate.promise });

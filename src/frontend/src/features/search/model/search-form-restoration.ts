@@ -20,6 +20,16 @@ export function createSearchFormRestoration(dependencies: {
 }) {
 	let stopped = false;
 	let restoration: object | undefined;
+	// The hook may rebuild the runtime, so every restoration of this corpus waits for the same run.
+	const beforeStateLoaded = new WeakMap<Corpus, Promise<unknown>>();
+	function runBeforeStateLoaded(corpus: Corpus) {
+		let pending = beforeStateLoaded.get(corpus);
+		if (!pending) {
+			pending = Promise.resolve().then(dependencies.beforeStateLoaded);
+			beforeStateLoaded.set(corpus, pending);
+		}
+		return pending;
+	}
 	async function restore() {
 		const corpus = toValue(dependencies.corpus);
 		const submitted = dependencies.submitted.value;
@@ -29,7 +39,7 @@ export function createSearchFormRestoration(dependencies: {
 		const runtime = dependencies.runtime.value;
 		const current = () => !stopped && restoration === operation && toValue(dependencies.corpus) === corpus && dependencies.submitted.value === submitted && dependencies.runtime.value === runtime;
 		try {
-			await dependencies.beforeStateLoaded();
+			await runBeforeStateLoaded(corpus);
 			if (!current()) return;
 			const legacyForm = await dependencies.restoreLegacy(corpus, submitted);
 			if (!current()) return;
