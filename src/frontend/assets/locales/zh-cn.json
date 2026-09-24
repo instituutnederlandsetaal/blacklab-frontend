@@ -1,4 +1,7 @@
 {
+	"corpora": {
+		"loading": "正在加载语料库……"
+	},
 	"corpus": {
 		"loading": "请稍候，正在加载语料库……"
 	},

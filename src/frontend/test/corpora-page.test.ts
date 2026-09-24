@@ -3,6 +3,7 @@
 import { flushPromises, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
+import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { BLResponse } from '@/types/blacklabtypes';
 
@@ -67,10 +68,15 @@ function deferredRequest<T>(cancelRejects = true) {
 
 const deleteResponse = { status: { message: 'Deleted' } } as BLResponse;
 
+function mountCorporaPage(pageBootstrap = createPageBootstrapContext()) {
+	pageBootstrap.changePage({ name: 'corpora' }, false);
+	return shallowMount(CorporaPage, { global: { plugins: [pageBootstrap] } });
+}
+
 async function mountPage(initialCorpora = [corpus()]) {
 	mock.api.getServerInfo.mockReturnValue(resolvedRequest(server(initialCorpora)));
 	mock.api.getFormats.mockReturnValue(resolvedRequest([format('alice:tei', 'TEI')]));
-	const wrapper = shallowMount(CorporaPage);
+	const wrapper = mountCorporaPage();
 	await flushPromises();
 	return wrapper;
 }
@@ -227,7 +233,7 @@ test('settles sorted corpus partitions before independently loading sorted forma
 	const formatsRequest = deferredRequest<NormalizedFormat[]>();
 	mock.api.getServerInfo.mockReturnValue(serverRequest.request);
 	mock.api.getFormats.mockReturnValue(formatsRequest.request);
-	const wrapper = shallowMount(CorporaPage);
+	const wrapper = mountCorporaPage();
 
 	expect(mock.api.getFormats).not.toHaveBeenCalled();
 	serverRequest.resolve(
@@ -256,6 +262,39 @@ test('settles sorted corpus partitions before independently loading sorted forma
 			.map((value: NormalizedFormat) => value.displayName),
 	).toEqual(['Alpha', 'Zulu']);
 	expect(tables[0].props('formats').map((value: NormalizedFormat) => value.displayName)).toEqual(['Alpha', 'Public', 'Zulu']);
+	wrapper.unmount();
+});
+
+test('shows a loading status during an in-app visit to the corpora page', async () => {
+	const serverRequest = deferredRequest<NormalizedBlacklabServer>();
+	mock.api.getServerInfo.mockReturnValue(serverRequest.request);
+	mock.api.getFormats.mockReturnValue(resolvedRequest([]));
+	const pageBootstrap = createPageBootstrapContext();
+	const wrapper = mountCorporaPage(pageBootstrap);
+
+	expect(wrapper.get('[role="status"]').text()).toContain('corpora.loading');
+	expect(pageBootstrap.contentReady.value).toBe(false);
+	serverRequest.resolve(server([corpus()]));
+	await flushPromises();
+
+	expect(wrapper.find('[role="status"]').exists()).toBe(false);
+	expect(pageBootstrap.contentReady.value).toBe(true);
+	expect(wrapper.findComponent(CorpusTable).exists()).toBe(true);
+	wrapper.unmount();
+});
+
+test('shows a server error after its initial request finishes', async () => {
+	const serverRequest = deferredRequest<NormalizedBlacklabServer>();
+	mock.api.getServerInfo.mockReturnValue(serverRequest.request);
+	const pageBootstrap = createPageBootstrapContext();
+	const wrapper = mountCorporaPage(pageBootstrap);
+
+	expect(pageBootstrap.contentReady.value).toBe(false);
+	serverRequest.reject(new Error('offline'));
+	await flushPromises();
+
+	expect(wrapper.text()).toContain('offline');
+	expect(pageBootstrap.contentReady.value).toBe(true);
 	wrapper.unmount();
 });
 

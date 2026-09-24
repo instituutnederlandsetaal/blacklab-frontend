@@ -31,5 +31,5 @@ const activeSearchParameters = activeSearch.parameters;
 const pageBootstrap = usePageBootstrap();
 const resultsVisible = computed(() => activeSearch.view.value != null);
 
-onMounted(() => pageBootstrap.markSettled());
+onMounted(() => pageBootstrap.markScriptsReady());
 </script>

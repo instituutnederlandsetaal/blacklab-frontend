@@ -1,4 +1,4 @@
-import { toValue, type MaybeRefOrGetter } from 'vue';
+import { readonly, ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue';
 import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as HistoryStore from '@/features/history/model/query-history-state';
@@ -21,8 +21,9 @@ export function createSearchUrlBinding(
 		restoreForms: () => Promise<void>;
 		summary: MaybeRefOrGetter<SearchSummary>;
 	},
-): SearchNavigationPlugin {
+): SearchNavigationPlugin & { initialReadSettled: Readonly<Ref<boolean>> } {
 	let extras: LocationQueryRaw = {};
+	const initialReadSettled = ref(router.currentRoute.value.name !== 'search');
 	function location(route: RouteLocationNormalizedLoaded, corpus: Corpus) {
 		const results = InterfaceStore.get.viewedResults();
 		const view = results ? ViewStore.getOrCreateModule(results).getState() : null;
@@ -34,19 +35,23 @@ export function createSearchUrlBinding(
 			const corpus = toValue(dependencies.corpus);
 			return route.name === 'search' && corpus && corpus.id === route.params.corpus ? corpus : null;
 		},
-		read: route => {
-			const results = route.params.results;
-			const viewName = (Array.isArray(results) ? results[0] : results) || null;
-			const { view, global } = readSearchResultSettings(route.query, GlobalResultsStore.getState().pageSize);
-			const decoded = readSearchQuery(route.query);
-			extras = decoded.extras;
-			FormStore.actions.reset();
-			ViewStore.actions.resetAllViews({ resetGroupBy: true });
-			GlobalResultsStore.actions.replace(global);
-			if (viewName) ViewStore.getOrCreateModule(viewName).actions.replace(view);
-			InterfaceStore.actions.viewedResults(viewName);
-			dependencies.submittedSearch.value = decoded.submitted;
-			return dependencies.restoreForms();
+		read: async route => {
+			try {
+				const results = route.params.results;
+				const viewName = (Array.isArray(results) ? results[0] : results) || null;
+				const { view, global } = readSearchResultSettings(route.query, GlobalResultsStore.getState().pageSize);
+				const decoded = readSearchQuery(route.query);
+				extras = decoded.extras;
+				FormStore.actions.reset();
+				ViewStore.actions.resetAllViews({ resetGroupBy: true });
+				GlobalResultsStore.actions.replace(global);
+				if (viewName) ViewStore.getOrCreateModule(viewName).actions.replace(view);
+				InterfaceStore.actions.viewedResults(viewName);
+				dependencies.submittedSearch.value = decoded.submitted;
+				await dependencies.restoreForms();
+			} finally {
+				if (route === router.currentRoute.value) initialReadSettled.value = true;
+			}
 		},
 		write: location,
 		leave: () => {
@@ -65,6 +70,7 @@ export function createSearchUrlBinding(
 	});
 	return {
 		...projection,
+		initialReadSettled: readonly(initialReadSettled),
 		install: app => {
 			provideSearchNavigation(app, projection);
 			app.use(projection);

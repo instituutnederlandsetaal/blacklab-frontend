@@ -178,6 +178,16 @@ afterEach(() => {
 });
 
 describe('search URLs and browser history', () => {
+	test('waits for the incoming search form to finish restoring before the initial page is ready', async () => {
+		const gate = deferred();
+		const { activeSearchParameters, sync } = await setup(undefined, { beforeStateLoaded: () => gate.promise });
+
+		expect(sync.initialReadSettled.value).toBe(false);
+		gate.resolve();
+		await restored(activeSearchParameters);
+		expect(sync.initialReadSettled.value).toBe(true);
+	});
+
 	test.each(['sample=25', 'samplenum=8'])('shares a generated sampling seed across requests, controls, and pagination for %s', async sampling => {
 		const { router, activeSearchParameters, sync } = await setup(`${path}/hits?patt=${encodeURIComponent(pattern)}&${sampling}`);
 		await restored(activeSearchParameters);

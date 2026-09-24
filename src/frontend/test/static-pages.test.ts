@@ -13,10 +13,10 @@ const mock = vi.hoisted(() => ({
 	corpusId: { value: 'test-corpus' },
 	getAbout: vi.fn(),
 	getHelp: vi.fn(),
-	markSettled: vi.fn(),
+	markScriptsReady: vi.fn(),
 }));
 
-vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: mock.markSettled }) }));
+vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
 vi.mock('@/navigation/page-context', () => ({ useCorpusId: () => mock.corpusId }));
 vi.mock('@/shared/api', () => ({ useFrontendApi: () => ({ getAbout: mock.getAbout, getHelp: mock.getHelp }) }));
 
@@ -38,7 +38,7 @@ beforeEach(() => {
 	mock.corpusId.value = 'test-corpus';
 	mock.getAbout.mockReset();
 	mock.getHelp.mockReset();
-	mock.markSettled.mockReset();
+	mock.markScriptsReady.mockReset();
 });
 
 describe.each([
@@ -53,16 +53,16 @@ describe.each([
 		expect(mock[endpoint]).toHaveBeenCalledWith('test-corpus');
 		expect(wrapper.getComponent(HtmlRenderer).props()).toMatchObject({ executeScripts: true, parseStringAsHtml: true });
 		expect(wrapper.find('.cf-spinner').exists()).toBe(true);
-		expect(mock.markSettled).not.toHaveBeenCalled();
+		expect(mock.markScriptsReady).not.toHaveBeenCalled();
 
 		pending.resolve('<p class="page-copy">Ready</p>');
-		mock.markSettled.mockImplementationOnce(() => {
+		mock.markScriptsReady.mockImplementationOnce(() => {
 			expect(wrapper.get('.page-copy').text()).toBe('Ready');
 		});
 		await flushPromises();
 
 		expect(wrapper.get('.page-copy').text()).toBe('Ready');
-		expect(mock.markSettled).toHaveBeenCalledOnce();
+		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
 		wrapper.unmount();
 	});
 
@@ -71,14 +71,14 @@ describe.each([
 		mock[endpoint].mockReturnValue(pending.request);
 		const wrapper = mount(Page);
 
-		mock.markSettled.mockImplementationOnce(() => {
+		mock.markScriptsReady.mockImplementationOnce(() => {
 			expect(wrapper.get('.text-danger').text()).toBe('Could not load page.');
 		});
 		pending.reject(new Error('Could not load page.'));
 		await flushPromises();
 
 		expect(wrapper.get('.text-danger').text()).toBe('Could not load page.');
-		expect(mock.markSettled).toHaveBeenCalledOnce();
+		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
 		wrapper.unmount();
 	});
 
@@ -105,7 +105,7 @@ describe.each([
 		const current = mount(Page);
 		await flushPromises();
 
-		expect(mock.markSettled).not.toHaveBeenCalled();
+		expect(mock.markScriptsReady).not.toHaveBeenCalled();
 		expect(mock[endpoint]).toHaveBeenLastCalledWith('current-corpus');
 		current.unmount();
 	});

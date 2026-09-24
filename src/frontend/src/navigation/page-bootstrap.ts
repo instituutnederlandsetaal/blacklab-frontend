@@ -6,26 +6,35 @@ import useInjectable from '@/shared/utils/useInjectable';
 
 type PageBootstrap = {
 	changePage(page: PageMeta, samePageInstance: boolean): void;
-	markSettled(): void;
-	settled: Ref<boolean>;
+	markScriptsReady(): void;
+	markContentReady(): void;
+	scriptsReady: Ref<boolean>;
+	contentReady: Ref<boolean>;
 	page: Ref<PageMeta | null>;
 };
 
 const [_key, providePageBootstrap, usePageBootstrap] = useInjectable<PageBootstrap>('page-bootstrap');
 
 function createPageBootstrapContext() {
-	const settled = ref(false);
+	const scriptsReady = ref(false);
+	const contentReady = ref(false);
 	const page = ref<PageMeta | null>(null);
 
 	const context: PageBootstrap = {
 		changePage(newPage, samePageInstance) {
 			page.value = newPage;
-			settled.value = (samePageInstance && settled.value) || newPage.customScriptTiming !== 'after-page-bootstrap';
+			scriptsReady.value = (samePageInstance && scriptsReady.value) || newPage.customScriptTiming !== 'after-page-bootstrap';
+			contentReady.value = samePageInstance && contentReady.value;
 		},
-		markSettled() {
-			settled.value = true;
+		markScriptsReady() {
+			scriptsReady.value = true;
+			contentReady.value = true;
 		},
-		settled: readonly(settled),
+		markContentReady() {
+			contentReady.value = true;
+		},
+		scriptsReady: readonly(scriptsReady),
+		contentReady: readonly(contentReady),
 		page: readonly(page),
 	};
 

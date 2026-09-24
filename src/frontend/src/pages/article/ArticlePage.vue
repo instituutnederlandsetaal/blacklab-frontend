@@ -44,7 +44,7 @@
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
 			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
 				<h2 v-if="corpus.isParallelCorpus" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
-				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView" @settled="pageBootstrap.markSettled">
+				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView" @settled="pageBootstrap.markScriptsReady">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
 						<Collapsible id="content_error" label="Show full diagnostics">

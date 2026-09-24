@@ -10,4 +10,11 @@
 	</div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { onMounted } from 'vue';
+
+import { usePageBootstrap } from '@/navigation/page-bootstrap';
+
+const pageBootstrap = usePageBootstrap();
+onMounted(() => pageBootstrap.markContentReady());
+</script>

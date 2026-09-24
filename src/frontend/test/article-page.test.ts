@@ -21,7 +21,7 @@ const mock = vi.hoisted(() => ({
 	cfPageConfig: undefined as unknown,
 	corpus: undefined as unknown,
 	createTooltips: vi.fn(() => vi.fn()),
-	markSettled: vi.fn(),
+	markScriptsReady: vi.fn(),
 	resultDetailedMetadataIds: vi.fn(),
 	streams: undefined as unknown,
 }));
@@ -40,7 +40,7 @@ vi.mock('@/customization-api/internal/internal-api', () => ({
 	useCustomizations: () => ({ resultDetailedMetadataIds: mock.resultDetailedMetadataIds }),
 }));
 vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
-vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markSettled: mock.markSettled }) }));
+vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
 vi.mock('@/features/article/model/article-page-state', () => ({
 	useArticleState: () => ({ parameters: ref(mock.articleRoute), showPage: vi.fn(), showHit: vi.fn() }),
 }));
@@ -74,7 +74,7 @@ beforeEach(() => {
 	mock.cfPageConfig = ref({ pageSize: null });
 	mock.createTooltips.mockReset();
 	mock.createTooltips.mockImplementation(() => vi.fn());
-	mock.markSettled.mockReset();
+	mock.markScriptsReady.mockReset();
 	mock.resultDetailedMetadataIds.mockReset();
 	mock.resultDetailedMetadataIds.mockReturnValue([]);
 	ArticleStore.actions.distributionAnnotation(null);
@@ -104,18 +104,18 @@ function mountArticle() {
 describe('ArticlePage bootstrap settlement', () => {
 	test('settles only after rendered content is inside the live article', async () => {
 		const wrapper = mountArticle();
-		expect(mock.markSettled).not.toHaveBeenCalled();
+		expect(mock.markScriptsReady).not.toHaveBeenCalled();
 		const marker = document.createElement('p');
 		marker.className = 'article-marker';
 		marker.textContent = 'Ready';
-		mock.markSettled.mockImplementationOnce(() => {
+		mock.markScriptsReady.mockImplementationOnce(() => {
 			expect(wrapper.get('.article .article-marker').text()).toBe('Ready');
 		});
 
 		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: marker }));
 		await flushPromises();
 
-		expect(mock.markSettled).toHaveBeenCalledOnce();
+		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
 	});
 
 	test('does not run queued settlement after the article instance is unmounted', async () => {
@@ -128,20 +128,20 @@ describe('ArticlePage bootstrap settlement', () => {
 		const current = mountArticle();
 		await flushPromises();
 
-		expect(mock.markSettled).not.toHaveBeenCalled();
+		expect(mock.markScriptsReady).not.toHaveBeenCalled();
 		current.unmount();
 	});
 
 	test('settles errors only after the article error is rendered', async () => {
 		const wrapper = mountArticle();
-		mock.markSettled.mockImplementationOnce(() => {
+		mock.markScriptsReady.mockImplementationOnce(() => {
 			expect(wrapper.get('#content .alert').text()).toContain('Could not load document contents. Request failed');
 		});
 
 		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.LoadingError(new ApiError('Error', 'Request failed', 'Error', 500)));
 		await flushPromises();
 
-		expect(mock.markSettled).toHaveBeenCalledOnce();
+		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
 	});
 });
 

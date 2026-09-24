@@ -1,6 +1,9 @@
 <template>
 	<div class="container">
-		<Spinner v-if="loadingServerInfo" lg center />
+		<div v-if="loadingServerInfo" role="status" aria-live="polite" class="corpora-loading">
+			<Spinner size="40" center />
+			<p>{{ $t('corpora.loading') }}</p>
+		</div>
 
 		<div v-if="!loadingFormats && !loadingCorpora && !loadingServerInfo && !serverInfo && errorMessage" class="alert alert-danger">
 			Error loading BlackLab info, try refreshing the page.
@@ -62,8 +65,9 @@
 	</div>
 </template>
 <script setup lang="ts">
-import { computed, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, onUnmounted, ref, shallowRef, watch, watchPostEffect } from 'vue';
 
+import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
@@ -86,6 +90,7 @@ type CorpusPoll = {
 };
 
 const blacklab = useBlackLabApi();
+const pageBootstrap = usePageBootstrap();
 const corpora = ref<NormalizedIndexBase[]>([]),
 	formats = ref<NormalizedFormat[]>([]);
 const serverInfo = shallowRef<NormalizedBlacklabServer>();
@@ -296,7 +301,10 @@ async function bootstrap() {
 	}
 }
 
-bootstrap();
+void bootstrap();
+watchPostEffect(() => {
+	if (!loadingServerInfo.value) pageBootstrap.markContentReady();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -306,5 +314,10 @@ bootstrap();
 	margin-top: 1em;
 	margin-left: -15px;
 	margin-right: -15px;
+}
+
+.corpora-loading {
+	padding: 30px 0;
+	text-align: center;
 }
 </style>

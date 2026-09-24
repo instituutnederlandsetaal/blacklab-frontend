@@ -15,10 +15,10 @@ function inactiveSearchParameters() {
 	return provideMockActiveSearchParameters(ref(undefined), null);
 }
 
-test('settles a cached-corpus search page only after its DOM is mounted', () => {
+test('enables search page scripts only after its DOM is mounted', () => {
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'article', customScriptTiming: 'after-page-bootstrap' }, false);
-	pageBootstrap.markSettled();
+	pageBootstrap.markScriptsReady();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 
 	let formMounted = false;
@@ -28,11 +28,11 @@ test('settles a cached-corpus search page only after its DOM is mounted', () => 
 		},
 		template: '<div data-test="query-form" />',
 	});
-	const markSettled = vi.spyOn(pageBootstrap, 'markSettled');
-	markSettled.mockImplementation(() => {
+	const markScriptsReady = vi.spyOn(pageBootstrap, 'markScriptsReady');
+	markScriptsReady.mockImplementation(() => {
 		expect(formMounted).toBe(true);
-		markSettled.mockRestore();
-		pageBootstrap.markSettled();
+		markScriptsReady.mockRestore();
+		pageBootstrap.markScriptsReady();
 	});
 
 	const wrapper = shallowMount(SearchPage, {
@@ -43,16 +43,16 @@ test('settles a cached-corpus search page only after its DOM is mounted', () => 
 	});
 
 	expect(wrapper.find('[data-test="query-form"]').exists()).toBe(true);
-	expect(pageBootstrap.settled.value).toBe(true);
+	expect(pageBootstrap.scriptsReady.value).toBe(true);
 	wrapper.unmount();
 });
 
-test('does not retrigger an already-settled same-instance search', () => {
+test('does not retrigger scripts for an already-ready search page', () => {
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
-	pageBootstrap.markSettled();
-	const settledChanges = vi.fn();
-	const stop = watch(pageBootstrap.settled, settledChanges, { flush: 'sync' });
+	pageBootstrap.markScriptsReady();
+	const readinessChanges = vi.fn();
+	const stop = watch(pageBootstrap.scriptsReady, readinessChanges, { flush: 'sync' });
 
 	const wrapper = shallowMount(SearchPage, {
 		global: {
@@ -61,8 +61,8 @@ test('does not retrigger an already-settled same-instance search', () => {
 		},
 	});
 
-	expect(pageBootstrap.settled.value).toBe(true);
-	expect(settledChanges).not.toHaveBeenCalled();
+	expect(pageBootstrap.scriptsReady.value).toBe(true);
+	expect(readinessChanges).not.toHaveBeenCalled();
 	stop();
 	wrapper.unmount();
 });

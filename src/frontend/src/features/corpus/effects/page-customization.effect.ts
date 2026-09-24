@@ -35,7 +35,7 @@ export function startCustomizationInterop() {
 
 	useCustomJs(
 		computed(() => {
-			if (!pageBootstrap.settled.value) return [];
+			if (!pageBootstrap.scriptsReady.value) return [];
 			const js = context.value?.config.customJs ?? {};
 			return [...(js[''] ?? []), ...(pageName.value ? (js[pageName.value] ?? []) : [])].sort((left, right) => left.index - right.index);
 		}),

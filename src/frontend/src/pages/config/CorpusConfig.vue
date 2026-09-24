@@ -13,13 +13,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { usePageBootstrap } from '@/navigation/page-bootstrap';
 
 const route = useRoute();
 const tabs = ['tagset builder', 'interface'];
 const activeTab = computed(() => route.name);
 const index = useCorpus();
+const pageBootstrap = usePageBootstrap();
+onMounted(() => pageBootstrap.markContentReady());
 </script>

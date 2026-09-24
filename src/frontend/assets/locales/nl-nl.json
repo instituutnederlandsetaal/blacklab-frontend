@@ -1,4 +1,7 @@
 {
+	"corpora": {
+		"loading": "Corpora worden geladen…"
+	},
 	"corpus": {
 		"loading": "Even geduld, het corpus wordt geladen..."
 	},

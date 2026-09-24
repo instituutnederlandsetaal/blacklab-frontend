@@ -11,28 +11,41 @@ function afterBootstrapPage(name: string): PageMeta {
 }
 
 describe('page bootstrap state', () => {
-	test('keeps an after-bootstrap page settled across navigations to the same page', () => {
+	test('content readiness does not enable page scripts', () => {
 		const pageBootstrap = createPageBootstrapContext();
-		const articlePage = afterBootstrapPage('article');
+		pageBootstrap.changePage(afterBootstrapPage('search'), false);
 
-		pageBootstrap.changePage(articlePage, false);
-		expect(pageBootstrap.settled.value).toBe(false);
+		pageBootstrap.markContentReady();
 
-		pageBootstrap.markSettled();
-		expect(pageBootstrap.settled.value).toBe(true);
-
-		pageBootstrap.changePage(articlePage, true);
-		expect(pageBootstrap.settled.value).toBe(true);
+		expect(pageBootstrap.contentReady.value).toBe(true);
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
 	});
 
-	test('keeps an unsettled after-bootstrap page unsettled across same-instance navigation', () => {
+	test('keeps scripts ready across navigations to the same page instance', () => {
+		const pageBootstrap = createPageBootstrapContext();
+		const articlePage = afterBootstrapPage('article');
+
+		pageBootstrap.changePage(articlePage, false);
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
+		expect(pageBootstrap.contentReady.value).toBe(false);
+
+		pageBootstrap.markScriptsReady();
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
+		expect(pageBootstrap.contentReady.value).toBe(true);
+
+		pageBootstrap.changePage(articlePage, true);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
+		expect(pageBootstrap.contentReady.value).toBe(true);
+	});
+
+	test('keeps scripts waiting across same-instance navigation before bootstrap', () => {
 		const pageBootstrap = createPageBootstrapContext();
 		const articlePage = afterBootstrapPage('article');
 
 		pageBootstrap.changePage(articlePage, false);
 		pageBootstrap.changePage(articlePage, true);
 
-		expect(pageBootstrap.settled.value).toBe(false);
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
 	});
 
 	test('resets an after-bootstrap page when the page changes', () => {
@@ -41,10 +54,10 @@ describe('page bootstrap state', () => {
 		const aboutPage = afterBootstrapPage('about');
 
 		pageBootstrap.changePage(articlePage, false);
-		pageBootstrap.markSettled();
+		pageBootstrap.markScriptsReady();
 
 		pageBootstrap.changePage(aboutPage, false);
-		expect(pageBootstrap.settled.value).toBe(false);
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
 	});
 
 	test('resets the same semantic page for a different routed page instance', () => {
@@ -52,41 +65,42 @@ describe('page bootstrap state', () => {
 		const aboutPage = afterBootstrapPage('about');
 
 		pageBootstrap.changePage(aboutPage, false);
-		pageBootstrap.markSettled();
+		pageBootstrap.markScriptsReady();
 		pageBootstrap.changePage(aboutPage, false);
 
-		expect(pageBootstrap.settled.value).toBe(false);
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
 	});
 
-	test('settles immediate pages as soon as they become current', () => {
+	test('enables scripts for immediate pages as soon as they become current', () => {
 		const pageBootstrap = createPageBootstrapContext();
 
 		pageBootstrap.changePage({ name: 'search', customScriptTiming: 'immediate' }, false);
 
-		expect(pageBootstrap.settled.value).toBe(true);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
+		expect(pageBootstrap.contentReady.value).toBe(false);
 	});
 
-	test('settles pages with absent custom script timing as soon as they become current', () => {
+	test('enables scripts when no custom script timing is specified', () => {
 		const pageBootstrap = createPageBootstrapContext();
 
 		pageBootstrap.changePage({ name: 'search' }, false);
 
-		expect(pageBootstrap.settled.value).toBe(true);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
 	});
 
-	test('settles transitions to the same page name with different or absent timing', () => {
+	test('enables scripts across same-page transitions with different timing', () => {
 		const pageBootstrap = createPageBootstrapContext();
 
 		pageBootstrap.changePage(afterBootstrapPage('article'), false);
-		expect(pageBootstrap.settled.value).toBe(false);
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
 
 		pageBootstrap.changePage({ name: 'article', customScriptTiming: 'immediate' }, true);
-		expect(pageBootstrap.settled.value).toBe(true);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
 
 		pageBootstrap.changePage(afterBootstrapPage('article'), true);
-		expect(pageBootstrap.settled.value).toBe(true);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
 
 		pageBootstrap.changePage({ name: 'article' }, true);
-		expect(pageBootstrap.settled.value).toBe(true);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
 	});
 });

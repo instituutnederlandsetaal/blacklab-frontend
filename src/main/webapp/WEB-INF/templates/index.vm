@@ -5,6 +5,23 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+        <style>
+            body.startup-pending { overflow: hidden; }
+            .startup-status { position: fixed; inset: 0; z-index: 2000; overflow: auto; background: white; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #333; }
+            .startup-status .startup-header { height: 50px; background: #222; color: #ddd; }
+            .startup-status .startup-header-inner { box-sizing: border-box; height: 50px; margin: 0 auto; padding: 15px; font-size: 18px; line-height: 20px; }
+            .startup-status .startup-content { max-width: 1170px; margin: 0 auto; padding: 46px 15px 36px; }
+            .startup-status h1 { font-size: 24px; font-weight: 400; margin: 0 0 12px; }
+            .startup-status p { margin: 0 0 16px; }
+            .startup-status .startup-spinner { display: inline-block; width: 20px; height: 20px; margin-right: 10px; border: 2px solid rgb(204, 204, 204); border-top-color: #337ab7; border-radius: 50%; vertical-align: middle; animation: startup-spin .8s linear infinite; }
+            .startup-status button { padding: 7px 12px; border: 1px solid #2e6da4; border-radius: 4px; background: #337ab7; color: white; cursor: pointer; }
+            @keyframes startup-spin { to { transform: rotate(360deg); } }
+            @media (min-width: 768px) { .startup-status .startup-header-inner { width: 750px; } }
+            @media (min-width: 992px) { .startup-status .startup-header-inner { width: 970px; } }
+            @media (min-width: 1200px) { .startup-status .startup-header-inner { width: 1170px; } }
+            @media (prefers-reduced-motion: reduce) { .startup-status .startup-spinner { animation: none; } }
+        </style>
+
         ## Preconnect to BlackLab server to reduce latency for API requests
         ## This establishes TCP/TLS connection early, speeding up both OPTIONS preflight and actual requests
         <link rel="preconnect" href="$BLS_URL_ON_CLIENT" crossorigin>
@@ -35,15 +52,28 @@
             const BLF_COMMIT_MESSAGE = "$esc.javascript($commitMessage)";
 
             var DEBUG_INFO_VISIBLE = $debugInfo;
+
+            function showScriptLoadError() {
+                document.getElementById('startup-status').setAttribute('role', 'alert');
+                document.querySelector('.startup-content h1').textContent = 'Could not load the search interface';
+                document.querySelector('.startup-content p').textContent = 'Failed to load the application. Please reload the page.';
+            }
         </script>
     </head>
-    <body>
-        <div id="vue-root"></div>
+    <body class="startup-pending">
+        <div id="startup-status" class="startup-status" role="status" aria-live="polite">
+            <div class="startup-header"><div class="startup-header-inner">BlackLab Frontend</div></div>
+            <main class="startup-content">
+                <h1>Loading search interface</h1>
+                <p><span class="startup-spinner" aria-hidden="true"></span>Loading page data…</p>
+            </main>
+        </div>
+        <div id="vue-root" inert></div>
         #if($VITE)
         <script type="module" src="$VITE/@vite/client"></script>
-        <script type="module" src="$VITE/src/app/entrypoint/main.ts"></script>
+        <script type="module" src="$VITE/src/app/entrypoint/main.ts" onerror="showScriptLoadError()"></script>
         #else
-        <script type="module" src="$CF_URL_ON_CLIENT/js/main.js?_$cache" onerror="document.body.insertAdjacentHTML('afterbegin', '<div class=\'alert alert-danger\'>Warning: Failed to load main.js from $CF_URL_ON_CLIENT/js/main.js. Please check your configuration.</div>');"></script>
+        <script type="module" src="$CF_URL_ON_CLIENT/js/main.js?_$cache" onerror="showScriptLoadError()"></script>
         #end
     </body>
 

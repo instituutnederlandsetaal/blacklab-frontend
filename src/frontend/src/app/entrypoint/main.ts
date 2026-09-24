@@ -31,11 +31,14 @@ import { createSearchSummary, provideSearchSummary } from '@/features/search/mod
 import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 import { installHooksGlobal, runHooks } from '@/interop/hooks';
 import { installCorpusGlobal, installCustomizationApiGlobals, installLegacyStoreGlobals, installVueGlobals } from '@/interop/window-globals';
+import { createInitialLoading } from '@/navigation/initial-loading';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
 import { createArticleUrlBinding } from '@/url/article-state';
 import { queryHistoryDetails, queryHistoryFromUrl } from '@/url/query-history';
 import { createSearchUrlBinding } from '@/url/search-state';
+
+import { isInitialPageReady } from './initial-readiness';
 
 import { createApi } from '@/shared/api';
 import { createLoginSystem, type LoginSystemConfig } from '@/shared/auth/loginsystem';
@@ -200,6 +203,10 @@ async function start() {
 
 	app.use(searchNavigation);
 	app.use(createArticleUrlBinding(router.router, articleState, corpusState.corpus));
+	const initialLoading = createInitialLoading(() =>
+		isInitialPageReady(router.router.currentRoute.value, corpusState.contextLoader, pageBootstrap.contentReady.value, searchNavigation.initialReadSettled.value),
+	);
+	app.use(initialLoading);
 	installLegacyStoreGlobals(app, customizationRegistry, activeSearchParameters);
 
 	app.runWithContext(() => startCustomizationInterop());
@@ -208,8 +215,32 @@ async function start() {
 	installVueGlobals(app, instance);
 }
 
+function showStartupError(cause: unknown) {
+	console.error('Could not start BlackLab Frontend', cause);
+	const status = document.getElementById('startup-status') ?? document.body;
+	status.setAttribute('role', 'alert');
+	const content = document.createElement('main');
+	content.className = 'startup-content';
+	const heading = document.createElement('h1');
+	heading.textContent = 'Could not load the search interface';
+	const message = document.createElement('p');
+	message.textContent = cause instanceof Error && cause.message ? cause.message : 'An unexpected error occurred.';
+	const retry = document.createElement('button');
+	retry.type = 'button';
+	retry.textContent = 'Reload page';
+	retry.addEventListener('click', () => window.location.reload());
+	content.replaceChildren(heading, message, retry);
+	status.querySelector('.startup-content')?.remove();
+	if (status === document.body) status.replaceChildren(content);
+	else status.append(content);
+}
+
+function boot() {
+	void start().catch(showStartupError);
+}
+
 if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', start, { once: true });
+	document.addEventListener('DOMContentLoaded', boot, { once: true });
 } else {
-	void start();
+	boot();
 }

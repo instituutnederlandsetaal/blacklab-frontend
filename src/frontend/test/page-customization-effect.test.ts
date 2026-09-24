@@ -10,7 +10,7 @@ import type { CFPageConfig } from '@/types/apptypes';
 const mocks = vi.hoisted(() => ({
 	context: undefined as unknown,
 	indexId: undefined as unknown,
-	pageBootstrap: undefined as unknown as { page: ReturnType<typeof ref<{ name: string }>>; settled: ReturnType<typeof ref<boolean>> },
+	pageBootstrap: undefined as unknown as { page: ReturnType<typeof ref<{ name: string }>>; scriptsReady: ReturnType<typeof ref<boolean>> },
 }));
 
 vi.mock('@/app/state/useCorpusContext', () => ({ useCorpusContextLoader: () => mocks.context }));
@@ -52,7 +52,7 @@ describe('page customization effect', () => {
 			isLoaded: () => true,
 		});
 		mocks.indexId = ref('owner:corpus');
-		mocks.pageBootstrap = { page: ref({ name: 'search' }), settled: ref(true) };
+		mocks.pageBootstrap = { page: ref({ name: 'search' }), scriptsReady: ref(true) };
 		const scope = effectScope();
 		const appendChild = vi.spyOn(document.body, 'appendChild');
 		scope.run(startCustomizationInterop);
@@ -64,14 +64,14 @@ describe('page customization effect', () => {
 				'/global-initial.js',
 			]);
 
-			mocks.pageBootstrap.settled.value = false;
+			mocks.pageBootstrap.scriptsReady.value = false;
 			mocks.pageBootstrap.page.value = { name: 'article' };
 			contextValue.value = { config: config('latest') };
 			await nextTick();
 			expect(document.body.querySelectorAll('script[data-page-customization-js]')).toHaveLength(0);
 			expect(document.head.querySelector('link[data-page-customization-css]')?.getAttribute('href')).toBe('/style-latest.css');
 
-			mocks.pageBootstrap.settled.value = true;
+			mocks.pageBootstrap.scriptsReady.value = true;
 			await nextTick();
 
 			expect(appendChild).toHaveBeenCalledTimes(4);

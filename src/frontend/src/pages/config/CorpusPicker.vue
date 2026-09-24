@@ -5,7 +5,7 @@
 			{{ $t('remoteIndex.loadingCorpora') }}
 		</template>
 		<div v-else-if="corpora.isError()">
-			{{ corpora.error }} <button type="button" @click="corpora.retry()">{{ $t('remoteIndex.retry') }}</button>
+			{{ corpora.error.message }} <button type="button" @click="corpora.retry()">{{ $t('remoteIndex.retry') }}</button>
 		</div>
 		<template v-else-if="corpora.isLoaded()">
 			<div v-for="c in corpora.value" :key="c.id">
