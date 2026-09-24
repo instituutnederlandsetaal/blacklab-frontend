@@ -169,6 +169,11 @@ function reset() {
 
 .blf-form-container-tabs {
 	margin-bottom: 10px;
+	> .tabs {
+		margin-left: -1px;
+		margin-right: -1px;
+		margin-top: -1px;
+	}
 }
 
 .blf-form-container-tabs.blf-form-surface-tabs {

@@ -30,6 +30,7 @@ type TabsStoryArgs = {
 	small: boolean;
 	large: boolean;
 	class?: string;
+	style?: Record<string, string>;
 };
 
 const meta = {
@@ -158,6 +159,14 @@ export const PrimaryVertical: Story = {
 	args: {
 		class: 'tabs-primary',
 		vertical: true,
+	},
+	render: renderInteractive,
+};
+
+export const PrimaryCustomColor: Story = {
+	args: {
+		class: 'tabs-primary text-primary',
+		style: { color: '#3c763d' },
 	},
 	render: renderInteractive,
 };

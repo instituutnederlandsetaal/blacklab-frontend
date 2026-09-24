@@ -173,7 +173,8 @@ $tab-radius: 4px;
 	&.tabs-primary {
 		--tabs-background-color: var(--tabs-primary-color, #337ab7);
 		--tabs-border-color: transparent;
-		--tab-active-border-color: var(--tabs-primary-color, #337ab7);
+		--tab-active-border-color: transparent;
+		--tab-hover-background-color: #eee;
 		--tab-inactive-color: #fff;
 		--tab-active-color: #555;
 
@@ -184,6 +185,15 @@ $tab-radius: 4px;
 
 	&.tabs-primary > .tab:not(.active):not(.disabled) {
 		color: var(--tab-inactive-color);
+	}
+
+	&.tabs-primary > .tab {
+		background-clip: padding-box;
+	}
+
+	&.tabs-primary > .tab.disabled {
+		color: var(--tab-inactive-color);
+		opacity: 0.75;
 	}
 
 	&.tabs-primary > .tab:not(.active):not(.disabled):hover,
@@ -208,11 +218,11 @@ $tab-radius: 4px;
 		align-items: center;
 
 		&:not(.invalid) {
-			background: var(--tab-background-color);
+			background-color: var(--tab-background-color);
 		}
 
 		&:not(.active):not(.disabled):hover {
-			background: var(--tab-hover-background-color);
+			background-color: var(--tab-hover-background-color);
 		}
 
 		border: 1px solid transparent;
@@ -276,7 +286,7 @@ $tab-radius: 4px;
 		}
 
 		&.active:not(.invalid) {
-			background: var(--tab-active-background-color);
+			background-color: var(--tab-active-background-color);
 		}
 
 		&.disabled {
