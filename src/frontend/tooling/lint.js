@@ -6,24 +6,22 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const executableExtension = process.platform === 'win32' ? '.cmd' : '';
-const executable = name => path.join(root, 'node_modules', '.bin', `${name}${executableExtension}`);
+const npmCli = process.env.npm_execpath;
+if (!npmCli) throw new Error('Run lint through npm: npm run lint');
+
+const npmCheck = (label, bin, args) => ({ label, command: process.execPath, args: [npmCli, 'exec', '--no', '--', bin, ...args] });
 
 const checks = [
-	{ label: 'application types', command: executable('vue-tsc'), args: ['--noEmit', '-p', 'tsconfig.app.json'] },
-	{ label: 'test and Storybook types', command: executable('vue-tsc'), args: ['--noEmit', '-p', 'tsconfig.tests.json'] },
-	{ label: 'tooling types', command: executable('tsc'), args: ['--noEmit', '-p', 'tsconfig.node.json'] },
-	{
-		label: 'schema types',
-		command: executable('tsc'),
-		args: ['--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'esnext', '--module', 'esnext', 'assets/blf-schema.ts'],
-	},
-	{ label: 'Oxlint', command: executable('oxlint'), args: ['--config', 'tooling/oxlint.config.ts', '.'] },
+	npmCheck('application types', 'vue-tsc', ['--noEmit', '-p', 'tsconfig.app.json']),
+	npmCheck('test and Storybook types', 'vue-tsc', ['--noEmit', '-p', 'tsconfig.tests.json']),
+	npmCheck('tooling types', 'tsc', ['--noEmit', '-p', 'tsconfig.node.json']),
+	npmCheck('schema types', 'tsc', ['--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'esnext', '--module', 'esnext', 'assets/blf-schema.ts']),
+	npmCheck('Oxlint', 'oxlint', ['--config', 'tooling/oxlint.config.ts', '.']),
 ];
 
 if (await runChecks(checks)) {
 	await runChecks([
-		{ label: 'Knip', command: executable('knip'), args: ['--config', 'tooling/knip.json'] },
+		npmCheck('Knip', 'knip', ['--config', 'tooling/knip.json']),
 		{ label: 'abstraction heuristic', command: process.execPath, args: ['tooling/lint-abstractions.js'] },
 	]);
 }
