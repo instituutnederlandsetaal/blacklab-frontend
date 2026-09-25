@@ -17,14 +17,7 @@
 					</button>
 				</div>
 
-				<GenericTable
-					style="margin: 8px 0"
-					:rows="concordances.results"
-					:header="type === 'hits' ? cols.hitColumns : cols.docColumns"
-					:cols="cols"
-					:info="{ ...info, detailedAnnotations: [] }"
-					:type="type"
-				/>
+				<GenericTable style="margin: 8px 0" :rows="concordances.results" :header="type === 'hits' ? cols.hitColumns : cols.docColumns" :cols="cols" :info="previewInfo" :type="type" />
 				<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')">
 						<span class="fa fa-angle-double-right"></span>
@@ -72,6 +65,8 @@ const props = defineProps<IRowProps<GroupRowData>>();
 
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
+// The parent view's selected range does not apply to a group's inline preview.
+const previewInfo = computed(() => ({ ...props.info, selectedRange: null, detailedAnnotations: [] }));
 
 // NOTE: was initially created using a watcher on props.row only,
 // but that leaves the type as T|undefined, so computed it is
@@ -102,7 +97,7 @@ const concordances = computed(
 			}
 
 			return r
-				.then(newResults => makeRows(newResults, props.info))
+				.then(newResults => makeRows(newResults, previewInfo.value))
 				.then(newRows => {
 					if (props.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
 					else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
