@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, ref, type Ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import type { NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
@@ -111,7 +112,8 @@ describe('CorpusConfig', () => {
 		});
 		await router.push('/multi/configwizard/interface');
 		await router.isReady();
-		const wrapper = mount(defineComponent({ template: '<router-view />' }), { global: { plugins: [router] } });
+		const pageBootstrap = createPageBootstrapContext();
+		const wrapper = mount(defineComponent({ template: '<router-view />' }), { global: { plugins: [router, pageBootstrap] } });
 
 		expect(wrapper.get('[data-testid="child"]').text()).toBe('multi');
 		expect(
@@ -122,6 +124,7 @@ describe('CorpusConfig', () => {
 		).toBe('interface');
 		expect(wrapper.findAll('a').map(link => link.attributes('href'))).toEqual(['/multi/configwizard/pos', '/multi/configwizard/interface']);
 		expect(mock.getCorpus).not.toHaveBeenCalled();
+		expect(pageBootstrap.contentReady.value).toBe(true);
 	});
 });
 

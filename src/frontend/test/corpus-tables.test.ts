@@ -61,8 +61,8 @@ describe('CorpusTable', () => {
 
 		await wrapper.find('span[title="show details"]').trigger('click');
 		expect(wrapper.get('tr[title="2024-03-02 12:34:56"]').text()).toContain('02-03-2024');
-		expect(wrapper.text()).toContain('1,234');
-		expect(wrapper.text()).toContain('2,695,798');
+		expect(wrapper.text()).toContain(new Intl.NumberFormat().format(1_234));
+		expect(wrapper.text()).toContain(new Intl.NumberFormat().format(2_695_798));
 		expect(wrapper.text()).toContain('A corpus');
 	});
 

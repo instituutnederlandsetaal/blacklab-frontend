@@ -5,6 +5,8 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import Pagination from '@/shared/ui/Pagination.vue';
 
+const formatNumber = (value: number) => new Intl.NumberFormat().format(value);
+
 enableAutoUnmount(afterEach);
 
 describe('Pagination', () => {
@@ -16,7 +18,7 @@ describe('Pagination', () => {
 		await wrapper.setProps({ maxPage: 10 });
 		expect(wrapper.get('input').element).toBe(input);
 		expect(document.activeElement).toBe(input);
-		expect(wrapper.get('li.last a').attributes('title')).toBe('11 (last)');
+		expect(wrapper.get('li.last a').attributes('title')).toBe(`${formatNumber(11)} (last)`);
 
 		await wrapper.setProps({ page2: 3 });
 		expect(wrapper.find('input').exists()).toBe(false);
@@ -66,7 +68,7 @@ describe('Pagination', () => {
 
 		await wrapper
 			.findAll('a')
-			.find(link => link.text() === '3')!
+			.find(link => link.text() === formatNumber(3))!
 			.trigger('click');
 		expect(wrapper.emitted('change')).toEqual([[2]]);
 		expect(wrapper.emitted('active')).toBeUndefined();
@@ -88,14 +90,14 @@ describe('Pagination', () => {
 		const single = mount(Pagination, { props: { page: 2, page2: 2, maxPage: 8, editable: false, showTotal: true } });
 
 		expect(wrapper.find('input').exists()).toBe(false);
-		expect(wrapper.get('li.current').text()).toBe('3 - 5/9');
-		expect(single.get('li.current').text()).toBe('3/9');
+		expect(wrapper.get('li.current').text()).toBe(`${formatNumber(3)} - ${formatNumber(5)}/${formatNumber(9)}`);
+		expect(single.get('li.current').text()).toBe(`${formatNumber(3)}/${formatNumber(9)}`);
 		expect(
 			wrapper
 				.findAll('li')
 				.filter(item => !['first', 'prev', 'current', 'next', 'last'].some(className => item.classes().includes(className)))
 				.map(item => item.text()),
-		).toEqual(['1', '2', '6', '7', '9']);
+		).toEqual([1, 2, 6, 7, 9].map(formatNumber));
 
 		await wrapper.get('li.prev a').trigger('click');
 		await wrapper.get('li.next a').trigger('click');
@@ -106,15 +108,15 @@ describe('Pagination', () => {
 
 	test('clamps labels while retaining the empty-article 1/0 edge', () => {
 		const below = mount(Pagination, { props: { page: -3, minPage: 2, maxPage: 5, editable: false } });
-		expect(below.get('li.current').text()).toBe('3');
+		expect(below.get('li.current').text()).toBe(formatNumber(3));
 		expect(below.find('li.prev').exists()).toBe(false);
 
 		const above = mount(Pagination, { props: { page: 8, maxPage: 5, editable: false } });
-		expect(above.get('li.current').text()).toBe('6');
+		expect(above.get('li.current').text()).toBe(formatNumber(6));
 		expect(above.find('li.next').exists()).toBe(false);
 
 		const emptyArticle = mount(Pagination, { props: { page: 0, maxPage: -1, editable: false, showTotal: true } });
-		expect(emptyArticle.get('li.current').text()).toBe('1/0');
-		expect(emptyArticle.get('li.last span').attributes('title')).toBe('0 (last)');
+		expect(emptyArticle.get('li.current').text()).toBe(`${formatNumber(1)}/${formatNumber(0)}`);
+		expect(emptyArticle.get('li.last span').attributes('title')).toBe(`${formatNumber(0)} (last)`);
 	});
 });
