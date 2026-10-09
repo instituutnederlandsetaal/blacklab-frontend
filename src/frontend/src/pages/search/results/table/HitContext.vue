@@ -34,9 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type StyleValue } from 'vue';
+import { computed, type CSSProperties } from 'vue';
 
 import type { HitContext } from '@/types/apptypes';
+import { defineProps, defineEmits, } from 'vue';
 
 const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
 
@@ -72,9 +73,17 @@ const emit = defineEmits<{
 }>();
 const renderInfo = computed(() => {
 	const tokens = before ? (data.before ?? []) : after ? (data.after ?? []) : data.match;
+	const result: {
+		relationKeys: string[];
+		text: string;
+		punctuation: string;
+		punctBefore: string | undefined;
+		title: string | undefined;
+		style: CSSProperties | undefined;
+	}[] = [];
 
-	return tokens.map(token => {
-		let style: StyleValue | undefined; // undefined means word is not highlighted or hoverable
+	for (const token of tokens) {
+		let style: CSSProperties | undefined; // undefined means word is not highlighted or hoverable
 		if (highlight && token.captureAndRelation?.length) {
 			if (token.captureAndRelation.some(c => c.showHighlight)) {
 				// Permanent highlight, used for e.g. dependency relations
@@ -93,16 +102,36 @@ const renderInfo = computed(() => {
 			}
 		}
 
-		return {
+		const current = {
 			// Ex. "A" for a capture group "A:[]", or parallel field name, or relation name
 			relationKeys: token.captureAndRelation?.map(c => c.key) ?? [],
-			text: token.annotations[annotation],
+			text: token.annotations[annotation] ?? '',
 			punctuation: token.punct,
 			punctBefore: token.punctBefore,
 			title: highlight ? token.captureAndRelation?.map(c => c.display).join(HIGHLIGHT_SEPARATOR) : undefined,
 			style,
 		};
-	});
+		const previous = result.at(-1);
+		if (
+			previous &&
+			((!previous.style && !style) ||
+				(previous.style &&
+					style &&
+					previous.style.background === style.background &&
+					previous.title === current.title &&
+					previous.relationKeys.length === current.relationKeys.length &&
+					previous.relationKeys.every((key, i) => key === current.relationKeys[i]) &&
+					// Punctuation between highlighted spans must remain outside the highlight.
+					(!punct || (!previous.punctuation && !current.punctBefore))))
+		) {
+			previous.text += (punct ? previous.punctuation + (current.punctBefore ?? '') : '') + current.text;
+			// Retain hidden punctuation so showEllipsis still detects punctuation-only context.
+			previous.punctuation = punct ? current.punctuation : previous.punctuation + (current.punctBefore ?? '') + current.punctuation;
+		} else {
+			result.push(current);
+		}
+	}
+	return result;
 });
 
 // BlackLab represents absent trailing context with one empty punctuation token.
