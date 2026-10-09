@@ -172,7 +172,7 @@
 			</template>
 		</div>
 
-		<div class="panel-footer text-right">
+		<div class="panel-footer text-right btn-toolbar" style="justify-content: flex-end">
 			<button type="button" :disabled="disabled" class="btn btn-default" @click="clear">
 				{{ addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close') }}
 			</button>

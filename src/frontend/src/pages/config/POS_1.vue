@@ -9,8 +9,10 @@
 			allowHtml
 			searchable
 		/>
-		<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!modelValue.mainPosAnnotationId">OK</button>
-		<button type="button" class="btn btn-default" @click="$emit('update:modelValue', { ...modelValue, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id })">Default</button>
+		<div class="btn-toolbar">
+			<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!modelValue.mainPosAnnotationId">OK</button>
+			<button type="button" class="btn btn-default" @click="$emit('update:modelValue', { ...modelValue, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id })">Default</button>
+		</div>
 	</div>
 </template>
 

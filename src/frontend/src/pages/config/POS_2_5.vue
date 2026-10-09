@@ -50,7 +50,7 @@
 			</div>
 		</div>
 
-		<div style="margin-top: 20px">
+		<div class="btn-toolbar" style="margin-top: 20px">
 			<button type="button" class="btn btn-primary" @click="submit">OK</button>
 			<button type="button" class="btn btn-default" @click="skip">Skip (no exclusions)</button>
 		</div>

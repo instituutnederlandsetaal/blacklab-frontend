@@ -118,6 +118,10 @@ watch(
 </script>
 
 <style lang="scss">
+.concordance-controls > .btn + .btn {
+	margin-left: 0.25em;
+}
+
 .well-light {
 	background: rgba(255, 255, 255, 0.8);
 	border: 1px solid #e8e8e8;

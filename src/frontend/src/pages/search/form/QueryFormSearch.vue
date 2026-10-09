@@ -62,21 +62,23 @@
 					<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
 					<!-- Copy to builder, import, gap filling buttons -->
-					<button v-if="advancedEnabled" type="button" class="btn btn-sm btn-default" name="parseQuery" id="parseQuery" :title="$t('search.expert.parseQueryTitle').toString()" @click="parseQuery">
-						{{ $t('search.expert.parseQuery') }}
-					</button>
-					<label class="btn btn-sm btn-default file-input-button" for="importQuery">
-						{{ $t('search.expert.importQuery') }}
-						<input type="file" name="importQuery" id="importQuery" accept=".txt,text/plain" @change="importQuery" :title="$t('search.expert.importQueryTitle')" />
-					</label>
-					<div class="btn-group">
-						<label class="btn btn-sm btn-default file-input-button" for="gapFilling">
-							{{ $t('search.expert.gapFilling') }}
-							<input type="file" name="gapFilling" id="gapFilling" accept=".tsv,.csv,text/plain" @change="importGapFile" :title="$t('search.expert.gapFillingTitle')" />
-						</label>
-						<button v-if="gapValue != null" type="button" class="btn btn-default btn-sm" :title="$t('search.expert.clearGapValues').toString()" @click="gapValue = null">
-							<span class="fa fa-times"></span>
+					<div class="btn-toolbar">
+						<button v-if="advancedEnabled" type="button" class="btn btn-sm btn-default" name="parseQuery" id="parseQuery" :title="$t('search.expert.parseQueryTitle').toString()" @click="parseQuery">
+							{{ $t('search.expert.parseQuery') }}
 						</button>
+						<label class="btn btn-sm btn-default file-input-button" for="importQuery">
+							{{ $t('search.expert.importQuery') }}
+							<input type="file" name="importQuery" id="importQuery" accept=".txt,text/plain" @change="importQuery" :title="$t('search.expert.importQueryTitle')" />
+						</label>
+						<div class="btn-group">
+							<label class="btn btn-sm btn-default file-input-button" for="gapFilling">
+								{{ $t('search.expert.gapFilling') }}
+								<input type="file" name="gapFilling" id="gapFilling" accept=".tsv,.csv,text/plain" @change="importGapFile" :title="$t('search.expert.gapFillingTitle')" />
+							</label>
+							<button v-if="gapValue != null" type="button" class="btn btn-default btn-sm" :title="$t('search.expert.clearGapValues').toString()" @click="gapValue = null">
+								<span class="fa fa-times"></span>
+							</button>
+						</div>
 					</div>
 					<textarea type="area" v-if="gapValue != null" class="form-control gap-value-editor" v-model.lazy="gapValue" @keydown.tab.prevent="insertTabInText" />
 					<span v-show="parseQueryError" id="parseQueryError" class="text-danger"><span class="fa fa-exclamation-triangle"></span> {{ parseQueryError }}</span>

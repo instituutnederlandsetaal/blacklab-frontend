@@ -1,16 +1,18 @@
 <template>
 	<div>
 		<h3>{{ title }}</h3>
-		<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!modelValue.subAnnotations">OK</button>
-		<button
-			type="button"
-			class="btn btn-default"
-			title="select subannotations of the main annotation"
-			:disabled="defaultSubAnnotations.length === 0"
-			@click="$emit('update:modelValue', { ...modelValue, subAnnotations: defaultSubAnnotations })"
-		>
-			select defaults
-		</button>
+		<div class="btn-toolbar">
+			<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!modelValue.subAnnotations">OK</button>
+			<button
+				type="button"
+				class="btn btn-default"
+				title="select subannotations of the main annotation"
+				:disabled="defaultSubAnnotations.length === 0"
+				@click="$emit('update:modelValue', { ...modelValue, subAnnotations: defaultSubAnnotations })"
+			>
+				select defaults
+			</button>
+		</div>
 		<div style="display: flex; gap: 15px; padding: 10px 0; align-items: flex-start; width: 100%">
 			<div class="unpicked" style="display: inline-flex; flex-direction: column; gap: 2px">
 				<h3>Selected</h3>

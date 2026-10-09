@@ -992,6 +992,12 @@ export default defineComponent({
 
 .input-group .combobox {
 	width: unset;
+	// Restore Bootstrap's table cell layout: .combobox otherwise overrides
+	// .input-group-btn with display: inline-block, wrapping it below the input.
+	&.input-group-btn {
+		display: table-cell;
+		width: 1%;
+	}
 	// Bootstrap helper
 	&:not(.input-group-btn, .input-group-addon) {
 		position: relative;

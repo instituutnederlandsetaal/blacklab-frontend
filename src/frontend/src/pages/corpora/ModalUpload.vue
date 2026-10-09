@@ -13,15 +13,17 @@
 
 		<div style="padding: 10px 25px 0px">
 			<form v-if="!uploading">
-				<label for="data[]" class="btn btn-info file-input-button document-upload-button">
-					<span class="document-upload-button-text">{{ fileLabel }}</span>
-					<input type="file" name="data[]" multiple @change="documentFiles = ($event.target as HTMLInputElement).files" />
-				</label>
+				<div class="btn-toolbar" style="flex-wrap: wrap">
+					<label for="data[]" class="btn btn-info file-input-button document-upload-button">
+						<span class="document-upload-button-text">{{ fileLabel }}</span>
+						<input type="file" name="data[]" multiple @change="documentFiles = ($event.target as HTMLInputElement).files" />
+					</label>
 
-				<label for="linkeddata[]" class="btn btn-default file-input-button document-upload-button">
-					<span id="upload-metadata-label" class="document-upload-button-text">{{ metadataFileLabel }}</span>
-					<input type="file" name="linkeddata[]" multiple @change="metadataFiles = ($event.target as HTMLInputElement).files" />
-				</label>
+					<label for="linkeddata[]" class="btn btn-default file-input-button document-upload-button">
+						<span id="upload-metadata-label" class="document-upload-button-text">{{ metadataFileLabel }}</span>
+						<input type="file" name="linkeddata[]" multiple @change="metadataFiles = ($event.target as HTMLInputElement).files" />
+					</label>
+				</div>
 
 				<small id="uploadFormatDescription" class="text-muted" style="display: block; margin: 12px 0px; width: 100%">
 					The corpus accepts the following files:<br />
