@@ -45,7 +45,7 @@ describe('field presentation', () => {
 		expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('nl:title');
 	});
 
-	test('applies base attributes and variant sizing consistently', () => {
+	test('applies base attributes and sizing consistently', () => {
 		const wrapper = mount(TextField, {
 			props: {
 				id: 'word',
@@ -54,12 +54,12 @@ describe('field presentation', () => {
 				displayName: 'Word',
 				title: 'Search words',
 				class: 'custom-field',
-				variant: 'large',
+				size: 'large',
 			},
 		});
 
 		const root = wrapper.get('#word_1');
-		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'blf-field', 'custom-field', 'large', 'form-group-lg']));
+		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'blf-field', 'custom-field', 'form-group-lg']));
 		expect(root.attributes('title')).toBe('Search words');
 		expect(root.get('input[type="text"]').classes()).toContain('input-lg');
 		expect(root.get('.file-input-button').classes()).toContain('btn-lg');
@@ -73,12 +73,13 @@ describe('field presentation', () => {
 				modelValue: { value: '', caseSensitive: false },
 				displayName: 'Word',
 				description: 'Search for one or more words',
-				variant: ['horizontal', 'large'],
+				layout: 'horizontal',
+				size: 'large',
 			},
 		});
 
 		const root = wrapper.get('#word_1');
-		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'form-group-lg', 'blf-field-horizontal', 'horizontal']));
+		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'form-group-lg', 'blf-field-horizontal']));
 		expect(root.classes()).not.toContain('row');
 		expect(root.get('label.control-label').classes()).toContain('blf-field-label');
 
@@ -95,7 +96,9 @@ describe('field presentation', () => {
 				htmlId: 'word_1',
 				modelValue: { value: '', caseSensitive: false },
 				displayName: 'Word',
-				variant: ['simple', 'large'],
+				controls: 'simple',
+				size: 'large',
+				showLabel: false,
 			},
 		});
 
@@ -113,11 +116,11 @@ describe('field presentation', () => {
 				id: 'expert',
 				htmlId: 'expert_1',
 				modelValue: '',
-				variant: 'small',
+				size: 'small',
 			},
 		});
 
-		expect(wrapper.get('#expert_1').classes()).toEqual(expect.arrayContaining(['blf-field', 'blf-expert-query-field', 'small']));
+		expect(wrapper.get('#expert_1').classes()).toEqual(expect.arrayContaining(['blf-field', 'blf-expert-query-field']));
 		expect(wrapper.get('textarea').classes()).toContain('input-sm');
 	});
 
@@ -127,12 +130,12 @@ describe('field presentation', () => {
 				id: 'expert',
 				htmlId: 'expert_1',
 				modelValue: '',
-				variant: 'horizontal',
+				layout: 'horizontal',
 			},
 		});
 
 		const root = wrapper.get('#expert_1');
-		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'blf-field-horizontal', 'horizontal']));
+		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'blf-field-horizontal']));
 		expect(root.get('label').classes()).toContain('blf-field-label');
 		expect(root.get('.blf-field-controls').find('textarea').exists()).toBe(true);
 	});
@@ -146,7 +149,7 @@ describe('field presentation', () => {
 				displayName: 'N-gram size',
 				min: 1,
 				max: 5,
-				variant: 'large',
+				size: 'large',
 			},
 		});
 

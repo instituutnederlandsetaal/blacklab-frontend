@@ -278,7 +278,7 @@ function mountTotalsSummaryHarness() {
 	const harness = mountViewHarness((builder, form) => {
 		const english = builder.newContainer('harness.summary.searchfield.english', ContainerRenderer, { title: 'English' });
 		const dutch = builder.newContainer('harness.summary.searchfield.dutch', ContainerRenderer, { title: 'Dutch' });
-		const searchfield = builder.newContainer('harness.summary.searchfield', ContainerRenderer, { variant: 'tabs' });
+		const searchfield = builder.newContainer('harness.summary.searchfield', ContainerRenderer, { mode: 'tabs' });
 		searchfield.prependChild(dutch, { outputWhenActive: emit => emit('searchfield', 'contents__nl') });
 		searchfield.prependChild(english, { outputWhenActive: emit => emit('searchfield', 'contents__en') });
 		const field = builder.newField('harness.summary.filter', filterTextController, TextField, {

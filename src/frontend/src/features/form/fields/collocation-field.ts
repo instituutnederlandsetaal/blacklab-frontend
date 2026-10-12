@@ -55,6 +55,6 @@ export function createCollocationSimpleFieldNode(config: Pick<CollocationFieldEx
 	return config.createAnnotationField({
 		annotationId,
 		id: `${config.id}.${role}.simple.${annotationId}`,
-		inheritedVariant: 'simple',
+		controls: 'simple',
 	});
 }

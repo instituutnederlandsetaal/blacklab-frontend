@@ -91,7 +91,10 @@ export function createSearchFormNodeConstructors({
 			groupId: options.groupId,
 			showLabel: options.showLabel,
 			textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
-			variant: options.variant,
+			layout: options.layout,
+			size: options.size,
+			class: options.class,
+			style: options.style,
 		};
 	}
 
@@ -103,7 +106,10 @@ export function createSearchFormNodeConstructors({
 			groupId: options.groupId,
 			showLabel: options.showLabel,
 			textDirection: corpus.textDirection,
-			variant: options.variant,
+			layout: options.layout,
+			size: options.size,
+			class: options.class,
+			style: options.style,
 		};
 	}
 
@@ -116,7 +122,10 @@ export function createSearchFormNodeConstructors({
 			attributeName: attribute.attributeName,
 			showLabel: options.showLabel,
 			textDirection: corpus.textDirection,
-			variant: options.variant,
+			layout: options.layout,
+			size: options.size,
+			class: options.class,
+			style: options.style,
 		};
 	}
 
@@ -150,6 +159,7 @@ export function createSearchFormNodeConstructors({
 			const annotation = resolveAnnotation(reference);
 			return createFormFieldNode(options.id, annotationTextController, TextField, {
 				...annotationCommon(annotation, options),
+				controls: options.controls,
 				annotationId: annotation.id,
 				caseSensitive: annotation.caseSensitive,
 			});
@@ -159,6 +169,7 @@ export function createSearchFormNodeConstructors({
 			const annotation = resolveAnnotation(reference);
 			return createFormFieldNode(options.id, annotationTextController, TextField, {
 				...annotationCommon(annotation, options),
+				controls: options.controls,
 				annotationId: annotation.id,
 				autocomplete: (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term),
 				caseSensitive: annotation.caseSensitive,
@@ -225,6 +236,7 @@ export function createSearchFormNodeConstructors({
 		metadataText(field, options) {
 			return createFormFieldNode(options.id, filterTextController, TextField, {
 				...metadataCommon(field, options),
+				controls: options.controls,
 				metadataFieldId: options.metadataFieldId ?? semanticFieldId(field),
 			});
 		},
@@ -233,6 +245,7 @@ export function createSearchFormNodeConstructors({
 			const metadataFieldId = options.metadataFieldId ?? semanticFieldId(field);
 			return createFormFieldNode(options.id, filterTextController, TextField, {
 				...metadataCommon(field, options),
+				controls: options.controls,
 				autocomplete: (term: string) => blacklabApi.getMetadataAutocomplete(corpus.id, metadataFieldId, term),
 				metadataFieldId,
 			});
@@ -323,7 +336,7 @@ export function createSearchFormNodeConstructors({
 		},
 
 		withinText(attribute, options) {
-			return createFormFieldNode(options.id, withinAttributeTextController, TextField, withinCommon(attribute, options));
+			return createFormFieldNode(options.id, withinAttributeTextController, TextField, { ...withinCommon(attribute, options), controls: options.controls });
 		},
 
 		withinSelect(attribute, options) {

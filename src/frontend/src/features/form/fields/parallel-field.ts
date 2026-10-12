@@ -46,6 +46,6 @@ export function createDefaultParallelFieldState(config: ParallelFieldConfig, run
 	};
 }
 
-export function createDefaultParallelChildState(config: ParallelFieldConfig, runtime: FormRuntimeContext): unknown {
+export function createDefaultParallelChildState(config: Pick<ParallelFieldConfig, 'childFieldTemplate'>, runtime: FormRuntimeContext): unknown {
 	return config.childFieldTemplate.controller.createDefaultState(config.childFieldTemplate, runtime);
 }

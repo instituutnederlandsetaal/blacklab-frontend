@@ -6,10 +6,9 @@ import { defineComponent, h, nextTick, type PropType } from 'vue';
 
 import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreFieldState, scalar, type NamedFieldDefinition } from '@/features/form';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
-import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
+import type { TokenSequenceCreateField, TokenSequenceFieldConfig, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
 import { annotation, filter } from '@/features/form/model/types/form-query-ir';
-import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import { createTestBuilder } from './helpers';
 
@@ -93,17 +92,18 @@ const lemmaChildController = defineFieldController<'token-sequence-test-lemma', 
 	},
 });
 
-function createFixture(variant: BaseFieldNode['variant'] = 'large', minLength = 1) {
+function createFixture(presentation: Pick<TokenSequenceFieldConfig, 'size' | 'layout' | 'controls'> = { size: 'large' }, minLength = 1) {
 	const builder = createTestBuilder();
 	const sequence = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
-		createField: (({ annotationId, ...binding }) => {
+		createField: (({ annotationId, id, size, controls }) => {
 			const config = {
 				annotationId,
 				displayName: annotationId === 'word' ? 'Word' : 'Lemma',
 				persistKey: `${annotationId}-value`,
 				showLabel: false,
+				size,
 			};
-			return annotationId === 'word' ? createFormFieldNode(binding, childController, TextField, config) : createFormFieldNode(binding, lemmaChildController, LemmaField, config);
+			return annotationId === 'word' ? createFormFieldNode(id, childController, TextField, { ...config, controls }) : createFormFieldNode(id, lemmaChildController, LemmaField, config);
 		}) satisfies TokenSequenceCreateField,
 		selectorOptions: [
 			{ value: 'word', label: 'Word' },
@@ -117,7 +117,7 @@ function createFixture(variant: BaseFieldNode['variant'] = 'large', minLength = 
 		selectorDisplayName: 'Property',
 		selectorPlaceholder: 'Choose a property',
 		persistKey: 'ngram-tokens',
-		variant,
+		...presentation,
 	});
 	builder.newForm('explore.ngram', ContainerRenderer, {}).addChildren(sequence);
 	return { builder, runtime: new FormRuntime(builder), sequence };
@@ -148,9 +148,11 @@ const gatheredChildController = defineFieldController<'token-sequence-gathered-c
 function createGatheredChildrenFixture() {
 	const builder = createTestBuilder();
 	const sequence = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
-		createField: (({ annotationId, ...binding }) =>
-			createFormFieldNode(binding, gatheredChildController, TextField, {
+		createField: (({ annotationId, id, size, controls }) =>
+			createFormFieldNode(id, gatheredChildController, TextField, {
 				annotationId,
+				size,
+				controls,
 				displayName: 'Word',
 				persistKey: 'word-value',
 			})) satisfies TokenSequenceCreateField,
@@ -225,7 +227,7 @@ describe('token sequence composite field', () => {
 	});
 
 	test('lays out only the length control horizontally', () => {
-		const { runtime } = createFixture(['large', 'horizontal']);
+		const { runtime } = createFixture({ size: 'large', layout: 'horizontal', controls: 'simple' });
 		const wrapper = mount(FormSystem, {
 			props: { runtime },
 		});
@@ -244,6 +246,7 @@ describe('token sequence composite field', () => {
 		expect(editors.every(editor => editor.get('input[type="text"]').classes().includes('input-lg'))).toBe(true);
 		expect(selectors.every(selector => !selector.find('label').exists())).toBe(true);
 		expect(editors.every(editor => !editor.find('label.control-label').exists())).toBe(true);
+		expect(editors.every(editor => !editor.find('.file-input-button').exists())).toBe(true);
 	});
 
 	test('growing the sequence appends fresh default tokens', async () => {
@@ -330,7 +333,7 @@ describe('token sequence composite field', () => {
 	});
 
 	test('restoration rejects token counts below the configured minimum', () => {
-		const { runtime, sequence } = createFixture('large', 2);
+		const { runtime, sequence } = createFixture({ size: 'large' }, 2);
 		expect(() => restoreFieldState(sequence, '{f=word}', runtime.definition.context)).toThrow('Cannot restore token sequence length 1; expected 2-5.');
 	});
 

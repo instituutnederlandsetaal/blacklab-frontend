@@ -136,13 +136,14 @@ function createSharedFilters(context: BuildContext): FormNode | null {
 	if (!groups.length) return null;
 
 	const filters = builder.newContainer(ids.sharedFilters(), ContainerRenderer, {
-		variant: groups.length > 1 ? ['tabs', 'tab-badges'] : undefined,
+		mode: groups.length > 1 ? 'tabs' : 'all',
+		tabBadges: groups.length > 1,
 	});
 
 	for (const group of groups) {
 		const groupContainer = builder.newContainer(ids.filterTab(group.metadataGroup ?? group.id), ContainerRenderer, {
 			title: groups.length > 1 ? () => translate.$tMetaGroupName(group.metadataGroup ?? group.id) || group.id : undefined,
-			variant: groups.length === 1 ? 'list' : undefined,
+			layout: 'list',
 		});
 		for (const entry of group.entries) {
 			const nodeId = 'elementName' in entry ? ids.withinFilter(entry.elementName, entry.attributeName) : ids.metadataFilter(entry);
@@ -189,7 +190,7 @@ function createExploreCorporaForm({ builder, corpus, customizations, translate }
 		html: true,
 		options,
 		persistKey: 'explore-corpora-group-by',
-		variant: 'horizontal',
+		layout: 'horizontal',
 	});
 	const groupDisplayModeField = createFormFieldNode(ids.exploreCorporaGroupDisplayMode(), resultGroupDisplayModeController, SelectField, {
 		defaultValue: 'table',
@@ -202,13 +203,13 @@ function createExploreCorporaForm({ builder, corpus, customizations, translate }
 			{ value: 'tokens', label: () => translate.$t('explore.corpora.showAs.tokens') },
 		],
 		persistKey: 'explore-corpora-group-display-mode',
-		variant: 'horizontal',
+		layout: 'horizontal',
 	});
-	const resultPresetFields = builder.newContainer(ids.exploreCorporaResultPreset(), ContainerRenderer, { variant: 'list' }).addChildren(groupByField, groupDisplayModeField);
+	const resultPresetFields = builder.newContainer(ids.exploreCorporaResultPreset(), ContainerRenderer, { layout: 'list' }).addChildren(groupByField, groupDisplayModeField);
 	const form = builder.newForm(ids.exploreForm('corpora'), ContainerRenderer, {
 		target: docsSearchTarget,
 		title: () => translate.$t('explore.corpora.heading'),
-		variant: sharedFilters ? 'columns' : undefined,
+		layout: sharedFilters ? 'columns' : 'list',
 	});
 	form.addChildren(resultPresetFields, sharedFilters);
 	return form;
@@ -252,7 +253,10 @@ function createCollocationsSection(
 		createAnnotationField: (fieldOptions: Parameters<TokenSequenceCreateField>[0]) => {
 			const annotation = context.corpus.allAnnotationsMap[fieldOptions.annotationId];
 			if (!annotation) throw new Error(`Cannot create collocation pattern field for unknown annotation '${fieldOptions.annotationId}'.`);
-			return nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: fieldOptions.id, showLabel: false, variant: fieldOptions.inheritedVariant });
+			return nodeConstructors.annotation(
+				{ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId },
+				{ id: fieldOptions.id, showLabel: false, size: fieldOptions.size, controls: fieldOptions.controls },
+			);
 		},
 		defaultAnnotation: mainAnnotationId,
 		defaultWithin: sentenceElement && withinOptions.some(option => option.value === sentenceElement) ? sentenceElement : '',
@@ -266,12 +270,12 @@ function createCollocationsSection(
 	const form = builder
 		.newForm(ids.collocationsForm(), ContainerRenderer, {
 			target: createCollocationTarget(mainAnnotationId),
-			variant: sharedFilters ? 'columns' : undefined,
+			layout: sharedFilters ? 'columns' : 'list',
 		})
 		.addChildren(field, sharedFilters);
 
 	return builder
-		.newContainer(ids.collocationsSection(), ContainerRenderer, { title: () => translate.$t('queryForm.collocations'), variant: 'list' })
+		.newContainer(ids.collocationsSection(), ContainerRenderer, { title: () => translate.$t('queryForm.collocations'), layout: 'list' })
 		.addChildren(builder.newView(ids.collocationsSectionHeading(), HeadingView, { title: () => translate.$t('collocations.heading') }), form);
 }
 
@@ -288,7 +292,7 @@ function createExploreParallelSource(context: BuildContext, mode: 'frequency' | 
 			label: () => translate.$tAnnotatedFieldDisplayName(field),
 		})),
 		persistKey: `explore-${mode}-source`,
-		variant: mode === 'ngram' ? 'horizontal' : undefined,
+		layout: mode === 'ngram' ? 'horizontal' : 'vertical',
 	});
 }
 
@@ -315,7 +319,7 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 		createField: (fieldOptions: Parameters<TokenSequenceCreateField>[0]) => {
 			const annotation = context.corpus.allAnnotationsMap[fieldOptions.annotationId];
 			if (!annotation) throw new Error(`Cannot create n-gram token field for unknown annotation '${fieldOptions.annotationId}'.`);
-			return nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: fieldOptions.id, showLabel: false, variant: 'simple' });
+			return nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: fieldOptions.id, showLabel: false, controls: 'simple', size: fieldOptions.size });
 		},
 		defaultFieldId,
 		defaultLength: EXPLORE_NGRAM_MAX_SIZE,
@@ -327,7 +331,7 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 		selectorOptions,
 		selectorPlaceholder: () => translate.$t('results.table.property'),
 	});
-	const controls = builder.newContainer(ids.exploreControls('ngram'), ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSource(context, 'ngram'), groupBy, tokens);
+	const controls = builder.newContainer(ids.exploreControls('ngram'), ContainerRenderer, { layout: 'list' }).addChildren(createExploreParallelSource(context, 'ngram'), groupBy, tokens);
 	// Keep the five-token row full-width; the shared filters follow underneath.
 	const form = builder.newForm(ids.exploreForm('ngram'), ContainerRenderer, { target: hitsSearchTarget, title: () => translate.$t('explore.ngram.heading') });
 	form.addChildren(controls, sharedFilters);
@@ -348,11 +352,11 @@ function createExploreFrequencyForm(context: BuildContext, sharedFilters: FormNo
 		options,
 		persistKey: 'explore-frequency-annotation',
 	});
-	const controls = builder.newContainer(ids.exploreControls('frequency'), ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSource(context, 'frequency'), annotation);
+	const controls = builder.newContainer(ids.exploreControls('frequency'), ContainerRenderer, { layout: 'list' }).addChildren(createExploreParallelSource(context, 'frequency'), annotation);
 	const form = builder.newForm(ids.exploreForm('frequency'), ContainerRenderer, {
 		target: hitsSearchTarget,
 		title: () => translate.$t('explore.frequency.heading'),
-		variant: sharedFilters ? 'columns' : undefined,
+		layout: sharedFilters ? 'columns' : 'list',
 	});
 	form.addChildren(controls, sharedFilters);
 	return form;
@@ -376,8 +380,7 @@ function createExtendedAnnotationTabs(context: BuildContext): FormNode | null {
 	const populateTab = (tab: ReturnType<FormBuilder['newContainer']>, annotations: NormalizedAnnotation[], groupId?: string) => {
 		for (const annotation of annotations) {
 			const nodeId = ids.annotationField('extended', annotation.annotatedFieldId, annotation);
-			const node =
-				builder.getField(nodeId) ?? context.nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: nodeId, groupId, variant: 'horizontal' });
+			const node = builder.getField(nodeId) ?? context.nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: nodeId, groupId, layout: 'horizontal' });
 			tab.addChildren(node);
 		}
 	};
@@ -385,20 +388,21 @@ function createExtendedAnnotationTabs(context: BuildContext): FormNode | null {
 	if (groups.length === 1) {
 		const group = groups[0];
 		const single = builder.newContainer(ids.annotationTabs(), ContainerRenderer, {
-			variant: 'list',
+			layout: 'list',
 		});
 		populateTab(single, group.annotations, group.group.id);
 		return single;
 	}
 
 	const tabs = builder.newContainer(ids.annotationTabs(), ContainerRenderer, {
-		variant: 'small-tabs',
+		mode: 'tabs',
+		tabSize: 'small',
 	});
 
 	for (const { annotations, group } of groups) {
 		const tab = builder.newContainer(ids.annotationTab(group), ContainerRenderer, {
 			title: () => translate.$tAnnotGroupName(group),
-			variant: 'list',
+			layout: 'list',
 		});
 		populateTab(tab, annotations, group.id);
 		tabs.addChildren(tab);
@@ -454,17 +458,17 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	});
 
 	// top-level
-	const root = builder.newContainer(ids.root(), ContainerRenderer, { variant: ['tabs', 'panel-tabs'], class: 'tabs-primary text-primary' });
-	const patternFormsContainer = builder.newContainer(ids.searchFormsContainer(), ContainerRenderer, { variant: ['tabs'] });
-	const exploreFormsContainer = builder.newContainer(ids.exploreFormsContainer(), ContainerRenderer, { variant: ['tabs'] });
+	const root = builder.newContainer(ids.root(), ContainerRenderer, { mode: 'tabs', frame: 'panel', tabTone: 'primary', tabsClass: 'text-primary' });
+	const patternFormsContainer = builder.newContainer(ids.searchFormsContainer(), ContainerRenderer, { mode: 'tabs' });
+	const exploreFormsContainer = builder.newContainer(ids.exploreFormsContainer(), ContainerRenderer, { mode: 'tabs' });
 
 	// One container + heading for forms and explore both
 	root.addChildren(
 		builder
-			.newContainer(ids.searchSection(), ContainerRenderer, { title: () => translate.$t('queryForm.search'), variant: 'list' })
+			.newContainer(ids.searchSection(), ContainerRenderer, { title: () => translate.$t('queryForm.search'), layout: 'list' })
 			.addChildren(builder.newView(ids.searchSectionHeading(), HeadingView, { title: () => translate.$t('search.heading') }), patternFormsContainer),
 		builder
-			.newContainer(ids.exploreSection(), ContainerRenderer, { title: () => translate.$t('queryForm.explore'), variant: 'list' })
+			.newContainer(ids.exploreSection(), ContainerRenderer, { title: () => translate.$t('queryForm.explore'), layout: 'list' })
 			.addChildren(builder.newView(ids.exploreSectionHeading(), HeadingView, { title: () => translate.$t('explore.heading') }), exploreFormsContainer),
 	);
 
@@ -491,7 +495,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			sharedWithin = createFormFieldNode(ids.withinField(), withinController, WithinField, {
 				options: withinOptions,
 				sortOptions: sortWithinOptions,
-				variant: 'horizontal',
+				layout: 'horizontal',
 			});
 		}
 	}
@@ -547,11 +551,11 @@ function createExpertPatternForm(context: BuildContext, sharedWithin: FormFieldN
 	const expertForm = builder.newForm(ids.searchForm('expert'), ContainerRenderer, {
 		target: searchTarget,
 		title: () => translate.$t('search.expert.heading'),
-		variant: sharedFilters ? 'columns' : undefined,
+		layout: sharedFilters ? 'columns' : 'list',
 	});
 
 	expertForm.addChildren(
-		builder.newContainer(ids.queryRegion('expert'), ContainerRenderer, { variant: 'list' }).addChildren(
+		builder.newContainer(ids.queryRegion('expert'), ContainerRenderer, { layout: 'list' }).addChildren(
 			builder.newView(ids.queryHeading('expert'), HeadingView, {
 				help: {
 					href: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
@@ -571,7 +575,7 @@ function createAdvancedPatternForm(context: BuildContext, sharedWithin: FormFiel
 	const advancedForm = context.builder.newForm(ids.searchForm('advanced'), ContainerRenderer, {
 		target: searchTarget,
 		title: () => context.translate.$t('search.advanced.heading'),
-		variant: 'list',
+		layout: 'list',
 	});
 	const advancedQuery = wrapParallel(
 		context,
@@ -588,10 +592,10 @@ function createExtendedPatternForm(context: BuildContext, sharedWithin: FormFiel
 	const extendedForm = context.builder.newForm(ids.searchForm('extended'), ContainerRenderer, {
 		target: searchTarget,
 		title: () => context.translate.$t('search.extended.heading'),
-		variant: 'columns',
+		layout: 'columns',
 	});
 	extendedForm.addChildren(
-		context.builder.newContainer(ids.queryRegion('extended'), ContainerRenderer, { variant: 'list' }).addChildren(createExtendedAnnotationTabs(context), sharedWithin),
+		context.builder.newContainer(ids.queryRegion('extended'), ContainerRenderer, { layout: 'list' }).addChildren(createExtendedAnnotationTabs(context), sharedWithin),
 		sharedFilters,
 	);
 	return extendedForm;
@@ -605,7 +609,7 @@ function createSimplePatternForm(context: BuildContext, annotation: NormalizedAn
 	const simpleQuery = wrapParallel(
 		context,
 		'simple',
-		context.nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: queryFieldId(context, 'simple'), variant: ['large', 'simple'] }),
+		context.nodeConstructors.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: queryFieldId(context, 'simple'), size: 'large', controls: 'simple' }),
 	);
 	simpleForm.addChildren(simpleQuery);
 	return simpleForm;

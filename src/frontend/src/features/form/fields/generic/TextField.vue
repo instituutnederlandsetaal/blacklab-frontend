@@ -9,7 +9,7 @@
 		</Debug>
 
 		<div :class="field.controlsClass">
-			<div :class="!field.variants.simple ? 'input-group' : ''">
+			<div :class="controls !== 'simple' ? 'input-group' : ''">
 				<Autocomplete
 					v-if="autocomplete"
 					data-width="100%"
@@ -35,7 +35,7 @@
 					@input="value = ($event.target as HTMLInputElement).value"
 				/>
 
-				<div v-if="!field.variants.simple" class="input-group-btn">
+				<div v-if="controls !== 'simple'" class="input-group-btn">
 					<label :class="['btn', 'btn-default', 'file-input-button', field.buttonClass, { disabled }]" :for="`${field.inputId}_file`">
 						<span class="fa fa-upload fa-fw"></span>
 						<input type="file" title="Upload a list of values" :id="`${field.inputId}_file`" @change="onFileChanged" :disabled />
@@ -45,7 +45,7 @@
 
 			<small v-if="description" class="help-block">{{ description }}</small>
 
-			<div class="checkbox" :class="{ disabled }" v-if="caseSensitive && !field.variants.simple">
+			<div class="checkbox" :class="{ disabled }" v-if="caseSensitive && controls !== 'simple'">
 				<label>
 					<input type="checkbox" :checked="modelValue.caseSensitive" :disabled @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
 					{{ $t(`widgets.caseSensitive`) }}

@@ -7,7 +7,7 @@
  * and must not be exported here.
  */
 
-import type { ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, QueryCombineMode, RangeMode } from '@/features/form/model/types/form-primitives';
+import type { ContainerBehavior, ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, QueryCombineMode, RangeMode, TextFieldControls } from '@/features/form/model/types/form-primitives';
 import type { Corpus as InternalCorpus, DeepReadonly, NormalizedIndex as InternalNormalizedIndex } from '@/types/apptypes';
 import type { BLDoc, BLDocInfo, BLHitGroup, BLHitInContext, BLHitSnippetPart, BLMatchInfo, BLSearchResultsStatsV5, BLSearchSummaryV5 } from '@/types/blacklabtypes';
 
@@ -22,11 +22,11 @@ export type SearchFormSection = 'search' | 'explore' | 'collocations';
 
 /** Visual styles supported by form fields. */
 /** @materialize */
-export type SearchFormFieldPresentation = FieldPresentation;
+export type SearchFormFieldPresentation = { [Key in keyof FieldPresentation]: FieldPresentation[Key] };
 
 /** Visual styles supported by form containers. */
 /** @materialize */
-export type SearchFormContainerPresentation = ContainerPresentation;
+export type SearchFormContainerPresentation = { [Key in keyof ContainerPresentation]: ContainerPresentation[Key] };
 
 /** Text shown in the form, supplied directly or through a function. */
 /** @materialize */
@@ -180,13 +180,13 @@ export interface SearchFormGraph {
 }
 
 /** Controls the identity, grouping, and appearance of a new form item. */
-export type SearchFormNodeOptions<Extra extends object = object> = {
+export type SearchFormNodeOptions<Extra extends object = object> = SearchFormFieldPresentation & {
 	/** Unique ID used to find and place the new item. Use an ID from `SearchFormIds` when replacing a standard item. */
 	id: string;
 	/** Group name used when displaying this field in query summaries. */
 	groupId?: string;
-	/** Visual style applied by the field component. */
-	variant?: SearchFormFieldPresentation | SearchFormFieldPresentation[];
+	/** Controls offered when this item uses a text field. Defaults to full. */
+	controls?: TextFieldControls;
 	/** Whether the field's label is shown beside its input. */
 	showLabel?: boolean;
 } & Extra;
@@ -628,16 +628,13 @@ export interface SearchFormTranslate {
 }
 
 /** Controls the heading, layout, CSS class, and query behavior of a new container. */
-export type SearchFormContainerNodeOptions = {
-	/** CSS class added to the rendered container. */
-	class?: string;
-	/** How queries from child fields are joined. */
-	combine?: SearchFormCombineMode;
-	/** Heading or tab label shown for the container. */
-	title?: SearchFormText;
-	/** Visual layout used to display the container and its children. */
-	variant?: SearchFormContainerPresentation | SearchFormContainerPresentation[];
-};
+export type SearchFormContainerNodeOptions = ContainerBehavior &
+	SearchFormContainerPresentation & {
+		/** How queries from child fields are joined. */
+		combine?: SearchFormCombineMode;
+		/** Heading or tab label shown for the container. */
+		title?: SearchFormText;
+	};
 
 /** How child queries are joined: all (`and`), any (`or`), or adjacent pattern fields in order (`sequence`). */
 /** @materialize */

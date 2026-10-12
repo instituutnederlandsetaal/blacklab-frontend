@@ -15,7 +15,7 @@ describe('persistence path selection', () => {
 		const secondField = builder.newField('search.tabs.second.word', testTextController, TestTextField, { annotationId: 'second', displayName: 'Second' });
 		const first = builder.newContainer('search.tabs.first', ContainerRenderer, {}).addChildren(firstField);
 		const second = builder.newContainer('search.tabs.second', ContainerRenderer, {}).addChildren(secondField);
-		const tabs = builder.newContainer('search.tabs', ContainerRenderer, { variant: 'tabs' }).addChildren(first, second);
+		const tabs = builder.newContainer('search.tabs', ContainerRenderer, { mode: 'tabs' }).addChildren(first, second);
 		builder.newForm('search.form', ContainerRenderer, {}).addChildren(tabs);
 
 		const restored = restoreForm(builder, { 'f.second': 'two', 'f.first': 'one' }).state;
@@ -31,13 +31,13 @@ describe('persistence path selection', () => {
 		const firstBranch = builder.newContainer('search.outer.first', ContainerRenderer, {}).addChildren(shared);
 		const firstNestedDefault = builder.newContainer('search.first-nested.default', ContainerRenderer, {});
 		const firstNestedShared = builder.newContainer('search.first-nested.shared', ContainerRenderer, {}).addChildren(shared);
-		const firstNestedTabs = builder.newContainer('search.first-nested', ContainerRenderer, { variant: 'tabs' }).addChildren(firstNestedDefault, firstNestedShared);
+		const firstNestedTabs = builder.newContainer('search.first-nested', ContainerRenderer, { mode: 'tabs' }).addChildren(firstNestedDefault, firstNestedShared);
 		const secondBranch = builder.newContainer('search.outer.second', ContainerRenderer, {}).addChildren(firstNestedTabs);
 		const secondNestedDefault = builder.newContainer('search.second-nested.default', ContainerRenderer, {});
 		const secondNestedShared = builder.newContainer('search.second-nested.shared', ContainerRenderer, {}).addChildren(shared);
-		const secondNestedTabs = builder.newContainer('search.second-nested', ContainerRenderer, { variant: 'tabs' }).addChildren(secondNestedDefault, secondNestedShared);
+		const secondNestedTabs = builder.newContainer('search.second-nested', ContainerRenderer, { mode: 'tabs' }).addChildren(secondNestedDefault, secondNestedShared);
 		const thirdBranch = builder.newContainer('search.outer.third', ContainerRenderer, {}).addChildren(secondNestedTabs);
-		const outerTabs = builder.newContainer('search.outer', ContainerRenderer, { variant: 'tabs' }).addChildren(firstBranch, secondBranch, thirdBranch);
+		const outerTabs = builder.newContainer('search.outer', ContainerRenderer, { mode: 'tabs' }).addChildren(firstBranch, secondBranch, thirdBranch);
 		builder.newForm('search.form', ContainerRenderer, {}).addChildren(outerTabs);
 
 		const restored = restoreForm(builder, { 'f.word': 'water' }).state;

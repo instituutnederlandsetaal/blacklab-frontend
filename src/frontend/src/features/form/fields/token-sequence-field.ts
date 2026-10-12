@@ -1,7 +1,7 @@
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
-import type { FormFieldNodeOptions } from '@/features/form/model/form-field-node';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { BaseFieldNode, FormFieldNode } from '@/features/form/model/types/form-shape';
+import type { FieldPresentation, TextFieldControls } from '@/features/form/model/types/form-primitives';
+import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 import { optionValues, type Options } from '@/shared/utils/options';
 
@@ -13,9 +13,10 @@ export type TokenSequenceTokenState = {
 /** The array contains exactly the currently active tokens, in query order. */
 export type TokenSequenceFieldState = TokenSequenceTokenState[];
 
-export type TokenSequenceCreateField = (options: FormFieldNodeOptions & { annotationId: string }) => FormFieldNode;
+export type TokenSequenceCreateField = (options: { id: string; annotationId: string; size?: FieldPresentation['size']; controls?: TextFieldControls }) => FormFieldNode;
 
 export type TokenSequenceFieldExtraProps = {
+	controls?: TextFieldControls;
 	createField: TokenSequenceCreateField;
 	selectorOptions: Options;
 	defaultFieldId: string;
@@ -35,7 +36,8 @@ export type TokenSequenceFieldComponentProps = FieldComponentProps<TokenSequence
 
 export type TokenSequenceConfigLike = Pick<TokenSequenceFieldConfig, 'createField' | 'selectorOptions' | 'defaultFieldId'> & {
 	id: string;
-	variant?: BaseFieldNode['variant'];
+	size?: FieldPresentation['size'];
+	controls?: TextFieldControls;
 };
 
 export type TokenSequenceLengthBounds = {
@@ -70,7 +72,8 @@ export function createTokenSequenceFieldNode(config: TokenSequenceConfigLike, in
 	return config.createField({
 		annotationId,
 		id: `${config.id}.token.${index}.${annotationId}`,
-		inheritedVariant: config.variant,
+		size: config.size,
+		controls: config.controls,
 	});
 }
 

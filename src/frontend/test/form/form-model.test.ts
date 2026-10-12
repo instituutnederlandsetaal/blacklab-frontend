@@ -233,7 +233,7 @@ describe('form model state', () => {
 	});
 
 	test('createFormFieldNode constructs a complete standalone field', () => {
-		const field = createFormFieldNode({ id: 'search.word' }, testTextController, TestTextField, {
+		const field = createFormFieldNode('search.word', testTextController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
@@ -263,21 +263,17 @@ describe('form model state', () => {
 		});
 	});
 
-	test('uses inheritedVariant when field configuration has no variant', () => {
-		const field = createFormFieldNode(
-			{
-				id: 'composite.token.0.word',
-				inheritedVariant: 'simple',
-			},
-			testTextController,
-			TestTextField,
-			{
-				annotationId: 'word',
-				displayName: 'Word',
-			},
-		);
+	test('preserves explicit field presentation', () => {
+		const field = createFormFieldNode('composite.token.0.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+			layout: 'horizontal',
+			size: 'large',
+			class: 'custom-field',
+			style: 'width: 100%',
+		});
 
-		expect(field.variant).toBe('simple');
+		expect(field).toMatchObject({ layout: 'horizontal', size: 'large', class: 'custom-field', style: 'width: 100%' });
 	});
 
 	test.each(compositionExpectations)('$name', ({ combine, expectedPatt }) => {
@@ -385,8 +381,8 @@ describe('form model state', () => {
 		const builder = createTestBuilder();
 		const field = builder.newField('word', { ...testTextController, collect }, TestTextField, { annotationId: 'word', displayName: 'Word' });
 		const alternate = builder.newContainer('alternate', ContainerRenderer, {});
-		const layout = builder.newContainer('layout', ContainerRenderer, { variant: 'tabs' }).addChildren(field, alternate);
-		const queryTabs = builder.newContainer('query', ContainerRenderer, { variant: 'tabs' });
+		const layout = builder.newContainer('layout', ContainerRenderer, { mode: 'tabs' }).addChildren(field, alternate);
+		const queryTabs = builder.newContainer('query', ContainerRenderer, { mode: 'tabs' });
 		queryTabs.prependChild(builder.newContainer('other', ContainerRenderer, {}), { outputWhenActive: emit => emit('searchfield', 'other') });
 		queryTabs.prependChild(layout, { outputWhenActive: emit => emit('searchfield', 'contents') });
 		const form = builder.newForm('form', ContainerRenderer, {}).addChildren(queryTabs);
@@ -548,11 +544,12 @@ describe('form model state', () => {
 
 	test('default runtime UI state selects the first child of each nested container', () => {
 		const builder = createTestBuilder();
-		builder.newContainer('search', ContainerRenderer, { variant: 'tabs' }).addChildren(
+		builder.newContainer('search', ContainerRenderer, { mode: 'tabs' }).addChildren(
 			builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
 				builder
 					.newContainer('search.simple.filters', ContainerRenderer, {
-						variant: 'small-tabs',
+						mode: 'tabs',
+						tabSize: 'small',
 					})
 					.addChildren(
 						builder.newContainer('search.simple.filters.bibliographic', ContainerRenderer, {

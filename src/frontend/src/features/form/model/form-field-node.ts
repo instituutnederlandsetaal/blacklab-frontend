@@ -25,11 +25,6 @@ export type FormFieldConfig<Component extends AnyVueComponent, Controller extend
 
 export type ConstrainedFieldComponent<Component extends AnyVueComponent, Controller extends AnyFieldController> = ConstrainComponentFromController<Component, Controller>;
 
-export type FormFieldNodeOptions = {
-	id: string;
-	inheritedVariant?: BaseFieldNode['variant'];
-};
-
 export type CreatedFormField<Component extends AnyVueComponent, Config extends object> = RealFieldNode<Omit<Config, ForbiddenFieldConfigKeys>, Component>;
 
 /**
@@ -37,15 +32,13 @@ export type CreatedFormField<Component extends AnyVueComponent, Config extends o
  * Asserts that the controller and component are compatible, and that the config object does not contain any keys that are managed by the node or form system itself.
  */
 export const createFormFieldNode = <Controller extends AnyFieldController, Component extends AnyVueComponent, Config extends FormFieldConfig<Component, Controller>>(
-	options: string | FormFieldNodeOptions,
+	id: string,
 	controller: Controller,
 	component: ConstrainedFieldComponent<Component, Controller>,
 	config: NoExtraProperties<FormFieldConfig<Component, Controller>, Config>,
 ): CreatedFormField<Component, Config> => {
-	const { id, inheritedVariant } = typeof options === 'string' ? { id: options, inheritedVariant: undefined } : options;
 	return {
 		...config,
-		variant: config.variant ?? inheritedVariant,
 		component: component as Component,
 		controller,
 		kind: 'field',

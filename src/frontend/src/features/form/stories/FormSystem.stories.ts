@@ -164,7 +164,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 
 	const root = definition.newContainer('layout-lab', ContainerRenderer, {
 		title: 'Form layout laboratory',
-		variant: 'list',
+		layout: 'list',
 	});
 
 	const directFieldsForm = definition
@@ -192,7 +192,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 
 	const listFields = definition
 		.newContainer('layout-lab.2-list-fields.list', ContainerRenderer, {
-			variant: 'list',
+			layout: 'list',
 		})
 		.addChildren(
 			definition.newField('layout-lab.2-list-fields.word', annotationTextController, TextField, {
@@ -223,7 +223,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 	const tabbedForms = definition
 		.newContainer('layout-lab.3-tabbed-forms', ContainerRenderer, {
 			title: '3. Tabs containing forms',
-			variant: 'tabs',
+			mode: 'tabs',
 		})
 		.addChildren(
 			definition
@@ -268,13 +268,13 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 	const nestedTabs = definition
 		.newContainer('layout-lab.4-nested-tabs', ContainerRenderer, {
 			title: '4. Nested tabs and lists',
-			variant: 'tabs',
+			mode: 'tabs',
 		})
 		.addChildren(
 			definition
 				.newContainer('layout-lab.4-nested-tabs.forms', ContainerRenderer, {
 					title: 'Form stack',
-					variant: 'list',
+					layout: 'list',
 				})
 				.addChildren(
 					definition
@@ -286,7 +286,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 								title: '4. Tabs → list → form → list → fields',
 								description: 'The first branch keeps the fields in an inner list container.',
 							}),
-							definition.newContainer('layout-lab.4-nested-tabs.forms.search.fields', ContainerRenderer, { variant: 'list' }).addChildren(
+							definition.newContainer('layout-lab.4-nested-tabs.forms.search.fields', ContainerRenderer, { layout: 'list' }).addChildren(
 								definition.newField('layout-lab.4-nested-tabs.forms.search.fields.word', annotationTextController, TextField, {
 									annotationId: 'word',
 									displayName: 'Word',
@@ -312,13 +312,14 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 							}),
 							definition
 								.newContainer('layout-lab.4-nested-tabs.forms.options.sections', ContainerRenderer, {
-									variant: 'small-tabs',
+									mode: 'tabs',
+									tabSize: 'small',
 								})
 								.addChildren(
 									definition
 										.newContainer('layout-lab.4-nested-tabs.forms.options.sections.general', ContainerRenderer, {
 											title: 'General',
-											variant: 'list',
+											layout: 'list',
 										})
 										.addChildren(
 											definition.newField('layout-lab.4-nested-tabs.forms.options.sections.general.author', filterTextController, TextField, {
@@ -330,7 +331,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 									definition
 										.newContainer('layout-lab.4-nested-tabs.forms.options.sections.details', ContainerRenderer, {
 											title: 'Details',
-											variant: 'list',
+											layout: 'list',
 										})
 										.addChildren(
 											definition.newField('layout-lab.4-nested-tabs.forms.options.sections.details.title', filterTextController, TextField, {
@@ -345,7 +346,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 			definition
 				.newContainer('layout-lab.4-nested-tabs.preview', ContainerRenderer, {
 					title: 'Second outer tab',
-					variant: 'list',
+					layout: 'list',
 				})
 				.addChildren(
 					definition.newView('layout-lab.4-nested-tabs.preview.heading', HeadingView, {

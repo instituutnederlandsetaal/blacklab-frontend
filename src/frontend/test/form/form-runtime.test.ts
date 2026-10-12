@@ -13,9 +13,9 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 function createNestedFormRuntime() {
 	const builder = createTestBuilder();
-	const root = builder.newContainer('root', ContainerRenderer, { class: 'tabs-primary text-primary', variant: ['tabs', 'panel-tabs'] });
-	const section = builder.newContainer('root.search', ContainerRenderer, { title: 'Search', variant: 'list' });
-	const forms = builder.newContainer('root.search.forms', ContainerRenderer, { variant: 'tabs' });
+	const root = builder.newContainer('root', ContainerRenderer, { mode: 'tabs', frame: 'panel', tabTone: 'primary', tabsClass: 'text-primary' });
+	const section = builder.newContainer('root.search', ContainerRenderer, { title: 'Search', layout: 'list' });
+	const forms = builder.newContainer('root.search.forms', ContainerRenderer, { mode: 'tabs' });
 	forms.addChildren(builder.newForm('root.search.simple', ContainerRenderer, { title: 'Simple' }));
 	section.addChildren(forms);
 	root.addChildren(section);
@@ -139,7 +139,7 @@ describe('form runtime', () => {
 		const builder = createTestBuilder();
 		const root = builder.newContainer('search', ContainerRenderer, {
 			title: 'Search',
-			variant: 'tabs',
+			mode: 'tabs',
 		});
 		const firstForm = builder.newForm('search.first', ContainerRenderer, { title: 'First' });
 		const secondForm = builder.newForm('search.second', ContainerRenderer, { title: 'Second' });
@@ -199,14 +199,14 @@ describe('form runtime', () => {
 		expect(wrapper.get('.blf-form-actions').get('.legacy-action').text()).toBe('History');
 	});
 
-	test('applies panel-tab surface classes without legacy panel classes', () => {
+	test('applies the panel frame and tab presentation to their respective elements', () => {
 		const wrapper = mount(FormSystem, {
 			props: { runtime: createNestedFormRuntime() },
 		});
 
-		expect(wrapper.get('[role="tablist"]').classes()).toEqual(expect.arrayContaining(['tabs-primary', 'text-primary', 'blf-form-surface-tabs']));
-		expect(wrapper.get('[role="tabpanel"]').classes()).toEqual(expect.arrayContaining(['blf-form-tab-body', 'blf-form-surface-body']));
-		expect(wrapper.get('.blf-form-surface').classes()).not.toContain('panel');
+		expect(wrapper.get('[role="tablist"]').classes()).toEqual(expect.arrayContaining(['tabs-primary', 'text-primary', 'blf-form-container-tabs']));
+		expect(wrapper.get('[role="tabpanel"]').classes()).toContain('blf-form-content');
+		expect(wrapper.get('.blf-form-container').classes()).toEqual(expect.arrayContaining(['panel', 'panel-default']));
 		expect(wrapper.get('form.blf-form').classes()).not.toContain('panel-default');
 		expect(wrapper.find('form.blf-form > .blf-form-content').exists()).toBe(true);
 	});

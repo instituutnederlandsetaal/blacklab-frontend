@@ -329,7 +329,7 @@ export class FormBuilder {
 		component: ConstrainedFieldComponent<C, Controller>,
 		config: NoExtraProperties<FormFieldConfig<C, Controller>, Config>,
 	): CreatedFormField<C, Config> => {
-		return this.addNode(createFormFieldNode({ id }, controller, component, config)) as any;
+		return this.addNode(createFormFieldNode(id, controller, component, config)) as any;
 	};
 
 	newView = <C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>>(

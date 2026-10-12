@@ -88,7 +88,7 @@ function createCanonicalFallbackFixture(isParallelCorpus?: boolean) {
 	});
 	const root = builder.newContainer('search', ContainerRenderer, {
 		title: 'Search',
-		variant: 'tabs',
+		mode: 'tabs',
 	});
 	const simpleField = builder.newField('search.simple.word', testTextController, TestTextField, {
 		annotationId: 'word',
@@ -535,7 +535,7 @@ describe('scoped form persistence', () => {
 			...context,
 			corpus: { ...context.corpus, isParallelCorpus: true },
 		});
-		const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+		const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', mode: 'tabs' });
 		const simple = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
 		const expert = builder.newForm('search.expert', ContainerRenderer, { title: 'Expert' });
 		const parallelField = builder.newField('search.expert.parallel', parallelController, ParallelField, {
@@ -692,7 +692,7 @@ describe('scoped form persistence', () => {
 		const newspapers = builder.newContainer('search.extended.filters.newspapers', ContainerRenderer, {
 			title: 'Newspapers',
 		});
-		const filters = builder.newContainer('search.extended.filters', ContainerRenderer, { title: 'Filters', variant: 'tabs' });
+		const filters = builder.newContainer('search.extended.filters', ContainerRenderer, { title: 'Filters', mode: 'tabs' });
 		filters.prependChild(newspapers, { outputWhenActive: emit => emit('filter', filter('category', 'literal', 'newspaper')!) });
 		filters.prependChild(builder.newContainer('search.extended.filters.shared', ContainerRenderer, { title: 'Shared' }));
 		form.addChildren(filters);
@@ -726,7 +726,7 @@ describe('scoped form persistence', () => {
 		const tabs = builder
 			.newContainer('search.extended.tabs', ContainerRenderer, {
 				title: 'Tabs',
-				variant: 'tabs',
+				mode: 'tabs',
 			})
 			.addChildren(first, builder.newContainer('search.extended.tabs.second', ContainerRenderer, { title: 'Second' }));
 		form.addChildren(tabs);
@@ -758,7 +758,7 @@ describe('scoped form persistence', () => {
 				displayName: 'Word',
 			}),
 		);
-		const tabs = builder.newContainer('search.extended.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' }).addChildren(first, second);
+		const tabs = builder.newContainer('search.extended.tabs', ContainerRenderer, { title: 'Tabs', mode: 'tabs' }).addChildren(first, second);
 		form.addChildren(tabs);
 
 		const restored = restoreFormState(builder, { 'f.word': 'water' });
@@ -776,7 +776,7 @@ describe('scoped form persistence', () => {
 				displayName: 'Word',
 			}),
 		);
-		const tabs = builder.newContainer('search.extended.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' }).addChildren(first, second);
+		const tabs = builder.newContainer('search.extended.tabs', ContainerRenderer, { title: 'Tabs', mode: 'tabs' }).addChildren(first, second);
 		form.addChildren(tabs);
 
 		const restored = restoreFormState(builder, { 'f.word': 'water', 'f.tab': `${tabs.id}:${first.id}` });
@@ -790,7 +790,7 @@ describe('scoped form persistence', () => {
 		const first = builder.newContainer('search.shared.tabs.first', ContainerRenderer, {});
 		const shared = builder.newField('search.shared.word', testTextController, TestTextField, { annotationId: 'word', displayName: 'Word' });
 		const second = builder.newContainer('search.shared.tabs.second', ContainerRenderer, {}).addChildren(shared);
-		const tabs = builder.newContainer('search.shared.tabs', ContainerRenderer, { variant: 'tabs' }).addChildren(first, second);
+		const tabs = builder.newContainer('search.shared.tabs', ContainerRenderer, { mode: 'tabs' }).addChildren(first, second);
 		form.addChildren(tabs);
 		builder.newContainer('detached', ContainerRenderer, {}).addChildren(shared);
 
@@ -807,12 +807,12 @@ describe('scoped form persistence', () => {
 		});
 		const unrelatedFirst = builder.newContainer('search.first.tabs.first', ContainerRenderer, { title: 'First' });
 		const unrelatedSecond = builder.newContainer('search.first.tabs.second', ContainerRenderer, { title: 'Second' }).addChildren(shared);
-		const unrelatedTabs = builder.newContainer('search.first.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' }).addChildren(unrelatedFirst, unrelatedSecond);
+		const unrelatedTabs = builder.newContainer('search.first.tabs', ContainerRenderer, { title: 'Tabs', mode: 'tabs' }).addChildren(unrelatedFirst, unrelatedSecond);
 		builder.newForm('search.first', ContainerRenderer, { title: 'First' }).addChildren(unrelatedTabs);
 		const secondForm = builder.newForm('search.second', ContainerRenderer, { title: 'Second' });
 		const first = builder.newContainer('search.second.tabs.first', ContainerRenderer, { title: 'First' });
 		const second = builder.newContainer('search.second.tabs.second', ContainerRenderer, { title: 'Second' }).addChildren(shared);
-		const tabs = builder.newContainer('search.second.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' }).addChildren(first, second);
+		const tabs = builder.newContainer('search.second.tabs', ContainerRenderer, { title: 'Tabs', mode: 'tabs' }).addChildren(first, second);
 		secondForm.addChildren(tabs);
 
 		const restored = restoreFormState(builder, { 'f.form': secondForm.id, 'f.word': 'water' });

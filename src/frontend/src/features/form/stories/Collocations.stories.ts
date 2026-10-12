@@ -129,8 +129,10 @@ function createCollocationForm(translate: Translate): FormRuntime {
 	const collocations = definition.newField('collocations.story.controls', collocationController, CollocationField, {
 		defaultAnnotation: 'word',
 		annotationOptions,
-		createAnnotationField: ({ id, annotationId, inheritedVariant }: Parameters<TokenSequenceCreateField>[0]) =>
-			createFormFieldNode({ id, inheritedVariant }, annotationTextController, TextField, {
+		createAnnotationField: ({ id, annotationId, size, controls }: Parameters<TokenSequenceCreateField>[0]) =>
+			createFormFieldNode(id, annotationTextController, TextField, {
+				size,
+				controls,
 				annotationId,
 				displayName: annotations[annotationId]?.defaultDisplayName ?? annotationId,
 				showLabel: false,

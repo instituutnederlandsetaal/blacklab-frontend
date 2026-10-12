@@ -113,7 +113,7 @@ function createSharedFieldTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
 	const root = builder.newContainer('search', ContainerRenderer, {
 		title: 'Search',
-		variant: 'tabs',
+		mode: 'tabs',
 	});
 	const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
 		annotationId: 'word',
@@ -134,7 +134,7 @@ function createTabbedFormFixture(): FormFixture {
 	builder
 		.newForm('search.tabbed', ContainerRenderer, {
 			title: 'Tabbed search',
-			variant: 'tabs',
+			mode: 'tabs',
 		})
 		.addChildren(
 			builder
@@ -171,7 +171,8 @@ function createFilterTabsFixture(): FormFixture {
 		builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
 			builder
 				.newContainer('shared.filters', ContainerRenderer, {
-					variant: ['tabs', 'tab-badges'],
+					mode: 'tabs',
+					tabBadges: true,
 				})
 				.addChildren(
 					builder.newContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' }).addChildren(
@@ -196,7 +197,7 @@ function createGetterTabsFixture() {
 	const builder = createTestBuilder();
 	const form = builder.newForm('search.form', ContainerRenderer, {
 		title: () => 'Computed form',
-		variant: 'tabs',
+		mode: 'tabs',
 	});
 	form.addChildren(
 		builder.newContainer('search.first', ContainerRenderer, {
@@ -243,7 +244,7 @@ describe('form system integration', () => {
 			attrs: { 'data-form-host': 'search' },
 		});
 
-		expect(wrapper.findAll('.blf-form-system').map(node => [node.element.tagName, node.attributes('data-form-host')])).toEqual([
+		expect(wrapper.findAll('.blf-form-system, form.blf-form').map(node => [node.element.tagName, node.attributes('data-form-host')])).toEqual([
 			['DIV', 'search'],
 			['FORM', undefined],
 		]);
@@ -485,10 +486,10 @@ describe('form system integration', () => {
 		expect(tabs[1].attributes('tabindex')).toBe('0');
 	});
 
-	test('array tab variants hide the active child container title', () => {
+	test('tabbed containers hide the active child container title', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newContainer('search.tabs', ContainerRenderer, {
-			variant: ['tabs'],
+			mode: 'tabs',
 		});
 		parent.addChildren(
 			builder.newContainer('search.tabs.child', ContainerRenderer, {
@@ -520,7 +521,8 @@ describe('form system integration', () => {
 		const builder = createTestBuilder();
 		builder
 			.newForm('search.query-only', ContainerRenderer, {
-				variant: ['tabs', 'tab-badges'],
+				mode: 'tabs',
+				tabBadges: true,
 			})
 			.addChildren(
 				builder
@@ -551,7 +553,7 @@ describe('form system integration', () => {
 			if (state.value) testTextController.collect(config, context, state, emit);
 		});
 		const builder = createTestBuilder();
-		const form = builder.newForm('search', ContainerRenderer, { variant: ['tabs', 'tab-badges'] });
+		const form = builder.newForm('search', ContainerRenderer, { mode: 'tabs', tabBadges: true });
 		const tab = builder.newContainer('tab', ContainerRenderer, { title: 'Fields' });
 		for (const id of ['word', 'lemma']) tab.addChildren(builder.newField(id, { ...testTextController, collect }, TestTextField, { annotationId: id, displayName: id }));
 		form.addChildren(tab);
@@ -581,7 +583,8 @@ describe('form system integration', () => {
 		const builder = createTestBuilder();
 		builder
 			.newForm('search.non-semantic', ContainerRenderer, {
-				variant: ['tabs', 'tab-badges'],
+				mode: 'tabs',
+				tabBadges: true,
 			})
 			.addChildren(
 				builder

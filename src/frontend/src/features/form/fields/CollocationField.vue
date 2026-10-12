@@ -82,7 +82,7 @@
 				:options="boundaryOptions"
 				:sort-options="sortWithinOptions"
 				:disabled
-				variant="horizontal"
+				layout="horizontal"
 				@update:model-value="update('within', $event.element ?? '')"
 			/>
 

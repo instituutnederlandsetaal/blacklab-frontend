@@ -170,6 +170,14 @@ $tab-radius: 4px;
 		--tab-padding-x: 18px;
 	}
 
+	&.tabs-plain {
+		--tabs-background-color: transparent;
+	}
+
+	&.tabs-secondary {
+		--tabs-background-color: #f5f5f5;
+	}
+
 	&.tabs-primary {
 		--tabs-background-color: var(--tabs-primary-color, #337ab7);
 		--tabs-border-color: transparent;
@@ -205,8 +213,6 @@ $tab-radius: 4px;
 .tabs {
 	display: flex;
 	background: var(--tabs-background-color);
-	border-top-left-radius: $tab-radius;
-	border-top-right-radius: $tab-radius;
 
 	&.wrap {
 		flex-wrap: wrap;
@@ -319,6 +325,7 @@ $tab-radius: 4px;
 .tabs {
 	&:not(.vertical):not(.empty) {
 		border-bottom: 1px solid var(--tabs-border-color);
+		border-radius: $tab-radius $tab-radius 0 0;
 
 		> .tab {
 			border-radius: $tab-radius $tab-radius 0 0;
@@ -348,6 +355,7 @@ $tab-radius: 4px;
 		display: inline-flex;
 		flex-direction: column;
 		border-right: 1px solid var(--tabs-border-color);
+		border-radius: $tab-radius 0 0 $tab-radius;
 
 		> .tab {
 			text-align: right;
@@ -355,11 +363,7 @@ $tab-radius: 4px;
 			margin: 4px -1px 0 0;
 
 			&:first-child {
-				margin-top: -1px; // Collapse border with container.
-			}
-
-			&:last-child {
-				margin-bottom: -1px; // Collapse border with container.
+				margin-top: 0;
 			}
 
 			&.active {

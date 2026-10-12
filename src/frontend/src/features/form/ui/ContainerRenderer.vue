@@ -1,26 +1,32 @@
 <template>
-	<component :is="isForm ? 'form' : 'div'" :class="containerClasses" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
-		<template v-if="isTabbed">
-			<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="toValue(props.title) || 'Form sections'" :class="tabClasses">
-				<template v-if="presentation['tab-badges']" #label="{ tab }">
-					{{ tab.label }}
-					<template v-if="activeQueryContributionCounts[tab.value]?.value">
-						&nbsp;
-						<span class="badge">{{ activeQueryContributionCounts[tab.value]?.value }}</span>
-					</template>
+	<component :is="isForm ? 'form' : 'div'" :class="containerClasses" :style="props.style" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
+		<Tabs
+			v-if="isTabbed"
+			v-model="activeChildId"
+			:tabs="tabs"
+			:small="tabSize === 'small'"
+			:aria-label="toValue(props.title) || 'Form sections'"
+			:class="['blf-form-container-tabs', `tabs-${tabTone ?? 'plain'}`, tabsClass]"
+			:style="tabsStyle"
+		>
+			<template v-if="showTabBadges" #label="{ tab }">
+				{{ tab.label }}
+				<template v-if="activeQueryContributionCounts[tab.value]?.value">
+					&nbsp;
+					<span class="badge">{{ activeQueryContributionCounts[tab.value]?.value }}</span>
 				</template>
-			</Tabs>
+			</template>
+		</Tabs>
 
-			<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-			<div v-if="activeChild" :id="tabId(props.id, activeChild.props.id, 'panel')" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
-				<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="emit('submit', $event)" @reset="emit('reset')">
-					<template #actions><slot name="actions" /></template>
-				</Component>
-			</div>
-		</template>
-
-		<div v-else class="blf-form-content">
-			<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="emit('submit', $event)" @reset="emit('reset')">
+		<div
+			v-if="!isTabbed || activeChild"
+			:id="isTabbed && activeChild ? tabId(props.id, activeChild.props.id, 'panel') : undefined"
+			:role="isTabbed ? 'tabpanel' : undefined"
+			:aria-labelledby="isTabbed && activeChild ? tabId(props.id, activeChild.props.id) : undefined"
+			:class="['blf-form-content', layout ?? 'list', bodyClass]"
+			:style="bodyStyle"
+		>
+			<Component v-for="child in renderedChildren" :is="child.is" v-bind="child.props" :key="child.props.id" :hideTitle="isTabbed || undefined" @submit="emit('submit', $event)" @reset="emit('reset')">
 				<template #actions><slot name="actions" /></template>
 			</Component>
 		</div>
@@ -37,7 +43,7 @@
 import { computed, toRef, toValue } from 'vue';
 
 import { hasEmissions } from '@/features/form/model/compile';
-import { decodeVariants, getAllNodes } from '@/features/form/model/form-utils';
+import { getAllNodes } from '@/features/form/model/form-utils';
 import { provideParentForm, useFormSystemRuntime } from '@/features/form/model/runtime';
 import { createTabs, tabId } from '@/features/form/ui/tab-utils';
 
@@ -56,7 +62,9 @@ const emit = defineEmits<{
 	reset: [];
 }>();
 const runtime = useFormSystemRuntime();
-const presentation = computed(() => decodeVariants(props.variant));
+const isForm = computed(() => props.kind === 'form');
+const isTabbed = computed(() => props.mode === 'tabs');
+const showTabBadges = computed(() => isTabbed.value && toValue(props.tabBadges));
 const activeChildId = computed({
 	get: () => runtime.value.state.uiState.value[props.id] ?? props.children[0]?.props.id ?? null,
 	set: (value: string) => {
@@ -64,11 +72,12 @@ const activeChildId = computed({
 	},
 });
 const activeChild = computed(() => props.children.find(child => child.props.id === activeChildId.value) ?? null);
+const renderedChildren = computed(() => (isTabbed.value ? (activeChild.value ? [activeChild.value] : []) : props.children));
 
 const tabs = computed(() => createTabs(props.id, props.children));
 
 const activeQueryContributionCounts = computed(() => {
-	if (!presentation.value['tab-badges']) return {};
+	if (!showTabBadges.value) return {};
 	const session = runtime.value;
 	return Object.fromEntries(
 		props.children.map(child => {
@@ -79,17 +88,7 @@ const activeQueryContributionCounts = computed(() => {
 	);
 });
 
-const isForm = computed(() => props.kind === 'form');
-const isTabbed = computed(() => presentation.value['tabs'] || presentation.value['small-tabs']);
-const containerClasses = computed(() => [
-	'blf-form-container',
-	isForm.value ? 'blf-form' : null,
-	presentation.value['panel-tabs'] ? 'blf-form-surface' : null,
-	presentation.value,
-	!isTabbed.value ? props.class : null,
-]);
-const tabClasses = computed(() => ['blf-form-container-tabs', props.class, presentation.value['panel-tabs'] ? 'blf-form-surface-tabs' : null]);
-const panelBodyClasses = computed(() => ['blf-form-tab-body', presentation.value['panel-tabs'] ? 'blf-form-surface-body' : null]);
+const containerClasses = computed(() => ['blf-form-container', isForm.value ? 'blf-form' : null, props.frame === 'panel' ? 'panel panel-default' : null, props.class]);
 
 if (props.kind === 'form') {
 	provideParentForm(toRef(props, 'id'));
@@ -108,28 +107,12 @@ function reset() {
 
 <style lang="scss">
 .blf-form-container,
-.blf-form-content,
-.blf-form-tab-body {
+.blf-form-content {
 	min-width: 0;
 }
 
-.blf-form-surface {
-	border: 1px solid var(--blf-border, #ccc);
-	border-radius: 4px;
-	background: rgba(255, 255, 255, 0.8);
-	margin-bottom: 35px;
-	transition:
-		0.25s border-color,
-		0.4s background-color;
-}
-
-.blf-form-surface:hover {
-	border-color: var(--blf-border-strong, #adadad);
-	background: #fff;
-}
-
-.blf-form-surface-body {
-	padding: 20px 30px 30px;
+.blf-form-container.panel > .blf-form-content {
+	padding: 15px;
 }
 
 .blf-form-actions {
@@ -138,17 +121,17 @@ function reset() {
 	padding-top: 20px;
 }
 
-.blf-form-container.list > .blf-form-content {
+.blf-form-content.list {
 	display: grid;
 	gap: 15px;
 	align-content: start;
 }
 
-.blf-form-container.list > .blf-form-content > .blf-field {
+.blf-form-content.list > .blf-field {
 	margin-bottom: 0;
 }
 
-.blf-form-container.columns > .blf-form-content {
+.blf-form-content.columns {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
@@ -157,7 +140,7 @@ function reset() {
 
 	> :not([class^='col-']):not([class*=' col-']) {
 		flex: 1 1 320px;
-		min-width: 320px;
+		min-width: 0;
 	}
 
 	> [class^='col-'],
@@ -169,23 +152,19 @@ function reset() {
 
 .blf-form-container-tabs {
 	margin-bottom: 10px;
-	> .tabs {
-		margin-left: -1px;
-		margin-right: -1px;
-		margin-top: -1px;
-	}
 }
 
-.blf-form-container-tabs.blf-form-surface-tabs {
-	margin-bottom: 0;
+.blf-form-container.panel > .blf-form-container-tabs {
+	margin: -1px -1px 0;
+}
+
+.blf-form-container.panel > .blf-form-actions {
+	margin: 0;
+	padding: 15px;
 }
 
 @media (max-width: 767px) {
-	.blf-form-surface-body {
-		padding: 15px;
-	}
-
-	.blf-form-container.columns > .blf-form-content {
+	.blf-form-content.columns {
 		row-gap: 15px;
 
 		> * {

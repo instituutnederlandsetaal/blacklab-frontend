@@ -21,7 +21,7 @@ import {
 	type FormFieldNode,
 	type FormRuntimeContext,
 } from '@/features/form/index.ts';
-import type { FieldPresentation } from '@/features/form/model/types/form-shape.ts';
+import type { FieldPresentation, TextFieldControls } from '@/features/form/model/types/form-primitives';
 import type { Tagset } from '@/types/apptypes';
 
 import sampleTagsetJson from './sample-tagset.json';
@@ -42,10 +42,8 @@ import HeadingView from '../views/HeadingView.vue';
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
-const fieldVariantOptions = ['default', 'simple', 'large', 'small'] as const satisfies FieldPresentation[];
-type FieldVariantArg = FieldPresentation | FieldPresentation[] | undefined;
-type StoryArgs = {
-	variant?: FieldVariantArg;
+type StoryArgs = FieldPresentation & {
+	controls?: TextFieldControls;
 };
 
 const meta = {
@@ -54,13 +52,16 @@ const meta = {
 		layout: 'padded',
 	},
 	args: {
-		variant: 'default',
+		size: 'normal',
+		layout: 'vertical',
+		controls: 'full',
 	},
 	argTypes: {
-		variant: {
-			control: { type: 'check' },
-			options: fieldVariantOptions,
-		},
+		size: { control: 'select', options: ['normal', 'small', 'large'] },
+		layout: { control: 'select', options: ['vertical', 'horizontal'] },
+		controls: { control: 'select', options: ['full', 'simple'] },
+		class: { control: 'text' },
+		style: { control: 'text' },
 	},
 } satisfies Meta<StoryArgs>;
 
@@ -88,11 +89,6 @@ const genreOptions = [
 	{ value: 'newspaper', label: 'Newspaper' },
 ];
 
-function normalizeVariantArg(value: FieldVariantArg): FieldPresentation | FieldPresentation[] | undefined {
-	if (Array.isArray(value)) return value.length ? value : undefined;
-	return value;
-}
-
 function createStoryContext(indexId: string, translate: Translate): FormRuntimeContext {
 	return {
 		corpus: {
@@ -119,23 +115,27 @@ function createFieldStory<State>(buildField: (builder: FormBuilder) => FormField
 		render: args => ({
 			components: { FormSystemStoryHarness },
 			setup() {
-				const context = createStoryContext('Storybook Example index', useI18n());
-				const definition = new FormBuilder(context);
-				const field = buildField(definition);
-				definition.newForm('root', ContainerRenderer, { title: 'Field preview' }).addChildren(
-					definition.newView('root.heading', HeadingView, {
-						title: field.title ?? field.id,
-						description: 'Rendered through a real form instance with live state.',
-					}),
-					field,
-				);
-				const runtime = new FormRuntime(definition);
-				if (initialState !== undefined) runtime.state.state.value[field.id] = structuredClone(initialState);
+				const translate = useI18n();
+				const runtime = computed(() => {
+					const context = createStoryContext('Storybook Example index', translate);
+					const definition = new FormBuilder(context);
+					const field = buildField(definition);
+					Object.assign(field, args);
+					definition.newForm('root', ContainerRenderer, { title: 'Field preview' }).addChildren(
+						definition.newView('root.heading', HeadingView, {
+							title: field.title ?? field.id,
+							description: 'Rendered through a real form instance with live state.',
+						}),
+						field,
+					);
+					const runtime = new FormRuntime(definition);
+					if (initialState !== undefined) runtime.state.state.value[field.id] = structuredClone(initialState);
 
-				const variant = computed(() => normalizeVariantArg(args.variant));
-				return { runtime, variant };
+					return runtime;
+				});
+				return { runtime };
 			},
-			template: '<FormSystemStoryHarness :runtime :variant />',
+			template: '<FormSystemStoryHarness :runtime />',
 		}),
 	};
 }

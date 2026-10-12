@@ -23,7 +23,7 @@
 						:value="value"
 						@input="value = ($event.target as HTMLInputElement).value"
 					/>
-					<Spinner v-if="wordOptions === null" overlay right inverted :size="field.variants.large ? 32 : 22" class="lexicon-spinner" />
+					<Spinner v-if="wordOptions === null" overlay right inverted :size="props.size === 'large' ? 32 : 22" class="lexicon-spinner" />
 				</div>
 
 				<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0">

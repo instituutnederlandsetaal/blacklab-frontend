@@ -28,16 +28,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watchEffect } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
-import { getAllNodes } from '@/features/form/model/form-utils';
-
-import { FormSystem, type CompiledFormResult, type FieldPresentation, type FormRuntime } from '../index';
+import { FormSystem, type CompiledFormResult, type FormRuntime } from '../index';
 
 const props = defineProps<{
 	runtime: FormRuntime;
 	initialSubmitted?: CompiledFormResult | null;
-	variant?: FieldPresentation | FieldPresentation[];
 }>();
 
 const submittedState = ref<CompiledFormResult | null>(props.initialSubmitted ?? null);
@@ -51,7 +48,6 @@ const showLiveState = computed(() => isOutputVisible('live-state'));
 const showCompiled = computed(() => isOutputVisible('compiled'));
 const showSubmitted = computed(() => isOutputVisible('submitted'));
 const showUrlCodec = computed(() => isOutputVisible('url-codec'));
-const allFields = computed(() => getAllNodes(props.runtime.definition.getRoot(), 'field'));
 const serializedState = computed(() => JSON.stringify(props.runtime.state.state.value, undefined, 2));
 const serializedSubmitted = computed(() => (submittedState.value ? JSON.stringify(submittedState.value, undefined, 2) : ''));
 const serializedCompiled = computed(() => {
@@ -59,10 +55,6 @@ const serializedCompiled = computed(() => {
 	return formIds.length ? JSON.stringify(Object.fromEntries(formIds.map(id => [id, props.runtime.compile(id)])), undefined, 2) : '';
 });
 const encodedSubmitted = computed(() => submittedState.value?.encoded ?? null);
-
-watchEffect(() => {
-	allFields.value.forEach(field => (field.variant = props.variant));
-});
 
 function handleSubmit(snapshot: CompiledFormResult) {
 	submittedState.value = snapshot;

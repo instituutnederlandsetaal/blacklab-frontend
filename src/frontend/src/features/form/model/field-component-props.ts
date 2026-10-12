@@ -1,4 +1,6 @@
-import type { BaseFieldNode, FormValue } from '@/features/form/model/types/form-shape';
+import type { StyleValue } from 'vue';
+
+import type { FieldPresentation, FormValue } from '@/features/form/model/types/form-shape';
 
 const renderedValuePropNames = ['title', 'displayName', 'description', 'placeholder', 'lowPlaceholder', 'highPlaceholder', 'lengthDisplayName', 'selectorDisplayName', 'selectorPlaceholder'] as const;
 type FieldFormValueProp = (typeof renderedValuePropNames)[number];
@@ -9,19 +11,17 @@ type ResolveFormValue<T> = NonNullable<T> extends FormValue<infer Value> ? Value
 
 /** @internal Convert definition/controller props to the contract presented to a component. */
 export type ResolveFieldComponentProps<Props> = {
-	[Key in keyof Props]: Key extends RenderedValueProp ? ResolveFormValue<Props[Key]> : Props[Key];
+	[Key in keyof Props]: Key extends 'style' ? StyleValue : Key extends RenderedValueProp ? ResolveFormValue<Props[Key]> : Props[Key];
 };
 
 /** @internal Convert a component's resolved value props back to definition-time lazy values. */
 export type DefineFieldComponentProps<Props> = {
-	[Key in keyof Props]: Key extends RenderedValueProp ? FormValue<Props[Key]> : Props[Key];
+	[Key in keyof Props]: Key extends 'style' ? string | undefined : Key extends RenderedValueProp ? FormValue<Props[Key]> : Props[Key];
 };
 
 /** Common configurable values stored on every field node. */
-type FieldDefinitionProps = {
+type FieldDefinitionProps = FieldPresentation & {
 	title?: FormValue<string>;
-	class?: string;
-	variant?: BaseFieldNode['variant'];
 	/** Optional summary grouping. */
 	groupId?: string;
 	displayName?: FormValue<string>;
@@ -31,14 +31,14 @@ type FieldDefinitionProps = {
 };
 
 /** Common props as seen by a mounted field component. Lazy definition values are resolved. Mapped from DefinitionProps + state + things computed based on form state. */
-export type FieldComponentProps<State> = {
+export type FieldComponentProps<State> = Omit<FieldPresentation, 'style'> & {
+	/** Vue may normalize an inline CSS string while forwarding component props. */
+	style?: StyleValue;
 	id: string;
 	title?: string;
-	class?: string;
 	htmlId: string;
 	modelValue: State;
 	disabled?: boolean;
-	variant?: BaseFieldNode['variant'];
 	groupId?: string;
 	/** Optional because not every specialized field renders a configurable label. */
 	displayName?: string;

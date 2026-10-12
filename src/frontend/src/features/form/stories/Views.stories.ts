@@ -37,7 +37,7 @@ function createViewStoryModel(translate: Translate): ViewStoryModel {
 	const definition = new FormBuilder(context);
 	const root = definition.newContainer('view-catalog', ContainerRenderer, {
 		title: 'Built-in views',
-		variant: 'tabs',
+		mode: 'tabs',
 	});
 	const headingForm = definition.newForm('view-catalog.heading', ContainerRenderer, { title: 'Heading' }).addChildren(
 		definition.newView('view-catalog.heading.demo', HeadingView, {

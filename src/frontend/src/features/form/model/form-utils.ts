@@ -1,7 +1,5 @@
 import type { AnyBaseFormNode, FormContainerLikeNode, FormNode, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 
-import { lenientIter, type LenientArray } from '@/shared/utils/array-utils';
-
 export function isContainerNode(node: AnyBaseFormNode | null | undefined): node is FormContainerLikeNode {
 	return !!node && 'kind' in node && 'children' in node && Array.isArray(node.children);
 }
@@ -59,10 +57,4 @@ export function findPathToNode(root: FormNode, targetId: string): string[] | nul
 		if (path) return [root.id, ...path];
 	}
 	return null;
-}
-
-export function decodeVariants<Variant extends string>(variants: LenientArray<Variant>): Partial<Record<Variant, boolean>> {
-	const r: Partial<Record<Variant, boolean>> = {};
-	for (const v of lenientIter(variants)) r[v] = true;
-	return r;
 }

@@ -451,7 +451,7 @@ describe('search form system', () => {
 
 		expect(field.defaultAnnotation).toBe('word');
 		expect(field.annotationOptions.map(option => option.value)).toEqual(['word', 'lemma', 'word_or_lemma', 'pos']);
-		expect(simpleValueField).toMatchObject({ showLabel: false, variant: 'simple' });
+		expect(simpleValueField).toMatchObject({ showLabel: false, controls: 'simple' });
 		expect(field.annotationOptions[0].label()).toBe('en:word');
 		locale.value = 'nl';
 		expect(field.annotationOptions[0].label()).toBe('nl:word');
@@ -611,9 +611,9 @@ describe('search form system', () => {
 		const filters = runtime.definition.getContainer(ids.sharedFilters());
 		const onlyGroup = runtime.definition.getContainer(ids.filterTab('Bibliographic'));
 
-		expect(filters?.variant).toBeUndefined();
+		expect(filters?.mode).toBe('all');
 		expect(onlyGroup?.title).toBeUndefined();
-		expect(onlyGroup?.variant).toBe('list');
+		expect(onlyGroup?.layout).toBe('list');
 		expect(runtime.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
 	});
 
@@ -797,7 +797,7 @@ describe('search form system', () => {
 		const sourceField = runtime.definition.getField(sourceFieldId);
 
 		expect(runtime.state.state.value[sourceFieldId]).toBe('contents__en');
-		expect(sourceField?.variant).toBe(mode === 'ngram' ? 'horizontal' : undefined);
+		expect(sourceField?.layout).toBe(mode === 'ngram' ? 'horizontal' : 'vertical');
 		runtime.state.state.value[sourceFieldId] = 'contents__nl';
 
 		const compiled = runtime.compile(ids.exploreForm(mode));
@@ -846,11 +846,11 @@ describe('search form system', () => {
 	test('applies the large simple-search presentation to regular and parallel query fields', () => {
 		const regularField = createDefinition().definition.getField(ids.queryField('simple'));
 		const parallelField = createDefinition(createParallelCorpus()).definition.getField(ids.queryField('simple')) as unknown as {
-			childFieldTemplate: { variant?: unknown };
+			childFieldTemplate: { size?: unknown; controls?: unknown };
 		};
 
-		expect(regularField?.variant).toEqual(['large', 'simple']);
-		expect(parallelField.childFieldTemplate.variant).toEqual(['large', 'simple']);
+		expect(regularField).toMatchObject({ size: 'large', controls: 'simple' });
+		expect(parallelField.childFieldTemplate).toMatchObject({ size: 'large', controls: 'simple' });
 	});
 
 	test('wraps the advanced querybuilder for a parallel corpus', () => {
@@ -1046,7 +1046,7 @@ describe('search form system', () => {
 				observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
 				expect(form).not.toHaveProperty('setAnnotationUiType');
 				form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
-				const fields = form.newContainer(customContainerId, { variant: 'list' }).addChildren(form.annotationText('lemma', { id: customFieldId }));
+				const fields = form.newContainer(customContainerId, { layout: 'list' }).addChildren(form.annotationText('lemma', { id: customFieldId }));
 				const customForm = form.newForm(customFormId, { title: () => form.translate.$t('search.simple.heading') }).addChildren(fields);
 				form.graph.getContainer(form.ids.searchFormsContainer())!.addChildren(customForm);
 			},

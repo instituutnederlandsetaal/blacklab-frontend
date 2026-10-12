@@ -1,36 +1,37 @@
+import type { StyleValue } from 'vue';
+
 import type { AnyFormTarget } from '@/features/form/model/targets';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { FormOutputProducer } from '@/features/form/model/types/form-output';
-import type { ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, QueryCombineMode } from '@/features/form/model/types/form-primitives';
+import type { ContainerBehavior, ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, NodeAppearance, QueryCombineMode } from '@/features/form/model/types/form-primitives';
 import type { AnyVueComponent } from '@/types/helpers';
 
 export type { FieldPresentation, FormNodeKind, FormValue, QueryCombineMode } from '@/features/form/model/types/form-primitives';
 
 /** The base for all form nodes */
-export type BaseNode = {
+export type BaseNode = NodeAppearance & {
 	readonly id: string;
 	title?: FormValue<string>;
-	class?: string;
 };
 // Container
 // ==========================================================================================================================
 
-export type BaseContainerNode = BaseNode & {
-	readonly kind: 'container';
-	/** Defaults to list if unset */
-	variant?: ContainerPresentation | ContainerPresentation[];
-	/** Ordered graph edges; mutate through the builder's parent editor methods. */
-	readonly children: readonly AnyRealFormNode[];
-	/** Defaults to 'and' if unset */
-	combine?: QueryCombineMode;
-	/**
-	 * Optional query contributions keyed by direct child ID and applied while that
-	 * child is selected. This provisions semantic tabs such as "newspapers"
-	 * adding an implicit filter without attaching parent-specific behavior to the
-	 * child node itself.
-	 */
-	readonly activeChildOutputProducers?: Readonly<Record<string, FormOutputProducer>>;
-};
+export type BaseContainerNode = BaseNode &
+	ContainerBehavior &
+	ContainerPresentation & {
+		readonly kind: 'container';
+		/** Ordered graph edges; mutate through the builder's parent editor methods. */
+		readonly children: readonly AnyRealFormNode[];
+		/** Defaults to 'and' if unset */
+		combine?: QueryCombineMode;
+		/**
+		 * Optional query contributions keyed by direct child ID and applied while that
+		 * child is selected. This provisions semantic tabs such as "newspapers"
+		 * adding an implicit filter without attaching parent-specific behavior to the
+		 * child node itself.
+		 */
+		readonly activeChildOutputProducers?: Readonly<Record<string, FormOutputProducer>>;
+	};
 export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { readonly component: C };
 
 // Form boundary - specialization of container
@@ -42,9 +43,10 @@ export type BaseFormNode = Omit<BaseContainerNode, 'kind' | 'combine'> & {
 };
 export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extra & { readonly component: C };
 
-export type ImplicitContainerComponentProps = BaseNode & {
+export type ImplicitContainerComponentProps = Omit<BaseNode & ContainerBehavior & ContainerPresentation, 'style'> & {
+	/** Vue may normalize an inline CSS string while forwarding component props. */
+	style?: StyleValue;
 	kind: BaseContainerNode['kind'] | BaseFormNode['kind'];
-	variant?: BaseContainerNode['variant'];
 	children: Array<{ is: AnyVueComponent; props: any }>;
 	hideTitle?: boolean;
 };
@@ -52,11 +54,10 @@ export type ImplicitContainerComponentProps = BaseNode & {
 // Field
 // ==========================================================================================================================
 
-export type BaseFieldNode = BaseNode & {
-	readonly kind: 'field';
-	/** Defaults to default if unset */
-	variant?: FieldPresentation | FieldPresentation[];
-};
+export type BaseFieldNode = BaseNode &
+	FieldPresentation & {
+		readonly kind: 'field';
+	};
 export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 	Extra & {
 		readonly controller: FieldController<string, unknown, object>;

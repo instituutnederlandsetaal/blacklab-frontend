@@ -34,7 +34,7 @@ export function getVisibleSubAnnotationValues(tagset: Tagset, annotationValue: s
 	return subAnnotation.values.filter(subValue => !subValue.pos || subValue.pos.includes(selectedValue.value));
 }
 
-export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState): string {
+export function summarizeAnnotationPosState(config: Pick<AnnotationPosFieldConfig, 'annotationId' | 'tagset' | 'subAnnotationLabels'>, state: AnnotationPosFieldState): string {
 	const [annotationValue] = state[config.annotationId] ?? [];
 	const selectedValue = findTagsetValue(config.tagset, annotationValue);
 	if (!selectedValue) return '';
