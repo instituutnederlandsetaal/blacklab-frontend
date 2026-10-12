@@ -3499,6 +3499,11 @@
                           "sortValues": {
                             "type": "boolean",
                             "description": "Sort values when there are multiple? Useful when sorting or grouping results, as [a,b] and [b,a] could otherwise be different groups."
+                          },
+                          "role": {
+                            "type": "string",
+                            "const": "pid",
+                            "description": "BlackLab version >= 5.0, newer, preferred way of setting the `pid` field."
                           }
                         },
                         "required": [
@@ -4020,7 +4025,7 @@
                   "properties": {
                     "pidField": {
                       "type": "string",
-                      "description": "Defaults to 'id'"
+                      "description": "Defaults to 'id'. Prefer not using this, and using the 'role' property with value 'pid' instead on the field's declaration."
                     },
                     "titleField": {
                       "type": "string",
@@ -7506,6 +7511,11 @@
                           "sortValues": {
                             "type": "boolean",
                             "description": "Sort values when there are multiple? Useful when sorting or grouping results, as [a,b] and [b,a] could otherwise be different groups."
+                          },
+                          "role": {
+                            "type": "string",
+                            "const": "pid",
+                            "description": "BlackLab version >= 5.0, newer, preferred way of setting the `pid` field."
                           }
                         },
                         "required": [
@@ -8027,7 +8037,7 @@
                   "properties": {
                     "pidField": {
                       "type": "string",
-                      "description": "Defaults to 'id'"
+                      "description": "Defaults to 'id'. Prefer not using this, and using the 'role' property with value 'pid' instead on the field's declaration."
                     },
                     "titleField": {
                       "type": "string",

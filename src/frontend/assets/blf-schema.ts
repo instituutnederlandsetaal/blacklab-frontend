@@ -443,6 +443,9 @@ type MetadataFieldSingle = {
 	analyzer?: string;
 	/** Sort values when there are multiple? Useful when sorting or grouping results, as [a,b] and [b,a] could otherwise be different groups. */
 	sortValues?: boolean;
+
+	/** BlackLab version >= 5.0, newer, preferred way of setting the `pid` field. */
+	role?: 'pid';
 };
 
 /** A for-each version of the metadata field, that will loop over the for-each path, and create a field for every match. Further settings should be in the named metadata entry. */
@@ -508,7 +511,7 @@ type CorpusConfig = {
 	 * Note that the pidField should also be untokenized, as spaces and special characters in the pid of your document will cause issues otherwise.
 	 */
 	specialFields?: {
-		/** Defaults to 'id' */
+		/** Defaults to 'id'. Prefer not using this, and using the 'role' property with value 'pid' instead on the field's declaration. */
 		pidField?: string;
 		/** Defaults to 'title' */
 		titleField?: string;
