@@ -19,8 +19,8 @@ import { summarizeLegacySearch } from '@/features/search/model/search-summary';
 import { submittedSearchFromResult, type SubmittedSearchState } from '@/features/search/model/submitted-search';
 import type { BLSearchParameters } from '@/types/blacklabtypes';
 
+import { getPatternStringExplore, getPatternStringSearch } from '@/shared/blacklab-helpers/pattern-utils';
 import { debugLog } from '@/shared/debug/debug';
-import { getPatternStringSearch, getPatternStringExplore } from '@/shared/blacklab-helpers/pattern-utils';
 
 type SearchPageState = FormManager.ModuleRootState & {
 	global: GlobalResultsModule.ExternalModuleRootState;
@@ -52,7 +52,7 @@ const get = {
 	},
 };
 
-/** Compile the legacy draft only when it is submitted. */
+// Helper to make the submit function more readable
 function compileLegacyQuery() {
 	const ui = InterfaceModule.getState();
 	const filters = get.filtersActive() ? FilterModule.get.activeFiltersMap() : {};
@@ -73,27 +73,21 @@ function compileLegacyQuery() {
 	};
 }
 
-function applyLegacyExploreResultSettings(): boolean {
-	if (InterfaceModule.get.form() !== 'explore') return false;
-	switch (InterfaceModule.get.exploreMode()) {
-		case 'corpora': {
-			const groupBy = ExploreModule.get.corpora.groupBy();
-			InterfaceModule.actions.viewedResults('docs');
-			const view = ViewModule.getOrCreateModule('docs');
-			view.actions.groupDisplayMode(ExploreModule.get.corpora.groupDisplayMode());
-			view.actions.groupBy(groupBy ? [groupBy] : []);
-			return true;
-		}
-		case 'frequency': {
-			InterfaceModule.actions.viewedResults('hits');
-			ViewModule.getOrCreateModule('hits').actions.groupBy([ExploreModule.get.frequency.groupBy()]);
-			return true;
-		}
-		case 'ngram': {
-			InterfaceModule.actions.viewedResults('hits');
-			ViewModule.getOrCreateModule('hits').actions.groupBy([ExploreModule.get.ngram.groupBy()]);
-			return true;
-		}
+function applyLegacyExploreResultSettings(query: ReturnType<typeof compileLegacyQuery>) {
+	if (query.interface.form === 'search') {
+		InterfaceModule.actions.viewedResults(query.params.patt ? (InterfaceModule.get.viewedResults() ?? 'hits') : 'docs');
+	} else if (query.interface.exploreMode === 'corpora') {
+		const groupBy = ExploreModule.get.corpora.groupBy();
+		InterfaceModule.actions.viewedResults('docs');
+		const view = ViewModule.getOrCreateModule('docs');
+		view.actions.groupDisplayMode(ExploreModule.get.corpora.groupDisplayMode());
+		view.actions.groupBy(groupBy ? [groupBy] : []);
+	} else if (query.interface.exploreMode === 'frequency') {
+		InterfaceModule.actions.viewedResults('hits');
+		ViewModule.getOrCreateModule('hits').actions.groupBy([ExploreModule.get.frequency.groupBy()]);
+	} else if (query.interface.exploreMode === 'ngram') {
+		InterfaceModule.actions.viewedResults('hits');
+		ViewModule.getOrCreateModule('hits').actions.groupBy([ExploreModule.get.ngram.groupBy()]);
 	}
 }
 
@@ -108,10 +102,7 @@ const actions = {
 
 		const query = compileLegacyQuery();
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
-
-		if (!applyLegacyExploreResultSettings()) {
-			InterfaceModule.actions.viewedResults(query.params.patt ? (InterfaceModule.get.viewedResults() ?? 'hits') : 'docs');
-		}
+		applyLegacyExploreResultSettings(query);
 		submittedSearch.value = submittedSearchFromResult(query);
 		return query;
 	},
