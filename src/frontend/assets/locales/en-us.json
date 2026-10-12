@@ -334,7 +334,9 @@
 			"value": "value",
 			"noContext": "No context available.",
 			"customColumnHeader": "Version",
-			"goToHitInDocument": "Go to hit in document"
+			"goToHitInDocument": "Go to hit in document",
+			"expandTruncatedSnippetButtonLabel": "[more]",
+			"collapseTruncatedSnippetButtonLabel": "[less]"
 		},
 		"export": {
 			"downloading": "Downloading...",

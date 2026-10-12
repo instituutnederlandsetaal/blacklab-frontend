@@ -15,11 +15,8 @@
 							<Spinner v-if="sentenceLoading" inline style="margin-right: 0.5em" />{{ $t('results.table.showFullSentence') }}
 						</label>
 
-						<!-- NOTE: always render the tree.
-						 Relations can also be embedded in the direct result, when searching for a dependency relation.
-						 We always want to show those, even if the full sentence isn't yet available.
-						 So don't v-if the tree!
-						 -->
+						<!-- NOTE: always render the tree if the hit has positional info (i.e. not a snippet in a /docs request)
+						 Relations can also exist in the direct result, when searching for a dependency relation. and we want to show those unconditionally. -->
 						<DepTree
 							v-if="typeof row.hit.start === 'number'"
 							:context="sentenceShown && sentence ? snippetParts(sentence, undefined, info.getMatchInfoHighlightStyle) : row.context"
@@ -109,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, defineEmits, defineProps, ref, watch } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations, type ResultHitAddon } from '@/customization-api/internal/internal-api';

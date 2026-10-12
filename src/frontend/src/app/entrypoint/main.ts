@@ -4,7 +4,7 @@ import 'bootstrap';
 import '@/global.scss';
 
 import FloatingVue from 'floating-vue';
-import { createApp } from 'vue';
+import { createApp, toRef } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
@@ -25,6 +25,7 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { LegacyFormRestorer } from '@/features/search/model/form/restore-legacy-form';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
+import { DEFAULT_RESULT_CONTEXT_SIZE, provideResultContextSize } from '@/features/search/model/results/result-context-size';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFormRestoration } from '@/features/search/model/search-form-restoration';
 import { createSearchSummary, provideSearchSummary } from '@/features/search/model/search-summary';
@@ -148,6 +149,7 @@ async function start() {
 		tagset: corpusState.tagset,
 		translate: i18n.translate,
 	});
+	const contextSize = toRef(() => GlobalResultsStore.getState().context ?? DEFAULT_RESULT_CONTEXT_SIZE);
 
 	app.use(loginSystem);
 	app.use(debugSystem);
@@ -159,6 +161,7 @@ async function start() {
 	app.use(corpusState);
 	app.use(searchFormSystem);
 	provideActiveSearch(app, activeSearch);
+	provideResultContextSize(app, contextSize);
 	provideArticleState(app, articleState);
 	app.use(customizationRegistry);
 	app.use(customizations);

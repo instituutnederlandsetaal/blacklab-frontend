@@ -1,6 +1,7 @@
 <template>
 	<!-- mind the whitespace, we don't want ANY whitespace between elements. -->
 	<component v-if="html" :is="tag" :style="{ fontWeight: bold ? 'bold' : undefined }"
+		><button v-if="before && canExpand" type="button" class="btn btn-inline btn-link" :aria-expanded="expanded" @click.stop="expanded = !expanded">{{ $t(toggleLabelKey) }}</button
 		><template v-if="before && showEllipsis">…</template
 		><template v-for="{ text, punctuation, punctBefore, style, title, relationKeys } in renderInfo"
 			><span v-if="punct && punctBefore" v-html="punctBefore"></span
@@ -14,8 +15,10 @@
 				:class="{ hoverable: true, hover: relationKeys && hoverMatchInfos ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			></span
 			><span v-else v-html="text"></span><span v-if="punct" v-html="punctuation"></span></template
-		><template v-if="after && showEllipsis">…</template></component
+		><template v-if="after && showEllipsis">…</template
+		><button v-if="!before && canExpand" type="button" class="btn btn-inline btn-link" :aria-expanded="expanded" @click.stop="expanded = !expanded">{{ $t(toggleLabelKey) }}</button></component
 	><component v-else :is="tag" :style="{ fontWeight: bold ? 'bold' : undefined }"
+		><button v-if="before && canExpand" type="button" class="btn btn-inline btn-link" :aria-expanded="expanded" @click.stop="expanded = !expanded">{{ $t(toggleLabelKey) }}</button
 		><template v-if="before && showEllipsis">…</template
 		><template v-for="{ text, punctuation, punctBefore, style, title, relationKeys } in renderInfo"
 			><template v-if="punct && punctBefore">{{ punctBefore }}</template
@@ -29,17 +32,19 @@
 				>{{ text }}</span
 			><template v-else>{{ text }}</template
 			><template v-if="punct">{{ punctuation }}</template></template
-		><template v-if="after && showEllipsis">…</template></component
+		><template v-if="after && showEllipsis">…</template
+		><button v-if="!before && canExpand" type="button" class="btn btn-inline btn-link" :aria-expanded="expanded" @click.stop="expanded = !expanded">{{ $t(toggleLabelKey) }}</button></component
 	>
 </template>
 
 <script setup lang="ts">
-import { computed, type CSSProperties } from 'vue';
+import { computed, ref, watch, type CSSProperties } from 'vue';
 
+import { useResultContextSize } from '@/features/search/model/results/result-context-size';
 import type { HitContext } from '@/types/apptypes';
-import { defineProps, defineEmits, } from 'vue';
 
 const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
+const contextSize = useResultContextSize();
 
 type PartialHitContext = Pick<HitContext, 'match'> & Partial<Pick<HitContext, 'before' | 'after'>>;
 
@@ -71,8 +76,21 @@ const emit = defineEmits<{
 	hover: [relationKeys: string[]];
 	unhover: [];
 }>();
+
+const activeTokens = computed(() => (before ? (data.before ?? []) : after ? (data.after ?? []) : data.match));
+const expanded = ref(false);
+const toggleLabelKey = computed(() => (expanded.value ? 'results.table.collapseTruncatedSnippetButtonLabel' : 'results.table.expandTruncatedSnippetButtonLabel'));
+
+watch(activeTokens, () => (expanded.value = false));
+const canExpand = computed(() => activeTokens.value.length > contextSize.value);
+
 const renderInfo = computed(() => {
-	const tokens = before ? (data.before ?? []) : after ? (data.after ?? []) : data.match;
+	const tokens = activeTokens.value;
+	const showLess = canExpand.value && !expanded.value;
+
+	const limit = !showLess ? activeTokens.value.length : before ? activeTokens.value.length : contextSize.value;
+	const start = !showLess ? 0 : before ? activeTokens.value.length - contextSize.value : 0;
+
 	const result: {
 		relationKeys: string[];
 		text: string;
@@ -82,7 +100,8 @@ const renderInfo = computed(() => {
 		style: CSSProperties | undefined;
 	}[] = [];
 
-	for (const token of tokens) {
+	for (let i = start; i < limit; ++i) {
+		const token = tokens[i];
 		let style: CSSProperties | undefined; // undefined means word is not highlighted or hoverable
 		if (highlight && token.captureAndRelation?.length) {
 			if (token.captureAndRelation.some(c => c.showHighlight)) {

@@ -21,7 +21,7 @@ type ModuleRootState = {
 	sampleSeed: number | null;
 	sampleSize: number | null;
 	/** context can be a string or number in BlackLab, but for now in the form we only allow numbers. */
-	context: number | string | null;
+	context: number | null;
 
 	useNewSearchForm: boolean;
 };
@@ -88,7 +88,7 @@ const actions = {
 			actions.sampleSeed(null);
 		}
 	},
-	context: (payload: number | string | null) => {
+	context: (payload: number | null) => {
 		state.context = payload;
 	},
 	useNewSearchForm: (payload: boolean) => {
