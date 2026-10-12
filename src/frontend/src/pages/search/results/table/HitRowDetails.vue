@@ -58,6 +58,7 @@
 								:tag="context.tag"
 								:dir="row.dir"
 								:data="snippet"
+								:max-tokens="concordanceSize"
 								:html="info.html"
 								:annotation="info.mainAnnotation.id"
 								:bold="context.bold"
@@ -83,6 +84,7 @@
 									v-for="(token, ti) in snippet.match"
 									tag="td"
 									:data="{ match: [token] }"
+									:max-tokens="concordanceSize"
 									:html="info.html"
 									:dir="row.dir"
 									:key="annot.id + ti"
@@ -106,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineEmits, defineProps, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations, type ResultHitAddon } from '@/customization-api/internal/internal-api';
@@ -130,6 +132,7 @@ import Spinner from '@/shared/ui/Spinner.vue';
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
 const customizations = useCustomizations();
+const concordanceSize = computed(() => customizations.resultConcordanceSize());
 
 const props = defineProps<IRowProps<HitRowData>>();
 const emit = defineEmits<{
@@ -260,7 +263,7 @@ watch(
 			row,
 			info: props.info,
 			corpusId: corpus.value.id!,
-			concordanceSize: customizations.resultConcordanceSize(),
+			concordanceSize: concordanceSize.value,
 			addonConstructors: customizations.resultHitAddons(),
 		});
 	},

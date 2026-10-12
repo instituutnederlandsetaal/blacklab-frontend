@@ -9,6 +9,7 @@
 				:key="col.key"
 				tag="td"
 				:data="row.context"
+				:max-tokens="contextSize"
 				:bold="col.field === 'match'"
 				:highlight="col.field !== 'annotation'"
 				:before="col.field === 'before'"
@@ -30,11 +31,14 @@
 </template>
 
 <script setup lang="ts">
+import { useResultContextSize } from '@/features/search/model/results/result-context-size';
 import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { HitRowData } from '@/pages/search/results/table/table-layout';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
+
+const contextSize = useResultContextSize();
 
 defineProps<IRowProps<HitRowData>>();
 const emit = defineEmits<{

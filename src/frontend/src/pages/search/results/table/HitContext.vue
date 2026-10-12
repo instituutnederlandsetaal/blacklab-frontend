@@ -40,11 +40,10 @@
 <script setup lang="ts">
 import { computed, ref, watch, type CSSProperties } from 'vue';
 
-import { useResultContextSize } from '@/features/search/model/results/result-context-size';
+import { DEFAULT_RESULT_CONTEXT_SIZE } from '@/features/search/model/results/result-context-size';
 import type { HitContext } from '@/types/apptypes';
 
 const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
-const contextSize = useResultContextSize();
 
 type PartialHitContext = Pick<HitContext, 'match'> & Partial<Pick<HitContext, 'before' | 'after'>>;
 
@@ -58,6 +57,7 @@ const {
 	before = false,
 	after = false,
 	punct = true,
+	maxTokens = DEFAULT_RESULT_CONTEXT_SIZE,
 	annotation,
 } = defineProps<{
 	data: PartialHitContext;
@@ -69,6 +69,8 @@ const {
 	before?: boolean;
 	after?: boolean;
 	punct?: boolean;
+	/** Maximum tokens shown in this context part before expanding. */
+	maxTokens?: number;
 	/** ID of the annotation whose values to render */
 	annotation: string;
 }>();
@@ -82,14 +84,14 @@ const expanded = ref(false);
 const toggleLabelKey = computed(() => (expanded.value ? 'results.table.collapseTruncatedSnippetButtonLabel' : 'results.table.expandTruncatedSnippetButtonLabel'));
 
 watch(activeTokens, () => (expanded.value = false));
-const canExpand = computed(() => activeTokens.value.length > contextSize.value);
+const canExpand = computed(() => activeTokens.value.length > maxTokens);
 
 const renderInfo = computed(() => {
 	const tokens = activeTokens.value;
 	const showLess = canExpand.value && !expanded.value;
 
-	const limit = !showLess ? activeTokens.value.length : before ? activeTokens.value.length : contextSize.value;
-	const start = !showLess ? 0 : before ? activeTokens.value.length - contextSize.value : 0;
+	const limit = !showLess || before ? tokens.length : maxTokens;
+	const start = showLess && before ? tokens.length - maxTokens : 0;
 
 	const result: {
 		relationKeys: string[];
