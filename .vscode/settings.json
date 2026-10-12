@@ -6,9 +6,9 @@
 		"source.addMissingImports.ts": "explicit",
 		"source.fixAll.oxc": "explicit",
 		"source.format.oxc": "explicit",
-		"source.organizeImports": "never",
+		"source.organizeImports": "explicit",
 		"source.removeUnusedImports": "explicit",
-		"source.sortImports": "never"
+		"source.sortImports": "explicit"
 	},
 	"editor.defaultFormatter": "oxc.oxc-vscode",
 	"editor.insertSpaces": false,
