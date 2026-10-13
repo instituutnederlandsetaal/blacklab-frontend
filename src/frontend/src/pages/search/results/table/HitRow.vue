@@ -8,6 +8,7 @@
 			<HitContext v-else-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
 				tag=td
 				:data="row.context"
+				:max-tokens="contextSize"
 				:bold="col.field === 'match'"
 				:highlight="col.field !== 'annotation'"
 				:before="col.field === 'before'"
@@ -46,6 +47,7 @@ import HitContext from '@/pages/search/results/table/HitContext.vue';
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 import { HitRowData } from '@/pages/search/results/table/table-layout';
 import { corpusCustomizations } from '@/utils/customization';
+import * as GlobalResultsStore from '@/store/search/results/global';
 
 export default Vue.component('HitRow', IRow.extend({
 	props: { row: Object as () => HitRowData },
@@ -58,6 +60,7 @@ export default Vue.component('HitRow', IRow.extend({
 		unhover(v: any) { this.$emit('unhover', v); },
 	},
 	computed: {
+		contextSize(): number | undefined { return GlobalResultsStore.getState().context ?? undefined; },
 		showCustomHitInfoLink(): boolean {
 			return !!this.row.href && corpusCustomizations.results.customHitInfoLink;
 		}

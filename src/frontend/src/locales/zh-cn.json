@@ -278,7 +278,9 @@
 			"value": "值",
 			"noContext": "没有可用的文本",
 			"customColumnHeader": "Version",
-			"goToHitInDocument": "转到文档中的此位置"
+			"goToHitInDocument": "转到文档中的此位置",
+			"expandTruncatedSnippetButtonLabel": "[更多]",
+			"collapseTruncatedSnippetButtonLabel": "[收起]"
 		},
 		"export": {
 			"downloading": "下载中...",
