@@ -1,52 +1,38 @@
 import { describe, expect, test } from 'vitest';
 
-import {
-	COLLOCATION_OUTPUTS,
-	createCollocationTarget,
-	createSearchTarget,
-	docsSearchTarget,
-	hitsSearchTarget,
-	isValidEmission,
-	rawCql,
-	searchTarget,
-	type FieldController,
-	type FormEmission,
-	type FormIssue,
-	type FormOutputName,
-	type SearchOutputName,
-	within,
-} from '@/features/form';
-import { filter } from '@/features/form/model/types/form-query-ir';
+import { compileFormNode } from '@/features/form/model/compile/form';
+import { createDefaultFormState } from '@/features/form/model/state';
+import { COLLOCATION_OUTPUTS, createCollocationTarget, createSearchTarget, docsSearchTarget, hitsSearchTarget, searchTarget, type SearchOutputName } from '@/features/form/model/targets';
+import type { FieldController } from '@/features/form/model/types/form-controllers';
+import { isValidEmission, type FormEmission, type FormIssue, type FormOutputName } from '@/features/form/model/types/form-output';
+import { filter, rawCql, within } from '@/features/form/model/types/form-query-ir';
 
-import { TestTextField, createTestBuilder, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
+import { TestTextField, createTestBuilder, createTestContext, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
-type TestController = FieldController<string, TestTextFieldState, TestTextFieldConfig>;
-
-function createController(outputs: readonly FormOutputName[], collect: TestController['collect']): TestController {
-	return { ...testTextController, kind: `target-test-${outputs.join('-')}`, outputs, collect };
-}
-
-function createRuntime(...controllers: TestController[]) {
-	const builder = createTestBuilder();
-	const form = builder.newForm('search.form', ContainerRenderer, {});
-	controllers.forEach((controller, index) => {
-		form.addChildren(
-			builder.newField(`search.field.${index}`, controller, TestTextField, {
-				annotationId: `annotation-${index}`,
-				displayName: `Field ${index}`,
-			}),
-		);
-	});
-	return createTestRuntime(builder);
-}
-
-function emission<Name extends FormOutputName>(name: Name, value: FormEmission<Name>['value']): FormEmission<Name> {
-	return { name, value } as FormEmission<Name>;
-}
-
 describe('form output acceptance', () => {
+	type TestController = FieldController<string, TestTextFieldState, TestTextFieldConfig>;
+
+	function createController(outputs: readonly FormOutputName[], collect: TestController['collect']): TestController {
+		return { ...testTextController, kind: `target-test-${outputs.join('-')}`, outputs, collect };
+	}
+
+	function compileControllers(...controllers: TestController[]) {
+		const context = createTestContext();
+		const builder = createTestBuilder(context);
+		const form = builder.newForm('search.form', ContainerRenderer, {});
+		controllers.forEach((controller, index) => {
+			form.addChildren(
+				builder.newField(`search.field.${index}`, controller, TestTextField, {
+					annotationId: `annotation-${index}`,
+					displayName: `Field ${index}`,
+				}),
+			);
+		});
+		return compileFormNode(form, createDefaultFormState(context, form), context);
+	}
+
 	test('validates collocation discriminators and safe context shapes at the form boundary', () => {
 		expect(isValidEmission({ name: 'collpatt', value: rawCql('[lemma="ship"]') })).toBe(true);
 		expect(isValidEmission({ name: 'colltype', value: 'proximity' })).toBe(true);
@@ -76,7 +62,7 @@ describe('form output acceptance', () => {
 			emit('patt', rawCql(' [word="water"] '));
 			emit('searchfield', ' contents ');
 		});
-		const compiled = createRuntime(controller).compile('search.form');
+		const compiled = compileControllers(controller);
 
 		expect(compiled.params).toEqual({ group: 'field:author', patt: '[word="water"]', searchfield: 'contents' });
 		expect(compiled.issues).toEqual([
@@ -92,12 +78,12 @@ describe('form output acceptance', () => {
 			(emit as unknown as (name: string, value: unknown) => void)('patt', undefined);
 		});
 
-		expect(createRuntime(controller).compile('search.form')).toMatchObject({ params: {}, issues: [] });
+		expect(compileControllers(controller)).toMatchObject({ params: {}, issues: [] });
 	});
 
 	test('does not preflight declarations that never emit', () => {
 		const controller = createController(['collpatt'], () => {});
-		const compiled = createRuntime(controller).compile('search.form');
+		const compiled = compileControllers(controller);
 
 		expect(compiled).toMatchObject({ params: {}, issues: [] });
 	});
@@ -127,7 +113,7 @@ describe('form output acceptance', () => {
 			getResultPreset: () => 'tokens' as const,
 		} satisfies TestController;
 
-		const compiled = createRuntime(first, second).compile('search.form');
+		const compiled = compileControllers(first, second);
 
 		expect(compiled.params).toEqual({ patt: '[word="water"]', filter: 'author:(Austen)' });
 		expect(compiled.resultPreset).toBe('tokens');
@@ -144,7 +130,7 @@ describe('form output acceptance', () => {
 		const controller = createController(['patt'], (_config, _runtime, _state, emit) => {
 			(emit as unknown as (name: string, value: unknown) => void)('patt', { type: 'cql-raw', cql: null });
 		});
-		const compiled = createRuntime(controller).compile('search.form');
+		const compiled = compileControllers(controller);
 
 		expect(compiled.params).toEqual({});
 		expect(compiled.issues).toContainEqual({ severity: 'warning', message: "Controller for 'search.field.0' emitted malformed output 'patt'; ignoring it." });
@@ -152,6 +138,10 @@ describe('form output acceptance', () => {
 });
 
 describe('search target compilation', () => {
+	function emission<Name extends FormOutputName>(name: Name, value: FormEmission<Name>['value']): FormEmission<Name> {
+		return { name, value } as FormEmission<Name>;
+	}
+
 	test('normalizes values, concatenates group and sort, and keeps first valid scalar values', () => {
 		const target = createSearchTarget();
 		const issues: FormIssue[] = [];
@@ -240,15 +230,15 @@ describe('search target compilation', () => {
 		]);
 	});
 
-	test('reconciles only target-owned runtime overrides during target compilation', () => {
-		const controller = createController(['patt'], (_config, _runtime, _state, emit) => emit('patt', rawCql('[word="draft"]')));
-		const runtime = createRuntime(controller);
-		runtime.state.rawOverrides.value.patt = '[word="restored"]';
-		runtime.state.rawOverrides.value.collpatt = '[lemma="ignored"]';
+	test('applies only overrides owned by the search target', () => {
+		const issues: FormIssue[] = [];
+		const params = searchTarget.compile([emission('patt', rawCql('[word="draft"]'))], issues, {
+			patt: '[word="restored"]',
+			collpatt: '[lemma="ignored"]',
+		});
 
-		const compiled = runtime.compile('search.form');
-
-		expect(compiled.params).toEqual({ patt: '[word="restored"]' });
+		expect(params).toEqual({ patt: '[word="restored"]' });
+		expect(issues).toEqual([]);
 	});
 
 	test('declares endpoint families for generic and explicit-view targets', () => {
@@ -259,6 +249,10 @@ describe('search target compilation', () => {
 });
 
 describe('collocation target compilation', () => {
+	function emission<Name extends FormOutputName>(name: Name, value: FormEmission<Name>['value']): FormEmission<Name> {
+		return { name, value } as FormEmission<Name>;
+	}
+
 	test('declares its exact grouped endpoint contract and applies explicit defaults', () => {
 		const target = createCollocationTarget(' lemma ');
 		const issues: FormIssue[] = [];

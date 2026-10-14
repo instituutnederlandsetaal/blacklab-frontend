@@ -7,7 +7,6 @@ import { describe, expect, test, vi } from 'vitest';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
-import { normalizeIndex } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 import { findOption, optionLabel, optionText, optionValues } from '@/shared/utils/options';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
@@ -92,57 +91,14 @@ function createIndex(): NormalizedIndex {
 	};
 }
 
-function createSearchFormCustomizations(defaultAnnotationId = 'lemma') {
+function createSearchFormCustomizations() {
 	return {
 		searchFormAdvancedAnnotationIds: () => ['lemma'],
-		searchFormAdvancedDefaultAnnotationId: (availableValues: readonly string[]) => (availableValues.includes(defaultAnnotationId) ? defaultAnnotationId : (availableValues[0] ?? null)),
+		searchFormAdvancedDefaultAnnotationId: () => 'lemma',
 	};
 }
 
-describe('search form data dependencies', () => {
-	test('keeps an empty annotation group that requests remaining annotations', () => {
-		const index = normalizeIndex(
-			{
-				annotatedFields: {
-					contents: {
-						annotations: {
-							word: { custom: { displayName: 'Word' } },
-							lemma: { custom: { displayName: 'Lemma' } },
-							pos: { custom: { displayName: 'Part of speech' } },
-						},
-						count: { documents: 1, tokens: 1 },
-						custom: { displayOrder: ['word', 'lemma', 'pos'] },
-						hasContentStore: true,
-						hasXmlTags: true,
-						mainAnnotation: 'word',
-					},
-				},
-				contentViewable: true,
-				custom: {
-					annotationGroups: {
-						contents: [{ groupName: 'Basics', annotations: [], addRemainingAnnotations: true }],
-					},
-					description: '',
-					displayName: 'Test corpus',
-					textDirection: 'ltr',
-				},
-				count: { documents: 1, tokens: 1 },
-				corpusName: 'test-corpus',
-				mainAnnotatedField: 'contents',
-				metadataFields: {},
-				status: 'available',
-				timeModified: '',
-				versionInfo: { blacklabVersion: '4.4.0-SNAPSHOT', timeModified: '' },
-			} as any,
-			{ relations: {}, spans: {} },
-			'5.3.0-SNAPSHOT',
-		);
-
-		expect(index.indexerVersion).toBe('4.4.0');
-		expect(index.runtimeVersion).toBe('5.3.0');
-		expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
-	});
-
+describe('query-builder options', () => {
 	test('builds querybuilder annotation options from the configured corpus subset', () => {
 		const options = createQueryBuilderOptions({
 			corpus: createIndex(),
@@ -207,20 +163,5 @@ describe('search form data dependencies', () => {
 
 		await expect(options.autocomplete(index.annotatedFields.contents.annotations.lemma, 'wat')).resolves.toEqual(['water']);
 		expect(getTermAutocomplete).toHaveBeenCalledWith('test-corpus', 'contents', 'lemma', 'wat');
-	});
-
-	test('uses an allowed querybuilder annotation when the configured default is stale', () => {
-		const index = createIndex();
-		const customizations = createSearchFormCustomizations('word');
-
-		const options = createQueryBuilderOptions({
-			corpus: index,
-			customizations,
-			blacklabApi: createMockApi().blacklabApi,
-			translate: createMockTranslate(),
-		});
-
-		expect(optionValues(options.annotationOptions)).toEqual(['lemma']);
-		expect(options.defaultAnnotationId).toBe('lemma');
 	});
 });

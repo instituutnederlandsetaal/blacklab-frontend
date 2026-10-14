@@ -1,17 +1,35 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { createBlfRouter } from '@/navigation/router';
+
+// Route matching and bootstrap transitions do not mount page components.
+vi.mock('@/pages/corpus/CorpusPage.vue', () => ({ default: {} }));
+vi.mock('@/pages/config/CorpusConfig.vue', () => ({ default: {} }));
+vi.mock('@/pages/config/POS.vue', () => ({ default: {} }));
+vi.mock('@/pages/config/Interface.vue', () => ({ default: {} }));
+vi.mock('@/pages/search/SearchPage.vue', () => ({ default: {} }));
+vi.mock('@/pages/article/ArticlePage.vue', () => ({ default: {} }));
+vi.mock('@/pages/about/AboutPage.vue', () => ({ default: {} }));
+
+const cleanup: (() => void)[] = [];
 
 beforeEach(() => {
 	vi.stubGlobal('CONTEXT_URL', '/');
 	window.history.replaceState({}, '', '/');
 });
 
+afterEach(() => {
+	for (const dispose of cleanup.splice(0)) dispose();
+	vi.unstubAllGlobals();
+});
+
 describe('config routes', () => {
 	function setup(changePage = vi.fn()) {
-		return { ...createBlfRouter({ changePage } as never), changePage };
+		const routing = createBlfRouter({ changePage } as never);
+		cleanup.push(() => routing.router.options.history.destroy());
+		return { ...routing, changePage };
 	}
 
 	test('renders the corpus picker as the global config default child', () => {

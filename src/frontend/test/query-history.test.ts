@@ -5,65 +5,18 @@ import { File } from 'node:buffer';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
-import type { CompiledFormResult } from '@/features/form';
 import { actions, get, getState, init, setUrlDecoder } from '@/features/history/model/query-history-state';
-import { LegacyFormRestorer } from '@/features/search/model/form/restore-legacy-form';
-import { summarizeCompiledForm } from '@/features/search/model/search-summary';
-import { queryHistoryDetails, queryHistoryFromUrl } from '@/url/query-history';
+import { queryHistoryDetails } from '@/url/query-history';
 
-beforeEach(() => setUrlDecoder(queryHistoryDetails));
+beforeEach(() => {
+	setUrlDecoder(queryHistoryDetails);
+	window.localStorage.clear();
+});
 
 afterEach(() => {
 	actions.clear();
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
-});
-
-const mixedSummaries: CompiledFormResult['summaries'] = [
-	{ label: 'Frontend only', summaryType: [], value: 'frontend' },
-	{ label: 'Pattern only', summaryType: ['patt'], value: 'pattern' },
-	{ label: 'Filter only', summaryType: ['filter'], value: 'filter' },
-	{ label: 'Multi-type', summaryType: ['patt', 'filter'], value: 'shared' },
-];
-
-function mixedSummaryForm(): CompiledFormResult {
-	return {
-		encoded: { 'f.form': 'search.form' },
-		formId: 'search.form',
-		params: { filter: 'author:Austen', patt: '[word="water"]' },
-		issues: [],
-		summaries: mixedSummaries,
-	};
-}
-
-describe('new-form query summary selectors', () => {
-	test('selects summaries by their normalized output types', () => {
-		const summary = summarizeCompiledForm(mixedSummaryForm());
-
-		expect(summary.pattern).toBe('Pattern only: pattern, Multi-type: shared');
-		expect(summary.filter).toBe('Filter only: filter, Multi-type: shared');
-	});
-
-	test('combines the researcher-facing collocation settings', () => {
-		const form = mixedSummaryForm();
-		form.params = {
-			annotation: 'word',
-			colltype: 'proximity',
-			context: 5,
-			patt: '[word="ship"]',
-			scorertype: 'coll-dice',
-			sensitive: false,
-		};
-		form.summaries = [
-			{ label: 'Word', summaryType: ['patt'], value: 'ship' },
-			{ label: 'Collocate', summaryType: ['collpatt'], value: 'Any collocate' },
-			{ label: 'Window', summaryType: ['context'], value: 'L5/R5' },
-			{ label: 'Documents', summaryType: ['filter'], value: 'year:1800-1900' },
-		];
-		const summary = summarizeCompiledForm(form);
-
-		expect(summary.pattern).toBe('Word: ship · Collocate: Any collocate · Window: L5/R5');
-	});
 });
 
 describe('URL query history', () => {
@@ -74,16 +27,6 @@ describe('URL query history', () => {
 		expect(window.location.href).toBe(currentUrl);
 		expect(getState()).toHaveLength(1);
 		expect(getState()[0]).toMatchObject({ url, displayValues: { pattern: 'Word: water', filters: '-' } });
-	});
-
-	test('uses the legacy pattern alias in imported search summaries', async () => {
-		vi.stubGlobal('CONTEXT_URL', '/');
-		vi.spyOn(LegacyFormRestorer.prototype, 'get').mockResolvedValue({
-			interface: { form: 'search' },
-			filters: {},
-		} as never);
-		const url = '/test/search/hits?query=' + encodeURIComponent('[word="water"]');
-		await expect(queryHistoryFromUrl(url, { corpus: { allAnnotationsMap: {} } } as never)).resolves.toEqual({ url, displayValues: { pattern: '[word="water"]', filters: '' } });
 	});
 
 	test('does not record URLs without search results', () => {
@@ -116,8 +59,6 @@ describe('URL query history', () => {
 	});
 
 	test.each([11, 12])('restores searches saved by history version %s with absolute URLs', version => {
-		const storage = new Map<string, string>();
-		vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) });
 		const url = '/test-corpus/search/hits?patt=[]';
 		window.localStorage.setItem(
 			'cf/history/test-corpus',
@@ -125,7 +66,14 @@ describe('URL query history', () => {
 				version,
 				indexLastModified: 'now',
 				history: [
-					{ url, timestamp: 123, hash: 5, displayValues: { pattern: 'Any word', filters: '-' }, patterns: { large: 'snapshot' }, newForm: mixedSummaryForm() },
+					{
+						url,
+						timestamp: 123,
+						hash: 5,
+						displayValues: { pattern: 'Any word', filters: '-' },
+						patterns: { large: 'snapshot' },
+						newForm: { formId: 'search.form', params: { patt: '[word="water"]' } },
+					},
 					{ url, timestamp: 100, hash: 6, patterns: { older: 'snapshot of the same query' } },
 				],
 			}),

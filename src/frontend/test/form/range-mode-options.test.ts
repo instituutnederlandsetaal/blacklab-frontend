@@ -1,66 +1,35 @@
 // @vitest-environment jsdom
 
-import { createMockApi } from '@test/mocks/api';
-import { createMockTranslate } from '@test/mocks/i18n';
-import { mount } from '@vue/test-utils';
-import { describe, expect, test } from 'vitest';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { afterEach, describe, expect, test } from 'vitest';
 import { nextTick, ref } from 'vue';
 
-import { createSearchFormNodeConstructors } from '@/customization-api/shared/form/node-constructors';
-import { createRangeModeOptions, DateField, RangeField, type FormFieldNode, type RangeModeOption } from '@/features/form';
-import type { Corpus } from '@/types/apptypes';
-import type { NormalizedMetadataField } from '@/types/apptypes';
+import { createRangeModeOptions, DateField, RangeField } from '@/features/form';
 
-import type { Translate } from '@/shared/i18n';
 import { optionLabel, optionTitle } from '@/shared/utils/options';
 
-function metadataField(id: string, uiType: 'date' | 'range'): NormalizedMetadataField {
-	return {
-		defaultDescription: `${id} description`,
-		defaultDisplayName: id,
-		id,
-		uiType,
-	} as NormalizedMetadataField;
-}
-
-function getModeOptions(node: FormFieldNode): RangeModeOption[] {
-	const options = (node as FormFieldNode & { modeOptions?: RangeModeOption[] }).modeOptions;
-	if (!options) throw new Error(`Expected ${node.id} to have graph-provided range mode options.`);
-	return options;
-}
+enableAutoUnmount(afterEach);
 
 describe('range mode options', () => {
-	test('constructs deferred translations on date and range nodes', () => {
+	test('defers labels and titles until they are read', () => {
 		const locale = ref('en');
 		let translationCalls = 0;
-		const translate: Translate = {
-			...createMockTranslate(),
+		const options = createRangeModeOptions({
 			$t(key) {
 				translationCalls++;
 				return `${locale.value}:${key}`;
 			},
-		};
-		const factory = createSearchFormNodeConstructors({
-			blacklabApi: createMockApi().blacklabApi,
-			corpus: { textDirection: 'ltr' } as Corpus,
-			customizations: {
-				searchFormAnnotationControl: () => null,
-				searchFormLexiconDatabase: () => '',
-			},
-			tagset: undefined,
-			translate,
 		});
-		const dateOptions = getModeOptions(factory.metadataDate(metadataField('published', 'date'), { id: 'published' }));
-		const rangeOptions = getModeOptions(factory.metadataRange(metadataField('year', 'range'), { id: 'year' }));
 
 		expect(translationCalls).toBe(0);
-		expect(optionLabel(dateOptions[0])).toBe('en:filter.range.permissive');
-		expect(optionTitle(rangeOptions[1])).toBe('en:filter.range.strictDescription');
+		expect(options.map(option => option.value)).toEqual(['permissive', 'strict']);
+		expect(optionLabel(options[0])).toBe('en:filter.range.permissive');
+		expect(optionTitle(options[1])).toBe('en:filter.range.strictDescription');
 
 		locale.value = 'nl';
 
-		expect(optionLabel(dateOptions[0])).toBe('nl:filter.range.permissive');
-		expect(optionTitle(rangeOptions[1])).toBe('nl:filter.range.strictDescription');
+		expect(optionLabel(options[0])).toBe('nl:filter.range.permissive');
+		expect(optionTitle(options[1])).toBe('nl:filter.range.strictDescription');
 	});
 
 	test('reactively renders graph-provided labels and titles in both components', async () => {

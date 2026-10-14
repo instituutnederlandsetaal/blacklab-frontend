@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
 import type { CqlAttributeData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
-import { collocationController, createFormFieldNode, type Emit, type FormEmission, type SummaryInput } from '@/features/form';
 import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
-import { collocationPatternToCql } from '@/features/form/model/controllers/collocation-controller';
+import { collocationController, collocationPatternToCql } from '@/features/form/model/controllers/collocation-controller';
+import { createFormFieldNode } from '@/features/form/model/form-field-node';
+import type { Emit, FormEmission, SummaryInput } from '@/features/form/model/types/form-output';
 
 import { createTestContext, testTextController, TestTextField } from './helpers';
 

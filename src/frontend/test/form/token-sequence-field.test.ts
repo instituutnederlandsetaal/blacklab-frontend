@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { mount } from '@vue/test-utils';
-import { describe, expect, test } from 'vitest';
+import { DOMWrapper, enableAutoUnmount, mount } from '@vue/test-utils';
+import { afterEach, describe, expect, test } from 'vitest';
 import { defineComponent, h, nextTick, type PropType } from 'vue';
 
 import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreFieldState, scalar, type NamedFieldDefinition } from '@/features/form';
@@ -17,6 +17,8 @@ import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+
+enableAutoUnmount(afterEach);
 
 type ChildControllerConfig = {
 	annotationId: string;
@@ -170,185 +172,179 @@ function createGatheredChildrenFixture() {
 }
 
 describe('token sequence composite field', () => {
-	test('creates the configured number of independent active token defaults', () => {
-		const { runtime } = createFixture();
-		const state = sequenceState(runtime);
-		expect(state).toEqual([
-			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
-			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
-		]);
-		(state[0].fieldState as TextFieldState).value = 'first only';
-		expect(state[1].fieldState).toEqual({ value: '', caseSensitive: false });
-	});
+	describe('defaults and compilation', () => {
+		test('creates the configured number of independent active token defaults', () => {
+			const { runtime } = createFixture();
+			const state = sequenceState(runtime);
+			expect(state).toEqual([
+				{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
+				{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
+			]);
+			(state[0].fieldState as TextFieldState).value = 'first only';
+			expect(state[1].fieldState).toEqual({ value: '', caseSensitive: false });
+		});
 
-	test('compiles blank children as ordered any-token patterns', () => {
-		const { runtime } = createFixture();
-		const state = sequenceState(runtime);
-		state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
-		state[1] = { fieldId: 'lemma', fieldState: { exact: true, lemma: '' } satisfies LemmaFieldState };
-		expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] []');
-	});
+		test('compiles blank children as ordered any-token patterns', () => {
+			const { runtime } = createFixture();
+			const state = sequenceState(runtime);
+			state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
+			state[1] = { fieldId: 'lemma', fieldState: { exact: true, lemma: '' } satisfies LemmaFieldState };
+			expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] []');
+		});
 
-	test('compiles populated children through their selected controllers', () => {
-		const { runtime } = createFixture();
-		const state = sequenceState(runtime);
-		state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
-		state[1] = { fieldId: 'lemma', fieldState: { exact: false, lemma: 'run*' } satisfies LemmaFieldState };
-		expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] [lemma="run.*"]');
-	});
+		test('compiles populated children through their selected controllers', () => {
+			const { runtime } = createFixture();
+			const state = sequenceState(runtime);
+			state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
+			state[1] = { fieldId: 'lemma', fieldState: { exact: false, lemma: 'run*' } satisfies LemmaFieldState };
+			expect(runtime.compile('explore.ngram').params.patt).toBe('[word="water"] [lemma="run.*"]');
+		});
 
-	test('reports embedded controller errors from the compound controller', () => {
-		const { runtime } = createGatheredChildrenFixture();
-		const state = sequenceState(runtime);
-		state[0].fieldState = { value: 'throw', caseSensitive: false };
-		state[1].fieldState = { value: 'water', caseSensitive: false };
+		test('reports embedded controller errors from the compound controller', () => {
+			const { runtime } = createGatheredChildrenFixture();
+			const state = sequenceState(runtime);
+			state[0].fieldState = { value: 'throw', caseSensitive: false };
+			state[1].fieldState = { value: 'water', caseSensitive: false };
 
-		const compiled = runtime.compile('explore.ngram');
+			const compiled = runtime.compile('explore.ngram');
 
-		expect(compiled.params).not.toHaveProperty('patt');
-		expect(compiled.issues).toContainEqual({ severity: 'error', message: "Controller for 'explore.ngram.tokens' failed: embedded child error" });
-		expect(compiled.summaries.filter(summary => summary.label === 'Child').map(summary => summary.value)).toEqual(['throw', 'water']);
-	});
+			expect(compiled.params).not.toHaveProperty('patt');
+			expect(compiled.issues).toContainEqual({ severity: 'error', message: "Controller for 'explore.ngram.tokens' failed: embedded child error" });
+			expect(compiled.summaries.filter(summary => summary.label === 'Child').map(summary => summary.value)).toEqual(['throw', 'water']);
+		});
 
-	test('fails compound collection when a child emits an unexpected output', () => {
-		const { runtime } = createGatheredChildrenFixture();
-		const state = sequenceState(runtime);
-		state[0].fieldState = { value: 'filter', caseSensitive: false };
-		state[1].fieldState = { value: 'water', caseSensitive: false };
+		test('fails compound collection when a child emits an unexpected output', () => {
+			const { runtime } = createGatheredChildrenFixture();
+			const state = sequenceState(runtime);
+			state[0].fieldState = { value: 'filter', caseSensitive: false };
+			state[1].fieldState = { value: 'water', caseSensitive: false };
 
-		const compiled = runtime.compile('explore.ngram');
+			const compiled = runtime.compile('explore.ngram');
 
-		expect(compiled.params).not.toHaveProperty('patt');
-		expect(compiled.params).not.toHaveProperty('filter');
-		expect(compiled.issues).toContainEqual({
-			severity: 'error',
-			message: "Controller for 'explore.ngram.tokens' failed: Unexpected 'filter' output from embedded field 'explore.ngram.tokens.token.0.word'.",
+			expect(compiled.params).not.toHaveProperty('patt');
+			expect(compiled.params).not.toHaveProperty('filter');
+			expect(compiled.issues).toContainEqual({
+				severity: 'error',
+				message: "Controller for 'explore.ngram.tokens' failed: Unexpected 'filter' output from embedded field 'explore.ngram.tokens.token.0.word'.",
+			});
 		});
 	});
 
-	test('lays out only the length control horizontally', () => {
-		const { runtime } = createFixture({ size: 'large', layout: 'horizontal', controls: 'simple' });
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
-		});
+	describe('layout', () => {
+		test('lays out only the length control horizontally', () => {
+			const { runtime } = createFixture({ size: 'large', layout: 'horizontal', controls: 'simple' });
+			const wrapper = mount(FormSystem, {
+				props: { runtime },
+			});
 
-		const length = wrapper.findComponent(NumberField);
-		expect(length.find('.blf-field-horizontal').exists()).toBe(true);
-		expect(length.get('input[type="number"]').classes()).toContain('input-lg');
-		expect(wrapper.get('.blf-token-sequence-field').classes()).not.toContain('blf-field-horizontal');
+			const length = wrapper.findComponent(NumberField);
+			expect(length.find('.blf-field-horizontal').exists()).toBe(true);
+			expect(length.get('input[type="number"]').classes()).toContain('input-lg');
+			expect(wrapper.get('.blf-token-sequence-field').classes()).not.toContain('blf-field-horizontal');
 
-		const selectors = wrapper.findAllComponents(SelectField);
-		expect(selectors).toHaveLength(2);
-		expect(selectors.every(selector => !selector.classes().includes('blf-field-horizontal'))).toBe(true);
-		expect(selectors.every(selector => selector.get('.menu-button').classes().includes('btn-lg'))).toBe(true);
-		const editors = wrapper.findAllComponents(TextField);
-		expect(editors).toHaveLength(2);
-		expect(editors.every(editor => editor.get('input[type="text"]').classes().includes('input-lg'))).toBe(true);
-		expect(selectors.every(selector => !selector.find('label').exists())).toBe(true);
-		expect(editors.every(editor => !editor.find('label.control-label').exists())).toBe(true);
-		expect(editors.every(editor => !editor.find('.file-input-button').exists())).toBe(true);
-	});
-
-	test('growing the sequence appends fresh default tokens', async () => {
-		const { runtime } = createFixture();
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
-		});
-
-		await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('4');
-		expect(sequenceState(runtime)).toHaveLength(4);
-		expect(sequenceState(runtime)[3]).toEqual({ fieldId: 'word', fieldState: { value: '', caseSensitive: false } });
-	});
-
-	test('changing a token selector replaces its child state with controller defaults', async () => {
-		const { runtime } = createFixture();
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
-		});
-		sequenceState(runtime)[0].fieldState = { value: 'draft', caseSensitive: false } satisfies TextFieldState;
-		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', ['lemma']);
-		await nextTick();
-		expect(sequenceState(runtime)[0]).toEqual({
-			fieldId: 'lemma',
-			fieldState: { exact: true, lemma: '' },
+			const selectors = wrapper.findAllComponents(SelectField);
+			expect(selectors).toHaveLength(2);
+			expect(selectors.every(selector => !selector.classes().includes('blf-field-horizontal'))).toBe(true);
+			expect(selectors.every(selector => selector.get('.menu-button').classes().includes('btn-lg'))).toBe(true);
+			const editors = wrapper.findAllComponents(TextField);
+			expect(editors).toHaveLength(2);
+			expect(editors.every(editor => editor.get('input[type="text"]').classes().includes('input-lg'))).toBe(true);
+			expect(selectors.every(selector => !selector.find('label').exists())).toBe(true);
+			expect(editors.every(editor => !editor.find('label.control-label').exists())).toBe(true);
+			expect(editors.every(editor => !editor.find('.file-input-button').exists())).toBe(true);
 		});
 	});
 
-	test('accepts scalar selectors, saves child edits, and preserves a reselected token', async () => {
-		const { runtime } = createFixture();
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
+	describe('editing', () => {
+		test('growing the sequence appends fresh default tokens', async () => {
+			const { runtime } = createFixture();
+			const wrapper = mount(FormSystem, {
+				props: { runtime },
+			});
+
+			await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('4');
+			expect(sequenceState(runtime)).toHaveLength(4);
+			expect(sequenceState(runtime)[3]).toEqual({ fieldId: 'word', fieldState: { value: '', caseSensitive: false } });
 		});
 
-		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', 'lemma');
-		await nextTick();
-		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: '' } });
+		test('switches custom child state through the selector and preserves edits when reselected', async () => {
+			const { runtime } = createFixture();
+			const wrapper = mount(FormSystem, { props: { runtime } });
+			await wrapper.findAllComponents(TextField)[0].get('input[type="text"]').setValue('draft');
+			const selector = wrapper.findAllComponents(SelectField)[0];
 
-		await wrapper.getComponent(LemmaField).get('input').setValue('walk');
-		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: 'walk' } });
+			await selector.get('.menu-button').trigger('click');
+			const menuId = selector.get('.combobox').attributes('data-menu-id');
+			const option = () => new DOMWrapper(document.body).get(`.combobox-menu[data-menu-id="${menuId}"] .menu-option[data-value="lemma"]`);
+			await option().trigger('click');
+			expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: '' } });
 
-		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', 'lemma');
-		await nextTick();
-		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: 'walk' } });
-	});
-
-	test('a patt override disables and clearing it re-enables nested token editors', async () => {
-		const { runtime } = createFixture();
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
+			await wrapper.getComponent(LemmaField).get('input').setValue('walk');
+			await selector.get('.menu-button').trigger('click');
+			await option().trigger('click');
+			expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: 'walk' } });
 		});
-		runtime.state.rawOverrides.value.patt = '[word="fixed"]';
-		await nextTick();
-		expect(wrapper.findAllComponents(TextField)[0].get('input[type="text"]').attributes('disabled')).toBeDefined();
-		delete runtime.state.rawOverrides.value.patt;
-		await nextTick();
-		expect(wrapper.findAllComponents(TextField)[0].get('input[type="text"]').attributes('disabled')).toBeUndefined();
-	});
 
-	test('shrinking then regrowing creates fresh trailing token state', async () => {
-		const { runtime } = createFixture();
-		const wrapper = mount(FormSystem, {
-			props: { runtime },
+		test('a patt override disables and clearing it re-enables nested token editors', async () => {
+			const { runtime } = createFixture();
+			const wrapper = mount(FormSystem, {
+				props: { runtime },
+			});
+			runtime.state.rawOverrides.value.patt = '[word="fixed"]';
+			await nextTick();
+			expect(wrapper.findAllComponents(TextField)[0].get('input[type="text"]').attributes('disabled')).toBeDefined();
+			delete runtime.state.rawOverrides.value.patt;
+			await nextTick();
+			expect(wrapper.findAllComponents(TextField)[0].get('input[type="text"]').attributes('disabled')).toBeUndefined();
 		});
-		sequenceState(runtime)[1].fieldState = { value: 'discarded', caseSensitive: false } satisfies TextFieldState;
-		await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('1');
-		expect(sequenceState(runtime)).toHaveLength(1);
-		await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('2');
-		expect(sequenceState(runtime)[1]).toEqual({ fieldId: 'word', fieldState: { value: '', caseSensitive: false } });
+
+		test('shrinking then regrowing creates fresh trailing token state', async () => {
+			const { runtime } = createFixture();
+			const wrapper = mount(FormSystem, {
+				props: { runtime },
+			});
+			sequenceState(runtime)[1].fieldState = { value: 'discarded', caseSensitive: false } satisfies TextFieldState;
+			await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('1');
+			expect(sequenceState(runtime)).toHaveLength(1);
+			await wrapper.findComponent(NumberField).get('input[type="number"]').setValue('2');
+			expect(sequenceState(runtime)[1]).toEqual({ fieldId: 'word', fieldState: { value: '', caseSensitive: false } });
+		});
 	});
 
-	test('round-trips indexed child-controller state through its one scoped field value', () => {
-		const { runtime } = createFixture();
-		runtime.state.state.value['explore.ngram.tokens'] = [
-			{ fieldId: 'word', fieldState: { value: 'a,b;c=d', caseSensitive: false } },
-			{ fieldId: 'lemma', fieldState: { exact: false, lemma: 'lopen' } },
-		] satisfies TokenSequenceFieldState;
-		const encoded = runtime.compile('explore.ngram').encoded['f.ngram-tokens'];
+	describe('persistence', () => {
+		test('round-trips indexed child-controller state through its one scoped field value', () => {
+			const { runtime } = createFixture();
+			runtime.state.state.value['explore.ngram.tokens'] = [
+				{ fieldId: 'word', fieldState: { value: 'a,b;c=d', caseSensitive: false } },
+				{ fieldId: 'lemma', fieldState: { exact: false, lemma: 'lopen' } },
+			] satisfies TokenSequenceFieldState;
+			const encoded = runtime.compile('explore.ngram').encoded['f.ngram-tokens'];
 
-		const restored = restoreFieldState(runtime.definition.getField('explore.ngram.tokens')!, encoded!, runtime.definition.context);
-		expect(restored).toEqual([
-			{ fieldId: 'word', fieldState: { value: 'a,b;c=d', caseSensitive: false } },
-			{ fieldId: 'lemma', fieldState: { exact: false, lemma: 'lopen' } },
-		]);
-	});
+			const restored = restoreFieldState(runtime.definition.getField('explore.ngram.tokens')!, encoded!, runtime.definition.context);
+			expect(restored).toEqual([
+				{ fieldId: 'word', fieldState: { value: 'a,b;c=d', caseSensitive: false } },
+				{ fieldId: 'lemma', fieldState: { exact: false, lemma: 'lopen' } },
+			]);
+		});
 
-	test('restoration rejects token counts below the configured minimum', () => {
-		const { runtime, sequence } = createFixture({ size: 'large' }, 2);
-		expect(() => restoreFieldState(sequence, '{f=word}', runtime.definition.context)).toThrow('Cannot restore token sequence length 1; expected 2-5.');
-	});
+		test('restoration rejects token counts below the configured minimum', () => {
+			const { runtime, sequence } = createFixture({ size: 'large' }, 2);
+			expect(() => restoreFieldState(sequence, '{f=word}', runtime.definition.context)).toThrow('Cannot restore token sequence length 1; expected 2-5.');
+		});
 
-	test('restoration rejects token counts above the configured maximum', () => {
-		const { runtime, sequence } = createFixture();
-		expect(() => restoreFieldState(sequence, Array.from({ length: 9 }, () => '{f=word}').join(','), runtime.definition.context)).toThrow('Cannot restore token sequence length 9; expected 1-5.');
-	});
+		test('restoration rejects token counts above the configured maximum', () => {
+			const { runtime, sequence } = createFixture();
+			expect(() => restoreFieldState(sequence, Array.from({ length: 9 }, () => '{f=word}').join(','), runtime.definition.context)).toThrow('Cannot restore token sequence length 9; expected 1-5.');
+		});
 
-	test('restoration rejects unavailable child field ids', () => {
-		const { runtime, sequence } = createFixture();
-		expect(() => restoreFieldState(sequence, '{f=removed}', runtime.definition.context)).toThrow("Cannot restore token 1 field 'removed' because it is not available.");
-	});
+		test('restoration rejects unavailable child field ids', () => {
+			const { runtime, sequence } = createFixture();
+			expect(() => restoreFieldState(sequence, '{f=removed}', runtime.definition.context)).toThrow("Cannot restore token 1 field 'removed' because it is not available.");
+		});
 
-	test('restoration reports nested child codec failures', () => {
-		const { runtime, sequence } = createFixture();
-		expect(() => restoreFieldState(sequence, '{f=word;v=invalid}', runtime.definition.context)).toThrow('nested child error');
+		test('restoration reports nested child codec failures', () => {
+			const { runtime, sequence } = createFixture();
+			expect(() => restoreFieldState(sequence, '{f=word;v=invalid}', runtime.definition.context)).toThrow('nested child error');
+		});
 	});
 });

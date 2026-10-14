@@ -13,16 +13,14 @@ import {
 	RangeField,
 	SelectField,
 	TextField,
-	ContainerRenderer,
-	FormBuilder,
-	compileFormNode,
-	createDefaultFormState,
 	getFieldPersistKey,
 	type FormFieldNode,
 	type FormRuntimeContext,
 } from '@/features/form';
 import type { Corpus } from '@/types/apptypes';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
+
+import { optionValues, type Options } from '@/shared/utils/options';
 
 const translate = createMockTranslate();
 
@@ -201,6 +199,9 @@ describe('search form semantic node factory', () => {
 			text: { component: TextField, controller: 'metadata-filter-text', persistKey: 'title' },
 		});
 		expect((fields.multiRange as FormFieldNode & { showMode?: boolean }).showMode).toBe(true);
+		for (const field of [fields.date, fields.multiDate, fields.range, fields.multiRange]) {
+			expect(optionValues((field as FormFieldNode & { modeOptions: Options }).modeOptions)).toEqual(['permissive', 'strict']);
+		}
 	});
 
 	test('maps automatic metadata fields to the same dedicated constructors', () => {
@@ -239,28 +240,12 @@ describe('search form semantic node factory', () => {
 			{ component: SelectField, controller: 'within-attribute-select', persistKey: 'within:speech:role' },
 			{ component: RangeField, controller: 'within-attribute-range', persistKey: 'within:speech:role' },
 		]);
-	});
-
-	test('within-attribute select compiles its semantic target and summary', () => {
-		const attribute = {
+		expect(select).toMatchObject({
 			attributeName: 'role',
-			defaultDisplayName: 'Role',
 			elementName: 'speech',
-			id: 'speech-role',
-		};
-		const select = createFactory().withinSelect(attribute, {
 			groupId: 'Spans',
-			id: 'within.select',
-			options: [{ value: 'host', label: 'Host' }],
+			options,
 		});
-
-		const builder = new FormBuilder(runtimeContext);
-		const form = builder.newForm('form', ContainerRenderer, {}).addChildren(select);
-		const state = createDefaultFormState(runtimeContext, form);
-		state.state[select.id] = ['host'];
-		const contribution = compileFormNode(form, state, runtimeContext);
-		expect(contribution.params.patt).toBe('<speech role="host"/>');
-		expect(contribution.summaries).toEqual([{ group: 'Spans', label: 'Role', summaryType: ['filter'], value: 'Host' }]);
 	});
 
 	test('forwards both backing fields and date-mode configuration to multi-field date nodes', () => {

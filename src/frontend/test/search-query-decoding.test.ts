@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { readSearchQuery } from '@/url/search-query';
 
-describe('search form override integration', () => {
+describe('search query decoding', () => {
 	test('extracts the curated canonical request parameters and normalizes aliases', () => {
 		const overrides = readSearchQuery({
 			query: ['', '[word="water"]'],
@@ -48,5 +48,31 @@ describe('search form override integration', () => {
 		expect(readSearchQuery({ colltype: 'proximity', context: '-1' }).submitted.params).toEqual({ colltype: 'proximity', context: null });
 		expect(readSearchQuery({ colltype: 'invalid', context: '3:4' }).submitted.params).toEqual({});
 		expect(readSearchQuery({ context: '5' }).submitted.params).toEqual({});
+	});
+
+	test('keeps collocation query parameters separate from result controls', () => {
+		const { submitted, results } = readSearchQuery({
+			colltype: 'proximity',
+			collpatt: '[lemma="ship"]',
+			annotation: 'lemma',
+			within: 's',
+			reltype: 'aligns',
+			context: '9',
+			sensitive: 'false',
+			scorertype: 'coll-salience',
+			group: 'field:author',
+			sort: 'field:title',
+		});
+
+		expect(submitted.params).toEqual({
+			colltype: 'proximity',
+			collpatt: '[lemma="ship"]',
+			annotation: 'lemma',
+			within: 's',
+			reltype: 'aligns',
+			context: 9,
+			sensitive: false,
+		});
+		expect(results).toMatchObject({ scorertype: 'coll-salience', group: 'field:author', sort: 'field:title' });
 	});
 });

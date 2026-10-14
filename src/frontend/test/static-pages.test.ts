@@ -8,6 +8,7 @@ import { CancelableRequest } from '@/shared/api/lib/api-types';
 import AboutPage from '@/pages/about/AboutPage.vue';
 import HelpPage from '@/pages/help/HelpPage.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 const mock = vi.hoisted(() => ({
 	corpusId: { value: 'test-corpus' },
@@ -52,7 +53,7 @@ describe.each([
 
 		expect(mock[endpoint]).toHaveBeenCalledWith('test-corpus');
 		expect(wrapper.getComponent(HtmlRenderer).props()).toMatchObject({ executeScripts: true, parseStringAsHtml: true });
-		expect(wrapper.find('.cf-spinner').exists()).toBe(true);
+		expect(wrapper.findComponent(Spinner).exists()).toBe(true);
 		expect(mock.markScriptsReady).not.toHaveBeenCalled();
 
 		pending.resolve('<p class="page-copy">Ready</p>');

@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 
 import { type BLIndex, type BLIndexV4, normalizeBlackLabVersion } from '@/types/blacklabtypes';
 
-import { normalizeIndexBase, normalizeServerInfo } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
+import { normalizeIndex, normalizeIndexBase, normalizeServerInfo } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 
 test('uses version-specific counts while preserving the V5-only docVersions property', () => {
 	const v4: BLIndexV4 = {
@@ -56,4 +56,47 @@ test('normalizes the server version exposed by normalized server info', () => {
 	});
 
 	expect(normalized.blacklabVersion).toBe('5.0.0');
+});
+
+test('keeps an empty annotation group that requests remaining annotations', () => {
+	const index = normalizeIndex(
+		{
+			annotatedFields: {
+				contents: {
+					annotations: {
+						word: { custom: { displayName: 'Word' } },
+						lemma: { custom: { displayName: 'Lemma' } },
+						pos: { custom: { displayName: 'Part of speech' } },
+					},
+					count: { documents: 1, tokens: 1 },
+					custom: { displayOrder: ['word', 'lemma', 'pos'] },
+					hasContentStore: true,
+					hasXmlTags: true,
+					mainAnnotation: 'word',
+				},
+			},
+			contentViewable: true,
+			custom: {
+				annotationGroups: {
+					contents: [{ groupName: 'Basics', annotations: [], addRemainingAnnotations: true }],
+				},
+				description: '',
+				displayName: 'Test corpus',
+				textDirection: 'ltr',
+			},
+			count: { documents: 1, tokens: 1 },
+			corpusName: 'test-corpus',
+			mainAnnotatedField: 'contents',
+			metadataFields: {},
+			status: 'available',
+			timeModified: '',
+			versionInfo: { blacklabVersion: '4.4.0-SNAPSHOT', timeModified: '' },
+		} as any,
+		{ relations: {}, spans: {} },
+		'5.3.0-SNAPSHOT',
+	);
+
+	expect(index.indexerVersion).toBe('4.4.0');
+	expect(index.runtimeVersion).toBe('5.3.0');
+	expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
 });

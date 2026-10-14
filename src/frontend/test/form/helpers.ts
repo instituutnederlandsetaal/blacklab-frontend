@@ -1,7 +1,12 @@
-import { createMockI18n } from '@test/mocks/i18n';
+import { createMockTranslate } from '@test/mocks/i18n';
 import { defineComponent, h, toValue, type PropType } from 'vue';
 
-import { FormBuilder, FormRuntime, defineFieldController, object, scalar, useFormSystemRuntime, useParentForm, type FormRuntimeContext, type NamedFieldDefinition } from '@/features/form';
+import { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
+import { object, scalar } from '@/features/form/model/controllers/persistence-codec';
+import type { NamedFieldDefinition } from '@/features/form/model/field-component-props';
+import { FormRuntime } from '@/features/form/model/form-runtime';
+import { useFormSystemRuntime, useParentForm } from '@/features/form/model/runtime';
+import { defineFieldController, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { annotation } from '@/features/form/model/types/form-query-ir';
 
 export type TestTextFieldState = {
@@ -100,7 +105,7 @@ export const parentFormProbeView = ParentFormProbe;
 export function createTestContext(): FormRuntimeContext {
 	return {
 		corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
-		translate: createMockI18n().translate,
+		translate: createMockTranslate(),
 	};
 }
 

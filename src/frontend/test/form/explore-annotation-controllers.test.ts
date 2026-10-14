@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { frequencyAnnotationController, ngramGroupAnnotationController, type AnyFieldController, type FormEmission, type SummaryInput } from '@/features/form';
+import { frequencyAnnotationController } from '@/features/form/model/controllers/explore-frequency-controller';
+import { ngramGroupAnnotationController } from '@/features/form/model/controllers/explore-ngram-group-controller';
+import type { AnyFieldController } from '@/features/form/model/types/form-controllers';
+import type { FormEmission, SummaryInput } from '@/features/form/model/types/form-output';
 
 import { createTestContext } from './helpers';
 

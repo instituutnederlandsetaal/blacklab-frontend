@@ -10,6 +10,7 @@ const DebugStub = defineComponent({
 config.global.stubs ??= {};
 config.global.stubs.debug = DebugStub;
 config.global.stubs.Debug = DebugStub;
+config.global.stubs.Spinner = true;
 
 config.global.plugins ??= [];
 config.global.plugins.push(createMockI18n());

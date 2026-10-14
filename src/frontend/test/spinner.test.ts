@@ -38,9 +38,10 @@ test('owns overlay positioning, observation, and cleanup without imposing a defa
 			defineComponent({
 				render: () => h('div', { class: 'host', style: { position } }, [h(Spinner, { overlay: true })]),
 			}),
+			{ global: { stubs: { Spinner: false } } },
 		);
 
-	const bare = mount(Spinner);
+	const bare = mount(Spinner, { global: { stubs: { Spinner: false } } });
 	expect(bare.find('.cf-spinner-center').exists()).toBe(false);
 	bare.unmount();
 

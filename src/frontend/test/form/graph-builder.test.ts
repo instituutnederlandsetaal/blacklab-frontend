@@ -1,44 +1,169 @@
 import { describe, expect, test } from 'vitest';
+import { isReactive } from 'vue';
 
-import { createFormFieldNode, searchTarget, type FormBoundaryNode, type FormOutputProducer } from '@/features/form';
+import { createFormFieldNode } from '@/features/form/model/form-field-node';
+import { createDefaultFormState } from '@/features/form/model/state';
+import { searchTarget } from '@/features/form/model/targets';
+import type { FormOutputProducer } from '@/features/form/model/types/form-output';
 import { filter } from '@/features/form/model/types/form-query-ir';
-import type { ContainerNode } from '@/features/form/model/types/form-shape';
+import { type ContainerNode, type FormBoundaryNode, type FormViewNode } from '@/features/form/model/types/form-shape';
 
-import { TestTextField, createTestBuilder, createTestRuntime, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
-function newTextField(builder: ReturnType<typeof createTestBuilder>, id: string) {
-	return builder.newField(id, testTextController, TestTextField, {
-		annotationId: id,
-		displayName: id,
+describe('graph construction', () => {
+	function createNonReactiveBoundaryFixture() {
+		const builder = createTestBuilder();
+		const createdController = { ...testTextController };
+		const root = builder.newContainer('root', ContainerRenderer, {});
+		const createdForm = builder.newForm('created.form', ContainerRenderer, { title: 'Search' });
+		const createdField = builder.newField('created.field', createdController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		const createdView = builder.newView('created.view', parentFormProbeView, {});
+		const createdContainer = builder.newContainer('created.container', ContainerRenderer, {}).addChildren(createdField, createdView);
+		createdForm.addChildren(createdContainer);
+		root.addChildren(createdForm);
+
+		const adoptedController = { ...testTextController };
+		const adoptedField = createFormFieldNode('adopted.field', adoptedController, TestTextField, {
+			annotationId: 'lemma',
+			displayName: 'Lemma',
+		});
+		const adoptedView = { id: 'adopted.view', kind: 'view', component: parentFormProbeView } satisfies FormViewNode;
+		const adoptedContainer = {
+			id: 'adopted.container',
+			kind: 'container',
+			component: ContainerRenderer,
+			children: [adoptedField, adoptedView],
+		} satisfies ContainerNode;
+		const adoptedForm = { id: 'adopted.form', kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
+		root.addChildren(adoptedContainer, adoptedForm);
+
+		return builder;
+	}
+
+	const createdBoundaryNodeIds = ['created.form', 'created.field', 'created.view', 'created.container'];
+
+	const adoptedBoundaryNodeIds = ['adopted.field', 'adopted.view', 'adopted.container', 'adopted.form'];
+
+	test('keeps created and adopted nodes, controllers, and components non-reactive', () => {
+		const builder = createNonReactiveBoundaryFixture();
+		const nodes = [...createdBoundaryNodeIds, ...adoptedBoundaryNodeIds].map(id => builder.getNode(id));
+		const controllers = ['created.field', 'adopted.field'].map(id => builder.getField(id)?.controller);
+
+		expect(nodes.every(node => node != null && !isReactive(node))).toBe(true);
+		expect(nodes.every(node => node?.component != null && !isReactive(node.component))).toBe(true);
+		expect(controllers.every(controller => controller != null && !isReactive(controller))).toBe(true);
 	});
-}
 
-function replacementTextField(id: string) {
-	return createFormFieldNode(id, testTextController, TestTextField, {
-		annotationId: `${id}-replacement`,
-		displayName: `${id} replacement`,
+	test('prefers the first form root over earlier reusable orphan containers', () => {
+		const builder = createTestBuilder();
+		builder.newContainer('reusable.orphan', ContainerRenderer, {});
+		const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
+
+		expect(builder.getRoot().id).toBe(form.id);
 	});
-}
 
-function ownFunctionKeys(node: object): PropertyKey[] {
-	return Reflect.ownKeys(node).filter(key => key !== 'component' && typeof Reflect.get(node, key) === 'function');
-}
+	test('flattens form and view configuration onto their nodes', () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search', class: 'search-form' });
+		const view = builder.newView('search.form.probe', parentFormProbeView, { title: 'Probe', class: 'probe-view' });
 
-function createSharedFieldGraph() {
-	const builder = createTestBuilder();
-	const root = builder.newForm('root', ContainerRenderer, {});
-	const left = builder.newContainer('left', ContainerRenderer, {});
-	const right = builder.newContainer('right', ContainerRenderer, {});
-	const shared = newTextField(builder, 'shared');
-	left.addChildren(shared);
-	right.addChildren(shared);
-	root.addChildren(left, right);
-	return { builder, left, right, root, shared };
-}
+		form.addChildren(view);
 
-describe('form graph builder editing', () => {
+		expect(form).toMatchObject({ title: 'Search', class: 'search-form' });
+		expect(view).toMatchObject({ title: 'Probe', class: 'probe-view', component: parentFormProbeView });
+		expect('config' in form).toBe(false);
+		expect('config' in view).toBe(false);
+	});
+
+	test('createFormFieldNode constructs a complete standalone field', () => {
+		const field = createFormFieldNode('search.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+
+		expect(field).toMatchObject({
+			id: 'search.word',
+			kind: 'field',
+			controller: testTextController,
+			component: TestTextField,
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+	});
+
+	test('adding a standalone field adopts it into the graph and default state', () => {
+		const builder = createTestBuilder();
+		const field = createFormFieldNode('search.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(field);
+
+		expect(builder.getField(field.id)).toBe(field);
+		expect(createDefaultFormState(builder.context, form).state).toEqual({
+			'search.word': { value: '' },
+		});
+	});
+
+	test('preserves explicit field presentation', () => {
+		const field = createFormFieldNode('composite.token.0.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+			layout: 'horizontal',
+			size: 'large',
+			class: 'custom-field',
+			style: 'width: 100%',
+		});
+
+		expect(field).toMatchObject({ layout: 'horizontal', size: 'large', class: 'custom-field', style: 'width: 100%' });
+	});
+
+	test('builder form registry includes registered sibling forms', () => {
+		const builder = createTestBuilder();
+		builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
+
+		expect(Object.keys(builder.formsMap).sort()).toEqual(['search.extended', 'search.simple']);
+	});
+});
+
+describe('graph editing', () => {
+	function newTextField(builder: ReturnType<typeof createTestBuilder>, id: string) {
+		return builder.newField(id, testTextController, TestTextField, {
+			annotationId: id,
+			displayName: id,
+		});
+	}
+
+	function replacementTextField(id: string) {
+		return createFormFieldNode(id, testTextController, TestTextField, {
+			annotationId: `${id}-replacement`,
+			displayName: `${id} replacement`,
+		});
+	}
+
+	function ownFunctionKeys(node: object): PropertyKey[] {
+		return Reflect.ownKeys(node).filter(key => key !== 'component' && typeof Reflect.get(node, key) === 'function');
+	}
+
+	function createSharedFieldGraph() {
+		const builder = createTestBuilder();
+		const root = builder.newForm('root', ContainerRenderer, {});
+		const left = builder.newContainer('left', ContainerRenderer, {});
+		const right = builder.newContainer('right', ContainerRenderer, {});
+		const shared = newTextField(builder, 'shared');
+		left.addChildren(shared);
+		right.addChildren(shared);
+		root.addChildren(left, right);
+		return { builder, left, right, root, shared };
+	}
+
 	test('keeps editor functions out of rendered props', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newContainer('parent', ContainerRenderer, {});
