@@ -372,7 +372,7 @@ const actions = {
       await git.checkout([p.maintenance_branch, '--', releaseNotesRelPath]);
       await git.commit(`docs: Add release notes for ${releaseVersion}`);
       await tagManager.tagAndEnter(p.maintenance_branch); // move back to maintenance branch
-      additionalBranchesToPush.push(p.maintenance_branch);
+      additionalBranchesToPush.push(p.dev_branch);
 
 
       // merge the release tag itself to main if it matches the major version of the current main branch
