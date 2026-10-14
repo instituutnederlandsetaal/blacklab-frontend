@@ -833,7 +833,9 @@ export type SearchResultsCustomization = {
 	hitInfoColumn?: {
 		/** Chooses when the column is visible. It is visible by default when configured. */
 		visible?: boolean | ((overview: SearchResultOverview) => boolean);
-		/** Returns the HTML shown for a hit, or null for no content. */
+		/** Links the content to the hit in its document when a URL is available. The newest supplied value wins; otherwise uses the legacy setting, which defaults to true. */
+		link?: boolean;
+		/** Returns the text shown for a hit, or null for no content. */
 		content: (context: SearchResultHitInfoContext) => string | null;
 	};
 	/** Returns a description included with exported results, or null for no description. */

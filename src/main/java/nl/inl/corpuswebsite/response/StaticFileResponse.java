@@ -35,6 +35,7 @@ public class StaticFileResponse extends BaseResponse {
             String pathString = path.toString();
             Optional<File> file = servlet.getProjectFile(corpus, pathString);
             if (!file.isPresent() || !file.get().isFile()) {
+                response.setHeader("Cache-Control", "no-store");
                 response.setStatus(404);
                 return;
             }
@@ -43,6 +44,7 @@ public class StaticFileResponse extends BaseResponse {
             FileHttpResource resource = FileHttpResource.fromFile(file.get(), HttpResourceType.ASSET);
             HttpResourceResponder.serve(request, response, resource, mime);
         } catch (InvalidPathException e1) { // runtimeException from Path.resolve; when weird paths are being requested
+            response.setHeader("Cache-Control", "no-store");
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }

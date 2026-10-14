@@ -91,10 +91,10 @@ describe('URL query history', () => {
 		expect(getState()).toEqual([]);
 	});
 
-	test('keeps a saved result link loadable with a trailing slash', () => {
-		const url = '/test-corpus/search/hits/?patt=[]';
+	test.each(['', '/blacklab-frontend'])('includes the origin in saved result links under "%s" while preserving the trailing slash and hash', base => {
+		const url = `${base}/test-corpus/search/hits/?patt=[]#results`;
 		actions.addEntry({ url });
-		expect(getState()[0].url).toBe(url);
+		expect(getState()[0].url).toBe(window.location.origin + url);
 		expect(get.details(getState()[0])).toEqual({ viewedResults: 'hits', collocation: false, groupBy: [] });
 	});
 
@@ -115,14 +115,14 @@ describe('URL query history', () => {
 		expect(getState()).toHaveLength(1);
 	});
 
-	test('restores searches saved by the previous history version', () => {
+	test.each([11, 12])('restores searches saved by history version %s with absolute URLs', version => {
 		const storage = new Map<string, string>();
 		vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) });
 		const url = '/test-corpus/search/hits?patt=[]';
 		window.localStorage.setItem(
 			'cf/history/test-corpus',
 			JSON.stringify({
-				version: 11,
+				version,
 				indexLastModified: 'now',
 				history: [
 					{ url, timestamp: 123, hash: 5, displayValues: { pattern: 'Any word', filters: '-' }, patterns: { large: 'snapshot' }, newForm: mixedSummaryForm() },
@@ -132,7 +132,7 @@ describe('URL query history', () => {
 		);
 		init({ index: { id: 'test-corpus', timeModified: 'now' } } as CorpusContext);
 		expect(getState()).toHaveLength(1);
-		expect(getState()[0]).toMatchObject({ url, displayValues: { pattern: 'Any word', filters: '-' } });
+		expect(getState()[0]).toMatchObject({ url: window.location.origin + url, displayValues: { pattern: 'Any word', filters: '-' } });
 	});
 
 	test('exported searches retain Unicode queries and readable summaries when imported', async () => {
@@ -146,7 +146,11 @@ describe('URL query history', () => {
 		});
 		expect(contents).toContain('# Pattern: 日本語');
 		expect(contents).toContain('# Filters: 著者: 夏目漱石');
-		await expect(get.fromFile(new File([contents], 'unicode-query.txt'))).resolves.toEqual({ url });
+		const imported = await get.fromFile(new File([contents], 'unicode-query.txt'));
+		const importedUrl = new URL(imported.url);
+		expect(importedUrl.origin).toBe(window.location.origin);
+		expect(decodeURIComponent(importedUrl.pathname)).toBe('/日本語/search/hits');
+		expect(importedUrl.searchParams.get('patt')).toBe('[word="水😀"]');
 	});
 
 	test('imports a search file exported by the previous version', async () => {

@@ -1,24 +1,17 @@
 package nl.inl.corpuswebsite.http;
 
 public enum HttpResourceType {
-    API_PRIVATE("private", 120, 300),
-    API_PUBLIC("public", 300, 300),
-    ASSET("public", 3600, 3600);
+    API_PRIVATE("private, no-cache"),
+    API_PUBLIC("public, max-age=300, stale-while-revalidate=300"),
+    ASSET("public, max-age=3600, stale-while-revalidate=3600");
 
-    private final String visibility;
-    private final int maxAgeSeconds;
-    private final int staleWhileRevalidateSeconds;
+    private final String cacheControlValue;
 
-    HttpResourceType(String visibility, int maxAgeSeconds, int staleWhileRevalidateSeconds) {
-        this.visibility = visibility;
-        this.maxAgeSeconds = maxAgeSeconds;
-        this.staleWhileRevalidateSeconds = staleWhileRevalidateSeconds;
+    HttpResourceType(String cacheControlValue) {
+        this.cacheControlValue = cacheControlValue;
     }
 
     public String cacheControlValue() {
-        return String.format("%s, max-age=%d, stale-while-revalidate=%d",
-            visibility,
-            maxAgeSeconds,
-            staleWhileRevalidateSeconds);
+        return cacheControlValue;
     }
 }

@@ -119,6 +119,15 @@ function hitInfoColumnVisible(registry: CustomizationRegistry, results: BLHitRes
 	return legacy.results.hasCustomHitInfoColumn(results, isParallelCorpus);
 }
 
+function hitInfoColumnLink(registry: CustomizationRegistry): boolean {
+	const { legacy, results: customizations } = activeResultCustomizations(registry);
+	for (let i = customizations.length - 1; i >= 0; i--) {
+		const link = customizations[i].hitInfoColumn?.link;
+		if (link !== undefined) return link;
+	}
+	return legacy.results.customHitInfoLink;
+}
+
 function hitInfoColumnContent(registry: CustomizationRegistry, corpus: Corpus, hit: BLHitInContext, field: NormalizedAnnotatedField, document: BLDoc, translate: Translate): string | null {
 	const { legacy, results: customizations } = activeResultCustomizations(registry);
 	const fieldDisplayName = translate.$tAnnotatedFieldDisplayName(field);
@@ -384,6 +393,7 @@ function createCustomizationApi(
 		matchInfoHighlightStyle: (section: HighlightSection): SearchResultHighlightStyle | null =>
 			resultHook(registry, 'highlightStyle', section, legacy => legacy.results.matchInfoHighlightStyle(section)),
 		hitInfoColumnVisible: (results: BLHitResults | BLHitGroupResults, isParallelCorpus: boolean) => hitInfoColumnVisible(registry, results, isParallelCorpus),
+		hitInfoColumnLink: () => hitInfoColumnLink(registry),
 		hitInfoColumnContent: (hit: BLHitInContext, field: NormalizedAnnotatedField, document: BLDoc, translate: Translate) =>
 			hitInfoColumnContent(registry, toValue(corpus), hit, field, document, translate),
 		exportDescription: (summary: BLSearchSummaryV5, fieldDisplayName: (fieldId: string) => string) => exportDescription(registry, toValue(corpus), summary, fieldDisplayName),

@@ -10,7 +10,7 @@ services:
       args:
         BLACKLAB_IMAGE_VERSION: dev
     ports:
-      - '8080:8080' # frontend and BLS will both be available on 8080
+      - "8080:8080" # frontend and BLS will both be available on 8080
     volumes:
       - ./data/index:/data/index
       - ./data/user-index:/data/user-index
@@ -25,20 +25,19 @@ configs:
   blacklab-server:
     content: |
       ---
-      # https://blacklab.ivdnt.org/server/configuration.html
-      authentication:
-          system: 
-            class: AuthDebugFixed
-            userId: test_user
+      # BlackLab Server configuration, see https://blacklab.ivdnt.org/server/configuration.html
+
+      # Where corpora can be found (inside the container)
+      # (list directories whose subdirectories are indexed corpora, or directories containing a single indexed corpus)
       indexLocations:
-      - /data/index
+        - /data/index
+
+      # Where user-created corpora will be stored (inside the container)
+      # (note that user corpora only works if authentication is enabled)
       userIndexes: /data/user-index
-      parameters: 
-        processHits:
-          default: -1
-          max: -1
-        countHits:
-          default: -1
-          max: -1
-        pageSize:
-          max: -1
+
+      # Hardcoded debug user for testing purposes (no login required)
+      authentication:
+        system: 
+          class: AuthDebugFixed
+          userId: test_user

@@ -63,7 +63,7 @@ function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntr
 	const decoded = details(url);
 	if (!decoded.viewedResults) return null;
 	return Object.freeze({
-		url,
+		url: new URL(url, window.location.origin).toString(),
 		timestamp,
 		hash: hashJavaDJB2(stableStringify(decoded.identity)),
 		displayValues: {

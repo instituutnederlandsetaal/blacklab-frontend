@@ -146,6 +146,7 @@ public class ApiResponse extends BaseResponse {
     }
 
     private void sendApiError(HttpException error) {
+        response.setHeader("Cache-Control", "no-store");
         response.setStatus(error.getHttpStatusCode());
         response.setContentType("application/json; charset=utf-8");
         try {

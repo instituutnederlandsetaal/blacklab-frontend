@@ -134,8 +134,19 @@ vuexModules.ui.actions.results.hits.shownMetadataIds(['title', 'author']);
 
 You can also add a column with custom content, the content can be computed from a function.
 ![example of custom hit info column](example_hit_info_column.png)
+
+The content links to the hit in its document by default. Set `hitInfoColumn.link` to `false` to show plain text.
+
 ::: code-group
-```js [Code]
+```js [Customization API]
+frontend.customizeSearchResults({
+  hitInfoColumn: {
+    content: ({ document }) => document.metadata.title?.[0] ?? '',
+    link: false,
+  },
+});
+```
+```js [Legacy API]
 frontend.customize(corpus => {
   // Enable the column
   corpus.results.hasCustomHitInfoColumn = (results, isParallelCorpus) => {
@@ -147,9 +158,11 @@ frontend.customize(corpus => {
     // Example: Show the document title
     return `${docInfo.title}`;
   };
+  // Show plain text instead of a link to the hit in the document
+  corpus.results.customHitInfoLink = false; // default is true
 })
 ```
-<<< @/../../src/frontend/src/customization-api/legacy.ts#docscustomhitinfocolumn [Type definitions]
+<<< @/../../src/frontend/src/customization-api/external/legacy.ts#docscustomhitinfocolumn [Legacy type definitions]
 :::
 
 ## Expanded Hit Details

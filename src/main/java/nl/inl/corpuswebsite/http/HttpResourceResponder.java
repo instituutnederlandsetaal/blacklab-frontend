@@ -31,6 +31,7 @@ public final class HttpResourceResponder {
         }
 
         if (evaluation.outcome() == HttpRequestConditionUtil.EvaluationOutcome.RANGE_NOT_SATISFIABLE) {
+            response.setHeader("Cache-Control", "no-store");
             response.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
             response.setHeader("Content-Range", "bytes */" + resource.getLength());
             return;

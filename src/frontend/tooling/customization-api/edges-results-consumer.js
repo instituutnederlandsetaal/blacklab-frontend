@@ -33,6 +33,7 @@ frontend.customizeSearchResults({
 		return 'hover';
 	},
 	hitInfoColumn: {
+		link: false,
 		content({ spans, field, document }) {
 			const verse = spans.find(span => span.tagName === 'ab');
 			if (!verse) return field.displayName;

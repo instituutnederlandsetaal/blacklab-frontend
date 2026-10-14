@@ -1,4 +1,4 @@
-/etc/projectConfigs   The location set in the corporaInterfaceDataDir setting  
+/etc/blacklab/projectconfigs   The location set in the corporaInterfaceDataDir setting
   corpus-1/  	        Exact name/ID of the corpus as in BlackLab   
     search.xml  
     help.inc   
