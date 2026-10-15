@@ -1,5 +1,5 @@
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import { type CqlQueryBuilderOptions, OPERATORS, COMPARATORS } from '@/features/cql-query-builder/model';
+import type { CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -39,17 +39,6 @@ export function createQueryBuilderOptions(
 		textDirection: corpus.textDirection,
 		allAnnotationsMap,
 		annotationOptions,
-		operatorOptions: OPERATORS.map(op => ({
-			label: () => translate.$t(`search.advanced.queryBuilder.boolean_operators.${op}`),
-			value: op,
-		})),
-		comparatorOptions: COMPARATORS.map(comparators => ({
-			label: '',
-			options: comparators.map(comparator => ({
-				label: () => translate.$t(`search.advanced.queryBuilder.comparators.${comparator}`),
-				value: comparator,
-			})),
-		})),
 		autocomplete(annotation: NormalizedAnnotation, term: string): Promise<string[]> {
 			return blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term);
 		},

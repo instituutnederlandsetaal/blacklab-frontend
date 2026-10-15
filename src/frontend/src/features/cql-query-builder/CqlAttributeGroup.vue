@@ -4,7 +4,7 @@
 		<template v-for="(entry, index) in model.entries" class="bl-attribute-entry-wrapper">
 			<!-- Operator Label (shown before each entry except the first one) -->
 			<div v-if="index > 0" :key="`operator-${entry.id}`" class="bl-token-attribute-group-label">
-				{{ optionLabel(currentOperatorOption) }}
+				{{ $t(model.operator === '&' ? 'search.advanced.queryBuilder.boolean_operators.&' : 'search.advanced.queryBuilder.boolean_operators.|') }}
 			</div>
 
 			<!-- Attribute Entry -->
@@ -33,7 +33,7 @@
 		</template>
 
 		<!-- Add Controls -->
-		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options :disabled />
+		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :disabled />
 	</div>
 </template>
 
@@ -44,7 +44,6 @@ import { computed } from 'vue';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from './model';
 import { isCqlAttributeData } from './model';
 
-import { optionLabel, type Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid.ts';
 
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
@@ -76,14 +75,6 @@ const model = useVModel(props, 'modelValue', emit, {
 });
 
 const shouldShowAddControls = computed(() => props.isRoot || model.value.entries.length > 0);
-const currentOperatorOption = computed<Option>(() => {
-	return (
-		props.options.operatorOptions.find(op => op.value === model.value.operator) || {
-			value: model.value.operator,
-			label: model.value.operator,
-		}
-	);
-});
 
 function createDefaultAttribute(): CqlAttributeData {
 	return {

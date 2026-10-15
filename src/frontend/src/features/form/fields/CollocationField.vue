@@ -2,7 +2,7 @@
 	<div class="blf-collocation-field">
 		<fieldset v-for="(role, index) in patternRoles" :key="role" class="blf-collocation-section">
 			<legend>
-				<span aria-hidden="true">{{ index + 1 }}.</span> {{ $t(`collocations.sections.${role}`) }}
+				<span aria-hidden="true">{{ index + 1 }}.</span> {{ $t(role === 'keyword' ? 'collocations.sections.keyword' : 'collocations.sections.collocate') }}
 			</legend>
 			<p v-if="role === 'keyword'" class="help-block">{{ $t('collocations.keywordPatternHelp') }}</p>
 			<template v-else>
@@ -42,7 +42,7 @@
 			<legend><span aria-hidden="true">3.</span> {{ $t('collocations.sections.context') }}</legend>
 			<div class="row">
 				<div v-for="side in contextSides" :key="side" class="form-group col-sm-3">
-					<label :for="`${htmlId}_${side}`">{{ $t(`collocations.${side}`) }}</label>
+					<label :for="`${htmlId}_${side}`">{{ $t(side === 'before' ? 'collocations.before' : 'collocations.after') }}</label>
 					<input
 						:id="`${htmlId}_${side}`"
 						class="form-control"

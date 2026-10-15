@@ -4,10 +4,16 @@
 			<span class="glyphicon glyphicon-plus"></span>&#8203;
 		</button>
 		<ul class="dropdown-menu">
-			<li v-for="op in options.operatorOptions" :key="op.value">
-				<a href="#" @click.prevent="disabled ? undefined : emit('click', op.value as CqlAnnotationCombinator)">
+			<li>
+				<a href="#" @click.prevent="disabled ? undefined : emit('click', '&')">
 					<span class="glyphicon glyphicon-plus-sign text-success"></span>
-					{{ optionLabel(op) }}
+					{{ $t('search.advanced.queryBuilder.boolean_operators.&') }}
+				</a>
+			</li>
+			<li>
+				<a href="#" @click.prevent="disabled ? undefined : emit('click', '|')">
+					<span class="glyphicon glyphicon-plus-sign text-success"></span>
+					{{ $t('search.advanced.queryBuilder.boolean_operators.|') }}
 				</a>
 			</li>
 		</ul>
@@ -15,11 +21,9 @@
 </template>
 
 <script setup lang="ts">
-import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
+import type { CqlAnnotationCombinator } from './model';
 
-import { optionLabel } from '@/shared/utils/options';
 defineProps<{
-	options: CqlQueryBuilderOptions;
 	disabled?: boolean;
 }>();
 const emit = defineEmits<{

@@ -15,8 +15,6 @@ const queryBuilderOptions = {
 	textDirection: 'ltr',
 	allAnnotationsMap: {},
 	annotationOptions: [{ value: 'word', label: 'Word' }],
-	operatorOptions: [],
-	comparatorOptions: [],
 	autocomplete: async () => [],
 } as CqlQueryBuilderOptions;
 

@@ -727,10 +727,16 @@ function relationPartByClass(part: 'source' | 'target' | 'label') {
 	const relationName = selectedCriteriumAsLabel.value?.context.label;
 	const relation = relationName ? (hits.value?.hits[0].matchInfos?.[relationName] as BLMatchInfoRelation) : null;
 	if (relation?.relClass) {
-		const translated = translate.$td(`results.groupBy.relationPartByClass.${relation.relClass}.${part}`, null);
+		const translated = translate.$td(`index.relations.${relation.relClass}.${part}`, null);
 		if (translated !== null) return translated;
 	}
-	return translate.$t(`results.groupBy.relationPartByClass.default.${part}`);
+	return translate.$t(
+		{
+			label: 'results.groupBy.relationPart.label',
+			source: 'results.groupBy.relationPart.source',
+			target: 'results.groupBy.relationPart.target',
+		}[part],
+	);
 }
 function relationSourceInThisField(matchInfo: BLSummaryMatchInfo) {
 	const field = matchInfo.fieldName ?? mainSearchField.value;

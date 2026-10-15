@@ -174,24 +174,13 @@
 		"anyCollocate": "Elk token in de geselecteerde context kan als collocatie worden geteld.",
 		"collocates": "Collocaten",
 		"keywordPattern": "Trefwoordpatroon (BCQL)",
-		"keywordPatternPlaceholder": "bijv. [lemma=\"hond\"]",
 		"keywordPatternHelp": "Het woord of patroon waarvoor collocaties worden gezocht.",
 		"collocatePattern": "Collocatiefilter (BCQL)",
-		"collocatePatternPlaceholder": "Optioneel, bijv. [pos=\"N.*\"]",
-		"type": "Collocatietype",
-		"types": {
-			"proximity": "Nabijheid",
-			"relsources": "Relatiebronnen",
-			"reltargets": "Relatiedoelen"
-		},
 		"context": "Contextvenster",
 		"before": "Tokens ervoor",
 		"after": "Tokens erna",
 		"contextRequired": "De context moet ten minste één token voor of na het trefwoord bevatten.",
-		"relationType": "Relatietype",
-		"relationTypePlaceholder": "Optioneel relatietype of reguliere expressie",
 		"within": "Binnen element",
-		"withinPlaceholder": "Optioneel, bijv. s",
 		"annotation": "Collocatieannotatie",
 		"scorer": "Score",
 		"scorers": {
@@ -257,8 +246,7 @@
 				"theFirstWord": "het eerste woord",
 				"allWords": "alle woorden",
 				"specificWords": "specifieke woorden",
-				"captureGroupsLabel": "Labels en relaties",
-				"spanFiltersLabel": "Span filters"
+				"captureGroupsLabel": "Labels en relaties"
 			},
 			"in_this_location": {
 				"beforeTheHit": "voor het resultaat",
@@ -267,16 +255,10 @@
 				"fromTheEnd": "vanaf het einde van het resultaat"
 			},
 
-			"relationPartByClass": {
-				"default": {
-					"label": "Deel van relatie",
-					"source": "bron",
-					"target": "doel"
-				},
-				"dep": {
-					"source": "hoofd",
-					"target": "afhankelijke"
-				}
+			"relationPart": {
+				"label": "Deel van relatie",
+				"source": "bron",
+				"target": "doel"
 			},
 
 			"tipClickOnHighlightedWords": "Tip: klik op uitgelichte woorden om te groeperen op syntactische relaties.",
@@ -421,18 +403,16 @@
 	},
 	"remoteIndex": {
 		"loadingCorpora": "Uw corpora worden geladen...",
-		"pickCorpus": "Selecteer een corpus",
-		"addFilesToCorpus": "Bestanden toevoegen aan een bestaand corpus...",
-		"selectCorpus": "Selecteer een corpus",
-		"createNewCorpus": "of maak een nieuw corpus aan en voeg het toe...",
-		"name": "Naam",
-		"create": "Aanmaken",
-		"select": "Selecteren",
-		"illegalCorpusName": "Ongeldige corpusnaam. De corpusnaam moet tussen 3 en 30 tekens lang zijn en mag geen speciale tekens bevatten.",
 		"configure": "Configureren",
 		"retry": "Opnieuw proberen"
 	},
 	"index": {
+		"relations": {
+			"dep": {
+				"source": "hoofd",
+				"target": "afhankelijke"
+			}
+		},
 		"annotatedFields": {
 			"$exampleAnnotatedField": "Translated display name for annotated field $exampleAnnotatedField",
 			"$exampleAnnotatedField_description": "Translated description for annotated field $exampleAnnotatedField"
@@ -450,8 +430,13 @@
 		"metadataGroups": {
 			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
 		},
-		"within": {
-			"$exampleWithinValue": "Translated display name for within value $exampleWithinValue"
+		"spans": {
+			"$exampleSpanValue": "Translated display name for span $exampleSpanValue"
+		},
+		"spanAttributes": {
+			"$exampleSpanValue": {
+				"$exampleSpanAttribute": "Translated display name for span attribute $exampleSpanAttribute of span $exampleSpanValue"
+			}
 		},
 		"alignBy": {
 			"$exampleAlignByValue": "Translated display name for align by relation $exampleAlignByValue"

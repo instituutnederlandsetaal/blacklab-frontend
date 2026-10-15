@@ -1,12 +1,12 @@
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import { type BooleanOp, type Condition, type Result as CqlParseResult } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
-import type { OptGroup, Option, Options } from '@/shared/utils/options';
+import type { Options } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
 // Updated types for the Vue implementation of CQL Query Builder
 
-export type CqlAnnotationValueComparator = '=' | '!=' | 'startsWith' | 'endsWith';
+type CqlAnnotationValueComparator = '=' | '!=' | 'startsWith' | 'endsWith';
 export type CqlAnnotationCombinator = '&' | '|';
 
 interface CqlTokenProperties {
@@ -50,18 +50,11 @@ export interface CqlQueryBuilderData {
 	tokens: CqlTokenData[];
 }
 
-export const COMPARATORS: CqlAnnotationValueComparator[][] = [
-	['=', '!='],
-	['startsWith', 'endsWith'],
-];
-
-export const OPERATORS: CqlAnnotationCombinator[] = ['&', '|'];
-
 function createDefaultCqlAttribute(defaultAnnotationId: string): CqlAttributeData {
 	return {
 		id: `attr_${useUid()}`,
 		annotationId: defaultAnnotationId,
-		comparator: COMPARATORS[0][0],
+		comparator: '=',
 		values: [''],
 		caseSensitive: false,
 	};
@@ -70,7 +63,7 @@ function createDefaultCqlAttribute(defaultAnnotationId: string): CqlAttributeDat
 function createDefaultCqlAttributeGroup(defaultAnnotationId: string): CqlAttributeGroupData {
 	return {
 		id: `group_${useUid()}`,
-		operator: OPERATORS[0],
+		operator: '&',
 		entries: [createDefaultCqlAttribute(defaultAnnotationId)],
 	};
 }
@@ -107,10 +100,6 @@ export interface CqlQueryBuilderOptions {
 
 	// Precomputed options (language-agnostic)
 	annotationOptions: Options;
-
-	// Default configurations (always the same)
-	operatorOptions: Option[];
-	comparatorOptions: OptGroup[];
 }
 
 function rootCql(data: CqlQueryBuilderData): string | null {

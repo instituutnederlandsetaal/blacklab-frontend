@@ -174,24 +174,13 @@
 		"anyCollocate": "Any token in the selected context may be counted as a collocate.",
 		"collocates": "Collocates",
 		"keywordPattern": "Keyword pattern (BCQL)",
-		"keywordPatternPlaceholder": "e.g. [lemma=\"dog\"]",
 		"keywordPatternHelp": "The word or pattern for which to find collocates.",
 		"collocatePattern": "Collocate filter (BCQL)",
-		"collocatePatternPlaceholder": "Optional, e.g. [pos=\"N.*\"]",
-		"type": "Collocation type",
-		"types": {
-			"proximity": "Proximity",
-			"relsources": "Relation sources",
-			"reltargets": "Relation targets"
-		},
 		"context": "Context window",
 		"before": "Tokens before",
 		"after": "Tokens after",
 		"contextRequired": "The context must include at least one token before or after the keyword.",
-		"relationType": "Relation type",
-		"relationTypePlaceholder": "Optional relation type or regular expression",
 		"within": "Within element",
-		"withinPlaceholder": "Optional, e.g. s",
 		"annotation": "Collocate annotation",
 		"scorer": "Score",
 		"scorers": {
@@ -257,8 +246,7 @@
 				"theFirstWord": "the first word",
 				"allWords": "all words",
 				"specificWords": "specific words",
-				"captureGroupsLabel": "Labels and relations",
-				"spanFiltersLabel": "Span filters"
+				"captureGroupsLabel": "Labels and relations"
 			},
 			"in_this_location": {
 				"beforeTheHit": "before the hit",
@@ -267,16 +255,10 @@
 				"fromTheEnd": "from the end of the hit"
 			},
 
-			"relationPartByClass": {
-				"default": {
-					"label": "Relation part",
-					"source": "source",
-					"target": "target"
-				},
-				"dep": {
-					"source": "head",
-					"target": "dependent"
-				}
+			"relationPart": {
+				"label": "Relation part",
+				"source": "source",
+				"target": "target"
 			},
 
 			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
@@ -421,18 +403,16 @@
 	},
 	"remoteIndex": {
 		"loadingCorpora": "Loading your corpora...",
-		"pickCorpus": "Please pick a corpus",
-		"addFilesToCorpus": "Add files to an existing corpus...",
-		"selectCorpus": "Select a corpus",
-		"createNewCorpus": "or create a new corpus and add to that...",
-		"name": "Name",
-		"create": "Create",
-		"select": "Select",
-		"illegalCorpusName": "Illegal corpus name. Corpus name must be between 3 and 30 characters and may not contain special characters.",
 		"configure": "Configure",
 		"retry": "Retry"
 	},
 	"index": {
+		"relations": {
+			"dep": {
+				"source": "head",
+				"target": "dependent"
+			}
+		},
 		"annotatedFields": {
 			"$exampleAnnotatedField": "Translated display name for annotated field $exampleAnnotatedField",
 			"$exampleAnnotatedField_description": "Translated description for annotated field $exampleAnnotatedField"
@@ -451,11 +431,11 @@
 			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
 		},
 		"spans": {
-			"$exampleSpanValue": "Translated display name for within value $exampleWithinValue"
+			"$exampleSpanValue": "Translated display name for span $exampleSpanValue"
 		},
 		"spanAttributes": {
 			"$exampleSpanValue": {
-				"$exampleSpanAttribute": "Translated display name for span attribute $exampleSpanAttribute of span value $exampleSpanValue"
+				"$exampleSpanAttribute": "Translated display name for span attribute $exampleSpanAttribute of span $exampleSpanValue"
 			}
 		},
 		"alignBy": {

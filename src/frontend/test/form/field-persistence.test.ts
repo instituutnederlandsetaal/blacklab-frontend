@@ -121,11 +121,6 @@ describe('field controller persistence', () => {
 			{ value: 'word', label: 'Word' },
 			{ value: 'lemma', label: 'Lemma' },
 		],
-		operatorOptions: [
-			{ value: '&', label: 'AND' },
-			{ value: '|', label: 'OR' },
-		],
-		comparatorOptions: [],
 		autocomplete: async () => [],
 	};
 

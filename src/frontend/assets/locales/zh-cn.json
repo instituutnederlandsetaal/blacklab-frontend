@@ -174,24 +174,13 @@
 		"anyCollocate": "所选上下文中的任何 token 都可以统计为搭配词。",
 		"collocates": "搭配词",
 		"keywordPattern": "关键词模式 (BCQL)",
-		"keywordPatternPlaceholder": "例如 [lemma=\"dog\"]",
 		"keywordPatternHelp": "要查找搭配词的词或模式。",
 		"collocatePattern": "搭配词筛选 (BCQL)",
-		"collocatePatternPlaceholder": "可选，例如 [pos=\"N.*\"]",
-		"type": "搭配类型",
-		"types": {
-			"proximity": "邻近",
-			"relsources": "关系来源",
-			"reltargets": "关系目标"
-		},
 		"context": "上下文窗口",
 		"before": "前置 token 数",
 		"after": "后置 token 数",
 		"contextRequired": "上下文必须在关键词前后至少包含一个 token。",
-		"relationType": "关系类型",
-		"relationTypePlaceholder": "可选的关系类型或正则表达式",
 		"within": "元素范围",
-		"withinPlaceholder": "可选，例如 s",
 		"annotation": "搭配词标注",
 		"scorer": "评分",
 		"scorers": {
@@ -220,7 +209,10 @@
 	"partOfSpeech": {
 		"noOptions": "没有选项",
 		"submit": "确定",
-		"reset": "重置"
+		"reset": "重置",
+		"cancel": "取消",
+		"noneSelected": "未选择词性",
+		"edit": "编辑词性选择"
 	},
 	"lexicon": {
 		"selectAll": "全选",
@@ -254,8 +246,7 @@
 				"theFirstWord": "第一个词",
 				"allWords": "所有词",
 				"specificWords": "特定词",
-				"captureGroupsLabel": "标签和关系",
-				"spanFiltersLabel": "Span filters"
+				"captureGroupsLabel": "标签和关系"
 			},
 			"in_this_location": {
 				"beforeTheHit": "命中前",
@@ -264,16 +255,10 @@
 				"fromTheEnd": "从命中结束"
 			},
 
-			"relationPartByClass": {
-				"default": {
-					"label": "关系部分",
-					"source": "源",
-					"target": "目标"
-				},
-				"dep": {
-					"source": "中心词",
-					"target": "依存词"
-				}
+			"relationPart": {
+				"label": "关系部分",
+				"source": "源",
+				"target": "目标"
 			},
 
 			"tipClickOnHighlightedWords": "提示：点击高亮的词语进行句法分组。",
@@ -418,18 +403,16 @@
 	},
 	"remoteIndex": {
 		"loadingCorpora": "正在加载您的语料库...",
-		"pickCorpus": "请选择一个语料库",
-		"addFilesToCorpus": "将文件添加到现有语料库...",
-		"selectCorpus": "选择一个语料库",
-		"createNewCorpus": "或创建一个新语料库并添加到其中...",
-		"name": "名称",
-		"create": "创建",
-		"select": "选择",
-		"illegalCorpusName": "非法语料库名称。语料库名称必须在3到30个字符之间，不能包含特殊字符。",
 		"configure": "配置",
 		"retry": "重试"
 	},
 	"index": {
+		"relations": {
+			"dep": {
+				"source": "中心词",
+				"target": "依存词"
+			}
+		},
 		"annotatedFields": {
 			"$exampleAnnotatedField": "Translated display name for annotated field $exampleAnnotatedField",
 			"$exampleAnnotatedField_description": "Translated description for annotated field $exampleAnnotatedField"
@@ -447,8 +430,13 @@
 		"metadataGroups": {
 			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
 		},
-		"within": {
-			"$exampleWithinValue": "Translated display name for within value $exampleWithinValue"
+		"spans": {
+			"$exampleSpanValue": "Translated display name for span $exampleSpanValue"
+		},
+		"spanAttributes": {
+			"$exampleSpanValue": {
+				"$exampleSpanAttribute": "Translated display name for span attribute $exampleSpanAttribute of span $exampleSpanValue"
+			}
 		},
 		"alignBy": {
 			"$exampleAlignByValue": "Translated display name for align by relation $exampleAlignByValue"

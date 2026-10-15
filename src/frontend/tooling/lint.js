@@ -10,6 +10,7 @@ const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error('Run lint through npm: npm run lint');
 
 const npmCheck = (label, bin, args) => ({ label, command: process.execPath, args: [npmCli, 'exec', '--no', '--', bin, ...args] });
+const nodeCheck = (label, file) => ({ label, command: process.execPath, args: [file] });
 
 const checks = [
 	npmCheck('application types', 'vue-tsc', ['--noEmit', '-p', 'tsconfig.app.json']),
@@ -17,25 +18,23 @@ const checks = [
 	npmCheck('tooling types', 'tsc', ['--noEmit', '-p', 'tsconfig.node.json']),
 	npmCheck('schema types', 'tsc', ['--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'esnext', '--module', 'esnext', 'assets/blf-schema.ts']),
 	npmCheck('Oxlint', 'oxlint', ['--config', 'tooling/oxlint.config.ts', '.']),
+	nodeCheck('locale bundles', 'tooling/compare-locale-bundles.js'),
+	npmCheck('Knip', 'knip', ['--config', 'tooling/knip.json']),
+	nodeCheck('abstraction heuristic', 'tooling/lint-abstractions.js'),
 ];
 
-if (await runChecks(checks)) {
-	await runChecks([
-		npmCheck('Knip', 'knip', ['--config', 'tooling/knip.json']),
-		{ label: 'abstraction heuristic', command: process.execPath, args: ['tooling/lint-abstractions.js'] },
-	]);
-}
+await runChecks(checks);
 
 async function runChecks(checks) {
 	const results = [];
+	// Keep checks sequential to limit peak memory use and keep diagnostics grouped.
 	for (const check of checks) results.push(await runCheck(check));
 
 	const failures = results.filter(result => result.code !== 0);
-	if (!failures.length) return true;
+	if (!failures.length) return;
 
 	process.stderr.write(`\nLint failed: ${failures.map(result => result.label).join(', ')}.\n`);
 	process.exitCode = 1;
-	return false;
 }
 
 function runCheck(check) {

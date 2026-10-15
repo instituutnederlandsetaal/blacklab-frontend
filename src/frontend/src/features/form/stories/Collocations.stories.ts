@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import { computed, ref } from 'vue';
 
-import { COMPARATORS, createDefaultCqlQueryBuilderData, OPERATORS, type CqlAttributeData, type CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
+import { createDefaultCqlQueryBuilderData, type CqlAttributeData, type CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import { annotationTextController, collocationController, createCollocationTarget, createFormFieldNode, FormBuilder, FormRuntime, type FormRuntimeContext } from '@/features/form';
 import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
 import type { TokenSequenceCreateField } from '@/features/form/fields/token-sequence-field';
@@ -72,7 +72,7 @@ const sourceField: NormalizedAnnotatedField = {
 	mainAnnotationId: 'word',
 };
 
-function createQueryBuilderOptions(translate: Translate): CqlQueryBuilderOptions {
+function createQueryBuilderOptions(): CqlQueryBuilderOptions {
 	return {
 		indexId: 'storybook-collocations',
 		defaultAnnotationId: 'word',
@@ -81,17 +81,6 @@ function createQueryBuilderOptions(translate: Translate): CqlQueryBuilderOptions
 		annotationOptions: Object.values(annotations).map(annotation => ({
 			value: annotation.id,
 			label: () => annotation.defaultDisplayName,
-		})),
-		operatorOptions: OPERATORS.map(operator => ({
-			value: operator,
-			label: () => translate.$t(`search.advanced.queryBuilder.boolean_operators.${operator}`).toString(),
-		})),
-		comparatorOptions: COMPARATORS.map(comparators => ({
-			label: '',
-			options: comparators.map(comparator => ({
-				value: comparator,
-				label: () => translate.$t(`search.advanced.queryBuilder.comparators.${comparator}`).toString(),
-			})),
 		})),
 		autocomplete: async (annotation, term) => {
 			const examples: Record<string, string[]> = {
@@ -120,7 +109,7 @@ function createCollocationForm(translate: Translate): FormRuntime {
 		translate,
 	};
 	const definition = new FormBuilder(context);
-	const queryBuilderOptions = createQueryBuilderOptions(translate);
+	const queryBuilderOptions = createQueryBuilderOptions();
 
 	const annotationOptions = Object.values(annotations).map(annotation => ({
 		value: annotation.id,

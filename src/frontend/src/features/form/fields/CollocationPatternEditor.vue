@@ -2,7 +2,7 @@
 	<div class="blf-collocation-pattern-editor" :aria-busy="parsing">
 		<div class="btn-group blf-collocation-pattern-modes" role="group" :aria-label="$t('collocations.patternMode')">
 			<button
-				v-for="mode in modes"
+				v-for="{ value: mode, labelKey } in modes"
 				:key="mode"
 				type="button"
 				:class="['btn', modelValue.mode === mode ? 'btn-primary active' : 'btn-default']"
@@ -10,7 +10,7 @@
 				:disabled="disabled || parsing"
 				@click="selectMode(mode)"
 			>
-				{{ $t(`collocations.modes.${mode}`) }}
+				{{ $t(labelKey) }}
 			</button>
 		</div>
 
@@ -100,7 +100,11 @@ const emit = defineEmits<{
 }>();
 
 const runtime = useFormSystemRuntime();
-const modes: CollocationPatternMode[] = ['simple', 'advanced', 'expert'];
+const modes: { value: CollocationPatternMode; labelKey: string }[] = [
+	{ value: 'simple', labelKey: 'collocations.modes.simple' },
+	{ value: 'advanced', labelKey: 'collocations.modes.advanced' },
+	{ value: 'expert', labelKey: 'collocations.modes.expert' },
+];
 const parsing = ref(false);
 const parseError = ref(false);
 const simpleField = computed(() => createCollocationSimpleFieldNode(props, props.role, props.modelValue.simple.annotationId));

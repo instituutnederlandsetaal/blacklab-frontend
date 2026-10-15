@@ -15,8 +15,6 @@ const options: CqlQueryBuilderOptions = {
 	allAnnotationsMap: {},
 	autocomplete: async () => [],
 	annotationOptions: [],
-	operatorOptions: [],
-	comparatorOptions: [],
 };
 
 test('adding a token emits an updated query without mutating the supplied value', async () => {

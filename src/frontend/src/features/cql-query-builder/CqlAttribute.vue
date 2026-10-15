@@ -23,7 +23,7 @@
 			<!-- Operator Select -->
 			<SelectPicker
 				data-attribute-role="operator"
-				:options="options.comparatorOptions"
+				:options="comparatorOptions"
 				data-width="50px"
 				data-menu-width="auto"
 				hideEmpty
@@ -100,7 +100,7 @@
 			</label>
 
 			<!-- Add Controls -->
-			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :options :disabled />
+			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :disabled />
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
@@ -136,6 +136,7 @@ import { computed, ref } from 'vue';
 
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from './model';
 
+import { useI18n } from '@/shared/i18n';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
@@ -153,6 +154,24 @@ const emit = defineEmits<{
 	'add-attribute-group': [operator: CqlAnnotationCombinator];
 	'delete-attribute': [id: string];
 }>();
+
+const translate = useI18n();
+const comparatorOptions = [
+	{
+		label: '',
+		options: [
+			{ value: '=', label: () => translate.$t('search.advanced.queryBuilder.comparators.=') },
+			{ value: '!=', label: () => translate.$t('search.advanced.queryBuilder.comparators.!=') },
+		],
+	},
+	{
+		label: '',
+		options: [
+			{ value: 'startsWith', label: () => translate.$t('search.advanced.queryBuilder.comparators.startsWith') },
+			{ value: 'endsWith', label: () => translate.$t('search.advanced.queryBuilder.comparators.endsWith') },
+		],
+	},
+];
 
 const model = useVModel(props, 'modelValue', emit, {
 	deep: true,
