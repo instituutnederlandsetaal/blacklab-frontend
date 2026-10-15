@@ -59,6 +59,22 @@ const config: OxlintConfig = {
 	},
 	overrides: [
 		{
+			files: ['**/test/**/*.ts'],
+			rules: {
+				'eslint/no-restricted-properties': [
+					'error',
+					{ object: 'vi', property: 'mock', message: 'Suites with module mocks belong in test/isolated/.' },
+					{ object: 'vi', property: 'doMock', message: 'Suites with module mocks belong in test/isolated/.' },
+				],
+			},
+		},
+		{
+			files: ['**/test/isolated/**/*.ts'],
+			rules: {
+				'eslint/no-restricted-properties': 'off',
+			},
+		},
+		{
 			files: ['*.js', 'lint-rules/**/*', 'customization-api/**/*'],
 			rules: {
 				'eslint/no-console': 'off',

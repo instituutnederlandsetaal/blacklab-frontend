@@ -44,7 +44,7 @@ export default defineComponent({
 		},
 		alignBy: {
 			get(): string {
-				return PatternStore.get.shared().alignBy || this.customizations.searchFormAlignByDefault();
+				return PatternStore.get.shared().alignBy || (this.customizations.searchFormAlignByDefault() ?? '');
 			},
 			set(value: string) {
 				PatternStore.actions.shared.alignBy(value === '' ? null : value);

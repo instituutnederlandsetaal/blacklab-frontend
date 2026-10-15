@@ -1,35 +1,29 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, flushPromises, shallowMount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { computed, nextTick, reactive, ref } from 'vue';
+import { provideMockActiveSearchParameters } from '@test/mocks/active-search-parameters';
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { createMockCustomizations } from '@test/mocks/customizations';
+import { flushPromises, shallowMount } from '@vue/test-utils';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { computed, nextTick, reactive } from 'vue';
 
+import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
+import type { Corpus } from '@/types/apptypes';
 import type { BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
-
-import { provideMockActiveSearchParameters } from './mocks/active-search-parameters';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
-enableAutoUnmount(afterEach);
+let api: ReturnType<typeof createMockApi>;
+let corpusContext: ReturnType<typeof createMockCorpusContext>;
+let corpus: Corpus;
+let customizations: ReturnType<typeof createMockCustomizations>;
 
-const mock = vi.hoisted(() => ({
-	api: { getHits: vi.fn() },
-	corpus: undefined as unknown,
-	customizations: undefined as unknown,
-	mergeMatchInfos: vi.fn(),
-	params: undefined as unknown,
-}));
-
-vi.mock('@/app/state/useCorpusContext', () => ({ useCorpus: () => ref(mock.corpus) }));
-vi.mock('@/customization-api/internal/internal-api', () => ({ useCustomizations: () => mock.customizations }));
-vi.mock('@/features/search/model/form/filter-state', () => ({ getState: () => ({ filters: {} }) }));
-vi.mock('@/features/search/model/results/global-results-state', () => ({ getState: () => ({ context: 5 }) }));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock.api }));
-vi.mock('@/pages/search/results/table/hit-highlighting', () => ({ getHighlightColors: vi.fn(() => ({})), mergeMatchInfos: mock.mergeMatchInfos }));
+let params: EffectiveSearchParameters;
 
 function deferredRequest<T>() {
 	let resolve!: (value: T) => void;
@@ -37,21 +31,54 @@ function deferredRequest<T>() {
 	return { request, resolve };
 }
 
+function hitResults(word: string): BLHitResults {
+	return {
+		hits: [{ docPid: 'doc', start: 0, end: 1, before: { punct: [], word: [] }, match: { punct: [''], word: [word] }, after: { punct: [], word: [] } }],
+		docInfos: {},
+		summary: {
+			params: { patt: '[]', first: 0, number: 1 },
+			pattern: { bcql: '[]', fieldName: 'contents' },
+			results: {
+				window: { firstResult: 0, requestedSize: 1, actualSize: 1, hasPrevious: false, hasNext: false },
+				stats: {
+					processed: { status: 'finished', hits: 1, documents: 1, timeMs: 0, stoppedBecauseTooMany: false },
+					counted: { status: 'finished', hits: 1, documents: 1, timeMs: 0, stoppedBecauseTooMany: false },
+					numberOfGroups: undefined,
+					largestGroupSize: undefined,
+				},
+				sample: { percentage: undefined, seed: undefined, sample: undefined },
+			},
+		},
+	};
+}
+
 function mountGroupBy() {
 	return shallowMount(GroupBy, {
 		global: {
-			plugins: [provideMockActiveSearchParameters(computed(() => ({ ...(mock.params as EffectiveSearchParameters) })))],
+			plugins: [api, corpusContext, customizations, provideMockActiveSearchParameters(computed(() => ({ ...params })))],
 		},
 		props: { type: 'hits' },
 	});
 }
 
-beforeEach(() => {
+beforeEach(({ onTestFinished }) => {
 	vi.clearAllMocks();
-	ResultsStore.setPageSizePreference(20);
-	ResultsStore.getOrCreateModule('hits').actions.reset({ resetGroupBy: true });
-	mock.params = reactive({ patt: '[]', first: 37, number: 50, group: 'field:title', subcorpussize: true, listvalues: 'all', sort: 'hit:word,numhits,-alignments,-hit:lemma,-numhits,alignments' });
-	mock.corpus = {
+	ResultsStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
+	const hits = ResultsStore.getOrCreateModule('hits');
+	const previousHits = { ...hits.getState(), groupBy: [...hits.getState().groupBy] };
+	onTestFinished(() => hits.actions.replace(previousHits));
+	hits.actions.reset({ resetGroupBy: true });
+	params = reactive({
+		patt: '[]',
+		context: 5,
+		first: 37,
+		number: 50,
+		group: 'field:title',
+		subcorpussize: true,
+		listvalues: 'all',
+		sort: 'hit:word,numhits,-alignments,-hit:lemma,-numhits,alignments',
+	});
+	corpus = {
 		mainAnnotatedField: 'contents',
 		id: 'test',
 		isParallelCorpus: false,
@@ -61,22 +88,17 @@ beforeEach(() => {
 		metadataGroups: [{ id: 'metadata', entries: ['title'] }],
 		parallelAnnotatedFieldsMap: {},
 		relations: { spans: {} },
-	};
-	mock.customizations = {
-		groupOptionGroup: vi.fn(group => group),
-		groupingSpanAttribute: vi.fn(() => null),
-		legacyShouldIncludeWithinAttribute: vi.fn(() => false),
-		legacyShouldIncludeWithinSpan: vi.fn(() => false),
-		matchInfoHighlightStyle: vi.fn(),
-		resultConcordanceAnnotationId: vi.fn(() => 'word'),
-		resultConcordanceAsHtml: vi.fn(() => false),
-		resultGroupAnnotationIds: vi.fn(() => ['word']),
-		resultGroupAnnotationLabelsVisible: vi.fn(() => true),
-		resultGroupMetadataIds: vi.fn(() => ['title']),
-		resultGroupMetadataLabelsVisible: vi.fn(() => true),
-		resultMetadataField: vi.fn(() => true),
-	};
-	mock.api.getHits.mockImplementation(() => deferredRequest().request);
+	} as unknown as Corpus;
+	api = createMockApi();
+	corpusContext = createMockCorpusContext({ corpus: () => corpus });
+	customizations = createMockCustomizations(() => corpus);
+	customizations.resultConcordanceAnnotationId.mockReturnValue('word');
+	customizations.resultGroupAnnotationIds.mockReturnValue(['word']);
+	customizations.resultGroupAnnotationLabelsVisible.mockReturnValue(true);
+	customizations.resultGroupMetadataIds.mockReturnValue(['title']);
+	customizations.resultGroupMetadataLabelsVisible.mockReturnValue(true);
+	customizations.resultMetadataField.mockReturnValue(true);
+	api.blacklabApi.getHits.mockImplementation(() => deferredRequest<BLHitResults | BLHitGroupResults>().request);
 });
 
 describe('GroupBy', () => {
@@ -97,8 +119,9 @@ describe('GroupBy', () => {
 		await wrapper.find('.groupselect').trigger('click');
 		await nextTick();
 
-		expect(mock.api.getHits).toHaveBeenCalledWith('test', {
+		expect(api.blacklabApi.getHits).toHaveBeenCalledWith('test', {
 			patt: '[]',
+			context: 5,
 			sort: 'hit:word,-hit:lemma',
 			listmetadatavalues: '__nothing__',
 			first: 0,
@@ -106,33 +129,35 @@ describe('GroupBy', () => {
 			waitfortotal: false,
 		});
 
-		(mock.params as { first: number }).first = 99;
+		params.first = 99;
 		await nextTick();
-		expect(mock.api.getHits).toHaveBeenCalledOnce();
+		expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
 
-		(mock.params as { sort: string }).sort = 'numhits';
+		params.sort = 'numhits';
 		await nextTick();
-		expect(mock.api.getHits).toHaveBeenLastCalledWith('test', {
+		expect(api.blacklabApi.getHits).toHaveBeenLastCalledWith('test', {
 			patt: '[]',
+			context: 5,
 			listmetadatavalues: '__nothing__',
 			first: 0,
 			number: 1,
 			waitfortotal: false,
 		});
 
-		(mock.params as { patt: string }).patt = '[word="test"]';
+		params.patt = '[word="test"]';
 		await nextTick();
-		expect(mock.api.getHits).toHaveBeenCalledTimes(3);
+		expect(api.blacklabApi.getHits).toHaveBeenCalledTimes(3);
 	});
 
 	test('requests the hit with the most alignments for a parallel preview', async () => {
-		(mock.corpus as { isParallelCorpus: boolean }).isParallelCorpus = true;
+		corpus.isParallelCorpus = true;
 		const wrapper = mountGroupBy();
 		await wrapper.find('.groupselect').trigger('click');
 		await nextTick();
 
-		expect(mock.api.getHits).toHaveBeenCalledWith('test', {
+		expect(api.blacklabApi.getHits).toHaveBeenCalledWith('test', {
 			patt: '[]',
+			context: 5,
 			sort: 'alignments,hit:word,-hit:lemma',
 			listmetadatavalues: '__nothing__',
 			first: 0,
@@ -148,7 +173,7 @@ describe('GroupBy', () => {
 		expect(addMetadata).toBeDefined();
 		await addMetadata!.trigger('click');
 
-		const calls = (mock.customizations as { groupOptionGroup: ReturnType<typeof vi.fn> }).groupOptionGroup.mock.calls;
+		const calls = customizations.groupOptionGroup.mock.calls;
 		expect(calls.length).toBeGreaterThan(0);
 		expect(calls[0][1]).toMatchObject({ $t: expect.any(Function), $tMetaDisplayName: expect.any(Function) });
 	});
@@ -158,31 +183,33 @@ describe('GroupBy', () => {
 		const grouped = deferredRequest<BLHitResults | BLHitGroupResults>();
 		const current = deferredRequest<BLHitResults | BLHitGroupResults>();
 		const unmounted = deferredRequest<BLHitResults | BLHitGroupResults>();
-		mock.api.getHits.mockReturnValueOnce(stale.request).mockReturnValueOnce(grouped.request).mockReturnValueOnce(current.request).mockReturnValueOnce(unmounted.request);
+		api.blacklabApi.getHits.mockReturnValueOnce(stale.request).mockReturnValueOnce(grouped.request).mockReturnValueOnce(current.request).mockReturnValueOnce(unmounted.request);
 		const wrapper = mountGroupBy();
 		await wrapper.find('.groupselect').trigger('click');
-		await nextTick();
+		await wrapper
+			.findAll('.panel-heading button')
+			.find(button => button.text().includes('results.groupBy.annotation'))!
+			.trigger('click');
 
-		(mock.params as { patt: string }).patt = '[word="grouped"]';
+		params.patt = '[word="grouped"]';
 		await nextTick();
 		expect(stale.request.cancel).toHaveBeenCalledOnce();
-		stale.resolve({ hits: [], docInfos: {}, summary: {} } as unknown as BLHitResults);
+		stale.resolve(hitResults('stale'));
 		await flushPromises();
-		expect(mock.mergeMatchInfos).not.toHaveBeenCalled();
+		expect(wrapper.find('.hit-preview .word').exists()).toBe(false);
 
-		grouped.resolve({ hitGroups: [], summary: {} } as unknown as BLHitGroupResults);
+		grouped.resolve({ hitGroups: [], summary: hitResults('grouped').summary });
 		await flushPromises();
-		expect(mock.mergeMatchInfos).not.toHaveBeenCalled();
+		expect(wrapper.find('.hit-preview .word').exists()).toBe(false);
 
-		(mock.params as { patt: string }).patt = '[word="current"]';
+		params.patt = '[word="current"]';
 		await nextTick();
-		const currentResult = { hits: [], docInfos: {}, summary: {} } as unknown as BLHitResults;
+		const currentResult = hitResults('current');
 		current.resolve(currentResult);
 		await flushPromises();
-		expect(mock.mergeMatchInfos).toHaveBeenCalledOnce();
-		expect(mock.mergeMatchInfos).toHaveBeenCalledWith(currentResult);
+		expect(wrapper.findAll('.hit-preview .word .main').map(word => word.text())).toEqual(['current']);
 
-		(mock.params as { patt: string }).patt = '[word="unmounted"]';
+		params.patt = '[word="unmounted"]';
 		await nextTick();
 		wrapper.unmount();
 		expect(unmounted.request.cancel).toHaveBeenCalledOnce();

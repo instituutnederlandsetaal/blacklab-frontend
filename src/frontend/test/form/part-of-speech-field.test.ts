@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 
 import { findTagsetValue, getVisibleSubAnnotationValues, summarizeAnnotationPosState, type AnnotationPosFieldState } from '@/features/form/fields/annotation-pos-field';
 import { type Tagset } from '@/types/apptypes';
 
 import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
-
-enableAutoUnmount(afterEach);
 
 const baseProps = {
 	id: 'field',

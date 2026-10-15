@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
-
-enableAutoUnmount(afterEach);
 
 const options = [
 	{ value: 'a', label: 'Alpha' },
@@ -35,6 +33,41 @@ async function open(wrapper: ReturnType<typeof mount>) {
 function flushFrames() {
 	for (const callback of frames.splice(0)) callback(0);
 }
+
+test('reactively resolves deferred select option and group text', async () => {
+	const locale = ref('en');
+	const wrapper = mount(SelectPicker, {
+		props: {
+			modelValue: 'value',
+			options: [
+				{
+					label: () => `${locale.value}:group`,
+					title: () => `${locale.value}:group-title`,
+					options: [
+						{
+							value: 'value',
+							label: () => `${locale.value}:label`,
+							title: () => `${locale.value}:title`,
+						},
+					],
+				},
+			],
+		},
+	});
+
+	expect(wrapper.get('.menu-button .menu-value').text()).toBe('en:label');
+	expect(wrapper.get('.menu-group').text()).toBe('en:group');
+	expect(wrapper.get('.menu-group').attributes('title')).toBe('en:group-title');
+	expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('en:title');
+
+	locale.value = 'nl';
+	await nextTick();
+
+	expect(wrapper.get('.menu-button .menu-value').text()).toBe('nl:label');
+	expect(wrapper.get('.menu-group').text()).toBe('nl:group');
+	expect(wrapper.get('.menu-group').attributes('title')).toBe('nl:group-title');
+	expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('nl:title');
+});
 
 test.each(['close', 'unmount'] as const)('%s before the opening frame cannot install global listeners', async action => {
 	const wrapper = mount(SelectPicker, { props: { options } });

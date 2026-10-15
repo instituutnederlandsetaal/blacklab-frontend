@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import * as UIStore from '@/app/state/ui-state';
@@ -8,6 +8,8 @@ import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { FormSystem, type TokenSequenceFieldState } from '@/features/form';
 
 import { createCorpus, createParallelCorpus, createSearchFormFixture, readSearchFormState, selectRenderedForm, type SearchFormFixture } from './search-form-fixture';
+
+import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 
 let fixture: SearchFormFixture;
 
@@ -20,15 +22,12 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-enableAutoUnmount(afterEach);
-
 describe('Explore forms', () => {
 	test('builds Documents as a form with configuration-backed defaults, shared filters, and a result preset', () => {
 		const runtime = fixture.createRuntime();
 		const groupByFieldId = ids.exploreCorporaGroupBy();
 		const groupDisplayModeFieldId = ids.exploreCorporaGroupDisplayMode();
 
-		expect(runtime.definition.getForm(ids.exploreForm('corpora'))).not.toBeNull();
 		expect(runtime.state.state.value[groupByFieldId]).toBe('field:author');
 		expect(runtime.state.state.value[groupDisplayModeFieldId]).toBe('table');
 
@@ -69,7 +68,6 @@ describe('Explore forms', () => {
 		const runtime = fixture.createRuntime();
 		const annotationFieldId = ids.exploreFrequencyAnnotation();
 
-		expect(runtime.definition.getForm(ids.exploreForm('frequency'))).not.toBeNull();
 		expect(runtime.state.state.value[annotationFieldId]).toBe('word');
 
 		runtime.state.state.value[annotationFieldId] = 'lemma';
@@ -102,7 +100,6 @@ describe('Explore forms', () => {
 		const tokensFieldId = ids.exploreNgramTokens();
 		const groupByFieldId = ids.exploreNgramGroupBy();
 
-		expect(runtime.definition.getForm(ids.exploreForm('ngram'))).not.toBeNull();
 		expect(runtime.state.state.value[tokensFieldId] as TokenSequenceFieldState).toHaveLength(5);
 
 		runtime.state.state.value[tokensFieldId] = [
@@ -137,16 +134,14 @@ describe('Explore forms', () => {
 		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ severity: 'error', message: expect.stringContaining(ids.exploreNgramGroupBy()) })]));
 	});
 
-	test('renders the N-gram length bounds and five active token editors', () => {
+	test('renders the configured N-gram sequence', () => {
 		const runtime = fixture.createRuntime();
 		selectRenderedForm(runtime, ids.exploreForm('ngram'));
 		const wrapper = mount(FormSystem, {
 			props: { runtime },
+			global: { stubs: { TokenSequenceField: true } },
 		});
-		const length = wrapper.get('.blf-token-sequence-field input[type="number"]');
-
-		expect(length.attributes()).toMatchObject({ min: '1', max: '5', step: '1' });
-		expect(wrapper.findAll('.blf-token-sequence-token')).toHaveLength(5);
+		expect(wrapper.getComponent(TokenSequenceField).props('modelValue')).toHaveLength(5);
 	});
 
 	test('uses the regular missing-tagset fallback when a POS annotation is rendered in an N-gram', () => {

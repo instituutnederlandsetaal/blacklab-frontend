@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { FormSystem, type CompiledFormResult, annotationTextController } from '@/features/form';
@@ -11,8 +11,6 @@ import { createTestBuilder, createTestRuntime } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-
-enableAutoUnmount(afterEach);
 
 function createAutocompleteTextFixture(): FormFixture {
 	const builder = createTestBuilder();

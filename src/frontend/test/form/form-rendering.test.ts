@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 import { defineComponent, h, nextTick, ref, shallowRef, toRaw } from 'vue';
 
 import { annotationTextController, FormSystem, createFormFieldNode, expertQueryController } from '@/features/form';
@@ -14,8 +14,7 @@ import TextField from '@/features/form/fields/generic/TextField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
-
-enableAutoUnmount(afterEach);
+import Tabs from '@/shared/ui/Tabs.vue';
 
 function createSiblingFormsFixture(): FormFixture {
 	const builder = createTestBuilder();
@@ -177,9 +176,10 @@ describe('form rendering and reactive bindings', () => {
 	test('applies the panel frame and tab presentation to their respective elements', () => {
 		const wrapper = mount(FormSystem, {
 			props: { runtime: createNestedFormRuntime() },
+			global: { stubs: { Tabs: true } },
 		});
 
-		expect(wrapper.get('[role="tablist"]').classes()).toEqual(expect.arrayContaining(['tabs-primary', 'text-primary', 'blf-form-container-tabs']));
+		expect(wrapper.getComponent(Tabs).classes()).toEqual(expect.arrayContaining(['tabs-primary', 'text-primary', 'blf-form-container-tabs']));
 		expect(wrapper.get('[role="tabpanel"]').classes()).toContain('blf-form-content');
 		expect(wrapper.get('.blf-form-container').classes()).toEqual(expect.arrayContaining(['panel', 'panel-default']));
 		expect(wrapper.get('form.blf-form').classes()).not.toContain('panel-default');

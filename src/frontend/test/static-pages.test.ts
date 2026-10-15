@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { ref, watch, type Ref } from 'vue';
+
+import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
+import { provideCorpusId } from '@/navigation/page-context';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 
@@ -10,16 +15,13 @@ import HelpPage from '@/pages/help/HelpPage.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
-const mock = vi.hoisted(() => ({
-	corpusId: { value: 'test-corpus' },
-	getAbout: vi.fn(),
-	getHelp: vi.fn(),
-	markScriptsReady: vi.fn(),
-}));
+let api: ReturnType<typeof createMockApi>;
+let corpusId: Ref<string | undefined>;
+let pageBootstrap: ReturnType<typeof createPageBootstrapContext>;
 
-vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
-vi.mock('@/navigation/page-context', () => ({ useCorpusId: () => mock.corpusId }));
-vi.mock('@/shared/api', () => ({ useFrontendApi: () => ({ getAbout: mock.getAbout, getHelp: mock.getHelp }) }));
+function mountPage(Page: typeof AboutPage) {
+	return mount(Page, { global: { plugins: [api, pageBootstrap, app => provideCorpusId(app, corpusId)] } });
+}
 
 function deferredRequest() {
 	let resolve!: (value: string) => void;
@@ -36,57 +38,56 @@ function deferredRequest() {
 }
 
 beforeEach(() => {
-	mock.corpusId.value = 'test-corpus';
-	mock.getAbout.mockReset();
-	mock.getHelp.mockReset();
-	mock.markScriptsReady.mockReset();
+	corpusId = ref('test-corpus');
+	api = createMockApi();
+	pageBootstrap = createPageBootstrapContext();
 });
 
 describe.each([
 	['about', AboutPage, 'getAbout'],
 	['help', HelpPage, 'getHelp'],
 ] as const)('%s page', (_name, Page, endpoint) => {
-	test('renders loading and content before settling the page', async () => {
+	test('renders loading and content before settling the page', async ({ onTestFinished }) => {
 		const pending = deferredRequest();
-		mock[endpoint].mockReturnValue(pending.request);
-		const wrapper = mount(Page);
+		api.frontendApi[endpoint].mockReturnValue(pending.request);
+		const wrapper = mountPage(Page);
+		const contentWhenReady: string[] = [];
+		onTestFinished(watch(pageBootstrap.scriptsReady, () => contentWhenReady.push(wrapper.text()), { flush: 'sync' }));
 
-		expect(mock[endpoint]).toHaveBeenCalledWith('test-corpus');
+		expect(api.frontendApi[endpoint]).toHaveBeenCalledWith('test-corpus');
 		expect(wrapper.getComponent(HtmlRenderer).props()).toMatchObject({ executeScripts: true, parseStringAsHtml: true });
 		expect(wrapper.findComponent(Spinner).exists()).toBe(true);
-		expect(mock.markScriptsReady).not.toHaveBeenCalled();
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
 
 		pending.resolve('<p class="page-copy">Ready</p>');
-		mock.markScriptsReady.mockImplementationOnce(() => {
-			expect(wrapper.get('.page-copy').text()).toBe('Ready');
-		});
 		await flushPromises();
 
 		expect(wrapper.get('.page-copy').text()).toBe('Ready');
-		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
+		expect(contentWhenReady).toEqual(['Ready']);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
 		wrapper.unmount();
 	});
 
-	test('renders errors and settles', async () => {
+	test('renders errors and settles', async ({ onTestFinished }) => {
 		const pending = deferredRequest();
-		mock[endpoint].mockReturnValue(pending.request);
-		const wrapper = mount(Page);
+		api.frontendApi[endpoint].mockReturnValue(pending.request);
+		const wrapper = mountPage(Page);
+		const contentWhenReady: string[] = [];
+		onTestFinished(watch(pageBootstrap.scriptsReady, () => contentWhenReady.push(wrapper.text()), { flush: 'sync' }));
 
-		mock.markScriptsReady.mockImplementationOnce(() => {
-			expect(wrapper.get('.text-danger').text()).toBe('Could not load page.');
-		});
 		pending.reject(new Error('Could not load page.'));
 		await flushPromises();
 
 		expect(wrapper.get('.text-danger').text()).toBe('Could not load page.');
-		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
+		expect(contentWhenReady).toEqual(['Could not load page.']);
+		expect(pageBootstrap.scriptsReady.value).toBe(true);
 		wrapper.unmount();
 	});
 
 	test('cancels a pending request on unmount', () => {
 		const pending = deferredRequest();
-		mock[endpoint].mockReturnValue(pending.request);
-		const wrapper = mount(Page);
+		api.frontendApi[endpoint].mockReturnValue(pending.request);
+		const wrapper = mountPage(Page);
 
 		wrapper.unmount();
 
@@ -96,18 +97,18 @@ describe.each([
 	test('does not run queued settlement after a route instance is unmounted', async () => {
 		const obsoleteRequest = deferredRequest();
 		const currentRequest = deferredRequest();
-		mock[endpoint].mockReturnValueOnce(obsoleteRequest.request).mockReturnValueOnce(currentRequest.request);
-		const obsolete = mount(Page);
+		api.frontendApi[endpoint].mockReturnValueOnce(obsoleteRequest.request).mockReturnValueOnce(currentRequest.request);
+		const obsolete = mountPage(Page);
 
 		obsoleteRequest.resolve('<p class="obsolete">Obsolete</p>');
 		await Promise.resolve();
 		obsolete.unmount();
-		mock.corpusId.value = 'current-corpus';
-		const current = mount(Page);
+		corpusId.value = 'current-corpus';
+		const current = mountPage(Page);
 		await flushPromises();
 
-		expect(mock.markScriptsReady).not.toHaveBeenCalled();
-		expect(mock[endpoint]).toHaveBeenLastCalledWith('current-corpus');
+		expect(pageBootstrap.scriptsReady.value).toBe(false);
+		expect(api.frontendApi[endpoint]).toHaveBeenLastCalledWith('current-corpus');
 		current.unmount();
 	});
 });
@@ -115,16 +116,16 @@ describe.each([
 test('snapshots the corpus and keeps the two endpoint lifecycles independent', () => {
 	const aboutRequest = deferredRequest();
 	const helpRequest = deferredRequest();
-	mock.getAbout.mockReturnValue(aboutRequest.request);
-	mock.getHelp.mockReturnValue(helpRequest.request);
+	api.frontendApi.getAbout.mockReturnValue(aboutRequest.request);
+	api.frontendApi.getHelp.mockReturnValue(helpRequest.request);
 
-	mock.corpusId.value = 'first-corpus';
-	const about = mount(AboutPage);
-	mock.corpusId.value = 'second-corpus';
-	const help = mount(HelpPage);
+	corpusId.value = 'first-corpus';
+	const about = mountPage(AboutPage);
+	corpusId.value = 'second-corpus';
+	const help = mountPage(HelpPage);
 
-	expect(mock.getAbout).toHaveBeenCalledWith('first-corpus');
-	expect(mock.getHelp).toHaveBeenCalledWith('second-corpus');
+	expect(api.frontendApi.getAbout).toHaveBeenCalledWith('first-corpus');
+	expect(api.frontendApi.getHelp).toHaveBeenCalledWith('second-corpus');
 	about.unmount();
 	expect(aboutRequest.cancel).toHaveBeenCalledOnce();
 	expect(helpRequest.cancel).not.toHaveBeenCalled();

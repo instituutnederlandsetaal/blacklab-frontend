@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { flushPromises, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
@@ -18,18 +19,7 @@ import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
 import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import Modal from '@/shared/ui/Modal.vue';
 
-const mock = vi.hoisted(() => ({
-	api: {
-		deleteCorpus: vi.fn(),
-		deleteFormat: vi.fn(),
-		getCorpora: vi.fn(),
-		getCorpusStatus: vi.fn(),
-		getFormats: vi.fn(),
-		getServerInfo: vi.fn(),
-	},
-}));
-
-vi.mock('@/shared/api/index.ts', () => ({ useBlackLabApi: () => mock.api }));
+let api: ReturnType<typeof createMockApi>;
 
 const format = (id: string, displayName: string, owner: string | null = 'alice') => ({ id, owner, shortId: id.split(':').at(-1)!, displayName }) as NormalizedFormat;
 
@@ -70,12 +60,12 @@ const deleteResponse = { status: { message: 'Deleted' } } as BLResponse;
 
 function mountCorporaPage(pageBootstrap = createPageBootstrapContext()) {
 	pageBootstrap.changePage({ name: 'corpora' }, false);
-	return shallowMount(CorporaPage, { global: { plugins: [pageBootstrap] } });
+	return shallowMount(CorporaPage, { global: { plugins: [pageBootstrap, api] } });
 }
 
 async function mountPage(initialCorpora = [corpus()]) {
-	mock.api.getServerInfo.mockReturnValue(resolvedRequest(server(initialCorpora)));
-	mock.api.getFormats.mockReturnValue(resolvedRequest([format('alice:tei', 'TEI')]));
+	api.blacklabApi.getServerInfo.mockReturnValue(resolvedRequest(server(initialCorpora)));
+	api.blacklabApi.getFormats.mockReturnValue(resolvedRequest([format('alice:tei', 'TEI')]));
 	const wrapper = mountCorporaPage();
 	await flushPromises();
 	return wrapper;
@@ -102,10 +92,10 @@ async function confirmCorpusDeletion(wrapper: ReturnType<typeof shallowMount<typ
 
 beforeEach(() => {
 	vi.useFakeTimers();
-	vi.clearAllMocks();
-	mock.api.getCorpora.mockReturnValue(resolvedRequest([]));
-	mock.api.deleteCorpus.mockReturnValue(resolvedRequest(deleteResponse));
-	mock.api.deleteFormat.mockReturnValue(resolvedRequest(deleteResponse));
+	api = createMockApi();
+	api.blacklabApi.getCorpora.mockReturnValue(resolvedRequest([]));
+	api.blacklabApi.deleteCorpus.mockReturnValue(resolvedRequest(deleteResponse));
+	api.blacklabApi.deleteFormat.mockReturnValue(resolvedRequest(deleteResponse));
 });
 
 afterEach(() => vi.useRealTimers());
@@ -113,36 +103,36 @@ afterEach(() => vi.useRealTimers());
 test('deduplicates upload triggers and updates the table and upload until indexing completes', async () => {
 	const first = deferredRequest<NormalizedIndexBase>();
 	const second = deferredRequest<NormalizedIndexBase>();
-	mock.api.getCorpusStatus.mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
+	api.blacklabApi.getCorpusStatus.mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
 	const wrapper = await mountPage();
 	const upload = await startUploadPoll(wrapper);
 
 	upload.vm.$emit('indexing', 'alice:corpus');
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledWith('alice:corpus');
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(1);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledWith('alice:corpus');
 
 	first.resolve(corpus({ status: 'indexing', tokenCount: 10, indexProgress: { docsDone: 1, filesProcessed: 2, tokensProcessed: 3 } as NonNullable<NormalizedIndexBase['indexProgress']> }));
 	await flushPromises();
 	expect(privateTable(wrapper).props('corpora')[0]).toMatchObject({ status: 'indexing', tokenCount: 10 });
 	expect(upload.props('corpus')).toMatchObject({ status: 'indexing', indexProgress: { docsDone: 1, filesProcessed: 2, tokensProcessed: 3 } });
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(1);
 
 	await vi.runOnlyPendingTimersAsync();
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(2);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(2);
 
 	second.resolve(corpus({ status: 'available', tokenCount: 20 }));
 	await flushPromises();
 	expect(privateTable(wrapper).props('corpora')[0]).toMatchObject({ status: 'available', tokenCount: 20 });
 	expect(upload.props('corpus')).toMatchObject({ status: 'available', tokenCount: 20 });
 	await vi.runOnlyPendingTimersAsync();
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(2);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(2);
 	wrapper.unmount();
 });
 
 test('releases a failed poll for an explicit retry and gives its current error precedence', async () => {
 	const failed = deferredRequest<NormalizedIndexBase>();
 	const retried = deferredRequest<NormalizedIndexBase>();
-	mock.api.getCorpusStatus.mockReturnValueOnce(failed.request).mockReturnValueOnce(retried.request);
+	api.blacklabApi.getCorpusStatus.mockReturnValueOnce(failed.request).mockReturnValueOnce(retried.request);
 	const wrapper = await mountPage();
 	const upload = await startUploadPoll(wrapper);
 	upload.vm.$emit('success', 'Upload complete');
@@ -153,14 +143,14 @@ test('releases a failed poll for an explicit retry and gives its current error p
 	expect(wrapper.text()).not.toContain('Upload complete');
 
 	upload.vm.$emit('indexing', 'alice:corpus');
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(2);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(2);
 	retried.resolve(corpus());
 	await flushPromises();
 	wrapper.unmount();
 });
 
 test('successful deletion during the delay stops the matching poll', async () => {
-	mock.api.getCorpusStatus.mockReturnValue(resolvedRequest(corpus({ status: 'indexing' })));
+	api.blacklabApi.getCorpusStatus.mockReturnValue(resolvedRequest(corpus({ status: 'indexing' })));
 	const wrapper = await mountPage();
 	await startUploadPoll(wrapper);
 	await flushPromises();
@@ -168,13 +158,13 @@ test('successful deletion during the delay stops the matching poll', async () =>
 	await confirmCorpusDeletion(wrapper);
 	expect(privateTable(wrapper).props('corpora')).toEqual([]);
 	await vi.runOnlyPendingTimersAsync();
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(1);
 	wrapper.unmount();
 });
 
 test('deletion and unmount cancel in-flight polls without surfacing cancellation', async () => {
 	const deleting = deferredRequest<NormalizedIndexBase>();
-	mock.api.getCorpusStatus.mockReturnValueOnce(deleting.request);
+	api.blacklabApi.getCorpusStatus.mockReturnValueOnce(deleting.request);
 	const wrapper = await mountPage();
 	await startUploadPoll(wrapper);
 	await confirmCorpusDeletion(wrapper);
@@ -183,7 +173,7 @@ test('deletion and unmount cancel in-flight polls without surfacing cancellation
 	wrapper.unmount();
 
 	const unmounting = deferredRequest<NormalizedIndexBase>();
-	mock.api.getCorpusStatus.mockReturnValueOnce(unmounting.request);
+	api.blacklabApi.getCorpusStatus.mockReturnValueOnce(unmounting.request);
 	const nextWrapper = await mountPage();
 	await startUploadPoll(nextWrapper);
 	nextWrapper.unmount();
@@ -194,8 +184,8 @@ test('deletion and unmount cancel in-flight polls without surfacing cancellation
 test('keeps a newer cross-table confirmation when an earlier deletion settles and gives its error precedence', async () => {
 	const corpusDeletion = deferredRequest<BLResponse>();
 	const formatDeletion = deferredRequest<BLResponse>();
-	mock.api.deleteCorpus.mockReturnValueOnce(corpusDeletion.request);
-	mock.api.deleteFormat.mockReturnValueOnce(formatDeletion.request);
+	api.blacklabApi.deleteCorpus.mockReturnValueOnce(corpusDeletion.request);
+	api.blacklabApi.deleteFormat.mockReturnValueOnce(formatDeletion.request);
 	const wrapper = await mountPage();
 
 	privateTable(wrapper).vm.$emit('delete', 'alice:corpus');
@@ -209,7 +199,7 @@ test('keeps a newer cross-table confirmation when an earlier deletion settles an
 	await flushPromises();
 	expect(wrapper.text()).toContain('Corpus deleted first');
 	wrapper.getComponent(Modal).vm.$emit('confirm');
-	expect(mock.api.deleteFormat).toHaveBeenCalledWith('alice:tei');
+	expect(api.blacklabApi.deleteFormat).toHaveBeenCalledWith('alice:tei');
 
 	formatDeletion.reject(new Error('format failure'));
 	await flushPromises();
@@ -219,23 +209,23 @@ test('keeps a newer cross-table confirmation when an earlier deletion settles an
 });
 
 test('unmount clears a scheduled poll', async () => {
-	mock.api.getCorpusStatus.mockReturnValue(resolvedRequest(corpus({ status: 'indexing' })));
+	api.blacklabApi.getCorpusStatus.mockReturnValue(resolvedRequest(corpus({ status: 'indexing' })));
 	const wrapper = await mountPage([corpus({ status: 'indexing' })]);
 	await flushPromises();
 
 	wrapper.unmount();
 	await vi.runOnlyPendingTimersAsync();
-	expect(mock.api.getCorpusStatus).toHaveBeenCalledTimes(1);
+	expect(api.blacklabApi.getCorpusStatus).toHaveBeenCalledTimes(1);
 });
 
 test('settles sorted corpus partitions before independently loading sorted formats', async () => {
 	const serverRequest = deferredRequest<NormalizedBlacklabServer>();
 	const formatsRequest = deferredRequest<NormalizedFormat[]>();
-	mock.api.getServerInfo.mockReturnValue(serverRequest.request);
-	mock.api.getFormats.mockReturnValue(formatsRequest.request);
+	api.blacklabApi.getServerInfo.mockReturnValue(serverRequest.request);
+	api.blacklabApi.getFormats.mockReturnValue(formatsRequest.request);
 	const wrapper = mountCorporaPage();
 
-	expect(mock.api.getFormats).not.toHaveBeenCalled();
+	expect(api.blacklabApi.getFormats).not.toHaveBeenCalled();
 	serverRequest.resolve(
 		server([
 			corpus({ id: 'alice:z', displayName: 'Zulu' }),
@@ -246,7 +236,7 @@ test('settles sorted corpus partitions before independently loading sorted forma
 	);
 	await flushPromises();
 
-	expect(mock.api.getFormats).toHaveBeenCalledOnce();
+	expect(api.blacklabApi.getFormats).toHaveBeenCalledOnce();
 	const tables = wrapper.findAllComponents(CorpusTable);
 	expect(tables[0].props('corpora').map((value: NormalizedIndexBase) => value.displayName)).toEqual(['Public A', 'Public Z']);
 	expect(tables[1].props('corpora').map((value: NormalizedIndexBase) => value.displayName)).toEqual(['Alpha', 'Zulu']);
@@ -267,8 +257,8 @@ test('settles sorted corpus partitions before independently loading sorted forma
 
 test('shows a loading status during an in-app visit to the corpora page', async () => {
 	const serverRequest = deferredRequest<NormalizedBlacklabServer>();
-	mock.api.getServerInfo.mockReturnValue(serverRequest.request);
-	mock.api.getFormats.mockReturnValue(resolvedRequest([]));
+	api.blacklabApi.getServerInfo.mockReturnValue(serverRequest.request);
+	api.blacklabApi.getFormats.mockReturnValue(resolvedRequest([]));
 	const pageBootstrap = createPageBootstrapContext();
 	const wrapper = mountCorporaPage(pageBootstrap);
 
@@ -285,7 +275,7 @@ test('shows a loading status during an in-app visit to the corpora page', async 
 
 test('shows a server error after its initial request finishes', async () => {
 	const serverRequest = deferredRequest<NormalizedBlacklabServer>();
-	mock.api.getServerInfo.mockReturnValue(serverRequest.request);
+	api.blacklabApi.getServerInfo.mockReturnValue(serverRequest.request);
 	const pageBootstrap = createPageBootstrapContext();
 	const wrapper = mountCorporaPage(pageBootstrap);
 
@@ -306,8 +296,8 @@ test('keeps the latest table refreshes loading and cancels active reads on unmou
 	const currentFormats = deferredRequest<NormalizedFormat[]>(false);
 	const unmountedFormats = deferredRequest<NormalizedFormat[]>(false);
 	const wrapper = await mountPage();
-	mock.api.getCorpora.mockReturnValueOnce(staleCorpora.request).mockReturnValueOnce(currentCorpora.request).mockReturnValueOnce(unmountedCorpora.request);
-	mock.api.getFormats.mockReturnValueOnce(staleFormats.request).mockReturnValueOnce(currentFormats.request).mockReturnValueOnce(unmountedFormats.request);
+	api.blacklabApi.getCorpora.mockReturnValueOnce(staleCorpora.request).mockReturnValueOnce(currentCorpora.request).mockReturnValueOnce(unmountedCorpora.request);
+	api.blacklabApi.getFormats.mockReturnValueOnce(staleFormats.request).mockReturnValueOnce(currentFormats.request).mockReturnValueOnce(unmountedFormats.request);
 
 	privateTable(wrapper).vm.$emit('create');
 	await wrapper.vm.$nextTick();

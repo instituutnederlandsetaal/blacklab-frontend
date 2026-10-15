@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
-import { afterEach, expect, test, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { expect, test, vi } from 'vitest';
 
 import Autocomplete from '@/shared/ui/Autocomplete.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
-
-enableAutoUnmount(afterEach);
 
 function deferred() {
 	let resolve!: (value: string[]) => void;

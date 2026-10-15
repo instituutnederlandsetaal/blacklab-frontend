@@ -1,159 +1,173 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { shallowMount } from '@vue/test-utils';
-import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
-import type { BLSearchResult } from '@/types/blacklabtypes';
+import type { BLDocResults, BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
+
+import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 
 import ResultTotals from '@/pages/search/results/ResultTotals.vue';
 
-const mock = vi.hoisted(() => ({
-	api: {},
-	loaders: [] as Array<{
-		api: unknown;
-		continueCounting: ReturnType<typeof vi.fn>;
-		dispose: ReturnType<typeof vi.fn>;
-		input: unknown;
-		fail: () => void;
-		publish: (value: TotalsOutput) => void;
-	}>,
-}));
-
-vi.mock('@/shared/api', () => ({
-	useBlackLabApi: () => mock.api,
-}));
-
-vi.mock('@/api/async/logic/result-count/result-count-from-query', () => ({
-	createIterativeResultCountLoader: (input: unknown, api: unknown) => {
-		const current = ref<TotalsOutput | undefined>(totalsOutput((input as { results: BLSearchResult }).results));
-		const failed = ref(false);
-		const loader = {
-			input,
-			api,
-			continueCounting: vi.fn(),
-			dispose: vi.fn(),
-			isError: () => failed.value,
-			isLoaded: () => current.value != null && !failed.value,
-			get value() {
-				return current.value;
-			},
-			get error() {
-				return failed.value ? { message: 'error' } : undefined;
-			},
-			publish(value: TotalsOutput) {
-				failed.value = false;
-				current.value = value;
-			},
-			fail() {
-				current.value = undefined;
-				failed.value = true;
-			},
-		};
-		mock.loaders.push(loader);
-		return loader;
-	},
-}));
-
-function totalsOutput(results: BLSearchResult): TotalsOutput {
+function result(count = 1, status: 'working' | 'finished' = 'working'): BLHitResults {
+	const stats = { documents: count, hits: count, status, stoppedBecauseTooMany: false, timeMs: 1 };
 	return {
-		results,
-		docsRetrieved: 1,
-		docsCounted: 1,
-		hitsRetrieved: 1,
-		hitsCounted: 1,
-		searchTime: 1,
-		tokensInMatchingDocuments: 1,
-		numberOfMatchingDocuments: 1,
-		state: 'counting',
+		hits: [],
+		docInfos: {},
+		summary: {
+			params: { number: 0, patt: '[]' },
+			results: {
+				window: { actualSize: 0, firstResult: 0, hasNext: false, hasPrevious: false, requestedSize: 0 },
+				stats: {
+					counted: stats,
+					processed: stats,
+					largestGroupSize: undefined,
+					numberOfGroups: undefined,
+					subcorpusSize: {
+						documents: 10,
+						tokens: 100,
+						annotatedFields: [{ fieldName: 'parallel', documents: 10, tokens: 200 }],
+					},
+				},
+				sample: { percentage: undefined, sample: undefined, seed: undefined },
+			},
+		},
 	};
 }
 
+function pendingRequest<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (error: ApiError) => void;
+	const promise = new Promise<T>((res, rej) => {
+		resolve = res;
+		reject = rej;
+	});
+	const cancel = vi.fn();
+	return { cancel, reject, request: new CancelableRequest(promise, cancel), resolve };
+}
+
+let api: ReturnType<typeof createMockApi>;
+let hitRequests: ReturnType<typeof pendingRequest<BLHitResults>>[];
+let docRequests: ReturnType<typeof pendingRequest<BLDocResults>>[];
+
 beforeEach(() => {
-	vi.clearAllMocks();
-	mock.loaders.length = 0;
+	vi.useFakeTimers();
+	api = createMockApi();
+	hitRequests = [];
+	docRequests = [];
+	api.blacklabApi.getHits.mockImplementation(() => {
+		const pending = pendingRequest<BLHitResults>();
+		hitRequests.push(pending);
+		return pending.request;
+	});
+	api.blacklabApi.getDocs.mockImplementation(() => {
+		const pending = pendingRequest<BLDocResults>();
+		docRequests.push(pending);
+		return pending.request;
+	});
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe('ResultTotals', () => {
-	test('disposes replaced and unmounted result loaders', async () => {
-		const initialResults = {} as BLSearchResult;
+	test('cancels replaced and unmounted counts and uses the current request and field', async () => {
 		const initialRequest: ExecutedSearchRequest = { operation: 'hits', params: { number: 20, patt: '[]' } };
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', executedRequest: initialRequest, indexId: 'first', initialResults },
+			global: { plugins: [api] },
+			props: { annotatedFieldId: 'contents', executedRequest: initialRequest, indexId: 'first', initialResults: result() },
 		});
-		let current = mock.loaders[0];
-		let expectedLoaderCount = 1;
+		expect(wrapper.get('.totals-text').attributes('title')).toContain('100');
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(api.blacklabApi.getHits).toHaveBeenLastCalledWith('first', { first: 0, number: 0, patt: '[]' });
 
-		expect(current.input).toEqual({ annotatedFieldId: 'contents', indexId: 'first', request: initialRequest, results: initialResults });
-		expect(current.api).toBe(mock.api);
-		expect(current.dispose).not.toHaveBeenCalled();
+		await wrapper.setProps({ annotatedFieldId: 'parallel' });
+		expect(hitRequests[0].cancel).toHaveBeenCalledOnce();
+		expect(wrapper.get('.totals-text').attributes('title')).toContain('200');
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(hitRequests).toHaveLength(2);
 
-		async function replaceLoader(props: Parameters<typeof wrapper.setProps>[0]) {
-			const outgoing = current;
-			await wrapper.setProps(props);
-			current = mock.loaders.at(-1)!;
+		await wrapper.setProps({ indexId: 'second' });
+		expect(hitRequests[1].cancel).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(api.blacklabApi.getHits).toHaveBeenLastCalledWith('second', { first: 0, number: 0, patt: '[]' });
 
-			expect(mock.loaders).toHaveLength(++expectedLoaderCount);
-			expect(outgoing.dispose).toHaveBeenCalledOnce();
-			expect(current.dispose).not.toHaveBeenCalled();
-		}
+		await wrapper.setProps({ executedRequest: { operation: 'hits', params: { number: 20, patt: '[word="water"]' } } });
+		expect(hitRequests[2].cancel).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(api.blacklabApi.getHits).toHaveBeenLastCalledWith('second', { first: 0, number: 0, patt: '[word="water"]' });
 
-		await replaceLoader({ annotatedFieldId: 'parallel' });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'first', request: initialRequest, results: initialResults });
+		await wrapper.setProps({ initialResults: result(2) });
+		expect(hitRequests[3].cancel).toHaveBeenCalledOnce();
+		expect(wrapper.get('.totals-count').text()).toContain('2');
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(hitRequests).toHaveLength(5);
 
-		await replaceLoader({ indexId: 'second' });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: initialRequest, results: initialResults });
-
-		const nextResults = {} as BLSearchResult;
-		await replaceLoader({ initialResults: nextResults });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: initialRequest, results: nextResults });
-
-		const docsRequest: ExecutedSearchRequest = { operation: 'docs', params: { number: 20 } };
-		await replaceLoader({ executedRequest: docsRequest });
-		expect(current.input).toEqual({ annotatedFieldId: 'parallel', indexId: 'second', request: docsRequest, results: nextResults });
+		await wrapper.setProps({ executedRequest: { operation: 'docs', params: { number: 20, filter: 'year:2020' } }, initialResults: { docs: [], summary: result(2).summary } });
+		expect(hitRequests[4].cancel).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(api.blacklabApi.getDocs).toHaveBeenCalledExactlyOnceWith('second', { first: 0, number: 0, filter: 'year:2020' });
+		expect(docRequests[0].cancel).not.toHaveBeenCalled();
 
 		wrapper.unmount();
-		expect(current.dispose).toHaveBeenCalledOnce();
-		for (const replaced of mock.loaders.slice(0, -1)) expect(replaced.dispose).toHaveBeenCalledOnce();
+		expect(docRequests[0].cancel).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(20000);
+		expect(hitRequests).toHaveLength(5);
+		expect(docRequests).toHaveLength(1);
 	});
 
-	test('emits later loaded results but not initial, errored, or stale loader values', async () => {
-		const initialResults = {} as BLSearchResult;
+	test('emits counted results but not initial, errored, or stale responses', async () => {
 		const wrapper = shallowMount(ResultTotals, {
-			props: { annotatedFieldId: 'contents', executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } }, indexId: 'first', initialResults },
+			global: { plugins: [api] },
+			props: { annotatedFieldId: 'contents', executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } }, indexId: 'first', initialResults: result() },
 		});
-		const initialLoader = mock.loaders[0];
 		expect(wrapper.emitted('update')).toBeUndefined();
 
-		const firstPoll = {} as BLSearchResult;
-		initialLoader.publish(totalsOutput(firstPoll));
-		await nextTick();
-		const secondPoll = {} as BLSearchResult;
-		initialLoader.publish(totalsOutput(secondPoll));
-		await nextTick();
+		const firstPoll = result(2);
+		await vi.advanceTimersByTimeAsync(1000);
+		hitRequests[0].resolve(firstPoll);
+		await vi.advanceTimersByTimeAsync(0);
+		const secondPoll = result(3);
+		await vi.advanceTimersByTimeAsync(1000);
+		hitRequests[1].resolve(secondPoll);
+		await vi.advanceTimersByTimeAsync(0);
 		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll]]);
 
-		initialLoader.fail();
-		await nextTick();
+		await vi.advanceTimersByTimeAsync(1000);
+		hitRequests[2].reject(new ApiError('Failed', 'Could not count', 'Server error', 500));
+		await vi.advanceTimersByTimeAsync(0);
 		expect(wrapper.emitted('update')).toHaveLength(2);
 
-		const replacementResults = {} as BLSearchResult;
-		await wrapper.setProps({ initialResults: replacementResults });
-		expect(wrapper.emitted('update')).toHaveLength(2);
-		initialLoader.publish(totalsOutput({} as BLSearchResult));
-		await nextTick();
+		await wrapper.setProps({ initialResults: result(4) });
+		await vi.advanceTimersByTimeAsync(1000);
+		await wrapper.setProps({ initialResults: result(5) });
+		expect(hitRequests[3].cancel).toHaveBeenCalledOnce();
+		hitRequests[3].resolve(result(6));
+		await vi.advanceTimersByTimeAsync(0);
 		expect(wrapper.emitted('update')).toHaveLength(2);
 
-		const replacementPoll = {} as BLSearchResult;
-		mock.loaders.at(-1)!.publish(totalsOutput(replacementPoll));
-		await nextTick();
+		const replacementPoll = result(7, 'finished');
+		await vi.advanceTimersByTimeAsync(1000);
+		hitRequests[4].resolve(replacementPoll);
+		await vi.advanceTimersByTimeAsync(0);
 		expect(wrapper.emitted('update')).toEqual([[firstPoll], [secondPoll], [replacementPoll]]);
 	});
 
-	test('uses co-occurrence semantics and omits the token-space percentage for collocation requests', async () => {
+	test('uses co-occurrence semantics and omits the token-space percentage for collocation requests', () => {
+		const summary = result(23, 'finished').summary;
+		const initialResults: BLHitGroupResults = {
+			hitGroups: [],
+			summary: {
+				...summary,
+				results: {
+					...summary.results,
+					stats: { ...summary.results.stats, counted: { ...summary.results.stats.counted, documents: 47 }, numberOfGroups: 7, largestGroupSize: 10 },
+				},
+			},
+		};
 		const wrapper = shallowMount(ResultTotals, {
+			global: { plugins: [api] },
 			props: {
 				annotatedFieldId: 'contents',
 				executedRequest: {
@@ -161,12 +175,9 @@ describe('ResultTotals', () => {
 					params: { number: 20, patt: '[]', colltype: 'proximity', context: 5, annotation: 'word', sensitive: false, scorertype: 'coll-dice' },
 				},
 				indexId: 'first',
-				initialResults: {} as BLSearchResult,
+				initialResults,
 			},
 		});
-		mock.loaders[0].publish({ ...totalsOutput({} as BLSearchResult), groups: 7, hitsCounted: 23, docsCounted: 47, tokensInMatchingDocuments: 230, numberOfMatchingDocuments: 470, state: 'finished' });
-		await nextTick();
-
 		expect(wrapper.text()).toContain('collocations.results.cooccurrences');
 		expect(wrapper.text()).toContain('collocations.results.totalCollocates');
 		expect(wrapper.get('.totals-text').attributes('title')).toBeUndefined();
@@ -175,30 +186,34 @@ describe('ResultTotals', () => {
 		expect(wrapper.text()).not.toContain('47');
 	});
 
-	test('activates the retry and paused continue buttons once each', async () => {
+	test('retries failed counts and resumes paused counts through the buttons', async () => {
 		const wrapper = shallowMount(ResultTotals, {
+			global: { plugins: [api] },
 			props: {
 				annotatedFieldId: 'contents',
 				executedRequest: { operation: 'hits', params: { number: 20, patt: '[]' } },
 				indexId: 'first',
-				initialResults: {} as BLSearchResult,
+				initialResults: result(),
 			},
 		});
-		const loader = mock.loaders[0];
-
-		loader.fail();
-		await nextTick();
+		await vi.advanceTimersByTimeAsync(1000);
+		hitRequests[0].reject(new ApiError('Failed', 'Could not count', 'Server error', 500));
+		await vi.advanceTimersByTimeAsync(0);
 		const retryButton = wrapper.get('button.totals-message.totals-button');
 		expect(retryButton.attributes('type')).toBe('button');
 		expect(retryButton.text()).toContain('results.resultsTotals.networkError');
 		expect(retryButton.text()).toContain('results.resultsTotals.retry');
 		await retryButton.trigger('click');
-		expect(loader.continueCounting).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(hitRequests).toHaveLength(2);
 
-		loader.publish({ ...totalsOutput({} as BLSearchResult), state: 'paused' });
-		await nextTick();
-		loader.continueCounting.mockClear();
-		await wrapper.get('.totals-button').trigger('click');
-		expect(loader.continueCounting).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(14000);
+		expect(hitRequests[1].cancel).toHaveBeenCalledOnce();
+		const continueButton = wrapper.get('.totals-button');
+		expect(continueButton.attributes('type')).toBe('button');
+		expect(continueButton.text()).toContain('results.resultsTotals.continue');
+		await continueButton.trigger('click');
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(hitRequests).toHaveLength(3);
 	});
 });

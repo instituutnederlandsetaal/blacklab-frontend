@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
 import { flushPromises, mount, RouterLinkStub, shallowMount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { defineComponent, ref, type Ref } from 'vue';
+import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
-import type { NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
+import type { Corpus, NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 
@@ -15,14 +17,8 @@ import CorpusPicker from '@/pages/config/CorpusPicker.vue';
 import Interface from '@/pages/config/Interface.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-const mock = vi.hoisted(() => ({
-	corpus: undefined as unknown as Ref<NormalizedIndex>,
-	getCorpora: vi.fn(),
-	getCorpus: vi.fn(),
-}));
-
-vi.mock('@/app/state/useCorpusContext', () => ({ useCorpus: () => mock.corpus }));
-vi.mock('@/shared/api/index.ts', () => ({ useBlackLabApi: () => ({ getCorpora: mock.getCorpora, getCorpus: mock.getCorpus }) }));
+let api: ReturnType<typeof createMockApi>;
+let corpusContext: ReturnType<typeof createMockCorpusContext>;
 
 function createDeferredRequest<T>() {
 	let resolve!: (value: T) => void;
@@ -44,21 +40,20 @@ function createDeferredRequest<T>() {
 
 function mountCorpusPicker() {
 	return mount(CorpusPicker, {
-		global: { mocks: { $t: (key: string) => key }, stubs: { RouterLink: RouterLinkStub } },
+		global: { plugins: [api, corpusContext], mocks: { $t: (key: string) => key }, stubs: { RouterLink: RouterLinkStub } },
 	});
 }
 
 beforeEach(() => {
-	mock.getCorpora.mockReset();
-	mock.getCorpus.mockReset();
-	mock.corpus = ref({ id: 'multi' } as NormalizedIndex);
+	api = createMockApi();
+	corpusContext = createMockCorpusContext({ corpus: { id: 'multi' } as Corpus });
 });
 
 describe('CorpusPicker', () => {
 	test('retries after an error and preserves API order in corpus links', async () => {
 		const first = createDeferredRequest<NormalizedIndexBase[]>();
 		const second = createDeferredRequest<NormalizedIndexBase[]>();
-		mock.getCorpora.mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
+		api.blacklabApi.getCorpora.mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
 		const wrapper = mountCorpusPicker();
 
 		expect(wrapper.text()).toContain('remoteIndex.loadingCorpora');
@@ -76,12 +71,12 @@ describe('CorpusPicker', () => {
 			{ name: 'tagset builder', params: { corpus: 'zeta' } },
 			{ name: 'tagset builder', params: { corpus: 'alpha' } },
 		]);
-		expect(mock.getCorpora).toHaveBeenCalledTimes(2);
+		expect(api.blacklabApi.getCorpora).toHaveBeenCalledTimes(2);
 	});
 
 	test('cancels its pending request on unmount', async () => {
 		const deferred = createDeferredRequest<NormalizedIndexBase[]>();
-		mock.getCorpora.mockReturnValue(deferred.request);
+		api.blacklabApi.getCorpora.mockReturnValue(deferred.request);
 		const wrapper = mountCorpusPicker();
 
 		wrapper.unmount();
@@ -113,7 +108,7 @@ describe('CorpusConfig', () => {
 		await router.push('/multi/configwizard/interface');
 		await router.isReady();
 		const pageBootstrap = createPageBootstrapContext();
-		const wrapper = mount(defineComponent({ template: '<router-view />' }), { global: { plugins: [router, pageBootstrap] } });
+		const wrapper = mount(defineComponent({ template: '<router-view />' }), { global: { plugins: [api, corpusContext, router, pageBootstrap] } });
 
 		expect(wrapper.get('[data-testid="child"]').text()).toBe('multi');
 		expect(
@@ -123,7 +118,7 @@ describe('CorpusConfig', () => {
 				?.text(),
 		).toBe('interface');
 		expect(wrapper.findAll('a').map(link => link.attributes('href'))).toEqual(['/multi/configwizard/pos', '/multi/configwizard/interface']);
-		expect(mock.getCorpus).not.toHaveBeenCalled();
+		expect(api.blacklabApi.getCorpus).not.toHaveBeenCalled();
 		expect(pageBootstrap.contentReady.value).toBe(true);
 	});
 });

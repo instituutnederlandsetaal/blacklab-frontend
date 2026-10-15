@@ -33,8 +33,23 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 		{
 			extends: true,
 			test: {
-				name: 'unit',
+				name: 'unit-shared',
+				pool: 'vmThreads',
+				// These suites clean up their fixtures and can share modules and DOM when batched.
+				isolate: false,
 				include: ['test/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+				exclude: ['test/isolated/**'],
+				setupFiles: ['./test/setup.ts'],
+			},
+		},
+		{
+			extends: true,
+			test: {
+				name: 'unit-isolated',
+				// VM pools ignore isolate and can batch module mocks into the same context.
+				pool: 'threads',
+				isolate: true,
+				include: ['test/isolated/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
 				setupFiles: ['./test/setup.ts'],
 			},
 		},
@@ -133,6 +148,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 			},
 		},
 		test: {
+			vmMemoryLimit: '256MB',
 			coverage: {
 				provider: 'v8', // or 'istanbul'
 				exclude: ['**/*.stories.*', '**/.storybook/**', '**/*.json', '**/*.json?*'],

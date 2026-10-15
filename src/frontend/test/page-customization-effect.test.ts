@@ -1,23 +1,13 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { effectScope, nextTick, reactive, ref } from 'vue';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { describe, expect, test, vi } from 'vitest';
+import { computed, createApp, effectScope, nextTick, ref } from 'vue';
 
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import { installIndexIdGlobal } from '@/interop/window-globals';
+import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
+import { provideCorpusId } from '@/navigation/page-context';
 import type { CFPageConfig } from '@/types/apptypes';
-
-const mocks = vi.hoisted(() => ({
-	context: undefined as unknown,
-	indexId: undefined as unknown,
-	pageBootstrap: undefined as unknown as { page: ReturnType<typeof ref<{ name: string }>>; scriptsReady: ReturnType<typeof ref<boolean>> },
-}));
-
-vi.mock('@/app/state/useCorpusContext', () => ({ useCorpusContextLoader: () => mocks.context }));
-vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => mocks.pageBootstrap }));
-vi.mock('@/navigation/router', () => ({ useCorpusId: () => mocks.indexId }));
-vi.mock('@/interop/window-globals', () => ({ installIndexIdGlobal: vi.fn() }));
-vi.mock('@vueuse/core', () => ({ useFavicon: vi.fn(), useTitle: vi.fn() }));
 
 const config = (src: string): CFPageConfig =>
 	({
@@ -37,43 +27,44 @@ const config = (src: string): CFPageConfig =>
 	}) satisfies CFPageConfig;
 
 describe('page customization effect', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-		document.body.replaceChildren();
-		document.head.querySelectorAll('[data-page-customization-css]').forEach(element => element.remove());
-	});
-
 	test('waits through a route transition and inserts the latest scripts once after settlement', async () => {
+		const savedIndexId = Object.getOwnPropertyDescriptor(window, 'INDEX_ID');
+		const savedTitle = document.title;
+		const hadTitle = document.head.querySelector('title') !== null;
+		const favicons = new Map(Array.from(document.head.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]'), link => [link, link.getAttribute('href')]));
 		const contextValue = ref({ config: config('initial') });
-		mocks.context = reactive({
-			get value() {
-				return contextValue.value;
-			},
-			isLoaded: () => true,
-		});
-		mocks.indexId = ref('owner:corpus');
-		mocks.pageBootstrap = { page: ref({ name: 'search' }), scriptsReady: ref(true) };
+		const context = createMockCorpusContext({ config: computed(() => contextValue.value.config) });
+		const pageBootstrap = createPageBootstrapContext();
+		pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
+		pageBootstrap.markScriptsReady();
+		const app = createApp({}).use(context).use(pageBootstrap);
+		provideCorpusId(app, ref('owner:corpus'));
 		const scope = effectScope();
-		const appendChild = vi.spyOn(document.body, 'appendChild');
-		scope.run(startCustomizationInterop);
+		const nativeAppendChild = document.body.appendChild.bind(document.body);
+		const appendChild = vi.spyOn(document.body, 'appendChild').mockImplementation(<T extends Node>(node: T): T => {
+			expect((window as Window & { INDEX_ID?: string }).INDEX_ID).toBe('owner:corpus');
+			return nativeAppendChild(node);
+		});
 
 		try {
-			expect(vi.mocked(installIndexIdGlobal).mock.invocationCallOrder[0]).toBeLessThan(appendChild.mock.invocationCallOrder[0]);
+			(window as Window & { INDEX_ID?: string }).INDEX_ID = 'previous-corpus';
+			app.runWithContext(() => scope.run(startCustomizationInterop));
 			expect(Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'), script => script.getAttribute('src'))).toEqual([
 				'/search-initial.js',
 				'/global-initial.js',
 			]);
 
-			mocks.pageBootstrap.scriptsReady.value = false;
-			mocks.pageBootstrap.page.value = { name: 'article' };
+			pageBootstrap.changePage({ name: 'article', customScriptTiming: 'after-page-bootstrap' }, false);
 			contextValue.value = { config: config('latest') };
 			await nextTick();
+			expect(pageBootstrap.scriptsReady.value).toBe(false);
 			expect(document.body.querySelectorAll('script[data-page-customization-js]')).toHaveLength(0);
 			expect(document.head.querySelector('link[data-page-customization-css]')?.getAttribute('href')).toBe('/style-latest.css');
 
-			mocks.pageBootstrap.scriptsReady.value = true;
+			pageBootstrap.markScriptsReady();
 			await nextTick();
 
+			expect(pageBootstrap.scriptsReady.value).toBe(true);
 			expect(appendChild).toHaveBeenCalledTimes(4);
 			const scripts = Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'));
 			expect(scripts.map(script => script.getAttribute('src'))).toEqual(['/article-latest.js', '/global-latest.js']);
@@ -81,6 +72,18 @@ describe('page customization effect', () => {
 		} finally {
 			appendChild.mockRestore();
 			scope.stop();
+			document.title = savedTitle;
+			if (!hadTitle) document.head.querySelector('title')?.remove();
+			document.head.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]').forEach(link => {
+				if (!favicons.has(link)) link.remove();
+				else {
+					const href = favicons.get(link);
+					if (href == null) link.removeAttribute('href');
+					else link.setAttribute('href', href);
+				}
+			});
+			if (savedIndexId) Object.defineProperty(window, 'INDEX_ID', savedIndexId);
+			else delete (window as Window & { INDEX_ID?: string }).INDEX_ID;
 		}
 	});
 });

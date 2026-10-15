@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { DOMWrapper, enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { DOMWrapper, mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 import { defineComponent, h, nextTick, type PropType } from 'vue';
 
 import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreFieldState, scalar, type NamedFieldDefinition } from '@/features/form';
@@ -17,8 +17,6 @@ import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-
-enableAutoUnmount(afterEach);
 
 type ChildControllerConfig = {
 	annotationId: string;
@@ -231,27 +229,26 @@ describe('token sequence composite field', () => {
 	});
 
 	describe('layout', () => {
-		test('lays out only the length control horizontally', () => {
+		test('configures a bounded horizontal length control and simple token editors', () => {
 			const { runtime } = createFixture({ size: 'large', layout: 'horizontal', controls: 'simple' });
 			const wrapper = mount(FormSystem, {
 				props: { runtime },
 			});
 
 			const length = wrapper.findComponent(NumberField);
-			expect(length.find('.blf-field-horizontal').exists()).toBe(true);
-			expect(length.get('input[type="number"]').classes()).toContain('input-lg');
+			expect(length.props()).toMatchObject({ min: 1, max: 5, step: 1, layout: 'horizontal', size: 'large' });
 			expect(wrapper.get('.blf-token-sequence-field').classes()).not.toContain('blf-field-horizontal');
 
 			const selectors = wrapper.findAllComponents(SelectField);
 			expect(selectors).toHaveLength(2);
-			expect(selectors.every(selector => !selector.classes().includes('blf-field-horizontal'))).toBe(true);
-			expect(selectors.every(selector => selector.get('.menu-button').classes().includes('btn-lg'))).toBe(true);
+			for (const selector of selectors) {
+				expect(selector.props()).toMatchObject({ layout: undefined, size: 'large', showLabel: false });
+			}
 			const editors = wrapper.findAllComponents(TextField);
 			expect(editors).toHaveLength(2);
-			expect(editors.every(editor => editor.get('input[type="text"]').classes().includes('input-lg'))).toBe(true);
-			expect(selectors.every(selector => !selector.find('label').exists())).toBe(true);
-			expect(editors.every(editor => !editor.find('label.control-label').exists())).toBe(true);
-			expect(editors.every(editor => !editor.find('.file-input-button').exists())).toBe(true);
+			for (const editor of editors) {
+				expect(editor.props()).toMatchObject({ layout: undefined, size: 'large', showLabel: false, controls: 'simple' });
+			}
 		});
 	});
 

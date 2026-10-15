@@ -417,9 +417,6 @@ describe('field controller persistence', () => {
 			},
 			config,
 		);
-		expect(encoded).toContain('v=2');
-		expect(encoded).not.toContain('ui-only-root-upload');
-		expect(encoded).not.toContain('ui-only-nested-upload');
 		expect(encoded).toBe(
 			encode(
 				parallelController,
@@ -435,8 +432,6 @@ describe('field controller persistence', () => {
 		const restored = restore(parallelController, encoded!, config) as { childStates: Record<string, CqlQueryBuilderData> };
 		expect(stripQueryBuilderIds(restored.childStates.contents__en)).toEqual(stripQueryBuilderIds(queryBuilderState));
 		expect(stripQueryBuilderIds(restored.childStates.contents__nl)).toEqual(stripQueryBuilderIds(defaultTargetState));
-		expect(containsQueryBuilderUiState(restored.childStates.contents__en.tokens[0].rootAttributeGroup)).toBe(false);
-		expect(containsQueryBuilderUiState(restored.childStates.contents__nl.tokens[0].rootAttributeGroup)).toBe(false);
 	});
 
 	test('date persistence rejects unsupported structured keys', () => {

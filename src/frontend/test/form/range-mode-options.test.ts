@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 import { nextTick, ref } from 'vue';
 
 import { createRangeModeOptions, DateField, RangeField } from '@/features/form';
 
 import { optionLabel, optionTitle } from '@/shared/utils/options';
-
-enableAutoUnmount(afterEach);
 
 describe('range mode options', () => {
 	test('defers labels and titles until they are read', () => {

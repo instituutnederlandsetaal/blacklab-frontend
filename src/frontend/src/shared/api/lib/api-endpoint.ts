@@ -91,7 +91,8 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 				// Or it will be sent in both the request body and the query string causing unpredictable behavior in what is actually returned.
 				if (mappedQueryParameters?.outputformat) {
 					settings.params = settings.params || {};
-					settings.params.outputformat = mappedQueryParameters.outputformat;
+					if (settings.params instanceof URLSearchParams) settings.params.set('outputformat', mappedQueryParameters.outputformat);
+					else settings.params.outputformat = mappedQueryParameters.outputformat;
 				}
 
 				return this.postCancelable<T>(url, queryString, settings);

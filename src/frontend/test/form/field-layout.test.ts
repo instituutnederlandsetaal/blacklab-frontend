@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 
-import { mount, enableAutoUnmount } from '@vue/test-utils';
-import { describe, expect, test, afterEach } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 
 import { RawCqlField, TextField } from '@/features/form';
 
 import NumberField from '@/features/form/fields/generic/NumberField.vue';
-
-enableAutoUnmount(afterEach);
 
 describe('field layout and presentation', () => {
 	test('applies base attributes and sizing consistently', () => {

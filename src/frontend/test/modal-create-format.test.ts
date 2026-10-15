@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { defineComponent } from 'vue';
 
 import type { NormalizedFormat } from '@/types/apptypes';
@@ -13,12 +14,7 @@ import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
 import Modal from '@/shared/ui/Modal.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-const mock = vi.hoisted(() => ({
-	getFormatContent: vi.fn(),
-	postFormat: vi.fn(),
-}));
-
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock }));
+let api: ReturnType<typeof createMockApi>;
 
 const MonacoEditor = defineComponent({
 	name: 'MonacoEditor',
@@ -84,7 +80,7 @@ function mountFormat(options: { format?: NormalizedFormat; onCreate?: () => void
 			onCreate: options.onCreate,
 			onSuccess: options.onSuccess,
 		},
-		global: { stubs: { MonacoEditor } },
+		global: { plugins: [api], stubs: { MonacoEditor } },
 	});
 }
 
@@ -108,18 +104,19 @@ async function dropFile(wrapper: ReturnType<typeof mountFormat>, file?: File) {
 }
 
 beforeEach(() => {
-	vi.clearAllMocks();
-	vi.unstubAllGlobals();
+	api = createMockApi();
 	ControlledFileReader.instances = [];
 	vi.stubGlobal('FileReader', ControlledFileReader);
 });
 
+afterEach(() => vi.unstubAllGlobals());
+
 test('loads an edited format immediately and disables saving while its request is pending', async () => {
 	const pending = deferredRequest<BLFormatContent>();
-	mock.getFormatContent.mockReturnValue(pending.request);
+	api.blacklabApi.getFormatContent.mockReturnValue(pending.request);
 	const wrapper = mountFormat({ format });
 
-	expect(mock.getFormatContent).toHaveBeenCalledWith('owner:preset');
+	expect(api.blacklabApi.getFormatContent).toHaveBeenCalledWith('owner:preset');
 	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
 	expect(loadButton(wrapper).attributes('disabled')).toBeDefined();
 
@@ -134,7 +131,7 @@ test('loads an edited format immediately and disables saving while its request i
 test('editor changes and preset replacement cancel and invalidate stale downloads', async () => {
 	const initial = deferredRequest<BLFormatContent>();
 	const replacement = deferredRequest<BLFormatContent>();
-	mock.getFormatContent.mockReturnValueOnce(initial.request).mockReturnValueOnce(replacement.request);
+	api.blacklabApi.getFormatContent.mockReturnValueOnce(initial.request).mockReturnValueOnce(replacement.request);
 	const wrapper = mountFormat({ format });
 
 	await wrapper.get('[data-testid="editor"]').setValue('local');
@@ -146,7 +143,7 @@ test('editor changes and preset replacement cancel and invalidate stale download
 	presetPicker(wrapper).vm.$emit('update:modelValue', 'owner:replacement');
 	await wrapper.vm.$nextTick();
 	await loadButton(wrapper).trigger('click');
-	expect(mock.getFormatContent).toHaveBeenLastCalledWith('owner:replacement');
+	expect(api.blacklabApi.getFormatContent).toHaveBeenLastCalledWith('owner:replacement');
 	presetPicker(wrapper).vm.$emit('update:modelValue', 'owner:next');
 	expect(replacement.cancel).toHaveBeenCalledOnce();
 	replacement.resolve(content('stale replacement'));
@@ -156,7 +153,7 @@ test('editor changes and preset replacement cancel and invalidate stale download
 
 test('a completed local file read invalidates a pending download and unmount cancels the current one', async () => {
 	const pending = deferredRequest<BLFormatContent>();
-	mock.getFormatContent.mockReturnValue(pending.request);
+	api.blacklabApi.getFormatContent.mockReturnValue(pending.request);
 	const wrapper = mountFormat({ format });
 	const reader = await chooseFile(wrapper, 'local.txt', 'local file');
 	expect(pending.cancel).toHaveBeenCalledOnce();
@@ -167,7 +164,7 @@ test('a completed local file read invalidates a pending download and unmount can
 	expect(wrapper.get('[data-testid="editor"]').attributes('data-filename')).toBe('local.blf.json');
 
 	const unmounting = deferredRequest<BLFormatContent>();
-	mock.getFormatContent.mockReturnValue(unmounting.request);
+	api.blacklabApi.getFormatContent.mockReturnValue(unmounting.request);
 	presetPicker(wrapper).vm.$emit('update:modelValue', 'owner:unmounting');
 	await wrapper.vm.$nextTick();
 	await loadButton(wrapper).trigger('click');
@@ -212,7 +209,7 @@ test('a replacement file owns immediately and stale file events cannot publish o
 
 test('preset selection and editor input abort pending files and reject their late events', async () => {
 	const remote = deferredRequest<BLFormatContent>();
-	mock.getFormatContent.mockReturnValue(remote.request);
+	api.blacklabApi.getFormatContent.mockReturnValue(remote.request);
 	const wrapper = mountFormat();
 	const first = await chooseFile(wrapper, 'first.json');
 
@@ -268,7 +265,7 @@ test('active file errors settle on loadend and unmount aborts without accepting 
 test('only the active download applies success or error and settles the save control', async () => {
 	const success = deferredRequest<BLFormatContent>();
 	const failure = deferredRequest<BLFormatContent>();
-	mock.getFormatContent.mockReturnValueOnce(success.request).mockReturnValueOnce(failure.request);
+	api.blacklabApi.getFormatContent.mockReturnValueOnce(success.request).mockReturnValueOnce(failure.request);
 	const wrapper = mountFormat();
 
 	presetPicker(wrapper).vm.$emit('update:modelValue', 'standalone');
@@ -294,14 +291,14 @@ test('saving emits create then success, clears local state, stays open, and is n
 	const failed = deferredRequest<BLResponse>();
 	const saved = deferredRequest<BLResponse>();
 	const unmounting = deferredRequest<BLResponse>();
-	mock.postFormat.mockReturnValueOnce(failed.request).mockReturnValueOnce(saved.request).mockReturnValueOnce(unmounting.request);
+	api.blacklabApi.postFormat.mockReturnValueOnce(failed.request).mockReturnValueOnce(saved.request).mockReturnValueOnce(unmounting.request);
 	const wrapper = mountFormat({ onCreate: () => events.push('create'), onSuccess: message => events.push(`success:${message}`) });
 	await wrapper.get('#format_name').setValue('custom');
 	await wrapper.get('[data-testid="editor"]').setValue('contents');
 
 	wrapper.getComponent(Modal).vm.$emit('confirm');
 	await wrapper.vm.$nextTick();
-	expect(mock.postFormat).toHaveBeenCalledWith('custom.blf.json', 'contents');
+	expect(api.blacklabApi.postFormat).toHaveBeenCalledWith('custom.blf.json', 'contents');
 	expect(wrapper.getComponent(Modal).props('confirmEnabled')).toBe(false);
 	failed.reject(new ApiError('Error', 'Could not save format', 'Error', 500));
 	await flushPromises();

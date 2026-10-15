@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, expect, test, vi } from 'vitest';
 
@@ -12,8 +13,7 @@ import ModalCreateCorpus from '@/pages/corpora/ModalCreateCorpus.vue';
 import Modal from '@/shared/ui/Modal.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-const mock = vi.hoisted(() => ({ postCorpus: vi.fn() }));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock }));
+let api: ReturnType<typeof createMockApi>;
 
 function deferredRequest<T>() {
 	let resolve!: (value: T) => void;
@@ -39,7 +39,7 @@ const user: BLUser = { canCreateIndex: true, id: 'alice', loggedIn: true };
 const response = { status: { code: 'SUCCESS', message: 'Created' } } as BLResponse;
 
 function mountModal(overrides: Partial<{ publicFormats: NormalizedFormat[]; privateFormats: NormalizedFormat[]; loading: boolean; user: BLUser }> = {}) {
-	return mount(ModalCreateCorpus, { props: { publicFormats, privateFormats, loading: false, user, ...overrides } });
+	return mount(ModalCreateCorpus, { props: { publicFormats, privateFormats, loading: false, user, ...overrides }, global: { plugins: [api] } });
 }
 
 async function enterCorpus(wrapper: ReturnType<typeof mountModal>, name = ' Raw / Corpus ', documentType = 'alice:tei') {
@@ -48,7 +48,9 @@ async function enterCorpus(wrapper: ReturnType<typeof mountModal>, name = ' Raw 
 	await wrapper.vm.$nextTick();
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+	api = createMockApi();
+});
 
 test('preserves document format groups, labels, loading, and public-first selection', async () => {
 	const duplicatePrivate = format('tei', 'Custom duplicate', 'Private duplicate description');
@@ -81,19 +83,19 @@ test('validates name then format locally while keeping confirm available', async
 	modal.vm.$emit('confirm');
 	await wrapper.vm.$nextTick();
 	expect(wrapper.text()).toContain('Please enter a name for the corpus.');
-	expect(mock.postCorpus).not.toHaveBeenCalled();
+	expect(api.blacklabApi.postCorpus).not.toHaveBeenCalled();
 
 	await wrapper.get('#corpus_name').setValue('Corpus');
 	modal.vm.$emit('confirm');
 	await wrapper.vm.$nextTick();
 	expect(wrapper.text()).toContain('Please select a document format.');
-	expect(mock.postCorpus).not.toHaveBeenCalled();
+	expect(api.blacklabApi.postCorpus).not.toHaveBeenCalled();
 });
 
 test('sanitizes only the corpus id and emits create, success, then close', async () => {
 	const create = deferredRequest<BLResponse>();
 	const events: string[] = [];
-	mock.postCorpus.mockReturnValue(create.request);
+	api.blacklabApi.postCorpus.mockReturnValue(create.request);
 	const wrapper = mount(ModalCreateCorpus, {
 		props: {
 			publicFormats,
@@ -104,11 +106,12 @@ test('sanitizes only the corpus id and emits create, success, then close', async
 			onCreate: () => events.push('create'),
 			onSuccess: (message: string) => events.push(`success:${message}`),
 		},
+		global: { plugins: [api] },
 	});
 	await enterCorpus(wrapper);
 	wrapper.getComponent(Modal).vm.$emit('confirm');
 
-	expect(mock.postCorpus).toHaveBeenCalledWith('alice:_Raw_Corpus_', ' Raw / Corpus ', 'alice:tei');
+	expect(api.blacklabApi.postCorpus).toHaveBeenCalledWith('alice:_Raw_Corpus_', ' Raw / Corpus ', 'alice:tei');
 	create.resolve(response);
 	await flushPromises();
 	expect(events).toEqual(['create', 'success:Corpus " Raw / Corpus " created.', 'close']);
@@ -117,7 +120,7 @@ test('sanitizes only the corpus id and emits create, success, then close', async
 test('emits error then close and does not own the request lifetime', async () => {
 	const create = deferredRequest<BLResponse>();
 	const events: string[] = [];
-	mock.postCorpus.mockReturnValue(create.request);
+	api.blacklabApi.postCorpus.mockReturnValue(create.request);
 	const wrapper = mount(ModalCreateCorpus, {
 		props: {
 			publicFormats,
@@ -127,6 +130,7 @@ test('emits error then close and does not own the request lifetime', async () =>
 			onClose: () => events.push('close'),
 			onError: (message: string) => events.push(`error:${message}`),
 		},
+		global: { plugins: [api] },
 	});
 	await enterCorpus(wrapper, 'Corpus');
 	wrapper.getComponent(Modal).vm.$emit('confirm');
@@ -135,7 +139,7 @@ test('emits error then close and does not own the request lifetime', async () =>
 	expect(events).toEqual(['error:Could not create corpus "Corpus": Creation failed', 'close']);
 
 	const pending = deferredRequest<BLResponse>();
-	mock.postCorpus.mockReturnValue(pending.request);
+	api.blacklabApi.postCorpus.mockReturnValue(pending.request);
 	const pendingWrapper = mountModal();
 	await enterCorpus(pendingWrapper, 'Pending');
 	pendingWrapper.getComponent(Modal).vm.$emit('confirm');

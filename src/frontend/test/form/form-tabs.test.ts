@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
 import { FormSystem, annotationTextController, filterTextController } from '@/features/form';
@@ -10,10 +10,15 @@ import { tabId } from '@/features/form/ui/tab-utils';
 import { type FormFixture } from './form-ui-fixtures';
 import { createTestBuilder, createTestRuntime } from './helpers';
 
+import type { Tab } from '@/shared/ui/Tabs.types';
+
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+import Tabs from '@/shared/ui/Tabs.vue';
 
-enableAutoUnmount(afterEach);
+function mountTabbedForm(fixture: FormFixture) {
+	return mount(FormSystem, { props: fixture, global: { stubs: { Tabs: true } } });
+}
 
 function createSharedFieldTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
@@ -39,13 +44,13 @@ function createTabbedFormFixture(): FormFixture {
 	const builder = createTestBuilder();
 	builder
 		.newForm('search.tabbed', ContainerRenderer, {
-			title: 'Tabbed search',
+			title: () => 'Tabbed search',
 			mode: 'tabs',
 		})
 		.addChildren(
 			builder
 				.newContainer('search.tabbed.word', ContainerRenderer, {
-					title: 'Word',
+					title: () => 'Word',
 					combine: 'and',
 				})
 				.addChildren(
@@ -56,7 +61,7 @@ function createTabbedFormFixture(): FormFixture {
 				),
 			builder
 				.newContainer('search.tabbed.lemma', ContainerRenderer, {
-					title: 'Lemma',
+					title: () => 'Lemma',
 					combine: 'and',
 				})
 				.addChildren(
@@ -99,23 +104,6 @@ function createFilterTabsFixture(): FormFixture {
 	};
 }
 
-function createGetterTabsFixture() {
-	const builder = createTestBuilder();
-	const form = builder.newForm('search.form', ContainerRenderer, {
-		title: () => 'Computed form',
-		mode: 'tabs',
-	});
-	form.addChildren(
-		builder.newContainer('search.first', ContainerRenderer, {
-			title: () => 'Computed first',
-		}),
-		builder.newContainer('search.second', ContainerRenderer, {
-			title: () => 'Computed second',
-		}),
-	);
-	return { runtime: createTestRuntime(builder) };
-}
-
 describe('form tab navigation', () => {
 	test('uses compact, unambiguous HTML ids for tabs', () => {
 		expect(tabId('search.extended.annotations', 'search.extended.annotations.Part-of-Speech-features')).toBe('form-tab-search_2eextended_2eannotations--r-Part-of-Speech-features');
@@ -125,65 +113,45 @@ describe('form tab navigation', () => {
 
 	test('reused field nodes share state across tabbed forms', async () => {
 		const fixture = createSharedFieldTabsFixture();
-		const wrapper = mount(FormSystem, {
-			props: fixture,
-		});
+		const wrapper = mountTabbedForm(fixture);
+		const tabs = wrapper.getComponent(Tabs);
 
 		await wrapper.get('input[placeholder="Shared word"]').setValue('water');
 
-		await wrapper.findAll('[role="tab"]')[1].trigger('click');
+		tabs.vm.$emit('update:modelValue', 'search.second');
 		await nextTick();
 
+		expect(tabs.props('modelValue')).toBe('search.second');
 		expect((wrapper.get('input[placeholder="Shared word"]').element as HTMLInputElement).value).toBe('water');
 	});
 
 	test('forms can render direct child containers as tabs without an extra wrapper container', async () => {
 		const fixture = createTabbedFormFixture();
-		const wrapper = mount(FormSystem, {
-			props: fixture,
-		});
+		const wrapper = mountTabbedForm(fixture);
+		const tabs = wrapper.getComponent(Tabs);
 
 		expect(wrapper.find('input[placeholder="Word"]').exists()).toBe(true);
 		expect(wrapper.find('input[placeholder="Lemma"]').exists()).toBe(false);
 
-		await wrapper.findAll('[role="tab"]')[1].trigger('click');
+		tabs.vm.$emit('update:modelValue', 'search.tabbed.lemma');
 		await nextTick();
 
 		expect(wrapper.find('input[placeholder="Word"]').exists()).toBe(false);
 		expect(wrapper.find('input[placeholder="Lemma"]').exists()).toBe(true);
 	});
 
-	test('resolves getter-backed form and tab titles', () => {
-		const { runtime } = createGetterTabsFixture();
-		const wrapper = mount(FormSystem, { props: { runtime } });
-		const tabs = wrapper.findAll('[role="tab"]');
+	test('passes resolved titles and panel IDs to shared Tabs', () => {
+		const wrapper = mountTabbedForm(createTabbedFormFixture());
+		const tabs = wrapper.getComponent(Tabs);
 
-		expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Computed form');
-		expect(tabs[0].text()).toBe('Computed first');
-		expect(tabs[1].text()).toBe('Computed second');
-	});
-
-	test('links tabs and panels with reciprocal ARIA ids', () => {
-		const { runtime } = createGetterTabsFixture();
-		const wrapper = mount(FormSystem, { props: { runtime } });
-		const tabs = wrapper.findAll('[role="tab"]');
-
-		expect(tabs[0].attributes('aria-controls')).toBeTruthy();
-		expect(wrapper.get(`#${tabs[0].attributes('aria-controls')}`).attributes('aria-labelledby')).toBe(tabs[0].attributes('id'));
-	});
-
-	test('ArrowRight moves tab selection and the roving tab stop', async () => {
-		const { runtime } = createGetterTabsFixture();
-		const wrapper = mount(FormSystem, { props: { runtime } });
-		const tabs = wrapper.findAll('[role="tab"]');
-
-		expect(tabs[0].attributes('tabindex')).toBe('0');
-		expect(tabs[1].attributes('tabindex')).toBe('-1');
-
-		await tabs[0].trigger('keydown', { key: 'ArrowRight' });
-		expect(tabs[1].attributes('aria-selected')).toBe('true');
-		expect(tabs[0].attributes('tabindex')).toBe('-1');
-		expect(tabs[1].attributes('tabindex')).toBe('0');
+		expect(tabs.props('ariaLabel')).toBe('Tabbed search');
+		expect(tabs.props('tabs')).toMatchObject([
+			{ value: 'search.tabbed.word', label: 'Word' },
+			{ value: 'search.tabbed.lemma', label: 'Lemma' },
+		]);
+		const [first] = tabs.props('tabs') as Tab[];
+		expect(first.controls).toBeTruthy();
+		expect(wrapper.get('[role="tabpanel"]').attributes()).toMatchObject({ id: first.controls, 'aria-labelledby': first.id });
 	});
 
 	test('tabbed containers hide the active child container title', () => {
@@ -196,9 +164,7 @@ describe('form tab navigation', () => {
 				title: 'Hidden child title',
 			}),
 		);
-		const wrapper = mount(FormSystem, {
-			props: { runtime: createTestRuntime(builder) },
-		});
+		const wrapper = mountTabbedForm({ runtime: createTestRuntime(builder) });
 
 		expect(wrapper.find('.blf-container-title').exists()).toBe(false);
 	});
@@ -209,11 +175,12 @@ describe('form tab navigation', () => {
 			props: fixture,
 		});
 
-		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
+		const tabs = wrapper.getComponent(Tabs);
+		expect(tabs.find('.badge').exists()).toBe(false);
 
 		await wrapper.get('input[type="text"]').setValue('Austen');
 		await nextTick();
 
-		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
+		expect(tabs.get('.badge').text()).toBe('1');
 	});
 });

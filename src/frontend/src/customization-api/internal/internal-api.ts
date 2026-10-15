@@ -255,7 +255,7 @@ function createCustomizationApi(
 	// with live UI-state defaults.
 	const searchFormOverrides = computed(() => collectSearchFormOverrides(registry, toValue(corpus)));
 	const state = () => toValue(uiState);
-	const configuredDefault = (value: string | null, availableValues: readonly string[]) => (value && availableValues.includes(value) ? value : (availableValues[0] ?? null));
+	const configuredDefault = (value: string | null, availableValues: readonly string[]): string | null => (value && availableValues.includes(value) ? value : (availableValues[0] ?? null));
 	const includeWithinElement = (elementName: string) => {
 		try {
 			return searchFormOverrides.value.within.includeElement?.(elementName) ?? true;
@@ -466,6 +466,8 @@ type CustomizationsInjection = {
 };
 
 const [_key, provideCustomizations, useInjectedCustomizations] = useInjectable<CustomizationsInjection>('customizations');
+
+export { provideCustomizations };
 
 export function useCustomizations(): Customizations {
 	const injected = useInjectedCustomizations();

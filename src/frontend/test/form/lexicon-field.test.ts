@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import Axios from 'axios';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
@@ -8,8 +8,6 @@ import { nextTick } from 'vue';
 import { createLexiconLookup, type LexiconLookupResult } from '@/features/form/fields/generic/lexicon-field';
 
 import LexiconField from '@/features/form/fields/generic/LexiconField.vue';
-
-enableAutoUnmount(afterEach);
 
 afterEach(() => {
 	vi.useRealTimers();

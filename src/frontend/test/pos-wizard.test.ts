@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { flushPromises, mount, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
@@ -14,12 +15,7 @@ import POSStep3 from '@/pages/config/POS_3.vue';
 
 type StepState = InstanceType<typeof POSStep3>['$props']['modelValue'];
 
-const api = vi.hoisted(() => ({
-	getHits: vi.fn(),
-	getTermFrequencies: vi.fn(),
-}));
-
-vi.mock('@/shared/api/index.ts', () => ({ useBlackLabApi: () => api }));
+let api: ReturnType<typeof createMockApi>;
 
 const index = {
 	id: 'owner:corpus',
@@ -33,8 +29,7 @@ const index = {
 } as unknown as NormalizedIndex;
 
 beforeEach(() => {
-	api.getHits.mockReset();
-	api.getTermFrequencies.mockReset();
+	api = createMockApi();
 });
 
 afterEach(() => {
@@ -47,7 +42,7 @@ test('discards corrupt persisted wizard state and restores the current corpus', 
 	const storage = { getItem: vi.fn(() => '{broken'), removeItem: vi.fn(), setItem: vi.fn() };
 	vi.stubGlobal('localStorage', storage);
 
-	const wrapper = shallowMount(POS, { props: { index } });
+	const wrapper = shallowMount(POS, { props: { index }, global: { plugins: [api] } });
 
 	expect(storage.removeItem).toHaveBeenCalledWith(key);
 	expect(wrapper.vm.stepstate).toMatchObject({ version: 2, index, annotations: [{ id: 'pos' }] });
@@ -86,14 +81,14 @@ function wizardState(): StepState {
 test('cancels the current sequential value request and suppresses its late result after unmount', async () => {
 	const mainValues = deferredRequest<BLTermOccurances>();
 	const subValues = deferredRequest<BLTermOccurances>();
-	api.getTermFrequencies.mockReturnValueOnce(mainValues.request).mockReturnValueOnce(subValues.request);
+	api.blacklabApi.getTermFrequencies.mockReturnValueOnce(mainValues.request).mockReturnValueOnce(subValues.request);
 	const state = wizardState();
 	const update = vi.fn();
-	const wrapper = mount(POSStep3, { props: { modelValue: state, 'onUpdate:modelValue': update } });
+	const wrapper = mount(POSStep3, { props: { modelValue: state, 'onUpdate:modelValue': update }, global: { plugins: [api] } });
 
 	mainValues.resolve({ termFreq: { N: 1 } } as BLTermOccurances);
 	await flushPromises();
-	expect(api.getTermFrequencies).toHaveBeenCalledTimes(2);
+	expect(api.blacklabApi.getTermFrequencies).toHaveBeenCalledTimes(2);
 	const updatesBeforeUnmount = update.mock.calls.length;
 
 	wrapper.unmount();
@@ -110,17 +105,17 @@ test('settles loading state when a combination request fails', async () => {
 	const mainValues = deferredRequest<BLTermOccurances>();
 	const subValues = deferredRequest<BLTermOccurances>();
 	const combination = deferredRequest<never>();
-	api.getTermFrequencies.mockReturnValueOnce(mainValues.request).mockReturnValueOnce(subValues.request);
-	api.getHits.mockReturnValueOnce(combination.request);
+	api.blacklabApi.getTermFrequencies.mockReturnValueOnce(mainValues.request).mockReturnValueOnce(subValues.request);
+	api.blacklabApi.getHits.mockReturnValueOnce(combination.request);
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 	const state = wizardState();
-	const wrapper = mount(POSStep3, { props: { modelValue: state } });
+	const wrapper = mount(POSStep3, { props: { modelValue: state }, global: { plugins: [api] } });
 
 	mainValues.resolve({ termFreq: { N: 1 } } as BLTermOccurances);
 	await flushPromises();
 	subValues.resolve({ termFreq: { singular: 1 } } as BLTermOccurances);
 	await flushPromises();
-	expect(api.getHits).toHaveBeenCalledOnce();
+	expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
 
 	combination.reject(new Error('request failed'));
 	await flushPromises();

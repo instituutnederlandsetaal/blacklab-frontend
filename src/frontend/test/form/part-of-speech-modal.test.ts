@@ -1,20 +1,12 @@
 // @vitest-environment jsdom
 
+import { createMockCorpusContext } from '@test/mocks/corpus';
 import { mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
-
-const corpus = vi.hoisted(() => ({
-	__v_isRef: true,
-	value: { allAnnotationsMap: {} as Record<string, unknown> },
-}));
-
-vi.mock('@/app/state/useCorpusContext', () => ({
-	useCorpus: () => corpus,
-}));
+import type { Corpus, NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 
@@ -55,9 +47,9 @@ afterEach(() => TagsetStore.init({ tagset: undefined } as CorpusContext));
 
 describe('part-of-speech modal', () => {
 	test('selects, unselects, resets, and submits visible subannotation values', async () => {
-		corpus.value.allAnnotationsMap = { number };
+		const corpusContext = createMockCorpusContext({ corpus: { allAnnotationsMap: { number } } as unknown as Corpus });
 		TagsetStore.init({ tagset } as CorpusContext);
-		const wrapper = mount(PartOfSpeech, { props: { annotation: pos } });
+		const wrapper = mount(PartOfSpeech, { props: { annotation: pos }, global: { plugins: [corpusContext] } });
 
 		await wrapper.findAll('.list-group.main button')[0].trigger('click');
 		expect(wrapper.findAll('.category-value').map(value => value.text())).toEqual(['Singular', 'Plural']);

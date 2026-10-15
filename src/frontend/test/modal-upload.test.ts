@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, expect, test, vi } from 'vitest';
 
@@ -11,8 +12,7 @@ import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import Modal from '@/shared/ui/Modal.vue';
 
-const mock = vi.hoisted(() => ({ postDocuments: vi.fn() }));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock }));
+let api: ReturnType<typeof createMockApi>;
 
 function deferredRequest<T>() {
 	let resolve!: (value: T) => void;
@@ -53,18 +53,20 @@ async function chooseFiles(wrapper: ReturnType<typeof mount<typeof ModalUpload>>
 	await input.trigger('change');
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+	api = createMockApi();
+});
 
 test('requires documents and preserves selected document, metadata, and format data on failure', async () => {
 	const upload = deferredRequest<BLResponse>();
-	mock.postDocuments.mockReturnValue(upload.request);
-	const wrapper = mount(ModalUpload, { props: { corpus: corpus(), formats } });
+	api.blacklabApi.postDocuments.mockReturnValue(upload.request);
+	const wrapper = mount(ModalUpload, { props: { corpus: corpus(), formats }, global: { plugins: [api] } });
 	const modal = wrapper.getComponent(Modal);
 
 	expect(wrapper.text()).toContain('TEI documents');
 	expect(modal.props('confirmEnabled')).toBe(false);
 	modal.vm.$emit('confirm');
-	expect(mock.postDocuments).not.toHaveBeenCalled();
+	expect(api.blacklabApi.postDocuments).not.toHaveBeenCalled();
 
 	const documents = [new File(['one'], 'one.xml'), new File(['two'], 'two.xml')];
 	const metadata = [new File(['meta'], 'metadata.csv')];
@@ -76,7 +78,7 @@ test('requires documents and preserves selected document, metadata, and format d
 
 	modal.vm.$emit('confirm');
 	await wrapper.vm.$nextTick();
-	expect(mock.postDocuments).toHaveBeenCalledWith('alice:corpus', documents, metadata, expect.any(Function));
+	expect(api.blacklabApi.postDocuments).toHaveBeenCalledWith('alice:corpus', documents, metadata, expect.any(Function));
 	expect(modal.props('closeEnabled')).toBe(false);
 	upload.reject(new ApiError('Error', 'Upload failed', 'Error', 500));
 	await flushPromises();
@@ -91,7 +93,7 @@ test('requires documents and preserves selected document, metadata, and format d
 test('emits indexing at upload completion and again before terminal success and close', async () => {
 	const upload = deferredRequest<BLResponse>();
 	const events: string[] = [];
-	mock.postDocuments.mockReturnValue(upload.request);
+	api.blacklabApi.postDocuments.mockReturnValue(upload.request);
 	const initialCorpus = corpus();
 	const wrapper = mount(ModalUpload, {
 		props: {
@@ -101,12 +103,13 @@ test('emits indexing at upload completion and again before terminal success and 
 			onIndexing: (id: string) => events.push(`indexing:${id}`),
 			onSuccess: (message: string) => events.push(`success:${message}`),
 		},
+		global: { plugins: [api] },
 	});
 	await chooseFiles(wrapper, 0, [new File(['one'], 'one.xml')]);
 	const modal = wrapper.getComponent(Modal);
 	modal.vm.$emit('confirm');
 	await wrapper.vm.$nextTick();
-	const progress = mock.postDocuments.mock.calls[0][3] as (value: number) => void;
+	const progress = api.blacklabApi.postDocuments.mock.calls[0][3] as (value: number) => void;
 
 	progress(100);
 	await wrapper.vm.$nextTick();
@@ -125,8 +128,8 @@ test('emits indexing at upload completion and again before terminal success and 
 
 test('does not cancel an upload when closed and unmounted', async () => {
 	const upload = deferredRequest<BLResponse>();
-	mock.postDocuments.mockReturnValue(upload.request);
-	const wrapper = mount(ModalUpload, { props: { corpus: corpus(), formats } });
+	api.blacklabApi.postDocuments.mockReturnValue(upload.request);
+	const wrapper = mount(ModalUpload, { props: { corpus: corpus(), formats }, global: { plugins: [api] } });
 	await chooseFiles(wrapper, 0, [new File(['one'], 'one.xml')]);
 	wrapper.getComponent(Modal).vm.$emit('confirm');
 	wrapper.getComponent(Modal).vm.$emit('close');

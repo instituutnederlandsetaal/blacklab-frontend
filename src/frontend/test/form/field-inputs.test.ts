@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 
-import { DOMWrapper, enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
-
-import { createDefaultCqlQueryBuilderData, type CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
-import { createDefaultCheckboxFieldState } from '@/features/form/fields/generic/checkbox-field';
-import { createDefaultDateFieldState, DateUtils } from '@/features/form/fields/generic/date-field';
-import { createDefaultRadioFieldState } from '@/features/form/fields/generic/radio-field';
 
 import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
 import DateField from '@/features/form/fields/generic/DateField.vue';
@@ -16,12 +11,9 @@ import RadioField from '@/features/form/fields/generic/RadioField.vue';
 import RangeField from '@/features/form/fields/generic/RangeField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
-import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
-
-enableAutoUnmount(afterEach);
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -41,7 +33,6 @@ describe('field input values', () => {
 			props: { ...baseProps, modelValue: ['a'], options, description: 'Choose several' },
 		});
 
-		expect(createDefaultCheckboxFieldState()).toEqual([]);
 		expect(checkbox.get('legend').text()).toBe('Field');
 		expect(checkbox.get('.help-block').text()).toBe('Choose several');
 		expect(checkbox.findAll('label')[0].attributes('title')).toBe('First option');
@@ -52,7 +43,6 @@ describe('field input values', () => {
 		const radio = mount(RadioField, {
 			props: { ...baseProps, modelValue: 'a', options, description: 'Choose one', showLabel: false },
 		});
-		expect(createDefaultRadioFieldState()).toBe('');
 		await radio.findAll('input')[1].trigger('click');
 		(radio.findAll('input')[0].element as HTMLInputElement).checked = false;
 		await radio.findAll('input')[0].trigger('input', { key: ' ' });
@@ -93,19 +83,6 @@ describe('field input values', () => {
 			[{ ...modelValue, endDate: { ...modelValue.endDate, d: 9 } }],
 			[{ ...modelValue, mode: 'permissive' }],
 		]);
-
-		expect(createDefaultDateFieldState()).toEqual({
-			startDate: { y: '', m: '', d: '' },
-			endDate: { y: '', m: '', d: '' },
-			mode: 'strict',
-		});
-		expect(DateUtils.dateValueToString(null, 'start')).toBe('');
-		expect(DateUtils.dateValueToString({ y: 'bad', m: '', d: '' }, 'start')).toBe('');
-		expect(DateUtils.dateValueToString({ y: '24', m: '', d: '' }, 'start')).toBe('00240101');
-		expect(DateUtils.dateValueToString({ y: '2024', m: '02', d: '' }, 'end')).toBe('20240229');
-		expect(DateUtils.dateValueToDisplayString(undefined)).toBe('');
-		expect(DateUtils.normalizeBoundaryDate('not-a-date')).toBeNull();
-		expect(DateUtils.normalizeBoundaryDate({ y: '1', m: '2', d: '3' })).toEqual({ y: '1', m: '2', d: '3' });
 	});
 
 	test('range field supports text and numeric ranges, locked modes, and all edits', async () => {
@@ -134,23 +111,24 @@ describe('field input values', () => {
 		];
 		const single = mount(SelectField, {
 			props: { ...baseProps, modelValue: ['a'], options, description: 'One value' },
+			global: { stubs: { SelectPicker: true } },
 		});
 		expect(single.get('label.control-label').text()).toBe('Field');
 		expect(single.get('.help-block').text()).toBe('One value');
-		expect(single.get('.menu-value').text()).toBe('Alpha');
-		await single.get('.menu-button').trigger('click');
-		await new DOMWrapper(document.body).get('.menu-option[data-value="b"]').trigger('click');
+		const singlePicker = single.getComponent(SelectPicker);
+		expect(singlePicker.props('modelValue')).toBe('a');
+		singlePicker.vm.$emit('update:modelValue', 'b');
 		expect(single.emitted('update:modelValue')).toEqual([['b']]);
-		single.unmount();
 
 		const multiple = mount(SelectField, {
 			props: { ...baseProps, modelValue: 'a', options, multiple: true, showLabel: false },
+			global: { stubs: { SelectPicker: true } },
 		});
-		expect(multiple.get('.menu-value').text()).toBe('Alpha');
-		await multiple.get('.menu-button').trigger('click');
-		await new DOMWrapper(document.body).get('.menu-option[data-value="b"]').trigger('click');
+		const multiplePicker = multiple.getComponent(SelectPicker);
+		expect(multiplePicker.props()).toMatchObject({ modelValue: ['a'], multiple: true });
+		multiplePicker.vm.$emit('update:modelValue', ['a', 'b']);
 		await multiple.setProps({ modelValue: ['a', 'b'] });
-		await new DOMWrapper(document.body).get('.menu-option[data-value="a"]').trigger('click');
+		multiplePicker.vm.$emit('update:modelValue', ['b']);
 		expect(multiple.emitted('update:modelValue')).toEqual([[['a', 'b']], [['b']]]);
 	});
 
@@ -243,31 +221,6 @@ describe('query field input contracts', () => {
 	});
 });
 
-describe('query builder field', () => {
-	test('forwards query builder edits', async () => {
-		const modelValue = createDefaultCqlQueryBuilderData('word');
-		const options = {
-			indexId: 'test',
-			defaultAnnotationId: 'word',
-			textDirection: 'ltr',
-			allAnnotationsMap: {},
-			autocomplete: async () => [],
-			annotationOptions: [],
-			operatorOptions: [],
-			comparatorOptions: [],
-		} satisfies CqlQueryBuilderOptions;
-		const wrapper = mount(QueryBuilderField, {
-			props: { ...baseProps, modelValue, options },
-		});
-
-		await wrapper.get('.bl-token-create').trigger('click');
-		await flushPromises();
-		const edited = wrapper.emitted('update:modelValue')?.at(-1)?.[0];
-		expect(edited).toMatchObject({ tokens: [expect.any(Object), expect.any(Object)] });
-		expect(modelValue.tokens).toHaveLength(1);
-	});
-});
-
 describe('numeric input normalization', () => {
 	test('clamps and snaps numeric input without emitting NaN', async () => {
 		const wrapper = mount(NumberField, {
@@ -312,41 +265,6 @@ describe('numeric input normalization', () => {
 });
 
 describe('reactive option rendering', () => {
-	test('reactively resolves deferred select option and group text', async () => {
-		const locale = ref('en');
-		const wrapper = mount(SelectPicker, {
-			props: {
-				modelValue: 'value',
-				options: [
-					{
-						label: () => `${locale.value}:group`,
-						title: () => `${locale.value}:group-title`,
-						options: [
-							{
-								value: 'value',
-								label: () => `${locale.value}:label`,
-								title: () => `${locale.value}:title`,
-							},
-						],
-					},
-				],
-			},
-		});
-
-		expect(wrapper.get('.menu-button .menu-value').text()).toBe('en:label');
-		expect(wrapper.get('.menu-group').text()).toBe('en:group');
-		expect(wrapper.get('.menu-group').attributes('title')).toBe('en:group-title');
-		expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('en:title');
-
-		locale.value = 'nl';
-		await nextTick();
-
-		expect(wrapper.get('.menu-button .menu-value').text()).toBe('nl:label');
-		expect(wrapper.get('.menu-group').text()).toBe('nl:group');
-		expect(wrapper.get('.menu-group').attributes('title')).toBe('nl:group-title');
-		expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('nl:title');
-	});
-
 	test('renders and sorts original within options reactively', async () => {
 		const locale = ref<'en' | 'nl'>('en');
 		const type = { value: 'type', label: () => (locale.value === 'en' ? 'Zulu type' : 'Alpha type'), title: 'Type title', disabled: true };

@@ -1,32 +1,86 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, flushPromises, shallowMount } from '@vue/test-utils';
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { createMockTranslate } from '@test/mocks/i18n';
+import { flushPromises, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { nextTick } from 'vue';
+
+import type { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
+import type { Corpus } from '@/types/apptypes';
+import type { BLHitResults } from '@/types/blacklabtypes';
+
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
 
-enableAutoUnmount(afterEach);
+let api: ReturnType<typeof createMockApi>;
+let corpusContext: ReturnType<typeof createMockCorpusContext>;
 
-const mock = vi.hoisted(() => ({
-	api: { getHits: vi.fn(), getDocs: vi.fn(), getCollocations: vi.fn() },
-	corpus: { id: 'test', isParallelCorpus: false },
-	makeRows: vi.fn(),
-	requests: [] as Array<ReturnType<typeof deferredRequest>>,
-}));
+let requests: Array<ReturnType<typeof deferredRequest>>;
 
-vi.mock('@/app/state/useCorpusContext', () => ({ useCorpus: () => ref(mock.corpus) }));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => mock.api }));
-vi.mock('@/pages/search/results/table/table-layout', () => ({ definitions: [], makeRows: (...args: unknown[]) => mock.makeRows(...args) }));
+function renderingInfo(): DisplaySettingsForRendering {
+	return {
+		indexId: 'test',
+		mainAnnotation: { id: 'word' } as DisplaySettingsForRendering['mainAnnotation'],
+		otherAnnotations: [],
+		detailedAnnotations: [],
+		dependencyAnnotations: [],
+		dependencyRelationClass: null,
+		sortableAnnotations: [],
+		annotationGroups: [],
+		metadata: [],
+		sourceField: { id: 'contents' } as DisplaySettingsForRendering['sourceField'],
+		targetFields: [],
+		specialFields: {},
+		getSummary: () => 'Document',
+		dir: 'ltr',
+		html: false,
+		i18n: createMockTranslate(),
+		groupDisplayMode: 'table',
+		hasCustomHitInfoColumn: () => false,
+		getCustomHitInfo: () => null,
+		getMatchInfoHighlightStyle: () => null,
+		selectedRange: { first: 40, number: 10 },
+	};
+}
 
 function deferredRequest() {
-	let resolve!: (value: unknown) => void;
+	let resolve!: (value: BLHitResults) => void;
 	let reject!: (reason: unknown) => void;
-	const promise = new Promise((resolvePromise, rejectPromise) => {
+	const promise = new Promise<BLHitResults>((resolvePromise, rejectPromise) => {
 		resolve = resolvePromise;
 		reject = rejectPromise;
 	});
-	return { promise, resolve, reject };
+	return { request: new CancelableRequest(promise, vi.fn()), resolve, reject };
+}
+
+function hitResults(first = 0, number = 20): BLHitResults {
+	return {
+		hits: Array.from({ length: number }, (_, index) => ({
+			docPid: 'doc',
+			start: first + index,
+			end: first + index + 1,
+			before: { punct: [], word: [] },
+			match: { punct: ['', ''], word: [`hit-${first + index}`] },
+			after: { punct: [], word: [] },
+		})),
+		docInfos: { doc: { metadata: {}, tokenCounts: [], mayView: true } },
+		summary: {
+			params: { patt: '[]', first, number },
+			results: {
+				window: { firstResult: first, requestedSize: number, actualSize: number, hasPrevious: first > 0, hasNext: first + number < 50 },
+				stats: {
+					processed: { status: 'finished', hits: 50, documents: 1, timeMs: 0, stoppedBecauseTooMany: false },
+					counted: { status: 'finished', hits: 50, documents: 1, timeMs: 0, stoppedBecauseTooMany: false },
+					numberOfGroups: undefined,
+					largestGroupSize: undefined,
+				},
+				sample: { percentage: undefined, seed: undefined, sample: undefined },
+			},
+		},
+	};
 }
 
 async function flush() {
@@ -35,22 +89,26 @@ async function flush() {
 }
 
 beforeEach(() => {
-	vi.clearAllMocks();
-	mock.requests = [];
-	mock.api.getHits.mockImplementation(() => {
+	vi.stubGlobal('CONTEXT_URL', '');
+	api = createMockApi();
+	corpusContext = createMockCorpusContext({ corpus: { id: 'test', isParallelCorpus: false } as Corpus });
+	requests = [];
+	api.blacklabApi.getHits.mockImplementation(() => {
 		const request = deferredRequest();
-		mock.requests.push(request);
-		return request.promise;
+		requests.push(request);
+		return request.request;
 	});
-	mock.makeRows.mockImplementation(() => ({ rows: Array.from({ length: 11 }, () => ({ type: 'hit' })) }));
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('GroupRowDetails', () => {
 	test('preserves sampling while overriding the detail range, group, and sort', async () => {
 		const wrapper = shallowMount(GroupRowDetails, {
+			global: { plugins: [api, corpusContext] },
 			props: {
 				row: { id: 'group-id', size: 50 } as never,
-				info: {} as never,
+				info: renderingInfo(),
 				cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] },
 				type: 'hits',
 				open: false,
@@ -59,7 +117,7 @@ describe('GroupRowDetails', () => {
 		});
 
 		await wrapper.setProps({ open: true });
-		expect(mock.api.getHits).toHaveBeenCalledWith('test', {
+		expect(api.blacklabApi.getHits).toHaveBeenCalledWith('test', {
 			patt: '[]',
 			first: 0,
 			number: 20,
@@ -69,19 +127,24 @@ describe('GroupRowDetails', () => {
 			sampleseed: 3,
 		});
 
-		mock.requests[0].resolve({});
+		requests[0].resolve(hitResults());
 		await flush();
+		const previewRows = wrapper.findComponent({ name: 'GenericTable' }).props('rows').rows as HitRowData[];
+		expect(previewRows).toHaveLength(20);
+		expect(previewRows.every(row => row.type === 'hit' && !row.muted)).toBe(true);
+		expect(previewRows[0].context.match[0].annotations.word).toBe('hit-0');
 		await wrapper.find('button.btn-default').trigger('click');
 
-		expect(mock.api.getHits.mock.calls[1][1]).toMatchObject({ first: 20, number: 20, viewgroup: 'group-id', sample: 10, sampleseed: 3 });
+		expect(api.blacklabApi.getHits.mock.calls[1][1]).toMatchObject({ first: 20, number: 20, viewgroup: 'group-id', sample: 10, sampleseed: 3 });
 		expect(wrapper.text()).toContain('results.table.loading');
 	});
 
 	test('converts a collocation group to a hits request for inline context previews', async () => {
 		const wrapper = shallowMount(GroupRowDetails, {
+			global: { plugins: [api, corpusContext] },
 			props: {
 				row: { id: 'lemma:ship', size: 12 } as never,
-				info: {} as never,
+				info: renderingInfo(),
 				cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] },
 				type: 'hits',
 				operation: 'collocations',
@@ -102,7 +165,7 @@ describe('GroupRowDetails', () => {
 		});
 
 		await wrapper.setProps({ open: true });
-		expect(mock.api.getHits).toHaveBeenCalledWith('test', {
+		expect(api.blacklabApi.getHits).toHaveBeenCalledWith('test', {
 			patt: 'meet([pos="N.*"], [word="water"],-3,4)',
 			hitfiltercrit: 'hit:lemma:i',
 			hitfilterval: 'lemma:ship',
@@ -111,9 +174,9 @@ describe('GroupRowDetails', () => {
 			number: 12,
 			first: 0,
 		});
-		expect(mock.api.getCollocations).not.toHaveBeenCalled();
+		expect(api.blacklabApi.getCollocations).not.toHaveBeenCalled();
 
-		mock.requests[0].resolve({});
+		requests[0].resolve(hitResults(0, 12));
 		await flush();
 		expect(wrapper.text()).toContain('collocations.results.openAllContexts');
 		expect(wrapper.get('button.close-concordances').attributes()).toMatchObject({
@@ -125,9 +188,10 @@ describe('GroupRowDetails', () => {
 
 	test('retries a failed preview page without skipping contexts or losing the loaded page', async () => {
 		const wrapper = shallowMount(GroupRowDetails, {
+			global: { plugins: [api, corpusContext] },
 			props: {
 				row: { id: 'group-id', size: 50 } as never,
-				info: {} as never,
+				info: renderingInfo(),
 				cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] },
 				type: 'hits',
 				open: false,
@@ -135,24 +199,27 @@ describe('GroupRowDetails', () => {
 			},
 		});
 		await wrapper.setProps({ open: true });
-		mock.requests[0].reject(new Error('Temporary failure'));
+		requests[0].reject(new Error('Temporary failure'));
 		await flush();
 		await wrapper.get('.retry-concordances').trigger('click');
-		expect(mock.api.getHits.mock.calls[1][1]).toMatchObject({ first: 0, filter: 'author:Austen', viewgroup: 'group-id' });
-		mock.requests[1].resolve({});
+		expect(api.blacklabApi.getHits.mock.calls[1][1]).toMatchObject({ first: 0, filter: 'author:Austen', viewgroup: 'group-id' });
+		requests[1].resolve(hitResults());
 		await flush();
 		const loadedRows = wrapper
 			.findComponent({ name: 'GenericTable' })
 			.props('rows')
 			.rows.map((row: object) => ({ ...row }));
 		await wrapper.get('.concordance-controls .btn-default').trigger('click');
-		mock.requests[2].reject(new Error('Temporary failure'));
+		requests[2].reject(new Error('Temporary failure'));
 		await flush();
 		await wrapper.get('.retry-concordances').trigger('click');
-		expect(mock.api.getHits.mock.calls[3][1]).toMatchObject({ first: 20, filter: 'author:Austen', viewgroup: 'group-id' });
+		expect(api.blacklabApi.getHits.mock.calls[3][1]).toMatchObject({ first: 20, filter: 'author:Austen', viewgroup: 'group-id' });
 		expect(wrapper.findComponent({ name: 'GenericTable' }).props('rows').rows).toEqual(loadedRows);
-		mock.requests[3].resolve({});
+		requests[3].resolve(hitResults(20));
 		await flush();
+		const rows = wrapper.findComponent({ name: 'GenericTable' }).props('rows').rows as HitRowData[];
+		expect(rows).toHaveLength(40);
+		expect(rows.map(row => row.hit.start)).toEqual(Array.from({ length: 40 }, (_, index) => index));
 		expect(wrapper.find('.retry-concordances').exists()).toBe(false);
 	});
 });

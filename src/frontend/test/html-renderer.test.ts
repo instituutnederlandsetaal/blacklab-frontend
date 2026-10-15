@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 
@@ -9,7 +9,6 @@ import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 
-enableAutoUnmount(afterEach);
 afterEach(() => {
 	delete document.body.dataset.rendererScript;
 });

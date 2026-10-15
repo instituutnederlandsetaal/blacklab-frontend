@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { beforeEach, describe, expect, test } from 'vitest';
 
 import Modal from '@/shared/ui/Modal.vue';
-
-enableAutoUnmount(afterEach);
 
 beforeEach(() => {
 	document.body.classList.remove('modal-open');

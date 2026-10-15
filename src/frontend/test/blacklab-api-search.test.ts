@@ -1,34 +1,14 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import { createMockHttp } from '@test/mocks/http';
+import type { AxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import type { BLCollocationsParameters, BLHitGroupResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLCollocationsParameters, BLSearchParameters } from '@/types/blacklabtypes';
 
 import { createBlackLabApi } from '@/shared/api/blacklabApi';
-import * as ApiEndpointModule from '@/shared/api/lib/api-endpoint';
-import { ApiError, type BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';
+import { ApiError, type BlackLabApi, type CancelableRequest } from '@/shared/api/lib/api-types';
 
-const mock = vi.hoisted(() => ({
-	actualCreateEndpoint: undefined as unknown as typeof ApiEndpointModule.createEndpoint,
-	cancel: vi.fn(),
-	getOrPostCancelable: vi.fn(),
-}));
-
-vi.mock('@/shared/api/lib/api-endpoint', async importOriginal => {
-	const actual = await importOriginal<typeof ApiEndpointModule>();
-	mock.actualCreateEndpoint = actual.createEndpoint;
-	return { ...actual, createEndpoint: vi.fn() };
-});
-
-beforeEach(() => {
-	vi.clearAllMocks();
-	mock.getOrPostCancelable.mockReturnValue(new CancelableRequest(new Promise(() => {}), mock.cancel));
-	vi.mocked(ApiEndpointModule.createEndpoint).mockReturnValue({ getOrPostCancelable: mock.getOrPostCancelable } as unknown as ApiEndpointModule.Endpoint);
-});
-
-afterEach(() => {
-	vi.restoreAllMocks();
-	vi.unstubAllGlobals();
-});
+beforeEach(() => vi.stubGlobal('WITH_CREDENTIALS', false));
+afterEach(() => vi.unstubAllGlobals());
 
 const searches: Array<{
 	blacklabVersion: string;
@@ -54,24 +34,34 @@ const searches: Array<{
 ];
 
 test.each(searches)('$name preserves caller inputs, requests subcorpus totals, and supports cancellation', async ({ blacklabVersion, path, invoke, params: createParams }) => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion, axiosOptions: { adapter: http.adapter } });
 	const params = createParams();
 	const originalParams = { ...params };
-	const config: AxiosRequestConfig = { headers: { 'X-Test': 'exact-config' }, params: { trace: 'request' }, timeout: 321 };
+	const config: AxiosRequestConfig = { headers: { 'X-Test': 'exact-config' }, timeout: 321 };
+	const originalConfig = structuredClone(config);
 
 	const request = invoke(api, params, config);
-	request.cancel();
-
-	const [sentPath, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLSearchParameters, AxiosRequestConfig];
-	expect(sentPath).toBe(path);
-	expect(sentParams).toEqual({ ...originalParams, subcorpussize: true });
-	expect(sentConfig).toEqual(config);
+	const sent = await http.nextRequest();
+	const { subcorpussize: _subcorpussize, ...expectedParams } = originalParams;
+	const v4 = blacklabVersion.startsWith('4');
+	expect(sent.config).toMatchObject({ url: path, method: 'get', headers: config.headers, timeout: config.timeout });
+	expect(Object.fromEntries(sent.query)).toEqual({
+		...Object.fromEntries(Object.entries(expectedParams).map(([key, value]) => [key, String(value)])),
+		api: v4 ? '4' : '5',
+		[v4 ? 'includetokencount' : 'subcorpussize']: 'true',
+	});
 	expect(params).toEqual(originalParams);
-	expect(mock.cancel).toHaveBeenCalledOnce();
+	expect(config).toEqual(originalConfig);
+
+	request.cancel();
+	await expect(request).rejects.toBe(ApiError.CANCELLED);
+	expect(sent.cancelled).toBe(true);
 });
 
 test.each(['4.2.0', '5.0.0'])('getCollocations preserves caller inputs, omits client grouping, and supports cancellation on BlackLab %s', async blacklabVersion => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion });
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion, axiosOptions: { adapter: http.adapter } });
 	const params: BLCollocationsParameters = {
 		patt: '[word="water"]',
 		collpatt: '[lemma="ship"]',
@@ -85,79 +75,81 @@ test.each(['4.2.0', '5.0.0'])('getCollocations preserves caller inputs, omits cl
 	};
 	const originalParams = { ...params };
 	const config: AxiosRequestConfig = { headers: { 'X-Test': 'exact-config' }, timeout: 321 };
+	const originalConfig = structuredClone(config);
 
 	const request = api.getCollocations('owner:corpus', params, config);
-	request.cancel();
-
-	const [, sentParams, sentConfig] = mock.getOrPostCancelable.mock.calls[0] as [string, BLCollocationsParameters, AxiosRequestConfig];
-	const expectedParams = { ...originalParams };
-	delete expectedParams.group;
-	expect(sentParams).toEqual({ ...expectedParams, subcorpussize: true });
-	expect(sentConfig).toEqual(config);
+	const sent = await http.nextRequest();
+	const { group: _group, subcorpussize: _subcorpussize, ...expectedParams } = originalParams;
+	const v4 = blacklabVersion.startsWith('4');
+	expect(Object.fromEntries(sent.query)).toEqual({
+		...Object.fromEntries(Object.entries(expectedParams).map(([key, value]) => [key, String(value)])),
+		api: v4 ? '4' : '5',
+		[v4 ? 'includetokencount' : 'subcorpussize']: 'true',
+	});
+	expect(sent.config).toMatchObject({ headers: config.headers, timeout: config.timeout });
 	expect(params).toEqual(originalParams);
-	expect(mock.cancel).toHaveBeenCalledOnce();
+	expect(config).toEqual(originalConfig);
+
+	request.cancel();
+	await expect(request).rejects.toBe(ApiError.CANCELLED);
+	expect(sent.cancelled).toBe(true);
 });
 
-test('getCollocations rejects a missing pattern before calling the endpoint', async () => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
+test('getCollocations rejects a missing pattern before sending a request', async () => {
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
 	await expect(api.getCollocations('owner:corpus', {} as BLCollocationsParameters)).rejects.toEqual(new ApiError('Info', 'Cannot get collocations without a pattern.', 'No results', undefined));
-	expect(mock.getOrPostCancelable).not.toHaveBeenCalled();
+	expect(http.requests).toHaveLength(0);
 });
 
 test('getCollocations returns grouped results', async () => {
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
 	const raw = {
 		hitGroups: [{ identity: 'ship', identityDisplay: 'ship', properties: [{ name: 'hit:lemma', value: 'ship' }], size: 2, numberOfDocs: 1 }],
 		summary: { params: { patt: '[]', number: 20 }, results: {} },
-	} as unknown as BLHitGroupResults;
-	mock.getOrPostCancelable.mockReturnValueOnce(new CancelableRequest(Promise.resolve(raw), mock.cancel));
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
-
-	await expect(api.getCollocations('owner:corpus', { patt: '[]' })).resolves.toEqual({ hitGroups: raw.hitGroups, summary: raw.summary });
+	};
+	const request = api.getCollocations('owner:corpus', { patt: '[]' });
+	(await http.nextRequest()).respond(raw);
+	await expect(request).resolves.toEqual(raw);
 });
 
 test('getCollocations returns hits when a group is selected', async () => {
-	const raw = {
-		hits: [],
-		docInfos: {},
-		summary: { params: { patt: '[]', number: 20, viewgroup: 'lemma:ship' }, results: {} },
-	} as unknown as BLHitResults;
-	mock.getOrPostCancelable.mockReturnValueOnce(new CancelableRequest(Promise.resolve(raw), mock.cancel));
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
-
-	const request: CancelableRequest<BLHitResults> = api.getCollocations('owner:corpus', { patt: '[]', viewgroup: 'lemma:ship' });
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
+	const raw = { hits: [], docInfos: {}, summary: { params: { patt: '[]', number: 20, viewgroup: 'lemma:ship' }, results: {} } };
+	const request = api.getCollocations('owner:corpus', { patt: '[]', viewgroup: 'lemma:ship' });
+	const sent = await http.nextRequest();
+	expect(sent.config.url).toBe('corpora/owner:corpus/collocations/');
+	expect(Object.fromEntries(sent.query)).toEqual({ api: '5', patt: '[]', viewgroup: 'lemma:ship', subcorpussize: 'true' });
+	sent.respond(raw);
 	await expect(request).resolves.toEqual(raw);
-	expect(mock.getOrPostCancelable).toHaveBeenCalledWith('corpora/owner:corpus/collocations/', { patt: '[]', viewgroup: 'lemma:ship', subcorpussize: true }, undefined);
 });
 
 test('getDocs uses the 5.0.0 path', async () => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
-	api.getDocs('owner:corpus', { number: 10 });
-	expect(mock.getOrPostCancelable).toHaveBeenCalledWith('corpora/owner:corpus/docs/', { number: 10, subcorpussize: true }, undefined);
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
+	const request = api.getDocs('owner:corpus', { number: 10 });
+	const sent = await http.nextRequest();
+	expect(sent.config.url).toBe('corpora/owner:corpus/docs/');
+	expect(Object.fromEntries(sent.query)).toEqual({ api: '5', number: '10', subcorpussize: 'true' });
+	request.cancel();
+	await expect(request).rejects.toBe(ApiError.CANCELLED);
 });
 
-test('getHits rejects a missing pattern before calling the endpoint', async () => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
+test('getHits rejects a missing pattern before sending a request', async () => {
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
 	await expect(api.getHits('owner:corpus', { number: 10 })).rejects.toEqual(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
-	expect(mock.getOrPostCancelable).not.toHaveBeenCalled();
+	expect(http.requests).toHaveLength(0);
 });
 
 test('V4 endpoint serialization maps the forced subcorpus flag to includetokencount', async () => {
-	vi.stubGlobal('WITH_CREDENTIALS', false);
-	let axiosOptions: AxiosRequestConfig | undefined;
-	const get = vi.fn().mockReturnValue(new Promise(() => {}));
-	vi.spyOn(axios, 'create').mockImplementation(options => {
-		axiosOptions = options;
-		return { get, interceptors: { request: { use: vi.fn() } } } as unknown as AxiosInstance;
-	});
-	vi.mocked(ApiEndpointModule.createEndpoint).mockImplementationOnce(mock.actualCreateEndpoint);
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '4.2.0' });
-	const params: BLSearchParameters = { number: 10, patt: '[word="fox"]', subcorpussize: false };
-
-	const request = api.getHits('owner:corpus', params);
-	const requestConfig = get.mock.calls[0][1] as AxiosRequestConfig;
-	if (!axiosOptions?.paramsSerializer) throw new Error('Expected the endpoint to configure query serialization');
-	const serialized = (axiosOptions.paramsSerializer as (params: unknown) => string)(requestConfig.params);
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '4.2.0', axiosOptions: { adapter: http.adapter } });
+	const request = api.getHits('owner:corpus', { number: 10, patt: '[word="fox"]', subcorpussize: false });
+	const sent = await http.nextRequest();
+	expect(Object.fromEntries(sent.query)).toEqual({ api: '4', includetokencount: 'true', number: '10', patt: '[word="fox"]' });
 	request.cancel();
-
-	expect(Object.fromEntries(new URLSearchParams(serialized))).toEqual({ includetokencount: 'true', number: '10', patt: '[word="fox"]' });
+	await expect(request).rejects.toBe(ApiError.CANCELLED);
 });

@@ -1,48 +1,33 @@
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+
+import { createMockHttp } from './mocks/http';
 
 import { createBlackLabApi } from '@/shared/api/blacklabApi';
-import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { ApiError } from '@/shared/api/lib/api-types';
 
-const mock = vi.hoisted(() => ({ getCancelable: vi.fn() }));
-
-vi.mock('@/shared/api/lib/api-endpoint', () => ({ createEndpoint: () => ({ getCancelable: mock.getCancelable }) }));
-
-beforeEach(() => {
-	mock.getCancelable.mockReset();
-});
-
-function corpusRequest() {
-	let reject!: (error: ApiError) => void;
-	mock.getCancelable.mockImplementation(
-		() =>
-			new CancelableRequest(
-				new Promise((_, rejectPromise) => {
-					reject = rejectPromise;
-				}),
-				() => {},
-			),
-	);
-	return (error: ApiError) => reject(error);
-}
+beforeEach(() => vi.stubGlobal('WITH_CREDENTIALS', false));
+afterEach(() => vi.unstubAllGlobals());
 
 test('preserves the BlackLab error for a missing corpus', async () => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
-	const reject = corpusRequest();
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
 	const request = api.getCorpus('test');
-	const error = new ApiError('CANNOT_OPEN_INDEX', "Could not open index 'test'. Please check the name.", 'Not Found', 404);
 	const result = request.request.catch(cause => cause);
-	reject(error);
-
-	expect(await result).toBe(error);
+	const sent = await http.nextRequest();
+	sent.respond({ error: { code: 'CANNOT_OPEN_INDEX', message: "Could not open index 'test'. Please check the name." } }, 404, 'Not Found');
+	const error = await result;
+	expect(error).toBeInstanceOf(ApiError);
+	expect(error).toMatchObject({ title: 'CANNOT_OPEN_INDEX', message: "Could not open index 'test'. Please check the name.", statusText: 'Not Found', httpCode: 404 });
 });
 
 test('preserves other 404 responses without adding corpus-specific wording', async () => {
-	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0' });
-	const reject = corpusRequest();
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: '5.0.0', axiosOptions: { adapter: http.adapter } });
 	const request = api.getCorpus('test');
-	const error = new ApiError('NOT_FOUND', 'No resource at this path', 'Not Found', 404);
 	const result = request.request.catch(cause => cause);
-	reject(error);
-
-	expect(await result).toBe(error);
+	const sent = await http.nextRequest();
+	sent.respond({ error: { code: 'NOT_FOUND', message: 'No resource at this path' } }, 404, 'Not Found');
+	const error = await result;
+	expect(error).toBeInstanceOf(ApiError);
+	expect(error).toMatchObject({ title: 'NOT_FOUND', message: 'No resource at this path', statusText: 'Not Found', httpCode: 404 });
 });

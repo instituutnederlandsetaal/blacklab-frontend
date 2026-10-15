@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 
@@ -24,8 +24,6 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-enableAutoUnmount(afterEach);
-
 describe('Search query forms', () => {
 	test('flattens a singular metadata group instead of rendering one filter tab', () => {
 		const corpus = createCorpus();
@@ -45,7 +43,6 @@ describe('Search query forms', () => {
 		const runtime = fixture.createRuntime();
 		const field = runtime.definition.getField(ids.queryField('advanced'));
 
-		expect(runtime.definition.getForm(ids.searchForm('advanced'))).not.toBeNull();
 		expect((field as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('word');
 	});
 
@@ -75,8 +72,6 @@ describe('Search query forms', () => {
 		const attribute = sourceState.tokens[0].rootAttributeGroup.entries[0];
 		if ('annotationId' in attribute) attribute.values = ['water'];
 
-		expect(runtime.definition.getField(ids.queryField('advanced'))).not.toBeNull();
-		expect(runtime.definition.getField(ids.queryFieldTemplate('advanced'))).toBeNull();
 		expect(runtime.compile(ids.searchForm('advanced'))).toMatchObject({
 			params: { patt: '[word="water"]', searchfield: 'contents__en' },
 		});
@@ -131,8 +126,6 @@ describe('Search query forms', () => {
 		const runtime = fixture.createRuntime(createParallelCorpus());
 		const state = runtime.state.state.value[ids.queryField('expert')] as ParallelFieldState;
 
-		expect(runtime.definition.getField(ids.queryField('expert'))).not.toBeNull();
-		expect(runtime.definition.getField(ids.queryFieldTemplate('expert'))).toBeNull();
 		state.childStates.contents__en = '[lemma="water"]';
 		state.targets = ['contents__nl'];
 		state.childStates.contents__nl = '[lemma="water"]';

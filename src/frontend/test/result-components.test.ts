@@ -2,14 +2,12 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
-import { computed } from 'vue';
+import { ref } from 'vue';
+
+import { provideSearchSummary } from '@/features/search/model/search-summary';
 
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
-
-const query = vi.hoisted(() => ({ pattern: '', filters: '' }));
-
-vi.mock('@/features/search/model/search-summary', () => ({ useSearchSummary: () => computed(() => ({ pattern: query.pattern, filter: query.filters })) }));
 
 describe('result support components', () => {
 	test.each([
@@ -18,10 +16,9 @@ describe('result support components', () => {
 		['', 'author: Austen', 'results.querySummary.documentsWhere author: Austen'],
 		['[word="water"]', 'author: Austen', '[word="water"] results.querySummary.within results.querySummary.documentsWhere author: Austen'],
 	])('assembles the pattern %j and filter %j summary', (pattern, filters, expected) => {
-		query.pattern = pattern;
-		query.filters = filters;
-
-		expect(mount(QuerySummary).get('.content').attributes('title')).toBe(expected);
+		const summary = ref({ pattern, filter: filters });
+		const wrapper = mount(QuerySummary, { global: { plugins: [app => provideSearchSummary(app, summary)] } });
+		expect(wrapper.get('.content').attributes('title')).toBe(expected);
 	});
 
 	test('renders and invokes only enabled breadcrumb actions', async () => {

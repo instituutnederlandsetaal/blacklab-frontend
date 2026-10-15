@@ -135,24 +135,25 @@ describe('makeRows', () => {
 		).toEqual([ids[2], ids[2], ids[0], ids[0]]);
 	});
 
-	test('mutes rows outside a requested range without normalizing response parameters in place', () => {
+	test.each(['docs', 'hits'] as const)('mutes %s outside a requested range without normalizing response parameters in place', type => {
 		const params = { first: '5', number: '3' };
+		const docs = Array.from({ length: 3 }, (_, i) => ({ docPid: `doc-${i}`, docInfo: { metadata: {}, tokenCounts: [], mayView: true } }));
 		const results = {
-			docs: Array.from({ length: 3 }, (_, i) => ({
-				docPid: `doc-${i}`,
-				docInfo: { metadata: {}, tokenCounts: [], mayView: true },
-			})),
+			...(type === 'docs'
+				? { docs }
+				: {
+						docInfos: Object.fromEntries(docs.map(doc => [doc.docPid, doc.docInfo])),
+						hits: docs.map(doc => ({ docPid: doc.docPid, start: 0, end: 1, before: { punct: [] }, match: { punct: [] }, after: { punct: [] } })),
+					}),
 			summary: { params },
-		} as unknown as BLDocResults;
-		const info = {
-			indexId: 'test',
-			sourceField: { id: 'contents' },
-			specialFields: {},
-			getSummary: () => '',
-			selectedRange: { first: 6, number: 1 },
-		} as unknown as DisplaySettingsForRendering;
+		} as unknown as BLDocResults | BLHitResults;
+		const info = { ...renderingInfo(), selectedRange: { first: 6, number: 1 } };
 
-		expect(makeRows(results, info).rows.map(row => row.muted)).toEqual([true, false, true]);
+		expect(
+			makeRows(results, info)
+				.rows.filter(row => row.type === (type === 'docs' ? 'doc' : 'hit'))
+				.map(row => row.muted),
+		).toEqual([true, false, true]);
 		expect(results.summary.params).toEqual({ first: '5', number: '3' });
 	});
 

@@ -1,3 +1,4 @@
+import { tryOnScopeDispose } from '@vueuse/core';
 import { reactive, watch } from 'vue';
 
 type StoredValue<T> = { value: T; expiry: number | null };
@@ -35,13 +36,15 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 	);
 
 	if (watchStorage && typeof window !== 'undefined') {
-		window.addEventListener('storage', event => {
+		const onStorage = (event: StorageEvent) => {
 			if (event.key !== storageKey || event.newValue == null) return;
 			const stored = parse(event.newValue);
 			if (!stored) return;
 			serializedValue = JSON.stringify(stored.value);
 			value.value = stored.value;
-		});
+		};
+		window.addEventListener('storage', onStorage);
+		tryOnScopeDispose(() => window.removeEventListener('storage', onStorage));
 	}
 
 	return value;

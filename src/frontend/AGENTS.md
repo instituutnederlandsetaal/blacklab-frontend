@@ -107,6 +107,13 @@ frontend.customize(function configureImmediately(customizations) {
 - Preserve hard boundaries above even if a shorter implementation using `useCorpus()`, `useCustomizations()`, or a module singleton appears convenient.
 - Run relevant Vitest tests and `npm run lint` from `src/frontend` after changes.
 
+### Test scope
+
+- Prefer tests that demonstrate a distinct user capability or observable failure behavior, using representative cases and meaningful option interactions instead of multiplying equivalent cases across every configuration.
+- Test contracts in the suite for the component or system that owns them. Consumers should verify composition and relevant props/events, relying on the dependency's tests for its behavior. Keep broader checks where application behavior or accessibility depends on the actual integration.
+- Prefer low-level contract tests or system tests with realistic dependencies. Use partially mocked tests spanning several systems only for explicit regressions that need that scope.
+- Avoid assertions that only confirm fixture setup, internal call sequences, or exact implementation limits such as value length, clause counts, and complexity thresholds. When removing duplication, relocate missing coverage without expanding it.
+
 # Style
 
 - Keep code terse and "dumb"

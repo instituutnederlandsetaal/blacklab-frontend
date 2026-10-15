@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 
 import Pagination from '@/shared/ui/Pagination.vue';
 
 const formatNumber = (value: number) => new Intl.NumberFormat().format(value);
-
-enableAutoUnmount(afterEach);
 
 describe('Pagination', () => {
 	test('naturally preserves input identity and focus until the range branch removes it', async () => {

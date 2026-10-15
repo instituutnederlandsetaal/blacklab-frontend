@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount, shallowMount, type VueWrapper } from '@vue/test-utils';
+import { mount, shallowMount, type VueWrapper } from '@vue/test-utils';
 import type * as Highcharts from 'highcharts';
+import { Chart } from 'highcharts-vue';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { defineComponent, nextTick, ref } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
@@ -13,17 +14,10 @@ import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 
-enableAutoUnmount(afterEach);
-
-vi.mock('highcharts-vue', async () => {
-	const { defineComponent } = await import('vue');
-	return {
-		Chart: defineComponent({
-			name: 'ChartProbe',
-			props: { options: { type: Object, required: true } },
-			template: '<div />',
-		}),
-	};
+const ChartProbe = defineComponent({
+	name: 'ChartProbe',
+	props: { options: { type: Object, required: true } },
+	template: '<div />',
 });
 
 const snippet = {
@@ -47,12 +41,15 @@ function options(wrapper: VueWrapper): Highcharts.Options {
 	return wrapper.getComponent({ name: 'ChartProbe' }).props('options') as Highcharts.Options;
 }
 
-beforeEach(() => {
+function resetArticleStatistics() {
 	ArticleStore.actions.distributionAnnotation(null);
 	ArticleStore.actions.growthAnnotations(null);
 	ArticleStore.actions.statisticsTableFn(null);
 	ArticleStore.actions.baseColor('#337ab7');
-});
+}
+
+beforeEach(resetArticleStatistics);
+afterEach(resetArticleStatistics);
 
 describe('ArticlePageStatistics', () => {
 	test.each([
@@ -151,6 +148,7 @@ describe('article statistic charts', () => {
 	test('updates distribution counts and the configured palette as article data changes', async () => {
 		const wrapper = mount(AnnotationDistributions, {
 			props: { snippet, annotationId: 'lemma', chartTitle: 'Lemmas', baseColor: '#337ab7' },
+			global: { components: { Chart }, stubs: { Chart: ChartProbe } },
 		});
 		const initial = options(wrapper);
 		expect(initial).toMatchObject({
@@ -188,6 +186,7 @@ describe('article statistic charts', () => {
 	test('updates growth series for configured, empty, and missing annotations', async () => {
 		const wrapper = mount(AnnotationGrowths, {
 			props: { snippet, annotations: [], chartTitle: 'Growths', baseColor: '#337ab7' },
+			global: { components: { Chart }, stubs: { Chart: ChartProbe } },
 		});
 		const initial = options(wrapper);
 		expect(initial).toMatchObject({ title: { text: 'Growths' }, colors: [], series: [] });

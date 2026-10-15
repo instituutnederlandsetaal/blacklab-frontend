@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, shallowMount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { shallowMount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 
 import type { GroupRowData } from '@/pages/search/results/table/table-layout';
 
 import GroupRow from '@/pages/search/results/table/GroupRow.vue';
-
-enableAutoUnmount(afterEach);
 
 describe('association score cells', () => {
 	test.each([0.0000123456, 0.00000000098765, -0.0000123456, 0, 8.123456])('keeps a score of %s readable and exposes the full value', score => {

@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { createMockCustomizations } from '@test/mocks/customizations';
+import { flushPromises, mount } from '@vue/test-utils';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { defineComponent, nextTick, ref, shallowRef } from 'vue';
 
 import type { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
+import type { Corpus } from '@/types/apptypes';
 import type { BLHit } from '@/types/blacklabtypes';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
@@ -12,28 +16,14 @@ import { CancelableRequest } from '@/shared/api/lib/api-types';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
 
-enableAutoUnmount(afterEach);
-
-const mock = vi.hoisted(() => ({
+const mock = {
 	addon: vi.fn(),
-	corpus: { hasRelations: false, id: 'corpus' },
-	formatError: vi.fn((error: Error) => error.message),
-	getSnippet: vi.fn(),
 	sentenceElement: null as string | null,
-	transformResultSnippet: vi.fn(),
-}));
-
-vi.mock('@/app/state/useCorpusContext', () => ({ useCorpus: () => ({ value: mock.corpus }) }));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => ({ getSnippet: mock.getSnippet }) }));
-vi.mock('@/customization-api/internal/internal-api', () => ({
-	useCustomizations: () => ({
-		formatError: mock.formatError,
-		resultConcordanceSize: () => 5,
-		resultHitAddons: () => [mock.addon],
-		searchFormSentenceElement: () => mock.sentenceElement,
-		transformResultSnippet: mock.transformResultSnippet,
-	}),
-}));
+};
+let api: ReturnType<typeof createMockApi>;
+let corpusContext: ReturnType<typeof createMockCorpusContext>;
+let corpus: Corpus;
+let customizations: ReturnType<typeof createMockCustomizations>;
 
 const snippet = {
 	before: { punct: [], word: [] },
@@ -81,16 +71,22 @@ function renderDetails(props: { open?: boolean; row?: HitRowData; hoverMatchInfo
 			type: 'hits',
 			...props,
 		},
+		global: { plugins: [api, corpusContext, customizations] },
 	});
 }
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	mock.addon.mockReturnValue(null);
-	mock.corpus.hasRelations = false;
-	mock.corpus.id = 'corpus';
+	corpus = { hasRelations: false, id: 'corpus' } as Corpus;
+	api = createMockApi();
+	corpusContext = createMockCorpusContext({ corpus: () => corpus });
 	mock.sentenceElement = null;
-	mock.getSnippet.mockReturnValue(new CancelableRequest(Promise.resolve(snippet), vi.fn()));
+	customizations = createMockCustomizations(() => corpus);
+	customizations.resultConcordanceSize.mockReturnValue(5);
+	customizations.resultHitAddons.mockReturnValue([mock.addon]);
+	customizations.searchFormSentenceElement.mockImplementation(() => mock.sentenceElement);
+	api.blacklabApi.getSnippet.mockReturnValue(new CancelableRequest(Promise.resolve(snippet), vi.fn()));
 });
 
 test('renders ordered concordance parts and forwards shared hover events', async () => {
@@ -113,7 +109,7 @@ test('renders ordered concordance parts and forwards shared hover events', async
 });
 
 test('shows ellipses only for visible surrounding context', async () => {
-	mock.getSnippet.mockReturnValue(
+	api.blacklabApi.getSnippet.mockReturnValue(
 		new CancelableRequest(
 			Promise.resolve({
 				before: { punct: ['', ' '], word: ['before'] },
@@ -133,9 +129,9 @@ test('shows ellipses only for visible surrounding context', async () => {
 
 test('retains snippet and sentence requests across close and uncheck', async () => {
 	const requests = [deferredRequest<BLHit>(), deferredRequest<BLHit>()];
-	mock.getSnippet.mockReset();
-	for (const pending of requests) mock.getSnippet.mockReturnValueOnce(pending.request);
-	mock.corpus.hasRelations = true;
+	api.blacklabApi.getSnippet.mockReset();
+	for (const pending of requests) api.blacklabApi.getSnippet.mockReturnValueOnce(pending.request);
+	corpus.hasRelations = true;
 	mock.sentenceElement = 's';
 
 	const wrapper = renderDetails({ open: false });
@@ -145,7 +141,7 @@ test('retains snippet and sentence requests across close and uncheck', async () 
 	requests[0].resolve(snippet);
 	await flushPromises();
 	await wrapper.setProps({ open: true });
-	expect(mock.getSnippet).toHaveBeenCalledOnce();
+	expect(api.blacklabApi.getSnippet).toHaveBeenCalledOnce();
 
 	await wrapper.get('.show-sentence-checkbox').setValue(true);
 	await wrapper.get('.show-sentence-checkbox').setValue(false);
@@ -153,37 +149,37 @@ test('retains snippet and sentence requests across close and uncheck', async () 
 	requests[1].resolve(snippet);
 	await flushPromises();
 	await wrapper.get('.show-sentence-checkbox').setValue(true);
-	expect(mock.getSnippet).toHaveBeenCalledTimes(2);
+	expect(api.blacklabApi.getSnippet).toHaveBeenCalledTimes(2);
 });
 
 test('resets replaced rows before activating the final open row', async () => {
 	const requests = [deferredRequest<BLHit>(), deferredRequest<BLHit>(), deferredRequest<BLHit>()];
-	mock.getSnippet.mockReset();
-	for (const pending of requests) mock.getSnippet.mockReturnValueOnce(pending.request);
+	api.blacklabApi.getSnippet.mockReset();
+	for (const pending of requests) api.blacklabApi.getSnippet.mockReturnValueOnce(pending.request);
 	mock.addon.mockReturnValue({ name: 'test' });
 
 	const wrapper = renderDetails({ row: row('first') });
 	await wrapper.setProps({ open: false, row: row('second') });
 	expect(requests[0].cancel).toHaveBeenCalledOnce();
-	expect(mock.getSnippet).toHaveBeenCalledOnce();
+	expect(api.blacklabApi.getSnippet).toHaveBeenCalledOnce();
 
 	requests[0].resolve(snippet);
 	await flushPromises();
-	expect(mock.transformResultSnippet).not.toHaveBeenCalled();
+	expect(customizations.transformResultSnippet).not.toHaveBeenCalled();
 	expect(mock.addon).not.toHaveBeenCalled();
 	expect(wrapper.findComponent(HitContext).exists()).toBe(false);
 
 	await wrapper.setProps({ open: true });
-	expect(mock.getSnippet).toHaveBeenNthCalledWith(2, 'corpus', 'second', 'parallel', 1, 2, 5);
+	expect(api.blacklabApi.getSnippet).toHaveBeenNthCalledWith(2, 'corpus', 'second', 'parallel', 1, 2, 5);
 	await wrapper.setProps({ row: row('third') });
 	expect(requests[1].cancel).toHaveBeenCalledOnce();
-	expect(mock.getSnippet).toHaveBeenNthCalledWith(3, 'corpus', 'third', 'parallel', 1, 2, 5);
+	expect(api.blacklabApi.getSnippet).toHaveBeenNthCalledWith(3, 'corpus', 'third', 'parallel', 1, 2, 5);
 	requests[1].reject(new Error('stale failure'));
-	mock.corpus.id = 'later-corpus';
+	corpus.id = 'later-corpus';
 	requests[2].resolve(snippet);
 	await flushPromises();
-	expect(mock.transformResultSnippet).toHaveBeenCalledOnce();
-	expect(mock.formatError).not.toHaveBeenCalled();
+	expect(customizations.transformResultSnippet).toHaveBeenCalledOnce();
+	expect(customizations.formatError).not.toHaveBeenCalled();
 	expect(mock.addon).toHaveBeenCalledWith(expect.objectContaining({ corpus: 'corpus', docId: 'third' }));
 });
 
@@ -201,6 +197,7 @@ test('loads a replacement row when reopening also changes the row with open supp
 			}),
 			template: '<HitRowDetails :open="open" :row="row" :cols="cols" :info="info" type="hits" :hover-match-infos="[]" />',
 		}),
+		{ global: { plugins: [api, corpusContext, customizations] } },
 	);
 	await flushPromises();
 	open.value = false;
@@ -210,8 +207,8 @@ test('loads a replacement row when reopening also changes the row with open supp
 	currentRow.value = row('second');
 	await flushPromises();
 
-	expect(mock.getSnippet).toHaveBeenCalledTimes(2);
-	expect(mock.getSnippet).toHaveBeenLastCalledWith('corpus', 'second', 'parallel', 1, 2, 5);
+	expect(api.blacklabApi.getSnippet).toHaveBeenCalledTimes(2);
+	expect(api.blacklabApi.getSnippet).toHaveBeenLastCalledWith('corpus', 'second', 'parallel', 1, 2, 5);
 	expect(wrapper.findAllComponents(HitContext)).toHaveLength(3);
 });
 
@@ -219,7 +216,7 @@ test('scope disposal suppresses noncooperative fulfillment and rejection', async
 	const fulfilled = deferredRequest<BLHit>();
 	const rejected = deferredRequest<BLHit>();
 	const highlight = vi.fn();
-	mock.getSnippet.mockReset().mockReturnValueOnce(fulfilled.request).mockReturnValueOnce(rejected.request);
+	api.blacklabApi.getSnippet.mockReset().mockReturnValueOnce(fulfilled.request).mockReturnValueOnce(rejected.request);
 	const info = { detailedAnnotations: [], getMatchInfoHighlightStyle: highlight, html: false, mainAnnotation: { id: 'word' } } as unknown as DisplaySettingsForRendering;
 	const fulfilledWrapper = renderDetails({ info });
 	fulfilledWrapper.unmount();
@@ -230,16 +227,16 @@ test('scope disposal suppresses noncooperative fulfillment and rejection', async
 	fulfilled.resolve(snippet);
 	rejected.reject(new Error('late failure'));
 	await flushPromises();
-	expect(mock.transformResultSnippet).not.toHaveBeenCalled();
+	expect(customizations.transformResultSnippet).not.toHaveBeenCalled();
 	expect(highlight).not.toHaveBeenCalled();
 	expect(mock.addon).not.toHaveBeenCalled();
-	expect(mock.formatError).not.toHaveBeenCalled();
+	expect(customizations.formatError).not.toHaveBeenCalled();
 });
 
 test('retries a failed snippet without exposing the retained error while loading', async () => {
 	const requests = [deferredRequest<BLHit>(), deferredRequest<BLHit>()];
-	mock.getSnippet.mockReset();
-	for (const pending of requests) mock.getSnippet.mockReturnValueOnce(pending.request);
+	api.blacklabApi.getSnippet.mockReset();
+	for (const pending of requests) api.blacklabApi.getSnippet.mockReturnValueOnce(pending.request);
 	const wrapper = renderDetails();
 	requests[0].reject(new Error('failed snippet'));
 	await flushPromises();
@@ -252,5 +249,5 @@ test('retries a failed snippet without exposing the retained error while loading
 	await flushPromises();
 	expect(wrapper.find('p.text-danger').exists()).toBe(false);
 	expect(wrapper.findAllComponents(HitContext)).toHaveLength(3);
-	expect(mock.formatError).toHaveBeenCalledOnce();
+	expect(customizations.formatError).toHaveBeenCalledOnce();
 });

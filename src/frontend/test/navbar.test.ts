@@ -1,30 +1,15 @@
 // @vitest-environment jsdom
 
+import { createMockCorpusContext } from '@test/mocks/corpus';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { ref } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { customCssChangedEvent } from '@/interop/page-customization';
+import { provideCorpusId } from '@/navigation/page-context';
 
 import Navbar from '@/components/Navbar.vue';
-
-const mock = vi.hoisted(() => ({
-	config: { value: { bannerMessage: '', displayName: '', navbarLinks: [] } },
-	corpus: { value: undefined },
-	corpusId: { value: undefined },
-	removeAfterEach: vi.fn(),
-}));
-
-vi.mock('vue-router', () => ({
-	useRouter: () => ({
-		afterEach: () => mock.removeAfterEach,
-		options: { history: { base: '/' } },
-	}),
-}));
-vi.mock('@/app/state/useCorpusContext', () => ({ useCfPageConfig: () => mock.config, useCorpus: () => mock.corpus }));
-vi.mock('@/navigation/page-context', () => ({ useCorpusId: () => mock.corpusId }));
-vi.mock('@/shared/utils/localstore', () => ({ localStorageSynced: () => ({ value: '' }) }));
-vi.mock('@/shared/auth/LoginButton.vue', () => ({ default: { template: '<span />' } }));
-vi.mock('@/shared/i18n/LocaleSelector.vue', () => ({ default: { template: '<span />' } }));
 
 class ControlledImage extends EventTarget {
 	static instances: ControlledImage[] = [];
@@ -38,20 +23,33 @@ class ControlledImage extends EventTarget {
 	}
 }
 
+let savedBanner: string | null;
+let savedBodyClass: string;
+let savedBodyStyle: string | null;
+
 beforeEach(() => {
 	ControlledImage.instances = [];
-	mock.removeAfterEach.mockReset();
+	savedBanner = localStorage.getItem('cf/banner-hidden');
+	savedBodyClass = document.body.className;
+	savedBodyStyle = document.body.getAttribute('style');
+	localStorage.removeItem('cf/banner-hidden');
 	vi.stubGlobal('Image', ControlledImage);
 });
 
 afterEach(() => {
-	document.body.className = '';
-	document.body.style.removeProperty('--navbar-logo-body-offset');
+	if (savedBanner === null) localStorage.removeItem('cf/banner-hidden');
+	else localStorage.setItem('cf/banner-hidden', savedBanner);
+	document.body.className = savedBodyClass;
+	if (savedBodyStyle === null) document.body.removeAttribute('style');
+	else document.body.setAttribute('style', savedBodyStyle);
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
 });
 
 test('suppresses resolved logo writes after reconfiguration and unmount', async () => {
+	const router = createRouter({ history: createMemoryHistory(), routes: [{ name: 'corpora', path: '/', component: { template: '<div />' } }] });
+	await router.push('/');
+	await router.isReady();
 	let logoUrl = 'first.png';
 	const nativeGetComputedStyle = window.getComputedStyle;
 	vi.spyOn(window, 'getComputedStyle').mockImplementation(element =>
@@ -61,7 +59,10 @@ test('suppresses resolved logo writes after reconfiguration and unmount', async 
 	);
 	const wrapper = mount(Navbar, {
 		attachTo: document.body,
-		global: { mocks: { $route: { name: 'corpora' } }, stubs: { RouterLink: { template: '<a><slot /></a>' } } },
+		global: {
+			plugins: [router, createMockCorpusContext(), app => provideCorpusId(app, ref(undefined))],
+			stubs: { LoginButton: true, LocaleSelector: true },
+		},
 	});
 	const navbar = wrapper.get('.navbar-inverse').element as HTMLElement;
 	expect(ControlledImage.instances).toHaveLength(1);

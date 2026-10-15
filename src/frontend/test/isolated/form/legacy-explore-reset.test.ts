@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { createMockCustomizations } from '@test/mocks/customizations';
 import { shallowMount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import type * as Vue from 'vue';
-import { defineComponent, h, nextTick, ref } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 import * as ExploreStore from '@/features/search/model/form/explore-state';
+import type { Corpus } from '@/types/apptypes';
 
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
 
@@ -42,26 +46,11 @@ vi.mock('vue', async importOriginal => {
 	};
 });
 
-vi.mock('@/app/state/useCorpusContext', () => ({
-	useCorpus: () => ref(corpus),
-}));
-
-vi.mock('@/customization-api/internal/internal-api', () => ({
-	useCustomizations: () => ({
-		searchFormExploreAnnotationGroupLabelsVisible: () => false,
-		searchFormExploreGroupAnnotationIds: () => [],
-		searchFormExploreGroupMetadataIds: () => [],
-		searchFormExploreMetadataGroupLabelsVisible: () => false,
-		searchFormExploreSearchAnnotationIds: () => [],
-	}),
-}));
-
-vi.mock('@/shared/api', () => ({
-	useBlackLabApi: () => ({ getTermAutocomplete: vi.fn() }),
-}));
-
 describe('legacy explore form', () => {
 	test('stops resetting lexicons when unmounted and observes resets after remount', async () => {
+		const customizations = createMockCustomizations(corpus as unknown as Corpus);
+		const api = createMockApi();
+		const corpusContext = createMockCorpusContext({ corpus: corpus as unknown as Corpus });
 		ExploreStore.actions.ngram.replace({
 			groupAnnotationId: 'lexicon',
 			maxSize: 1,
@@ -77,7 +66,7 @@ describe('legacy explore form', () => {
 		});
 		const mountExplore = () =>
 			shallowMount(QueryFormExplore, {
-				global: { stubs: { Lexicon: LexiconStub } },
+				global: { plugins: [api, corpusContext, customizations], stubs: { Lexicon: LexiconStub } },
 			});
 
 		const first = mountExplore();

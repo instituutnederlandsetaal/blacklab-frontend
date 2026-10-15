@@ -2,12 +2,14 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type {} from 'vitest/jsdom';
-import { nextTick } from 'vue';
+import { effectScope, nextTick, type EffectScope } from 'vue';
 
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 describe('localStorageSynced', () => {
+	let scope: EffectScope;
 	beforeEach(() => {
+		scope = effectScope();
 		vi.stubGlobal('localStorage', jsdom.window.localStorage);
 		localStorage.clear();
 		vi.useFakeTimers();
@@ -15,6 +17,7 @@ describe('localStorageSynced', () => {
 	});
 
 	afterEach(() => {
+		scope.stop();
 		vi.useRealTimers();
 		vi.restoreAllMocks();
 		localStorage.clear();
@@ -26,11 +29,11 @@ describe('localStorageSynced', () => {
 		localStorage.setItem('current', JSON.stringify({ value: 'current', expiry: Date.now() + 1 }));
 		localStorage.setItem('expired', JSON.stringify({ value: 'stale', expiry: Date.now() - 1 }));
 
-		expect(localStorageSynced('legacy', 'default').value).toBe('stored');
-		expect(localStorageSynced('current', 'default').value).toBe('current');
-		expect(localStorageSynced('expired', 'default').value).toBe('default');
+		expect(scope.run(() => localStorageSynced('legacy', 'default'))!.value).toBe('stored');
+		expect(scope.run(() => localStorageSynced('current', 'default'))!.value).toBe('current');
+		expect(scope.run(() => localStorageSynced('expired', 'default'))!.value).toBe('default');
 
-		const synced = localStorageSynced('updated', 'initial', false, 60);
+		const synced = scope.run(() => localStorageSynced('updated', 'initial', false, 60))!;
 		synced.value = 'changed';
 		expect(localStorage.getItem('updated')).toBeNull();
 		await nextTick();
@@ -38,7 +41,7 @@ describe('localStorageSynced', () => {
 	});
 
 	test('applies a cross-tab envelope without echoing it', async () => {
-		const synced = localStorageSynced('locale', 'en', true, 60);
+		const synced = scope.run(() => localStorageSynced('locale', 'en', true, 60))!;
 		const envelope = JSON.stringify({ value: 'nl', expiry: Date.now() - 1 });
 		localStorage.setItem('locale', envelope);
 		const setStoredItem = vi.spyOn(Storage.prototype, 'setItem');
@@ -53,5 +56,21 @@ describe('localStorageSynced', () => {
 		await nextTick();
 		expect(synced.value).toBe('de');
 		expect(setStoredItem).not.toHaveBeenCalled();
+	});
+
+	test('stops storage events and queued writes when its scope is disposed', async () => {
+		const synced = scope.run(() => localStorageSynced('locale', 'en', true))!;
+		synced.value = 'queued';
+		scope.stop();
+		await nextTick();
+		expect(localStorage.getItem('locale')).toBeNull();
+
+		window.dispatchEvent(new StorageEvent('storage', { key: 'locale', newValue: JSON.stringify('nl') }));
+		await nextTick();
+		expect(synced.value).toBe('queued');
+
+		synced.value = 'after-disposal';
+		await nextTick();
+		expect(localStorage.getItem('locale')).toBeNull();
 	});
 });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, ref, shallowRef } from 'vue';
 
 import { type FormRuntime, type SummaryTotalsState } from '@/features/form';
@@ -10,8 +10,6 @@ import { type CompiledFormSummary } from '@/features/form/model/types/form-resul
 
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
-
-enableAutoUnmount(afterEach);
 
 function mountSummary() {
 	const compiled = ref<CompiledFormSummary>({ params: {}, summaries: [] });

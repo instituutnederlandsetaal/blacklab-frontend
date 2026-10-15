@@ -1,20 +1,22 @@
 // @vitest-environment jsdom
 
 import en from '@assets/locales/en-us.json';
-import { enableAutoUnmount, flushPromises, mount, shallowMount } from '@vue/test-utils';
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { createMockCustomizations } from '@test/mocks/customizations';
+import { flushPromises, mount, shallowMount } from '@vue/test-utils';
 import type * as VueUse from '@vueuse/core';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { defineComponent, nextTick, ref } from 'vue';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { defineComponent, nextTick, ref, type Ref } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
+import type { CFPageConfig, Corpus } from '@/types/apptypes';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import ArticlePage from '@/pages/article/ArticlePage.vue';
-
-enableAutoUnmount(afterEach);
 
 const mock = vi.hoisted(() => ({
 	articleRoute: undefined as unknown,
@@ -22,7 +24,6 @@ const mock = vi.hoisted(() => ({
 	corpus: undefined as unknown,
 	createTooltips: vi.fn(() => vi.fn()),
 	markScriptsReady: vi.fn(),
-	resultDetailedMetadataIds: vi.fn(),
 	streams: undefined as unknown,
 }));
 
@@ -32,20 +33,12 @@ vi.mock('@vueuse/core', async importOriginal => ({
 	useLocalStorage: (_key: string, initialValue: unknown) => ref(initialValue),
 	useWindowSize: () => ({ width: ref(1024), height: ref(768) }),
 }));
-vi.mock('@/app/state/useCorpusContext', () => ({
-	useCfPageConfig: () => mock.cfPageConfig,
-	useCorpus: () => ref(mock.corpus),
-}));
-vi.mock('@/customization-api/internal/internal-api', () => ({
-	useCustomizations: () => ({ resultDetailedMetadataIds: mock.resultDetailedMetadataIds }),
-}));
 vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
 vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
 vi.mock('@/features/article/model/article-page-state', () => ({
 	useArticleState: () => ({ parameters: ref(mock.articleRoute), showPage: vi.fn(), showHit: vi.fn() }),
 }));
 vi.mock('@/pages/article/article', () => ({ createArticleStreams: () => mock.streams }));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: vi.fn(), useFrontendApi: vi.fn() }));
 
 function createStreams() {
 	const empty = () => new BehaviorSubject(Loadable.Empty());
@@ -70,13 +63,15 @@ const EmptyHtmlRenderer = defineComponent({
 	template: '<div><slot name="empty" /></div>',
 });
 
+let customizations: ReturnType<typeof createMockCustomizations>;
+let api: ReturnType<typeof createMockApi>;
+let corpusContext: ReturnType<typeof createMockCorpusContext>;
+
 beforeEach(() => {
 	mock.cfPageConfig = ref({ pageSize: null });
 	mock.createTooltips.mockReset();
 	mock.createTooltips.mockImplementation(() => vi.fn());
 	mock.markScriptsReady.mockReset();
-	mock.resultDetailedMetadataIds.mockReset();
-	mock.resultDetailedMetadataIds.mockReturnValue([]);
 	ArticleStore.actions.distributionAnnotation(null);
 	ArticleStore.actions.growthAnnotations(null);
 	ArticleStore.actions.statisticsTableFn(null);
@@ -88,6 +83,9 @@ beforeEach(() => {
 		mainAnnotatedField: { id: 'contents' },
 		metadataGroups: [],
 	};
+	customizations = createMockCustomizations(() => mock.corpus as Corpus);
+	api = createMockApi();
+	corpusContext = createMockCorpusContext({ corpus: () => mock.corpus as Corpus, config: mock.cfPageConfig as Ref<Partial<CFPageConfig>> });
 	mock.articleRoute = { docId: 'document', viewField: 'contents' };
 	mock.streams = createStreams();
 });
@@ -95,6 +93,7 @@ beforeEach(() => {
 function mountArticle() {
 	return mount(ArticlePage, {
 		global: {
+			plugins: [api, corpusContext, customizations],
 			mocks: { $t: (key: string) => key },
 			stubs: { ArticlePageStatistics: StatisticsProbe, Collapsible: true, Debug: true, Pagination: true, Spinner: true },
 		},
@@ -149,6 +148,7 @@ describe('ArticlePage statistics tab', () => {
 	test('shows the localized not-configured state without retrieving statistics', async () => {
 		const wrapper = shallowMount(ArticlePage, {
 			global: {
+				plugins: [api, corpusContext, customizations],
 				mocks: {
 					$t: (key: string) => (key === 'article.statistics.notConfigured' ? en.article.statistics.notConfigured : key),
 				},
@@ -188,7 +188,7 @@ describe('ArticlePage statistics tab', () => {
 
 test('updates the displayed metadata when customized field IDs change', async () => {
 	const detailedMetadataIds = ref(['title']);
-	mock.resultDetailedMetadataIds.mockImplementation(() => detailedMetadataIds.value);
+	customizations.resultDetailedMetadataIds.mockImplementation(() => detailedMetadataIds.value);
 	mock.corpus = {
 		...(mock.corpus as Record<string, unknown>),
 		allMetadataFieldsMap: { author: { id: 'author' }, title: { id: 'title' } },
@@ -196,6 +196,7 @@ test('updates the displayed metadata when customized field IDs change', async ()
 	};
 	const wrapper = mount(ArticlePage, {
 		global: {
+			plugins: [api, corpusContext, customizations],
 			mocks: {
 				$t: (key: string) => key,
 				$tMetaDisplayName: (field: { id: string }) => field.id,
@@ -224,7 +225,7 @@ test('replaces and disposes tooltip contexts with article contents', async () =>
 	const firstCleanup = vi.fn();
 	const secondCleanup = vi.fn();
 	mock.createTooltips.mockReturnValueOnce(firstCleanup).mockReturnValueOnce(firstCleanup).mockReturnValueOnce(secondCleanup).mockReturnValueOnce(secondCleanup);
-	const wrapper = shallowMount(ArticlePage);
+	const wrapper = shallowMount(ArticlePage, { global: { plugins: [api, corpusContext, customizations] } });
 	const contents$ = (mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>;
 
 	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));

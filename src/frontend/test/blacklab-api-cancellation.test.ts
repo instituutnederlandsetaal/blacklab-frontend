@@ -1,163 +1,191 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import type { BLIndexMetadata, BLIndexMetadataV4, BLRelationInfo } from '@/types/blacklabtypes';
+import type { BLIndexMetadata, BLIndexMetadataV4 } from '@/types/blacklabtypes';
+
+import { createMockHttp } from './mocks/http';
 
 import { createBlackLabApi } from '@/shared/api/blacklabApi';
-import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import type * as NormalizeCorpusModule from '@/shared/blacklab-helpers/normalize/normalize-corpus';
+import { ApiError } from '@/shared/api/lib/api-types';
 
-const mock = vi.hoisted(() => ({
-	getCancelable: vi.fn(),
-	normalizeIndex: vi.fn(),
-}));
+const relations = {
+	spans: { s: { count: 12, attributes: { type: { values: { sentence: 12 }, valueListComplete: true } } } },
+	relations: { dependency: { subject: 8 } },
+};
 
-vi.mock('@/shared/api/lib/api-endpoint', () => ({ createEndpoint: () => ({ getCancelable: mock.getCancelable }) }));
-vi.mock('@/shared/blacklab-helpers/normalize/normalize-corpus', async importOriginal => ({
-	...(await importOriginal<typeof NormalizeCorpusModule>()),
-	normalizeIndex: mock.normalizeIndex,
-}));
-
-function deferredRequest<T>() {
-	let resolve!: (value: T) => void;
-	let reject!: (reason: unknown) => void;
-	const cancel = vi.fn(() => reject(ApiError.CANCELLED));
+function v4Metadata(withValues = false): BLIndexMetadataV4 {
+	const annotation = { hasForwardIndex: true, isInternal: false, offsetsAlternative: 's', sensitivity: 'SENSITIVE_AND_INSENSITIVE' as const };
 	return {
-		request: new CancelableRequest(
-			new Promise<T>((resolvePromise, rejectPromise) => {
-				resolve = resolvePromise;
-				reject = rejectPromise;
-			}),
-			cancel,
-		),
-		resolve,
-		cancel,
-	};
-}
-
-function v4StageOne(): BLIndexMetadataV4 {
-	return {
+		indexName: 'owner:corpus',
+		displayName: 'Example corpus',
+		contentViewable: true,
+		status: 'available',
+		textDirection: 'ltr',
+		tokenCount: 120,
+		documentCount: 3,
+		versionInfo: { blacklabBuildTime: '', blacklabScmRevision: 'test', blacklabVersion: '4.2.0', indexFormat: '4', timeCreated: '', timeModified: '2026-10-14' },
 		mainAnnotatedField: 'contents',
 		annotatedFields: {
 			contents: {
+				fieldName: 'contents',
+				hasContentStore: true,
+				isAnnotatedField: true,
+				mainAnnotation: 'word',
+				hasXmlTags: true,
 				annotations: {
-					word: { hasForwardIndex: true },
-					punct: { hasForwardIndex: false },
-					lemma: { hasForwardIndex: true },
+					word: { ...annotation, displayName: 'Word', valueListComplete: withValues, values: withValues ? ['water', 'ship'] : undefined },
+					punct: { ...annotation, hasForwardIndex: false, isInternal: true },
+					lemma: { ...annotation, displayName: 'Lemma', valueListComplete: withValues, values: withValues ? ['water', 'ship'] : undefined },
 				},
 			},
 		},
-	} as unknown as BLIndexMetadataV4;
+		annotationGroups: { contents: [{ name: 'Words', annotations: ['word', 'lemma'] }] },
+		metadataFields: {},
+		metadataFieldGroups: [],
+		fieldInfo: {},
+	};
 }
 
-async function createApi(version: '4.2.0' | '5.0.0' | '5.0.0-SNAPSHOT') {
-	return createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion: version });
+function v5Metadata(): BLIndexMetadata {
+	return {
+		corpusName: 'owner:corpus',
+		contentViewable: true,
+		status: 'available',
+		count: { documents: 3, tokens: 120 },
+		versionInfo: { blacklabBuildTime: '', blacklabScmRevision: 'test', blacklabVersion: '4.4.0-SNAPSHOT', indexFormat: '5', timeCreated: '', timeModified: '2026-10-14' },
+		custom: { displayName: 'Example corpus', textDirection: 'ltr', annotationGroups: {}, metadataFieldGroups: [] },
+		mainAnnotatedField: 'contents',
+		annotatedFields: {
+			contents: {
+				fieldName: 'contents',
+				hasContentStore: true,
+				isAnnotatedField: true,
+				mainAnnotation: 'word',
+				hasXmlTags: true,
+				count: { documents: 3, tokens: 120 },
+				annotations: {
+					word: {
+						hasForwardIndex: true,
+						isInternal: false,
+						offsetsAlternative: 's',
+						sensitivity: 'SENSITIVE_AND_INSENSITIVE',
+						custom: { displayName: 'Word' },
+						terms: { water: 80, ship: 40 },
+						valueListComplete: true,
+					},
+				},
+				relations,
+			},
+		},
+		metadataFields: {},
+		pidField: 'pid',
+	};
 }
 
-beforeEach(() => {
-	mock.getCancelable.mockReset();
-	mock.normalizeIndex.mockReset();
-});
+async function createApi(blacklabVersion: string) {
+	const http = createMockHttp();
+	const api = await createBlackLabApi({ baseUrl: '/blacklab', user: null, blacklabVersion, axiosOptions: { adapter: http.adapter } });
+	return { api, http };
+}
+
+beforeEach(() => vi.stubGlobal('WITH_CREDENTIALS', false));
+afterEach(() => vi.unstubAllGlobals());
 
 describe('BlackLab corpus request cancellation', () => {
 	test('starts V4 relations concurrently and cancels stage one and relations before transition', async () => {
-		const stageOne = deferredRequest<BLIndexMetadataV4>();
-		const relations = deferredRequest<BLRelationInfo>();
-		mock.getCancelable.mockReturnValueOnce(stageOne.request).mockReturnValueOnce(relations.request);
-		const api = await createApi('4.2.0');
-
+		const { api, http } = await createApi('4.2.0');
 		const request = api.getCorpus('owner:corpus');
-		expect(mock.getCancelable.mock.calls.map(([url]) => url)).toEqual(['owner:corpus/', 'owner:corpus/relations/']);
-
+		const stageOne = await http.nextRequest();
+		const relationRequest = await http.nextRequest();
+		expect(http.requests.map(sent => sent.config.url)).toEqual(['owner:corpus/', 'owner:corpus/relations/']);
 		request.cancel();
 		await expect(request).rejects.toBe(ApiError.CANCELLED);
-		expect(stageOne.cancel).toHaveBeenCalledOnce();
-		expect(relations.cancel).toHaveBeenCalledOnce();
+		expect(stageOne.cancelled).toBe(true);
+		expect(relationRequest.cancelled).toBe(true);
 	});
 
 	test('cancels V4 stage two and relations after the metadata transition', async () => {
-		const stageOne = deferredRequest<BLIndexMetadataV4>();
-		const relations = deferredRequest<BLRelationInfo>();
-		const stageTwo = deferredRequest<BLIndexMetadataV4>();
-		mock.getCancelable.mockReturnValueOnce(stageOne.request).mockReturnValueOnce(relations.request).mockReturnValueOnce(stageTwo.request);
-		const api = await createApi('4.2.0');
+		const { api, http } = await createApi('4.2.0');
 		const request = api.getCorpus('owner:corpus');
 		const publication = vi.fn();
 		const observed = request.then(publication);
-
-		stageOne.resolve(v4StageOne());
-		await Promise.resolve();
-		expect(mock.getCancelable).toHaveBeenNthCalledWith(3, 'owner:corpus/', { listvalues: 'word,lemma' }, undefined);
-
+		const stageOne = await http.nextRequest();
+		const relationRequest = await http.nextRequest();
+		stageOne.respond(v4Metadata());
+		const stageTwo = await http.nextRequest();
+		expect(stageTwo.config.url).toBe('owner:corpus/');
+		expect(stageTwo.query.get('listvalues')).toBe('word,lemma');
 		request.cancel();
 		await expect(observed).rejects.toBe(ApiError.CANCELLED);
-		expect(stageTwo.cancel).toHaveBeenCalledOnce();
-		expect(relations.cancel).toHaveBeenCalledOnce();
-		stageTwo.resolve({} as BLIndexMetadataV4);
-		relations.resolve({} as BLRelationInfo);
-		await Promise.resolve();
+		expect(stageTwo.cancelled).toBe(true);
+		expect(relationRequest.cancelled).toBe(true);
+		stageTwo.respond(v4Metadata(true));
+		relationRequest.respond(relations);
 		expect(publication).not.toHaveBeenCalled();
-		expect(mock.normalizeIndex).not.toHaveBeenCalled();
 	});
 
-	test('does not start V4 stage two when cancelled before the transition microtask', async () => {
-		const stageOne = deferredRequest<BLIndexMetadataV4>();
-		const relations = deferredRequest<BLRelationInfo>();
-		mock.getCancelable.mockReturnValueOnce(stageOne.request).mockReturnValueOnce(relations.request);
-		const api = await createApi('4.2.0');
-		const request = api.getCorpus('owner:corpus');
+	test('regression: cancellation after Axios receives V4 metadata prevents stage two', async () => {
+		const { api, http } = await createApi('4.2.0');
+		const request = api.getCorpus('owner:corpus', {
+			transformResponse: data => {
+				// Cancel after Axios accepts the response, before the API starts loading annotation values.
+				request.cancel();
+				return data;
+			},
+		});
 		const publication = vi.fn();
 		const observed = request.then(publication);
-
-		stageOne.resolve(v4StageOne());
-		request.cancel();
-
+		const stageOne = await http.nextRequest();
+		const relationRequest = await http.nextRequest();
+		stageOne.respond(v4Metadata());
 		await expect(observed).rejects.toBe(ApiError.CANCELLED);
-		expect(mock.getCancelable).toHaveBeenCalledTimes(2);
-		expect(stageOne.cancel).toHaveBeenCalledOnce();
-		expect(relations.cancel).toHaveBeenCalledOnce();
+		expect(http.requests).toHaveLength(2);
+		expect(stageOne.cancelled).toBe(true);
+		expect(relationRequest.cancelled).toBe(true);
 		expect(publication).not.toHaveBeenCalled();
-		expect(mock.normalizeIndex).not.toHaveBeenCalled();
 	});
 
 	test('normalizes V4 stage-two metadata with its concurrent relations', async () => {
-		const stageOne = deferredRequest<BLIndexMetadataV4>();
-		const relations = deferredRequest<BLRelationInfo>();
-		const stageTwo = deferredRequest<BLIndexMetadataV4>();
-		const normalized = { id: 'owner:corpus' };
-		const metadata = {} as BLIndexMetadataV4;
-		const relationInfo = {} as BLRelationInfo;
-		mock.getCancelable.mockReturnValueOnce(stageOne.request).mockReturnValueOnce(relations.request).mockReturnValueOnce(stageTwo.request);
-		mock.normalizeIndex.mockReturnValue(normalized);
-		const api = await createApi('4.2.0');
+		const { api, http } = await createApi('4.2.0');
 		const request = api.getCorpus('owner:corpus');
-
-		stageOne.resolve(v4StageOne());
-		await Promise.resolve();
-		stageTwo.resolve(metadata);
-		relations.resolve(relationInfo);
-
-		await expect(request).resolves.toEqual(normalized);
-		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, relationInfo, '4.2.0');
+		const stageOne = await http.nextRequest();
+		const relationRequest = await http.nextRequest();
+		stageOne.respond(v4Metadata());
+		const stageTwo = await http.nextRequest();
+		stageTwo.respond(v4Metadata(true));
+		relationRequest.respond(relations);
+		const corpus = await request;
+		expect(http.requests).toHaveLength(3);
+		expect(corpus).toMatchObject({ id: 'owner:corpus', owner: 'owner', displayName: 'Example corpus', tokenCount: 120, documentCount: 3, runtimeVersion: '4.2.0', relations });
+		expect(corpus.annotatedFields.contents.annotations.word).toMatchObject({
+			id: 'word',
+			defaultDisplayName: 'Word',
+			isMainAnnotation: true,
+			uiType: 'select',
+			values: [
+				{ value: 'water', label: 'water', title: null },
+				{ value: 'ship', label: 'ship', title: null },
+			],
+		});
 	});
 
 	test('keeps V5 to one metadata request and uses its inline relations', async () => {
-		const metadataRequest = deferredRequest<BLIndexMetadata>();
-		const inlineRelations = {} as BLRelationInfo;
-		const metadata = {
-			mainAnnotatedField: 'contents',
-			annotatedFields: { contents: { relations: inlineRelations } },
-		} as unknown as BLIndexMetadata;
-		const normalized = { id: 'owner:corpus' };
-		mock.getCancelable.mockReturnValue(metadataRequest.request);
-		mock.normalizeIndex.mockReturnValue(normalized);
-		const api = await createApi('5.0.0-SNAPSHOT');
-
+		const { api, http } = await createApi('5.0.0-SNAPSHOT');
 		const request = api.getCorpus('owner:corpus');
-		expect(mock.getCancelable).toHaveBeenCalledOnce();
-		expect(mock.getCancelable).toHaveBeenCalledWith('corpora/owner:corpus/', { custom: true, listvalues: '*' }, undefined);
-		metadataRequest.resolve(metadata);
-
-		await expect(request).resolves.toEqual(normalized);
-		expect(mock.normalizeIndex).toHaveBeenCalledWith(metadata, inlineRelations, '5.0.0');
+		const metadataRequest = await http.nextRequest();
+		expect(metadataRequest.config.url).toBe('corpora/owner:corpus/');
+		expect(Object.fromEntries(metadataRequest.query)).toEqual({ api: '5', custom: 'true', listvalues: '*' });
+		metadataRequest.respond(v5Metadata());
+		const corpus = await request;
+		expect(http.requests).toHaveLength(1);
+		expect(corpus).toMatchObject({ id: 'owner:corpus', displayName: 'Example corpus', tokenCount: 120, documentCount: 3, indexerVersion: '4.4.0', runtimeVersion: '5.0.0', relations });
+		expect(corpus.annotatedFields.contents.annotations.word).toMatchObject({
+			defaultDisplayName: 'Word',
+			isMainAnnotation: true,
+			uiType: 'select',
+			values: [
+				{ value: 'water', label: 'water', title: null },
+				{ value: 'ship', label: 'ship', title: null },
+			],
+		});
 	});
 });

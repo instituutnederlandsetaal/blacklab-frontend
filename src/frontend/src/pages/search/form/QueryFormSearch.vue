@@ -211,7 +211,7 @@ export default defineComponent({
 		copyExtendedQuery() {
 			const patternState = PatternStore.getState();
 			const filterState = FilterStore.getState();
-			const q = getPatternStringSearch('extended', patternState, this.customizations.searchFormAlignByDefault(), filterState.filters);
+			const q = getPatternStringSearch('extended', patternState, this.customizations.searchFormAlignByDefault() ?? '', filterState.filters);
 			PatternStore.actions.expert.query(q || '');
 			InterfaceStore.actions.patternMode('expert');
 		},

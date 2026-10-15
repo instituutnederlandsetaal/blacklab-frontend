@@ -1,42 +1,28 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
+import { createMockCustomizations } from '@test/mocks/customizations';
 import { shallowMount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { ref } from 'vue';
 
+import type { Corpus } from '@/types/apptypes';
 import type { BLSearchResult } from '@/types/blacklabtypes';
+
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import Export from '@/pages/search/results/Export.vue';
 
-const mock = vi.hoisted(() => ({
-	exportDescription: vi.fn(() => 'description'),
-	exportSpanAttribute: vi.fn(() => true),
-	getDocsCsv: vi.fn(),
-	getHitsCsv: vi.fn(),
-	resultDetailedAnnotationIds: vi.fn(),
-	resultDetailedMetadataIds: vi.fn(),
-}));
+let api: ReturnType<typeof createMockApi>;
+let corpusContext: ReturnType<typeof createMockCorpusContext>;
+let customizations: ReturnType<typeof createMockCustomizations>;
 
 const corpus = {
 	allAnnotatedFieldsMap: { contents: { id: 'contents' } },
 	id: 'test',
 	mainAnnotatedField: 'contents',
 	relations: { spans: {} },
-};
-
-vi.mock('@/app/state/useCorpusContext', () => ({ useCorpus: () => ref(corpus) }));
-vi.mock('@/customization-api/internal/internal-api', () => ({
-	useCustomizations: () => ({
-		exportDescription: mock.exportDescription,
-		exportSpanAttribute: mock.exportSpanAttribute,
-		resultDetailedAnnotationIds: mock.resultDetailedAnnotationIds,
-		resultDetailedMetadataIds: mock.resultDetailedMetadataIds,
-	}),
-}));
-vi.mock('@/shared/api', () => ({ useBlackLabApi: () => ({ getDocsCsv: mock.getDocsCsv, getHitsCsv: mock.getHitsCsv }) }));
-vi.mock('@/shared/i18n', () => ({
-	useI18n: () => ({ $tAnnotatedFieldDisplayName: ({ id }: { id: string }) => id }),
-}));
+} as unknown as Corpus;
 
 function results(): BLSearchResult {
 	return {
@@ -52,11 +38,16 @@ function results(): BLSearchResult {
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	mock.resultDetailedAnnotationIds.mockReturnValue(['initial-annotation']);
-	mock.resultDetailedMetadataIds.mockReturnValue(['initial-metadata']);
-	const pending = new Promise<Blob>(() => undefined);
-	mock.getHitsCsv.mockReturnValue({ request: pending });
-	mock.getDocsCsv.mockReturnValue({ request: pending });
+	api = createMockApi();
+	corpusContext = createMockCorpusContext({ corpus });
+	customizations = createMockCustomizations(corpus);
+	customizations.exportDescription.mockReturnValue('description');
+	customizations.exportSpanAttribute.mockReturnValue(true);
+	customizations.resultDetailedAnnotationIds.mockReturnValue(['initial-annotation']);
+	customizations.resultDetailedMetadataIds.mockReturnValue(['initial-metadata']);
+	const pending = new CancelableRequest(new Promise<Blob>(() => undefined), vi.fn());
+	api.blacklabApi.getHitsCsv.mockReturnValue(pending);
+	api.blacklabApi.getDocsCsv.mockReturnValue(pending);
 });
 
 describe('Export', () => {
@@ -71,14 +62,14 @@ describe('Export', () => {
 		const originalParams = { ...displayedResults.summary.params };
 		const wrapper = shallowMount(Export, {
 			props: { results: displayedResults, type: 'hits' },
-			global: { mocks: { $t: (key: string) => key } },
+			global: { plugins: [api, corpusContext, customizations] },
 		});
 
-		mock.resultDetailedAnnotationIds.mockReturnValue(['latest-annotation']);
-		mock.resultDetailedMetadataIds.mockReturnValue(['latest-metadata']);
+		customizations.resultDetailedAnnotationIds.mockReturnValue(['latest-annotation']);
+		customizations.resultDetailedMetadataIds.mockReturnValue(['latest-metadata']);
 		await wrapper.get('button').trigger('click');
 
-		expect(mock.getHitsCsv).toHaveBeenCalledWith('test', {
+		expect(api.blacklabApi.getHitsCsv).toHaveBeenCalledWith('test', {
 			context: '3:4',
 			csvdescription: 'description',
 			csvsepline: false,

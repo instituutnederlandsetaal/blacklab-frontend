@@ -2,7 +2,7 @@
 
 import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
-import { DOMWrapper, enableAutoUnmount, mount } from '@vue/test-utils';
+import { DOMWrapper, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
@@ -23,8 +23,6 @@ afterEach(() => {
 	fixture.scope.stop();
 	vi.restoreAllMocks();
 });
-
-enableAutoUnmount(afterEach);
 
 describe('Collocation form', () => {
 	test.each([

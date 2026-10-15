@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { enableAutoUnmount, shallowMount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { shallowMount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
 import type { ColumnDef, ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
@@ -13,8 +13,6 @@ import GroupRow from '@/pages/search/results/table/GroupRow.vue';
 import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
 import HitRow from '@/pages/search/results/table/HitRow.vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
-
-enableAutoUnmount(afterEach);
 
 describe('GenericTable', () => {
 	test('renders a caret-free accessible group expansion control and neutral missing values', async () => {

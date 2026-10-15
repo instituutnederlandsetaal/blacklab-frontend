@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { createMockTranslate } from '@test/mocks/i18n';
-import { enableAutoUnmount, mount } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
 import { nextTick, ref } from 'vue';
 
 import {
@@ -24,8 +24,6 @@ import { createTestBuilder, createTestContext, createTestRuntime } from './helpe
 import ParallelField from '@/features/form/fields/ParallelField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-
-enableAutoUnmount(afterEach);
 
 describe('parallel query emissions', () => {
 	const context: FormRuntimeContext = {

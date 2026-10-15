@@ -141,6 +141,7 @@ export function getAnnotationSubset(
 	}
 
 	const subset = fieldSubset(ids, groups, annotations, operation !== 'Search' ? 'Other' : undefined);
+	if (!subset.length) return [];
 	if (operation === 'Search') {
 		const selectedAnnotations = [...new Map(subset.flatMap(group => group.entries).map(annotation => [annotation.id, annotation])).values()];
 		return subset.map(group => {

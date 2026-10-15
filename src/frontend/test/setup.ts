@@ -1,19 +1,22 @@
-import { createMockI18n } from '@test/mocks/i18n';
-import { config } from '@vue/test-utils';
-import { beforeEach } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { afterAll, afterEach, beforeEach } from 'vitest';
 
-const DebugStub = defineComponent({
-	render: () => h('span'),
-});
+if (typeof window !== 'undefined') {
+	const [{ createMockI18n }, { config, enableAutoUnmount, disableAutoUnmount }, { defineComponent, h }] = await Promise.all([import('@test/mocks/i18n'), import('@vue/test-utils'), import('vue')]);
+	afterEach(() => document.body.replaceChildren());
+	disableAutoUnmount();
+	enableAutoUnmount(afterEach);
+	afterAll(disableAutoUnmount);
+	const DebugStub = defineComponent({
+		render: () => h('span'),
+	});
 
-config.global.stubs ??= {};
-config.global.stubs.debug = DebugStub;
-config.global.stubs.Debug = DebugStub;
-config.global.stubs.Spinner = true;
+	config.global.stubs ??= {};
+	config.global.stubs.debug = DebugStub;
+	config.global.stubs.Debug = DebugStub;
+	config.global.stubs.Spinner = true;
 
-config.global.plugins ??= [];
-config.global.plugins.push(createMockI18n());
+	config.global.plugins = [createMockI18n()];
+}
 
 // Capture console output and only emit it when the test fails.
 
