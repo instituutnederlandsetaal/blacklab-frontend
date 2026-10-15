@@ -2,7 +2,8 @@
 
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { createSearchFormNodeConstructors } from '@/customization-api/shared/form/node-constructors';
-import type { AnyFormTarget, FormBuilder } from '@/features/form';
+import type { AnyFormTarget, FormBuilder, FormNode } from '@/features/form';
+import { createFormContainerNode, createFormNode } from '@/features/form/model/form-node';
 import { blackLabSupportsCollocations } from '@/types/blacklabtypes';
 
 import type { Corpus, SearchFormContainerNode, SearchFormCustomizationApi, SearchFormGraph, SearchFormNodeConstructors, SearchFormTranslate } from './external-api';
@@ -25,19 +26,19 @@ export function createSearchFormCustomizationApi({
 	// Keep the public graph member list tied to FormBuilder even though its nodes
 	// need a boundary cast for the public node handle.
 	const graph: SearchFormGraphImplementation = builder;
-	const newForm: SearchFormCustomizationApi['newForm'] = (id, config = {}) => {
+	const newForm: SearchFormCustomizationApi['newForm'] = (id, config = {}, children = []) => {
 		const target = (config as typeof config & { target?: AnyFormTarget }).target;
 		if (target?.supportedEndpoints.includes('collocations') && !blackLabSupportsCollocations(corpus.runtimeVersion)) {
 			throw new Error(`Collocation form target '${id}' requires BlackLab 5 or newer, or dev; this server reports '${corpus.runtimeVersion}'.`);
 		}
-		return builder.newForm(id, ContainerRenderer, config) as unknown as SearchFormContainerNode;
+		return createFormNode(id, ContainerRenderer, config, children as unknown as readonly FormNode[]) as unknown as SearchFormContainerNode;
 	};
 	const api = {
 		...(nodeConstructors as unknown as SearchFormNodeConstructors),
 		corpus,
 		graph: graph as unknown as SearchFormGraph,
 		ids: searchFormIds,
-		newContainer: (id, config = {}) => builder.newContainer(id, ContainerRenderer, config) as unknown as SearchFormContainerNode,
+		newContainer: (id, config = {}, children = []) => createFormContainerNode(id, ContainerRenderer, config, children as unknown as readonly FormNode[]) as unknown as SearchFormContainerNode,
 		newForm,
 		translate,
 	} satisfies SearchFormCustomizationApi;

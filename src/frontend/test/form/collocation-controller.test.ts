@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import type { CqlAttributeData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import type { CollocationFieldState } from '@/features/form/fields/collocation-field';
 import { collocationController, collocationPatternToCql } from '@/features/form/model/controllers/collocation-controller';
-import { createFormFieldNode } from '@/features/form/model/form-field-node';
+import { createFormFieldNode } from '@/features/form/model/form-node';
 import type { Emit, FormEmission, SummaryInput } from '@/features/form/model/types/form-output';
 
 import { createTestContext, testTextController, TestTextField } from './helpers';

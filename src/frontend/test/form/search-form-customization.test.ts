@@ -142,8 +142,8 @@ describe('Search form customization', () => {
 				observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
 				expect(form).not.toHaveProperty('setAnnotationUiType');
 				form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
-				const fields = form.newContainer(customContainerId, { layout: 'list' }).addChildren(form.annotationText('lemma', { id: customFieldId }));
-				const customForm = form.newForm(customFormId, { title: () => form.translate.$t('search.simple.heading') }).addChildren(fields);
+				const fields = form.newContainer(customContainerId, { layout: 'list' }, [form.annotationText('lemma', { id: customFieldId })]);
+				const customForm = form.newForm(customFormId, { title: () => form.translate.$t('search.simple.heading') }, [fields]);
 				form.graph.getContainer(form.ids.searchFormsContainer())!.addChildren(customForm);
 			},
 		});
@@ -163,6 +163,31 @@ describe('Search form customization', () => {
 		} finally {
 			if (registered) unregister();
 		}
+	});
+
+	test('replaces shared containers and forms through the public API', () => {
+		fixture.registry.registerForm({
+			customize(form) {
+				const filters = form.graph.getContainer(form.ids.sharedFiltersRegion())!;
+				const replacement = form.newContainer(filters.id, { title: 'Filters', layout: 'list' }, filters.children);
+				form.graph.replaceNode(filters.id, replacement);
+				const simpleId = form.ids.searchForm('simple');
+				form.graph.replaceNode(simpleId, form.newForm(simpleId, { title: 'Lemma search' }, [form.annotationText('lemma', { id: 'custom/lemma' }), replacement]));
+			},
+		});
+
+		const runtime = fixture.createRuntime();
+		const definition = runtime.definition;
+		const filters = definition.getContainer(ids.sharedFiltersRegion())!;
+		const simple = definition.getForm(ids.searchForm('simple'))!;
+		expect(filters.title).toBe('Filters');
+		expect(definition.contains(filters, ids.metadataFilter('author'))).toBe(true);
+		expect(definition.getForm(ids.searchForm('extended'))?.children).toContain(filters);
+		expect(definition.getContainer(ids.searchFormsContainer())?.children[0]).toBe(simple);
+		expect(simple.title).toBe('Lemma search');
+		expect(simple.children.map(child => child.id)).toEqual(['custom/lemma', filters.id]);
+		runtime.state.state.value['custom/lemma'] = { value: 'run', caseSensitive: false };
+		expect(runtime.compile(simple.id).params.patt).toBe('[lemma="run"]');
 	});
 
 	test('treats callback shorthand as semantic configuration', () => {

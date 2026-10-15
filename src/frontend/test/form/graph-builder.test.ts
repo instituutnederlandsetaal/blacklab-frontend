@@ -1,12 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { isReactive } from 'vue';
 
-import { createFormFieldNode } from '@/features/form/model/form-field-node';
+import { createFormContainerNode, createFormFieldNode, createFormNode, createFormViewNode } from '@/features/form/model/form-node';
 import { createDefaultFormState } from '@/features/form/model/state';
-import { searchTarget } from '@/features/form/model/targets';
 import type { FormOutputProducer } from '@/features/form/model/types/form-output';
 import { filter } from '@/features/form/model/types/form-query-ir';
-import { type ContainerNode, type FormBoundaryNode, type FormViewNode } from '@/features/form/model/types/form-shape';
 
 import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
 
@@ -32,14 +30,9 @@ describe('graph construction', () => {
 			annotationId: 'lemma',
 			displayName: 'Lemma',
 		});
-		const adoptedView = { id: 'adopted.view', kind: 'view', component: parentFormProbeView } satisfies FormViewNode;
-		const adoptedContainer = {
-			id: 'adopted.container',
-			kind: 'container',
-			component: ContainerRenderer,
-			children: [adoptedField, adoptedView],
-		} satisfies ContainerNode;
-		const adoptedForm = { id: 'adopted.form', kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
+		const adoptedView = createFormViewNode('adopted.view', parentFormProbeView, {});
+		const adoptedContainer = createFormContainerNode('adopted.container', ContainerRenderer, {}, [adoptedField, adoptedView]);
+		const adoptedForm = createFormNode('adopted.form', ContainerRenderer, {});
 		root.addChildren(adoptedContainer, adoptedForm);
 
 		return builder;
@@ -257,13 +250,30 @@ describe('graph editing', () => {
 	test('replaceNode rewrites every incoming edge and adopts replacement descendants', () => {
 		const { builder, left, right, shared } = createSharedFieldGraph();
 		const descendant = replacementTextField('descendant');
-		const replacement = { id: shared.id, kind: 'container', component: ContainerRenderer, children: [descendant] } satisfies ContainerNode;
+		const replacement = createFormContainerNode(shared.id, ContainerRenderer, {}, [descendant]);
 
+		expect(builder.getNode(shared.id)).toBe(shared);
+		expect(builder.hasNode(descendant.id)).toBe(false);
 		expect(builder.replaceNode(shared.id, replacement)).toBe(shared);
 		expect(builder.getContainer(shared.id)).toBe(replacement);
 		expect(left.children[0]).toBe(replacement);
 		expect(right.children[0]).toBe(replacement);
 		expect(builder.getField(descendant.id)).toBe(descendant);
+		const added = replacementTextField('added');
+		builder.getContainer(shared.id)!.addChildren(added);
+		expect(replacement.children).toEqual([descendant, added]);
+	});
+
+	test('replacing an empty root keeps the replacement above its newly registered forms', () => {
+		const builder = createTestBuilder();
+		builder.newContainer('root', ContainerRenderer, {});
+		const form = createFormNode('search', ContainerRenderer, {});
+		const replacement = createFormContainerNode('root', ContainerRenderer, {}, [form]);
+
+		builder.replaceNode('root', replacement);
+
+		expect(builder.getRoot()).toBe(replacement);
+		expect(builder.getForm('search')).toBe(form);
 	});
 
 	test('replaceNode preserves each incoming edge contribution', () => {
@@ -271,14 +281,14 @@ describe('graph editing', () => {
 		const root = builder.newForm('root', ContainerRenderer, {});
 		const left = builder.newContainer('left', ContainerRenderer, {});
 		const right = builder.newContainer('right', ContainerRenderer, {});
-		const shared = newTextField(builder, 'shared');
+		const shared = builder.newContainer('shared', ContainerRenderer, {});
 		const leftContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'left')!);
 		const rightContribution: FormOutputProducer = emit => emit('filter', filter('type', 'literal', 'right')!);
 		left.prependChild(shared, { outputWhenActive: leftContribution });
 		right.prependChild(shared, { outputWhenActive: rightContribution });
 		root.addChildren(left, right);
 
-		builder.replaceNode(shared.id, replacementTextField(shared.id));
+		builder.replaceNode(shared.id, createFormContainerNode(shared.id, ContainerRenderer, {}, [replacementTextField('replacement.field')]));
 
 		expect(createTestRuntime(builder).compile(root.id).params.filter).toBe('(type:(left) AND type:(right))');
 	});
@@ -375,8 +385,8 @@ describe('graph editing', () => {
 	test('rejects an adopted subgraph that already contains nested forms', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newContainer('parent', ContainerRenderer, {});
-		const inner = { id: 'inner', kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
-		const outer = { id: 'outer', kind: 'form', component: ContainerRenderer, children: [inner], target: searchTarget } satisfies FormBoundaryNode;
+		const inner = createFormNode('inner', ContainerRenderer, {});
+		const outer = createFormNode('outer', ContainerRenderer, {}, [inner]);
 
 		expect(() => parent.addChildren(outer)).toThrow("Form 'inner' cannot be nested inside form 'outer'");
 		expect(parent.children).toEqual([]);
@@ -387,10 +397,11 @@ describe('graph editing', () => {
 		const outer = builder.newForm('outer', ContainerRenderer, {});
 		const child = builder.newContainer('child', ContainerRenderer, {});
 		outer.addChildren(child);
-		const replacement = { id: child.id, kind: 'form', component: ContainerRenderer, children: [], target: searchTarget } satisfies FormBoundaryNode;
-
+		const descendant = replacementTextField('descendant');
+		const replacement = createFormNode(child.id, ContainerRenderer, {}, [descendant]);
 		expect(() => builder.replaceNode(child.id, replacement)).toThrow("Form 'child' cannot be nested inside form 'outer'");
 		expect(outer.children).toEqual([child]);
 		expect(builder.getContainer(child.id)).toBe(child);
+		expect(builder.hasNode(descendant.id)).toBe(false);
 	});
 });

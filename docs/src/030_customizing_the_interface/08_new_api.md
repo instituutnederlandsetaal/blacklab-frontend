@@ -138,14 +138,26 @@ frontend.customizeSearchForm({
 		const filters = form.graph.getContainer(form.ids.sharedFilters());
 
 		const tabId = form.ids.filterTab('Date');
-		const tab = form.graph.getContainer(tabId) ?? form.newContainer(tabId, { title: 'Date' });
-		tab.addChildren(year);
-		if (!filters.children.some(child => child.id === tabId)) filters.prependChild(tab);
+		const tab = form.graph.getContainer(tabId);
+		if (tab) tab.addChildren(year);
+		else filters.prependChild(form.newContainer(tabId, { title: 'Date' }, [year]));
 	},
 });
 ```
 
 `form.ids` provides stable IDs for standard nodes. The constructors include annotation, metadata, within-attribute, container, and form constructors. See the declaration file for all arguments. This lets you easily get the standard builtin fields.
+
+All public constructors create detached nodes. `newContainer(id, options, children)` and `newForm(id, options, children)` accept an optional array of children, so you can prepare a complete subtree before inserting or replacing it. Construction does not reserve IDs or change the graph. Use `graph.replaceNode` to replace a node with the same ID, preserving its position in every parent:
+
+```js
+const previous = form.graph.getContainer(form.ids.sharedFilters());
+if (previous) {
+	const replacement = form.newContainer(previous.id, { title: 'Filters', layout: 'list' }, previous.children);
+	form.graph.replaceNode(previous.id, replacement);
+}
+```
+
+Insertion and replacement validate and register the whole subtree. Once registered, retrieve the node with `graph.getContainer(id)` or `graph.getForm(id)` to edit its children. Replaced nodes' descendants remain registered for reuse; `graph.pruneDetachedNodes()` discards any that are no longer reachable. Form target selection remains an API gap: `newForm` defaults to ordinary search.
 
 `form.corpus` is the complete corpus information object, containing all the info about available annotations, metadata, etc. It is read-only. Result callbacks receive the same corpus object.
 

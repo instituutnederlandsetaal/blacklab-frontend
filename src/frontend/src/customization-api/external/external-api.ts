@@ -126,11 +126,15 @@ export interface SearchFormViewNode extends SearchFormNode {
 /** A search form item or its ID. */
 export type SearchFormNodeReference = SearchFormNode | string;
 
-/** A form or container that can hold other form items. Use these methods to place items created by `SearchFormNodeConstructors`. */
+/** A form or container and its children, whether registered in the graph or newly constructed. */
 export interface SearchFormContainerNode extends SearchFormNode {
 	readonly kind: 'container' | 'form';
 	/** Items currently contained here, in display order. */
 	readonly children: readonly SearchFormNode[];
+}
+
+/** A registered form or container. Use these methods to place items created by the constructors. */
+export interface SearchFormContainerEditor extends SearchFormContainerNode {
 	/** Adds an item before all current children and returns it. */
 	prependChild<Child extends SearchFormNode>(child: Child): Child;
 	/** Adds an item immediately before another child and returns the added item. */
@@ -146,13 +150,13 @@ export interface SearchFormContainerNode extends SearchFormNode {
 /** Finds and changes form items. Use `SearchFormIds` to obtain the IDs of standard items. */
 export interface SearchFormGraph {
 	/** Returns the top-level form container. */
-	getRoot(): SearchFormContainerNode;
+	getRoot(): SearchFormContainerEditor;
 	/** Returns whether an item with this ID exists. */
 	hasNode(id: string): boolean;
 	/** Returns an item by ID, or null when it does not exist. */
 	getNode(id: string): SearchFormNode | null;
 	/** Returns the containers that directly contain an item. */
-	getParents(nodeOrId: SearchFormNodeReference): SearchFormContainerNode[];
+	getParents(nodeOrId: SearchFormNodeReference): SearchFormContainerEditor[];
 	/** Returns whether one item contains another at any depth. */
 	contains(ancestor: SearchFormNodeReference, descendant: SearchFormNodeReference): boolean;
 	/** Returns an input field by ID, or null when it does not exist or is another kind of item. */
@@ -160,10 +164,10 @@ export interface SearchFormGraph {
 	/** Returns a display-only item by ID, or null when it does not exist or is another kind of item. */
 	getView(id: string): SearchFormViewNode | null;
 	/** Returns a form by ID, or null when it does not exist or is another kind of item. */
-	getForm(id: string): SearchFormContainerNode | null;
+	getForm(id: string): SearchFormContainerEditor | null;
 	/** Returns a container by ID, or null when it does not exist or is another kind of item. */
-	getContainer(id: string): SearchFormContainerNode | null;
-	/** Replaces an item by ID and returns the removed item. The replacement must use the same ID. */
+	getContainer(id: string): SearchFormContainerEditor | null;
+	/** Replaces an item by ID and returns the removed item. The replacement must use the same ID and can be created with any of the constructors. */
 	replaceNode(id: string, replacement: SearchFormNode): SearchFormNode;
 	/** Removes an item by ID and returns it. */
 	removeNode(id: string): SearchFormNode;
@@ -172,11 +176,11 @@ export interface SearchFormGraph {
 	/** All registered form items. */
 	readonly nodeList: SearchFormNode[];
 	/** All registered containers and forms. */
-	readonly containerList: SearchFormContainerNode[];
+	readonly containerList: SearchFormContainerEditor[];
 	/** All registered forms, in registration order. */
-	readonly formsList: SearchFormContainerNode[];
+	readonly formsList: SearchFormContainerEditor[];
 	/** Registered forms indexed by ID. */
-	readonly formsMap: Record<string, SearchFormContainerNode>;
+	readonly formsMap: Record<string, SearchFormContainerEditor>;
 }
 
 /** Controls the identity, grouping, and appearance of a new form item. */
@@ -237,7 +241,7 @@ export type SearchFormRangeValue = SearchFormText;
 export type SearchFormAnnotationControl = 'auto' | 'text' | 'autocomplete' | 'select' | 'pos' | 'lexicon';
 
 /**
- * Creates input fields for the search form. A new field is shown only after it is added to a `SearchFormContainerNode`
+ * Creates input fields for the search form. A new field is shown only after it is added to a `SearchFormContainerEditor`
  * or passed to a replacement method on `SearchFormGraph`. Use `SearchFormIds` to find standard containers and fields.
  */
 export interface SearchFormNodeConstructors {
@@ -415,7 +419,7 @@ export interface SearchFormNodeConstructors {
 	): SearchFormFieldNode;
 }
 
-/** Returns stable IDs for standard form items. Pass these IDs to `SearchFormGraph` and `SearchFormContainerNode` methods instead of writing IDs by hand. */
+/** Returns stable IDs for standard form items. Pass these IDs to `SearchFormGraph` and `SearchFormContainerEditor` methods instead of writing IDs by hand. */
 export interface SearchFormIds {
 	/** Returns the ID of the top-level container. */
 	root(): string;
@@ -651,10 +655,16 @@ export interface SearchFormCustomizationApi extends SearchFormNodeConstructors {
 	readonly graph: SearchFormGraph;
 	/** Stable IDs for items in the standard form. */
 	readonly ids: SearchFormIds;
-	/** Creates an empty container. Add it to another container to show it in the form. */
-	newContainer(id: string, options?: SearchFormContainerNodeOptions): SearchFormContainerNode;
-	/** Creates an empty form. Add it to the container identified by `ids.searchFormsContainer()` or `ids.exploreFormsContainer()` to show it. */
-	newForm(id: string, options?: Omit<SearchFormContainerNodeOptions, 'combine'>): SearchFormContainerNode;
+	/**
+	 * Creates a detached container with optional children. Add it to a registered container
+	 * or pass it to `graph.replaceNode`. Construction does not reserve its ID in the graph.
+	 */
+	newContainer(id: string, options?: SearchFormContainerNodeOptions, children?: readonly SearchFormNode[]): SearchFormContainerNode;
+	/**
+	 * Creates a detached form with optional children. Add it to the container identified by
+	 * `ids.searchFormsContainer()` or `ids.exploreFormsContainer()`, or pass it to `graph.replaceNode`.
+	 */
+	newForm(id: string, options?: Omit<SearchFormContainerNodeOptions, 'combine'>, children?: readonly SearchFormNode[]): SearchFormContainerNode;
 	/** Translation helpers for form labels and descriptions. */
 	readonly translate: SearchFormTranslate;
 }

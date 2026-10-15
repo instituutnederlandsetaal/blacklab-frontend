@@ -166,9 +166,10 @@ describe('Collocation form', () => {
 		const customFormId = 'custom/collocations-form';
 		const unregister = fixture.registry.registerForm({
 			customize(form) {
-				(form.newForm as (id: string, config: { target: ReturnType<typeof createCollocationTarget> }) => unknown)(customFormId, {
+				const customForm = (form.newForm as (id: string, config: { target: ReturnType<typeof createCollocationTarget> }) => ReturnType<typeof form.newForm>)(customFormId, {
 					target: createCollocationTarget('word'),
 				});
+				form.graph.getContainer(form.ids.searchFormsContainer())!.addChildren(customForm);
 			},
 		});
 

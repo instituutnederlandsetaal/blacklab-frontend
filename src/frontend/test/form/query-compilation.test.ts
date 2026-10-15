@@ -6,7 +6,7 @@ import { hasEmissions } from '@/features/form/model/compile/gather';
 import { combineCqlPatterns, compileCql, compileFilter } from '@/features/form/model/compile/query-artifact';
 import { annotationTextController, type AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
 import { resultGroupDisplayModeController } from '@/features/form/model/controllers/result-controllers';
-import { createFormFieldNode } from '@/features/form/model/form-field-node';
+import { createFormFieldNode } from '@/features/form/model/form-node';
 import { createDefaultFormState } from '@/features/form/model/state';
 import type { FieldController, FieldControllerProps, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormEmission } from '@/features/form/model/types/form-output';

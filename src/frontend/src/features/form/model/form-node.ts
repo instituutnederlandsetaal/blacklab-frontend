@@ -1,6 +1,18 @@
 import type { DefineFieldComponentProps, FieldComponentProps, FieldRuntimeComponentProps, ResolveFieldComponentProps } from '@/features/form/model/field-component-props';
+import { searchTarget } from '@/features/form/model/targets';
 import type { AnyFieldController, FieldController } from '@/features/form/model/types/form-controllers';
-import type { BaseFieldNode, RealFieldNode } from '@/features/form/model/types/form-shape';
+import type {
+	AnyRealFormNode,
+	BaseContainerNode,
+	BaseFieldNode,
+	BaseFormNode,
+	BaseViewNode,
+	ImplicitContainerComponentProps,
+	RealContainerNode,
+	RealFieldNode,
+	RealFormNode,
+	RealViewNode,
+} from '@/features/form/model/types/form-shape';
 import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
 
 type ForbiddenFieldConfigKeys = 'id' | 'kind' | 'component' | 'controller' | keyof FieldRuntimeComponentProps<unknown>;
@@ -45,3 +57,34 @@ export const createFormFieldNode = <Controller extends AnyFieldController, Compo
 		id,
 	};
 };
+
+type ForbiddenNodeConfigKeys = ForbiddenFieldConfigKeys | 'children' | 'activeChildOutputProducers';
+
+export type ContainerNodeConfig<C extends AnyVueComponent> = Omit<Omit<PublicPropsOf<C>, keyof ImplicitContainerComponentProps> & BaseContainerNode, ForbiddenNodeConfigKeys>;
+export type FormNodeConfig<C extends AnyVueComponent> = Omit<Omit<PublicPropsOf<C>, keyof ImplicitContainerComponentProps> & BaseFormNode, ForbiddenNodeConfigKeys | 'target'> & {
+	target?: BaseFormNode['target'];
+};
+type ViewNodeConfig<C extends AnyVueComponent> = Omit<Omit<PublicPropsOf<C>, keyof BaseViewNode> & BaseViewNode, ForbiddenNodeConfigKeys>;
+
+/** Construct a detached container; insertion or replacement validates and registers its subtree. */
+export const createFormContainerNode = <C extends AnyVueComponent, Config extends ContainerNodeConfig<C>>(
+	id: string,
+	component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & Config>,
+	config: NoExtraProperties<ContainerNodeConfig<C>, Config>,
+	children: readonly AnyRealFormNode[] = [],
+): RealContainerNode<Config, C> => ({ ...config, kind: 'container', id, children: [...children], component: component as C });
+
+/** Construct a detached form with the ordinary search target unless a target is supplied. */
+export const createFormNode = <C extends AnyVueComponent, Config extends FormNodeConfig<C>>(
+	id: string,
+	component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & Config>,
+	config: NoExtraProperties<FormNodeConfig<C>, Config>,
+	children: readonly AnyRealFormNode[] = [],
+): RealFormNode<Config, C> => ({ ...config, target: config.target ?? searchTarget, kind: 'form', id, children: [...children], component: component as C });
+
+/** Construct a detached display-only node. */
+export const createFormViewNode = <C extends AnyVueComponent, Config extends ViewNodeConfig<C>>(
+	id: string,
+	component: ConstrainComponentToProvidedProps<C, FieldComponentProps<never> & Config>,
+	config: NoExtraProperties<ViewNodeConfig<C>, Config>,
+): RealViewNode<Config, C> => ({ ...config, component: component as C, id, kind: 'view' });

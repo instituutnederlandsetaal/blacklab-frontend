@@ -48,6 +48,12 @@ frontend.customizeSearchForm({
 			},
 		);
 		form.graph.getContainer(form.ids.filterTab('Date'))?.prependChild(date);
+		const dateTab = form.newContainer(form.ids.filterTab('Date'), { title: 'Dates', layout: 'list' }, [date]);
+		form.graph.replaceNode(dateTab.id, dateTab);
+		const simple = form.newForm(form.ids.searchForm('simple'), { title: 'Lemma search' }, [form.annotationText('lemma', { id: 'custom/lemma' })]);
+		form.graph.replaceNode(simple.id, simple);
+		// @ts-expect-error detached construction returns a node; graph lookups provide editing methods
+		dateTab.addChildren(date);
 
 		// @ts-expect-error this constructor requires both fromField and toField
 		form.metadataMultiFieldRange('date', { id: 'broken', fromField: 'date_from' });
