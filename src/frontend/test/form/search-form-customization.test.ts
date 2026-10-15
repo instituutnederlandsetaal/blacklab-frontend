@@ -2,18 +2,20 @@
 
 import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
+import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { createExternalCustomizationApi } from '@/customization-api/external/browser-api';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { RangeField, SelectField, TextField } from '@/features/form';
+import { FormSystem, RangeField, SelectField, TextField } from '@/features/form';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 
-import { createCorpus, createSearchFormFixture, type SearchFormFixture } from './search-form-fixture';
+import { createCorpus, createSearchFormFixture, readSearchFormState, type SearchFormFixture } from './search-form-fixture';
 
 import { optionLabel, optionValues, type Options, type OptionText } from '@/shared/utils/options';
 
@@ -49,6 +51,29 @@ function createCustomizedWithinRuntime() {
 }
 
 describe('Search form customization', () => {
+	test('builds a public raw CQL form with metadata choices and restores its query', async () => {
+		createExternalCustomizationApi(fixture.registry).customizeSearchForm({
+			customize(form) {
+				const query = form.newField('custom/cql', form.controllers.expertQueryController, form.components.RawCqlField, {});
+				const genre = form.newField('custom/genre', form.controllers.filterCheckboxController, form.components.CheckboxField, {
+					metadataFieldId: 'genre',
+					displayName: 'Genre',
+					options: [{ value: 'fiction', label: 'Fiction' }],
+				});
+				form.graph.getContainer(form.ids.searchFormsContainer())!.prependChild(form.newForm('custom', { title: 'CQL search' }, [query, genre]));
+			},
+		});
+		const runtime = fixture.createRuntime();
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		const cql = '[lemma="river"] []{1,3} [pos="NOUN"]';
+		await wrapper.get('textarea[id^="custom/cql"]').setValue(cql);
+		await wrapper.get('input[id^="custom/genre"]').setValue(true);
+		const compiled = runtime.compile('custom');
+		expect(compiled.issues).toEqual([]);
+		expect(compiled.params).toMatchObject({ patt: cql, filter: 'genre:(fiction)' });
+		expect(compiled.summaries).toContainEqual(expect.objectContaining({ value: cql }));
+		expect(readSearchFormState(runtime, compiled.encoded).state).toMatchObject({ 'custom/cql': cql, 'custom/genre': ['fiction'] });
+	});
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
 		vi.spyOn(fixture.registry.legacyApi.value!.search.metadata, 'showField').mockImplementation(id => id !== 'author');
 		const runtime = fixture.createRuntime();

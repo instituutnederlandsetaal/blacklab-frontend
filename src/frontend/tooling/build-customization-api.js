@@ -1,5 +1,4 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +12,7 @@ const outputPath = join(frontendRoot, 'dist/customization-api/index.d.ts');
 const maximumMaterializedTypeLength = 50_000;
 const bundleEntry = {
 	output: {
-		exportReferencedTypes: false,
+		exportReferencedTypes: true,
 		inlineDeclareGlobals: true,
 		noBanner: true,
 	},
@@ -34,30 +33,49 @@ function assertNoDiagnostics(program, description) {
 	}
 }
 
-function assertStandaloneDeclaration(sourceFile, contents) {
+function keepInternalTypesPrivate(bundle) {
+	const source = ts.createSourceFile('index.d.ts', bundle, ts.ScriptTarget.Latest, true);
+	const aliasedExports = new Set(
+		source.statements.flatMap(statement =>
+			ts.isExportDeclaration(statement) && statement.exportClause && ts.isNamedExports(statement.exportClause)
+				? statement.exportClause.elements.filter(element => element.propertyName && element.propertyName.text !== element.name.text).map(element => element.name.text)
+				: [],
+		),
+	);
+	for (const statement of [...source.statements].reverse()) {
+		if (!ts.isTypeAliasDeclaration(statement) && !ts.isInterfaceDeclaration(statement)) continue;
+		// Keep the public alias when it shares a name with its internal source type, e.g. readonly Corpus.
+		if (!aliasedExports.has(statement.name.text) && !statement.name.text.startsWith('_') && !ts.getJSDocTags(statement).some(tag => tag.tagName.text === 'internal')) continue;
+		const modifier = statement.modifiers?.find(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
+		if (modifier) bundle = bundle.slice(0, modifier.getStart(source)) + bundle.slice(modifier.end);
+	}
+	return bundle;
+}
+
+function assertDeclarationDependencies(sourceFile, contents) {
 	const dependencies = [];
 	if (/^\s*\/\/\/\s*<reference\b/m.test(contents)) dependencies.push('triple-slash reference');
+	const checkModule = node => {
+		if (!ts.isStringLiteral(node) || node.text !== 'vue') dependencies.push(node.getText(sourceFile));
+	};
 
 	for (const statement of sourceFile.statements) {
-		if (ts.isImportDeclaration(statement) && statement.moduleSpecifier) {
-			dependencies.push(`import from ${statement.moduleSpecifier.getText(sourceFile)}`);
-		}
-		if (ts.isExportDeclaration(statement) && statement.moduleSpecifier) {
-			dependencies.push(`re-export from ${statement.moduleSpecifier.getText(sourceFile)}`);
+		if ((ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) && statement.moduleSpecifier) {
+			checkModule(statement.moduleSpecifier);
 		}
 		if (ts.isImportEqualsDeclaration(statement) && ts.isExternalModuleReference(statement.moduleReference) && statement.moduleReference.expression) {
-			dependencies.push(`import from ${statement.moduleReference.expression.getText(sourceFile)}`);
+			checkModule(statement.moduleReference.expression);
 		}
 	}
 
 	function visit(node) {
-		if (ts.isImportTypeNode(node)) dependencies.push(`import type ${node.argument.getText(sourceFile)}`);
+		if (ts.isImportTypeNode(node)) checkModule(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument);
 		ts.forEachChild(node, visit);
 	}
 	visit(sourceFile);
 
 	if (dependencies.length > 0) {
-		throw new Error(`The customization declaration is not dependency-free:\n- ${dependencies.join('\n- ')}`);
+		throw new Error(`The customization declaration has dependencies other than Vue:\n- ${dependencies.join('\n- ')}`);
 	}
 }
 
@@ -177,13 +195,15 @@ if (configFile.error) throw new Error(formatDiagnostics([configFile.error]));
 const config = ts.parseJsonConfigFileContent(configFile.config, ts.sys, dirname(projectPath), undefined, projectPath);
 if (config.errors.length > 0) throw new Error(formatDiagnostics(config.errors));
 
-const temporaryDirectory = await mkdtemp(join(tmpdir(), 'blacklab-frontend-customization-api-build-'));
+// Keep temporary declarations within the project so their Vue imports resolve normally.
+await mkdir(dirname(outputPath), { recursive: true });
+const temporaryDirectory = await mkdtemp(join(dirname(outputPath), '.build-'));
 try {
 	const intermediatePath = join(temporaryDirectory, 'index.unmaterialized.d.ts');
 	const materializedPath = join(temporaryDirectory, 'index.materialized.d.ts');
 	const finalPath = join(temporaryDirectory, 'index.d.ts');
 	const [intermediateBundle] = dtsBundleGenerator.generateDtsBundle([{ ...bundleEntry, filePath: entryPath }], { preferredConfigPath: projectPath });
-	await writeFile(intermediatePath, intermediateBundle);
+	await writeFile(intermediatePath, keepInternalTypesPrivate(intermediateBundle));
 
 	const intermediateProgram = ts.createProgram([intermediatePath], {
 		...config.options,
@@ -201,7 +221,10 @@ try {
 	const { count, names, source } = materializeMarkedTypes(sourceFile, intermediateProgram.getTypeChecker());
 	await writeFile(materializedPath, source);
 
-	const [bundle] = dtsBundleGenerator.generateDtsBundle([{ ...bundleEntry, filePath: materializedPath }], { preferredConfigPath: projectPath });
+	// Preserve the exports selected above, including the internal aliases kept private.
+	const [bundle] = dtsBundleGenerator.generateDtsBundle([{ ...bundleEntry, output: { ...bundleEntry.output, exportReferencedTypes: false }, filePath: materializedPath }], {
+		preferredConfigPath: projectPath,
+	});
 	await writeFile(finalPath, bundle);
 
 	const validationProgram = ts.createProgram([finalPath], {
@@ -216,10 +239,9 @@ try {
 	assertNoDiagnostics(validationProgram, 'The bundled customization API declaration does not type-check');
 	const finalSourceFile = validationProgram.getSourceFile(finalPath);
 	if (!finalSourceFile) throw new Error(`TypeScript did not load the final customization API bundle: ${finalPath}`);
-	assertStandaloneDeclaration(finalSourceFile, bundle);
+	assertDeclarationDependencies(finalSourceFile, bundle);
 	assertMaterializedTypes(finalSourceFile, names);
 	assertMaterializedMetadataField(finalSourceFile, bundle);
-	await mkdir(dirname(outputPath), { recursive: true });
 	await writeFile(outputPath, bundle);
 
 	console.log(`Bundled the customization API and materialized ${count} marked type${count === 1 ? '' : 's'}.`);

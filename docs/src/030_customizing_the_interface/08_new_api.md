@@ -25,7 +25,13 @@ The frontend serves the declaration file at:
 ${CONTEXT_URL}/js/customization-api/index.d.ts
 ```
 
-Download the declaration file from the same frontend version you deploy. For a JavaScript file, enable checking and reference the local file:
+Download the declaration file from the same frontend version you deploy. Its Vue types are imported from the `vue` package, so install Vue as a development dependency in your script's project:
+
+```sh
+npm install --save-dev vue@3
+```
+
+For a JavaScript file, enable checking and reference the local declaration file:
 
 ```js
 // @ts-check
@@ -39,13 +45,25 @@ frontend.customizeSearchForm(form => {
 The declaration file is also available in the `.d.ts` and `.tgz` files attached to GitHub releases. A project with `package.json` can install the package:
 
 ```sh
-npm install --save-dev https://github.com/instituutnederlandsetaal/blacklab-frontend/releases/download/v5.0.0/blacklab-frontend-customization-api-5.0.0.tgz
+npm install --save-dev vue@3 https://github.com/instituutnederlandsetaal/blacklab-frontend/releases/download/v5.0.0/blacklab-frontend-customization-api-5.0.0.tgz
 ```
 
 Then reference it with:
 
 ```js
 /// <reference types="@instituutnederlandsetaal/blacklab-frontend-customization-api" />
+```
+
+The package declares its supported Vue version as a peer dependency. Vue's own types, including their CSS dependencies, remain in that package; the customization declaration imports them without copying them. These imports are only used by the editor and type checker. No separate `/// <reference types="vue" />` is needed, and the browser script continues to use the host's `frontend.vue`.
+
+Types referenced by the API are available as named exports, including `Option`, `OptGroup`, and `Options`. Use them to annotate variables:
+
+```js
+/** @type {import('@instituutnederlandsetaal/blacklab-frontend-customization-api').OptGroup} */
+const partsOfSpeech = {
+	label: 'Parts of speech',
+	options: [{ value: 'noun', label: 'Noun' }, 'verb'],
+};
 ```
 
 Pin the declarations to the deployed frontend version. If a changed script is served from the same URL, add a query string such as `custom.search.js?v=2` to avoid a cached copy.
@@ -160,6 +178,42 @@ if (previous) {
 Insertion and replacement validate and register the whole subtree. Once registered, retrieve the node with `graph.getContainer(id)` or `graph.getForm(id)` to edit its children. Replaced nodes' descendants remain registered for reuse; `graph.pruneDetachedNodes()` discards any that are no longer reachable. Form target selection remains an API gap: `newForm` defaults to ordinary search.
 
 `form.corpus` is the complete corpus information object, containing all the info about available annotations, metadata, etc. It is read-only. Result callbacks receive the same corpus object.
+
+### Built-in and custom field components
+
+Inside `customize(form)`, `form.components` and `form.controllers` expose the implementations used by the app; no registration or additional runtime download is needed.
+
+| Component | Controllers |
+| --- | --- |
+| `TextField` | `annotationTextController`, `filterTextController` |
+| `SelectField` | `annotationSelectController`, `filterSelectController` |
+| `RangeField` | `filterRangeController` |
+| `CheckboxField` | `filterCheckboxController` |
+| `RadioField` | `filterRadioController` |
+| `DateField` | `filterDateController` |
+| `RawCqlField` | `expertQueryController` |
+| `QueryBuilderField` | `queryBuilderController` |
+| `WithinField` | `withinController` |
+
+Use `form.newField(id, controller, component, config)` to combine them. It uses the same detached construction and type checks as the internal field factory:
+
+```js
+frontend.customizeSearchForm({
+	customize(form) {
+		const query = form.newField('example/cql', form.controllers.expertQueryController, form.components.RawCqlField, {});
+		const demo = form.newForm('example', { title: 'CQL search', layout: 'list' }, [query]);
+		form.graph.getContainer(form.ids.searchFormsContainer())?.prependChild(demo);
+	},
+});
+```
+
+`RawCqlField` edits a plain string, which `expertQueryController` submits as CQL without escaping its syntax. Its initial state is empty; `{ hideLabel: true }` hides the built-in label. `QueryBuilderField` takes an `options` object containing annotation choices, annotation metadata, and an autocomplete callback. `WithinField` takes span choices in `options`. See their exported props and state types for the complete contracts.
+
+The controller owns the default state, query output, summaries, and persistence. The component receives the current state as `modelValue` and emits `update:modelValue` with a replacement value. Runtime props such as `modelValue`, `htmlId`, and update listeners must not be supplied in node configuration. A custom component can reuse a built-in controller if it uses the same state shape. The declarations export `FieldComponentProps`, `FieldController`, and the props/state types for each exposed built-in.
+
+`frontend.vue` supplies the host's `defineComponent`, `defineAsyncComponent`, `h`, `ref`, and `computed`. Use these when writing a custom component as plain JavaScript. For a component with a `template` string, use `defineAsyncComponent` and await `frontend.vue.loadCompiler()` inside its loader before returning the component. The compiler downloads only when requested and reuses the host runtime. Form customization registration stays synchronous, so it remains owned by the script that registered it. Vue is installed locally for its types; the deployed script uses the host runtime.
+
+This first set of exports supports ordinary search forms. Further built-ins, custom container renderers, and other form targets remain planned additions.
 
 ## Search results
 

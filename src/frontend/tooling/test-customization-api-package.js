@@ -50,7 +50,8 @@ try {
 	if (!packageInfo) throw new Error('npm pack produced no package');
 	const tarballPath = join(tempRoot, packageInfo.filename);
 
-	runNpm(['install', tarballPath, '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'], tempRoot);
+	// Supply the client's Vue peer from the existing install, keeping this check offline.
+	runNpm(['install', tarballPath, join(frontendRoot, 'node_modules/vue'), '--install-links=false', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'], tempRoot);
 
 	const consumer = await readFile(new URL('./customization-api/consumer.js', import.meta.url), 'utf8');
 	await writeFile(

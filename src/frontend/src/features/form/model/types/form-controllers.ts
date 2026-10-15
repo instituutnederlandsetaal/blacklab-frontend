@@ -3,7 +3,7 @@ import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/
 import type { Emit, FormOutputName, FormOutputValues, ResultPreset, SummaryInput } from '@/features/form/model/types/form-output';
 import type { BaseFieldNode, FormFieldNode } from '@/features/form/model/types/form-shape';
 
-import type { Translate } from '@/shared/i18n';
+import type { Translate } from '@/shared/i18n/types';
 
 type FormRuntimeCorpus = {
 	readonly indexId?: string;

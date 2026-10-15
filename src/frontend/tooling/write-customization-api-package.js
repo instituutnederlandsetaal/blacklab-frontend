@@ -13,6 +13,7 @@ await writeFile(
 			version: frontendPackage.version,
 			description: 'Type definitions for BlackLab Frontend corpus customization scripts',
 			types: 'index.d.ts',
+			peerDependencies: { vue: frontendPackage.dependencies.vue },
 			files: ['index.d.ts'],
 			license: frontendPackage.license,
 			repository: 'https://github.com/instituutnederlandsetaal/blacklab-frontend',

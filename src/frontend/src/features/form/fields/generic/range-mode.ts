@@ -1,6 +1,6 @@
 import type { RangeMode } from '@/features/form/model/types/form-primitives';
 
-import type { Translate } from '@/shared/i18n';
+import type { Translate } from '@/shared/i18n/types';
 import type { Option } from '@/shared/utils/options';
 
 /**

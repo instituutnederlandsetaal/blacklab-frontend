@@ -2,14 +2,59 @@
  * EXTERNAL CUSTOMIZATION API
  *
  * This is the only entry point exposed to corpus customization scripts. The
- * declaration build bundles it and its type-only imports into one standalone
- * package. Frontend-only implementation belongs in ../internal or ../shared
- * and must not be exported here.
+ * declaration build bundles the frontend types into one file, retaining Vue
+ * as an external type dependency. Frontend-only implementation belongs in
+ * ../internal or ../shared and must not be exported here.
+ * Referenced types are exported automatically; mark implementation-only
+ * aliases with @internal or prefix their names with an underscore.
  */
 
+import type { DefineSetupFnComponent, computed, defineAsyncComponent, defineComponent, h, ref } from 'vue';
+
+import type { CheckboxFieldComponentProps } from '@/features/form/fields/generic/checkbox-field';
+import type { DateFieldComponentProps } from '@/features/form/fields/generic/date-field';
+import type { RadioFieldComponentProps } from '@/features/form/fields/generic/radio-field';
+import type { RangeFieldComponentProps } from '@/features/form/fields/generic/range-field';
+import type { SelectFieldComponentProps } from '@/features/form/fields/generic/select-field';
+import type { TextFieldComponentProps } from '@/features/form/fields/generic/text-field';
+import type { QueryBuilderFieldComponentProps } from '@/features/form/fields/query-builder-field';
+import type { RawCqlQueryFieldComponentProps } from '@/features/form/fields/raw-cql-field';
+import type { WithinFieldComponentProps } from '@/features/form/fields/within-field';
+import type { annotationSelectController, annotationTextController } from '@/features/form/model/controllers/annotation-controller';
+import type {
+	filterCheckboxController,
+	filterDateController,
+	filterRadioController,
+	filterRangeController,
+	filterSelectController,
+	filterTextController,
+} from '@/features/form/model/controllers/metadata-filter-controller';
+import type { queryBuilderController } from '@/features/form/model/controllers/query-builder-controller';
+import type { expertQueryController } from '@/features/form/model/controllers/raw-cql-query-controller';
+import type { withinController } from '@/features/form/model/controllers/within-controller';
+import type { ConstrainedFieldComponent, FormFieldConfig } from '@/features/form/model/form-node';
+import type { AnyFieldController } from '@/features/form/model/types/form-controllers';
 import type { ContainerBehavior, ContainerPresentation, FieldPresentation, FormNodeKind, FormValue, QueryCombineMode, RangeMode, TextFieldControls } from '@/features/form/model/types/form-primitives';
-import type { Corpus as InternalCorpus, DeepReadonly, NormalizedIndex as InternalNormalizedIndex } from '@/types/apptypes';
+import type { DeepReadonly, Corpus as InternalCorpus, NormalizedIndex as InternalNormalizedIndex } from '@/types/apptypes';
 import type { BLDoc, BLDocInfo, BLHitGroup, BLHitInContext, BLHitSnippetPart, BLMatchInfo, BLSearchResultsStatsV5, BLSearchSummaryV5 } from '@/types/blacklabtypes';
+import type { AnyVueComponent, NoExtraProperties } from '@/types/helpers';
+
+export type { CheckboxFieldComponentProps, CheckboxFieldState } from '@/features/form/fields/generic/checkbox-field';
+export type { DateFieldComponentProps, DateFieldState } from '@/features/form/fields/generic/date-field';
+export type { RadioFieldComponentProps, RadioFieldState } from '@/features/form/fields/generic/radio-field';
+export type { RangeFieldComponentProps, RangeFieldState } from '@/features/form/fields/generic/range-field';
+export type { SelectFieldComponentProps, SelectFieldState } from '@/features/form/fields/generic/select-field';
+export type { TextFieldComponentProps, TextFieldState } from '@/features/form/fields/generic/text-field';
+export type { QueryBuilderFieldComponentProps, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
+export type { RawCqlQueryFieldComponentProps, RawCqlQueryFieldState } from '@/features/form/fields/raw-cql-field';
+export type { WithinFieldComponentProps, WithinFieldState } from '@/features/form/fields/within-field';
+export type { FieldComponentProps } from '@/features/form/model/field-component-props';
+export type { FieldController } from '@/features/form/model/types/form-controllers';
+// Give the dropdown option its public name rather than a generated name that avoids DOM's Option.
+export type { Option } from '@/shared/utils/options';
+
+/** Public props and update event of a built-in field, without SFC implementation details. */
+export type SearchFormFieldComponent<Props extends { modelValue: unknown }> = DefineSetupFnComponent<Props, { 'update:modelValue': (value: Props['modelValue']) => any }>;
 
 /** Identifies one of the four ways users can enter a text query. */
 export type SearchPatternMode = 'simple' | 'extended' | 'advanced' | 'expert';
@@ -649,6 +694,39 @@ export type SearchFormCombineMode = QueryCombineMode;
  * and the constructor methods together with container methods to add fields.
  */
 export interface SearchFormCustomizationApi extends SearchFormNodeConstructors {
+	/** Built-in field components for use with `newField` or as part of a custom component. */
+	readonly components: {
+		readonly TextField: SearchFormFieldComponent<TextFieldComponentProps>;
+		readonly SelectField: SearchFormFieldComponent<SelectFieldComponentProps>;
+		readonly RangeField: SearchFormFieldComponent<RangeFieldComponentProps>;
+		readonly CheckboxField: SearchFormFieldComponent<CheckboxFieldComponentProps>;
+		readonly RadioField: SearchFormFieldComponent<RadioFieldComponentProps>;
+		readonly DateField: SearchFormFieldComponent<DateFieldComponentProps>;
+		readonly RawCqlField: SearchFormFieldComponent<RawCqlQueryFieldComponentProps>;
+		readonly QueryBuilderField: SearchFormFieldComponent<QueryBuilderFieldComponentProps>;
+		readonly WithinField: SearchFormFieldComponent<WithinFieldComponentProps>;
+	};
+	/** Built-in field controllers for use with `newField`. */
+	readonly controllers: {
+		readonly annotationTextController: typeof annotationTextController;
+		readonly annotationSelectController: typeof annotationSelectController;
+		readonly filterTextController: typeof filterTextController;
+		readonly filterSelectController: typeof filterSelectController;
+		readonly filterRangeController: typeof filterRangeController;
+		readonly filterCheckboxController: typeof filterCheckboxController;
+		readonly filterRadioController: typeof filterRadioController;
+		readonly filterDateController: typeof filterDateController;
+		readonly expertQueryController: typeof expertQueryController;
+		readonly queryBuilderController: typeof queryBuilderController;
+		readonly withinController: typeof withinController;
+	};
+	/** Creates a detached field from a compatible controller, Vue component, and configuration. */
+	newField<Controller extends AnyFieldController, Component extends AnyVueComponent, Config extends FormFieldConfig<Component, Controller>>(
+		id: string,
+		controller: Controller,
+		component: ConstrainedFieldComponent<Component, Controller>,
+		config: NoExtraProperties<FormFieldConfig<Component, Controller>, Config>,
+	): SearchFormFieldNode;
 	/** Read-only information about the current corpus. */
 	readonly corpus: Corpus;
 	/** Access to all current form items. */
@@ -862,6 +940,16 @@ export type SearchResultsCustomization = {
 
 /** Functions available through the global `frontend` object. */
 export interface BlackLabFrontendCustomizationApi {
+	/** Use the host Vue runtime when defining custom components; do not require clients to use a second Vue runtime. */
+	readonly vue: {
+		defineComponent: typeof defineComponent;
+		defineAsyncComponent: typeof defineAsyncComponent;
+		h: typeof h;
+		ref: typeof ref;
+		computed: typeof computed;
+		/** Load Vue's template compiler on demand. Await inside an async component loader before returning a component with a template. */
+		loadCompiler(): Promise<void>;
+	};
 	/** Register a form customization. Returns a function that removes it. */
 	customizeSearchForm(customization: SearchFormCustomization): () => void;
 	/** Register request/result customizations for the corpus that loaded the script. */
