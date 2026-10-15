@@ -34,6 +34,10 @@
 # Frontend build stuff
 **/node_modules/
 **/node/
+/src/frontend/dist/
+/src/frontend/coverage/
+/src/frontend/storybook-static/
+/workdocs/
 
 # Documentation site
 /docs/

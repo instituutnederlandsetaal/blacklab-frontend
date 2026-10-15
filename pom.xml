@@ -125,6 +125,7 @@
               <goal>npm</goal>
             </goals>
             <configuration>
+              <!-- dependencies include WAR build tools; devDependencies are for tests and interactive development. -->
               <arguments>install --omit=dev --no-audit --no-fund</arguments>
             </configuration>
           </execution>

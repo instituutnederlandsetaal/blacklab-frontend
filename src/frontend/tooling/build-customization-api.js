@@ -3,9 +3,31 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import dtsBundleGenerator from 'dts-bundle-generator';
+import { TypesUsageEvaluator } from 'dts-bundle-generator/dist/types-usage-evaluator.js';
 import ts from 'typescript';
 
+// dts-bundle-generator 9.5.1 repeats unsuccessful graph searches for every export.
+// Cache complete reachability sets, including cycles: https://github.com/timocov/dts-bundle-generator/discussions/254
+// Keep the dependency pinned while this workaround uses its internal evaluator.
+const usageCaches = new WeakMap();
+TypesUsageEvaluator.prototype.isSymbolUsedBySymbol = function (symbol, by) {
+	symbol = this.getActualSymbol(symbol);
+	by = this.getActualSymbol(by);
+	let cache = usageCaches.get(this);
+	if (!cache) usageCaches.set(this, (cache = new Map()));
+	let reachable = cache.get(symbol);
+	if (!reachable) {
+		reachable = new Set([symbol]);
+		for (const current of reachable) {
+			for (const parent of this.getSymbolsUsingSymbol(current) ?? []) reachable.add(parent);
+		}
+		cache.set(symbol, reachable);
+	}
+	return reachable.has(by);
+};
+
 const frontendRoot = fileURLToPath(new URL('../', import.meta.url));
+const started = performance.now();
 const entryPath = join(frontendRoot, 'src/customization-api/external/external-api.ts');
 const projectPath = join(frontendRoot, 'tsconfig.customization-api.json');
 const outputPath = join(frontendRoot, 'dist/customization-api/index.d.ts');
@@ -200,7 +222,6 @@ await mkdir(dirname(outputPath), { recursive: true });
 const temporaryDirectory = await mkdtemp(join(dirname(outputPath), '.build-'));
 try {
 	const intermediatePath = join(temporaryDirectory, 'index.unmaterialized.d.ts');
-	const materializedPath = join(temporaryDirectory, 'index.materialized.d.ts');
 	const finalPath = join(temporaryDirectory, 'index.d.ts');
 	const [intermediateBundle] = dtsBundleGenerator.generateDtsBundle([{ ...bundleEntry, filePath: entryPath }], { preferredConfigPath: projectPath });
 	await writeFile(intermediatePath, keepInternalTypesPrivate(intermediateBundle));
@@ -218,24 +239,14 @@ try {
 
 	const sourceFile = intermediateProgram.getSourceFile(intermediatePath);
 	if (!sourceFile) throw new Error(`TypeScript did not load the initial customization API bundle: ${intermediatePath}`);
-	const { count, names, source } = materializeMarkedTypes(sourceFile, intermediateProgram.getTypeChecker());
-	await writeFile(materializedPath, source);
-
-	// Preserve the exports selected above, including the internal aliases kept private.
-	const [bundle] = dtsBundleGenerator.generateDtsBundle([{ ...bundleEntry, output: { ...bundleEntry.output, exportReferencedTypes: false }, filePath: materializedPath }], {
-		preferredConfigPath: projectPath,
-	});
+	const { count, names, source: bundle } = materializeMarkedTypes(sourceFile, intermediateProgram.getTypeChecker());
 	await writeFile(finalPath, bundle);
 
-	const validationProgram = ts.createProgram([finalPath], {
-		...config.options,
-		declaration: false,
-		emitDeclarationOnly: false,
-		noEmit: true,
-		outDir: undefined,
-		rootDir: undefined,
-		skipLibCheck: false,
-	});
+	const validationHost = ts.createCompilerHost(intermediateProgram.getCompilerOptions());
+	const readSourceFile = validationHost.getSourceFile.bind(validationHost);
+	// The final declaration changes; Vue and TypeScript's library files are unchanged.
+	validationHost.getSourceFile = (...args) => intermediateProgram.getSourceFile(args[0]) ?? readSourceFile(...args);
+	const validationProgram = ts.createProgram([finalPath], intermediateProgram.getCompilerOptions(), validationHost, intermediateProgram);
 	assertNoDiagnostics(validationProgram, 'The bundled customization API declaration does not type-check');
 	const finalSourceFile = validationProgram.getSourceFile(finalPath);
 	if (!finalSourceFile) throw new Error(`TypeScript did not load the final customization API bundle: ${finalPath}`);
@@ -244,7 +255,7 @@ try {
 	assertMaterializedMetadataField(finalSourceFile, bundle);
 	await writeFile(outputPath, bundle);
 
-	console.log(`Bundled the customization API and materialized ${count} marked type${count === 1 ? '' : 's'}.`);
+	console.log(`Bundled the customization API and materialized ${count} marked type${count === 1 ? '' : 's'} in ${((performance.now() - started) / 1000).toFixed(1)}s.`);
 } finally {
 	await rm(temporaryDirectory, { recursive: true, force: true });
 }
