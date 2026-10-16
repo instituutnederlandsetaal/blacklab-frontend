@@ -1,64 +1,49 @@
 # Application Structure
 
-This page describes the current application structure.
-For the target module layout and implementation handoff for the ongoing frontend reorganization, see [Frontend Refactor Handoff](/development/frontend-refactor-handoff).
+BlackLab Frontend has a Java backend and a Vue application. The backend serves the HTML skeleton, configuration, static resources and article content. Vue Router handles navigation within the frontend.
 
-BlackLab Frontend contains a small Java backend and a larger Vue.js frontend.
-The backend is responsible for serving the correct javascript files, setting up the page skeleton, and handling the document page.
-The BlackLab Frontend is responsible for the user interface, handling the search, displaying results, and managing the state of the application.
+## Application and feature entry points
 
+`src/frontend/src/app/entrypoint/main.ts` creates shared services: authentication, API clients, corpus context, i18n, customization registry and application shell. Search and article setup are loaded on demand and installed once per application, before their route components render.
 
-## Frontend Javascript
+| Routes | Frontend entry | Responsibility |
+| --- | --- | --- |
+| All pages | `app/entrypoint/main.ts` | Shared services, navigation, common controls and corpus configuration |
+| `/` | `pages/corpora/CorporaPage.vue` | Corpus overview and management |
+| `/:corpus/search/:results?` | `features/search/entrypoint.ts` | Search forms, stores, results, history and URL synchronization |
+| `/:corpus/docs/:docId` | `features/article/entrypoint.ts` | Article state, document display and URL synchronization |
+| `/configwizard`, `/:corpus/configwizard/*` | `pages/config/entrypoint.ts` | Corpus picker and configuration wizard |
+| `/about`, `/help`, `/:corpus/about`, `/:corpus/help` | `pages/info.ts` | Static page content |
+| `/callback` | `app/entrypoint/callback.ts` | OIDC authentication callback |
 
-The app is primarly written in [Vue.js](https://vuejs.org/).
+The search and article entries export both their page component and their feature plugin. This gives each feature a single dynamic import boundary. The plugins receive dependencies explicitly from the composition root; they do not discover services through globals.
 
+Monaco loads when the format editor opens. Article statistics and Highcharts load when statistics are enabled. The Vue template compiler loads only through the explicit customization API. Locale bundles are loaded as needed.
 
-The application is not currently a single page application (SPA), but rather a multi-page application (MPA).
-The following pages exist:
+Production builds use Rolldown's shared-module grouping: application modules used by multiple entries and their static dependencies join a common bundle. Feature code and optional libraries remain lazy. The server template loads both `main.css` and `shared.css`; feature styles load with their JavaScript. `npm run test:bundles` checks the production dependency boundaries and startup stylesheet links. Add `-- --report` to inspect page request counts and bundle sizes.
 
-| URL                                         | Entrypoint         | Page Name | Description                                                                                                 |
-|----------------------------------------------|--------------------|-----------|-------------------------------------------------------------------------------------------------------------|
-| `/blacklab-frontend/`                         | `corpora.ts`       | corpora   | The corpora overview page.                                                                                  |
-| `/blacklab-frontend/docs/${document}`          | `article.ts`       | article   | Contains the contents of the selected document.                                                             |
-| `/blacklab-frontend/${corpus}/search/`         | `search.tsx`       | search    | The search page.                                                                                            |
-| `/blacklab-frontend/about/`                    | [no script]        | about     | Contains the default `about.inc`.                                                                           |
-| `/blacklab-frontend/${corpus}/about/`          | [no script]        | about     | Contains the `about.inc` for the selected corpus.                                                           |
-| `/blacklab-frontend/help/`                     | [no script]        | help      | Contains the default `help.inc`.                                                                            |
-| `/blacklab-frontend/${corpus}/help/`           | [no script]        | help      | Contains the `help.inc` for the selected corpus.                                                            |
-| `/blacklab-frontend/upload/`                   | `remote-index.ts`  | upload    | The upload page.                                                                                            |
-| `/blacklab-frontend/config/`                   | [no script]        | config    | Contains details about the current configuration, such as the version, BlackLab location, etc.              |
+`npm run build` builds the OIDC callback separately into a standalone `callback.js`. Both it and the common application payload include their own authentication library, avoiding a shared auth request on normal pages or loading application code in the callback.
 
+## Corpus configuration and custom scripts
 
-Outlined below here is the `/search/` page, as it contains the majority of the code.
+The corpus context contains normalized corpus metadata, page configuration and tagset data. Shared legacy configuration lives under `app/state/`: UI settings, article settings, and filter definitions and values used by existing customization scripts. These small compatibility modules do not depend on search or article page implementations.
 
+On corpus publication, the composition root initializes shared configuration. If search has already been installed, its legacy stores are initialized at the same publication checkpoint. Configured scripts then register callbacks and set defaults. Search form definitions react to those settings. The form stays inert while declared scripts or URL restoration are pending. Later customization registration discards the current draft and restores from the URL; asynchronous work started by a script is not part of the declared-script loading barrier. If a user first visits another page and opens search later, feature installation preserves the configuration already supplied by scripts.
 
-### **Application structure**
+The customization registry owns registrations and script disposal. It does not construct forms or execute result hooks itself. Search owns form construction and ongoing result customization; article display consumes only the configuration it needs.
 
-Individual components are contained in the [pages](@github:/src/frontend/src/pages) directory. These components are single-use and/or connected to the store in some way.
-The [components](@github:/src/frontend/src/components) directory contains a few "dumb" components that can be reused anywhere.
+`interop/window-globals.ts` is the sole publisher of customization globals. Common configuration is available on every page. The search compatibility facade is added when search is installed. Internal application code receives dependencies directly or uses component injection rather than reading these globals.
 
-### **The Vuex store**
+## Search and article state
 
-We use [vuex](https://vuex.vuejs.org/guide/) to store the app state, treat it as a central database (though it's not persisted between sessions).
-The vuex store is made up of many `modules` that all handle a specific part of the state, such as the metadata filters, or the settings menu (page size, random seed).
+`features/search/search-feature.ts` composes submitted search state, the form runtime, active results, query history and URL restoration. `features/search/model/search-store.ts` coordinates the remaining legacy search stores. Selected-subcorpus effects run only on search routes.
 
-The [form](@github:/src/frontend/src/store/search/form) directory contains most of the state to do with the top of the page, such as filters, query builder, explore view.
-The [results](@github:/src/frontend/src/store/search/results) directory handles the settings that directly update the results, such as which page is open, how results are grouped, etc.
+`features/article/article-feature.ts` provides article state and its URL binding. Document loading and display remain within the article feature; article configuration can be set by corpus scripts before that feature is loaded.
 
-A couple of modules have slightly different roles:
-- The [corpus](@github:/src/frontend/src/store/search/corpus.ts) module stores the blacklab index config and is used almost everywhere.
-- The [history](@github:/src/frontend/src/store/search/history.ts) module stores the query history (_not the browser history_).
-- The [query](@github:/src/frontend/src/store/search/query.ts) module contains a snapshot of the form (with filters, patterns, etc) as it was when `submit` was pressed.
-  This is what actually determines the results being shown, and is what render the query summary etc.
-- The [tagset](@github:/src/frontend/src/store/search/tagset.ts) module is mostly inactive, but it stores the info to build the editor for the `pos` uiType.
+Each feature owns its URL projection. Incoming navigation restores that page's state, and subsequent user changes publish URL updates. URL bindings stop on application unmount. Opening another page does not initialize the other feature's implementation.
 
+Article pagination uses zero-based, half-open word ranges in the displayed annotated field. Parallel hit navigation reads that version's ranges from the query's `otherFields` results before selecting pages or highlights. Default field names are omitted from document links and contents requests; a separate search field is retained when highlighting a query from another version.
 
-### **URL generation and parsing**
+Valid custom starts are preserved. Invalid or empty ranges are repaired within the page size and field length, and starts beyond the document select its last page. Unpaginated contents omit word bounds. The Java frontend also omits bounds at document edges to preserve leading and trailing markup. Statistics use exact word bounds and continue from the actual returned annotation count when BlackLab caps a snippet response.
 
-The current page url is generated and updated in [streams.ts](@github:/src/frontend/src/store/search/streams.ts).
-It contains a few things: a stream that listens to state changes in the `vuex` store, and is responsible for updating the page url, and a couple streams that fetch some metadata about the currently selected/searched corpus (shown below the filters and at the top of the results panel).
-
-Url parsing happens in the [UrlStateParser](@github:/src/frontend/src/store/search/util/url-state-parser.ts).
-The url parsing is a little involved, because depending on whether a `tagset` is provided it can differ (the cql pattern is normally parsed and split up so we know what to place in the `simple` and `extended` views, but this needs to happen differently when a tagset is involved).
-Because of this, the store is first initialized (with empty values everywhere), then the url is parsed, after which the state is updated with the parsed values (see [search.tsx](@github:/src/frontend/src/search.tsx)).
-When navigating back and forth through browser history, the url is not parsed, instead the state is attached to the history entry and read directly.
+Built-in article stylesheets preserve `data-hit-start` and `data-hit-end` on highlight fragments so navigation can identify a hit split around XML elements. Custom article stylesheets can preserve these attributes too; older stylesheets that only emit `.hl` elements retain positional navigation.

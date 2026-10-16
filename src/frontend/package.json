@@ -8,7 +8,8 @@
 	"type": "module",
 	"packageManager": "npm@12.0.2",
 	"scripts": {
-		"test": "npm run test:unit:coverage && npm run test:storybook && npm run test:customization-api",
+		"test": "npm run test:bundles && npm run test:unit:coverage && npm run test:storybook && npm run test:customization-api",
+		"test:bundles": "node tooling/check-bundle-boundaries.js",
 		"test:customization-api": "npm run build:customization-api && tsc -p tooling/customization-api/tsconfig.json && node tooling/test-customization-api-package.js",
 		"test:unit": "vitest --run --project \"unit*\"",
 		"test:unit:coverage": "vitest --run --project \"unit*\" --coverage",
@@ -16,7 +17,7 @@
 		"test:url-sync:smoke": "node tooling/url-sync-smoke.js",
 		"test:watch": "vitest --watch",
 		"lint": "node tooling/lint.js",
-		"build": "vite build && node tooling/copy-bootstrap-assets.js && npm run build:customization-api",
+		"build": "vite build && vite build --config tooling/vite.callback.config.js && node tooling/copy-bootstrap-assets.js && npm run build:customization-api",
 		"build:blfschema": "node tooling/compile-schema.js",
 		"build:customization-api": "node tooling/build-customization-api.js && node tooling/write-customization-api-package.js",
 		"start": "vite --host 0.0.0.0 --port 5173",

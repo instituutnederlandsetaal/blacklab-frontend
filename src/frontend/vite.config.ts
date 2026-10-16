@@ -6,7 +6,9 @@ import type { playwright as Playwright } from '@vitest/browser-playwright';
 import { defineConfig, type PluginOption, type UserConfigFnPromise } from 'vite';
 import type checkerPlugin from 'vite-plugin-checker';
 import type { TestProjectConfiguration } from 'vitest/config';
+
 const dirname = import.meta.dirname;
+const sourcePrefix = `${dirname.replaceAll('\\', '/')}/src/`;
 const importDevelopmentDependency = <T>(name: string) => import(name) as Promise<T>;
 
 const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
@@ -90,12 +92,14 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 		base: './',
 		plugins,
 		resolve: {
-			alias: {
+			alias: [
+				// CommonJS consumers use the same runtime; the compiler remains an explicit lazy import.
+				{ find: /^vue$/, replacement: 'vue/dist/vue.runtime.esm-bundler.js' },
 				// allow importing from 'src' using '@/...' instead of relative paths
-				'@': path.resolve(dirname, 'src'),
-				'@assets': path.resolve(dirname, 'assets'),
-				'@test': path.resolve(dirname, 'test'),
-			},
+				{ find: '@', replacement: path.resolve(dirname, 'src') },
+				{ find: '@assets', replacement: path.resolve(dirname, 'assets') },
+				{ find: '@test', replacement: path.resolve(dirname, 'test') },
+			],
 			dedupe: ['vue', 'vuex', 'jquery'],
 		},
 		optimizeDeps: {
@@ -138,12 +142,13 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 				},
 				input: {
 					main: path.resolve(dirname, 'src/app/entrypoint/main.ts'),
-					callback: path.resolve(dirname, 'src/app/entrypoint/callback.ts'),
 				},
 				output: {
+					// Merge common application modules and their dependencies, keeping lazy libraries separate.
+					codeSplitting: { groups: [{ name: 'shared', test: id => id.startsWith(sourcePrefix), minShareCount: 2 }] },
 					entryFileNames: '[name].js',
-					chunkFileNames: 'assets/[name]-[hash].js',
-					assetFileNames: asset => (asset.names.includes('main.css') ? '[name][extname]' : 'assets/[name]-[hash][extname]'),
+					chunkFileNames: chunk => `assets/${chunk.facadeModuleId?.match(/\/([^/]+)\/entrypoint\.ts$/)?.[1] ?? '[name]'}-[hash].js`,
+					assetFileNames: asset => (asset.names.some(name => name === 'main.css' || name === 'shared.css') ? '[name][extname]' : 'assets/[name]-[hash][extname]'),
 				},
 			},
 		},

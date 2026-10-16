@@ -2,6 +2,8 @@
 
 Run all suites with `npm run test:unit`, or `npm run test:unit:coverage` for coverage. Pass a path after `--` to select files, for example `npm run test:unit -- test/form`.
 
+Run `npm run test:bundles` to build production JavaScript in memory and check that shared startup, search, article, configuration and information pages load only their own feature dependencies. It also checks that the server template includes all startup styles and that the OIDC callback stays independent of application code. Add `-- --report` to print page request counts and bundle sizes.
+
 Most suites run in the `unit-shared` project using VM workers. Files can share modules and DOM environments when Vitest batches them, so create fresh fixtures and dispose effects, timers, listeners and global stubs in each suite. The shared setup unmounts Vue wrappers and empties the document body after each test; individual suites do not need to call `enableAutoUnmount`.
 
 Suites that replace modules with `vi.mock` or `vi.doMock` live under `test/isolated/` and run in the `unit-isolated` project with isolated thread workers. VM workers do not preserve module isolation when files are batched, even with `isolate: true`. Use this group for any suite that requires fresh module state. Keep the same functional subdirectories and use `@test/` for shared fixture imports.

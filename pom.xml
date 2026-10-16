@@ -109,7 +109,9 @@
           <workingDirectory>src/frontend</workingDirectory>
         </configuration>
         <executions>
+          <!-- IDE background builds must not install packages or clear dist during an explicit frontend build. -->
           <execution>
+            <?m2e ignore?>
             <id>install node and npm</id>
             <goals>
               <goal>install-node-and-npm</goal>
@@ -120,6 +122,7 @@
             </configuration>
           </execution>
           <execution>
+            <?m2e ignore?>
             <id>npm install</id>
             <goals>
               <goal>npm</goal>
@@ -130,6 +133,7 @@
             </configuration>
           </execution>
           <execution>
+            <?m2e ignore?>
             <id>npm rebuild</id>
             <goals>
               <goal>npm</goal>
@@ -139,6 +143,7 @@
             </configuration>
           </execution>
           <execution>
+            <?m2e ignore?>
             <id>npm run build</id>
             <goals>
               <goal>npm</goal>
