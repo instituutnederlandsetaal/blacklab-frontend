@@ -7,6 +7,7 @@ import { effectScope, type EffectScope } from 'vue';
 
 import type { Input } from '@/pages/article/article';
 import { createArticleStreams } from '@/pages/article/article';
+import type { Corpus } from '@/types/apptypes';
 import { type BLDocInfo, type BLHitInDoc, type BLHitResults, type BLDocument } from '@/types/blacklabtypes';
 
 import { ApiError, type DocumentContentsParameters } from '@/shared/api/lib/api-types';
@@ -17,6 +18,8 @@ const ids = {
 	MOCK_INDEX_ID: 'test',
 	MOCK_DOC_ID: 'test',
 };
+
+const corpus = { id: 'test', mainAnnotatedField: 'contents', allAnnotatedFieldsMap: { contents: { id: 'contents' }, translation: { id: 'translation' } } } as unknown as Corpus;
 
 function promiseFromLoadableStream<T>(stream: Observable<Loadable<T>>): Promise<T | undefined> {
 	return firstValueFrom(
@@ -49,7 +52,7 @@ const mock_hit_in_doc: BLHitInDoc = {
 };
 
 const mock_doc_info: BLDocInfo = {
-	tokenCounts: [{ fieldName: 'contents', tokenCount: 246 }],
+	tokenCounts: [{ fieldName: 'contents', tokens: 246 }],
 	mayView: true,
 	metadata: {
 		pid: [ids.MOCK_DOC_ID],
@@ -139,7 +142,7 @@ function createTestStreams(hits: BLHitResults = values.MOCK_HITS, contents = '')
 		},
 	});
 
-	return createArticleStreams(blacklab, frontend);
+	return createArticleStreams(blacklab, frontend, corpus);
 }
 
 const baseInputs: Input = {
@@ -155,6 +158,52 @@ const baseInputs: Input = {
 };
 
 describe('hits$', () => {
+	test('navigates to a hit beyond the server window limit', async () => {
+		const { blacklabApi, frontendApi } = createMockApi({
+			blacklab: {
+				getHits: (_indexId, params) => {
+					const first = params.first ?? 0;
+					return resolvedRequest({
+						...values.MOCK_HITS,
+						hits: values.MOCK_HITS.hits.slice(first, first + 1),
+						summary: {
+							...values.MOCK_HITS.summary,
+							results: { ...values.MOCK_HITS.summary.results, window: { firstResult: first, requestedSize: 1, actualSize: 1, hasPrevious: first > 0, hasNext: first < 2 } },
+						},
+					});
+				},
+				getDocumentInfo: values.MOCK_DOC,
+			},
+			frontend: { getDocumentMetadata: '', getDocumentContents: '' },
+		});
+		const { input$, hits$, validPaginationParameters$ } = createArticleStreams(blacklabApi, frontendApi, corpus);
+		input$.next({ ...baseInputs, findhit: 187 });
+		expect(await promiseFromLoadableStream(hits$)).toEqual([
+			[53, 54],
+			[125, 126],
+			[187, 188],
+		]);
+		expect(await promiseFromLoadableStream(validPaginationParameters$)).toMatchObject({ wordstart: 180, wordend: 190, findhit: 187 });
+	});
+
+	test('uses target coordinates and target length for a parallel document', async () => {
+		const parallelHits = { ...values.MOCK_HITS, hits: [{ ...values.MOCK_HITS.hits[0], start: 53, end: 54, otherFields: { translation: { ...values.MOCK_HITS.hits[0], start: 7, end: 10 } } }] };
+		const { blacklabApi, frontendApi } = createMockApi({
+			blacklab: {
+				getHits: parallelHits,
+				getDocumentInfo: { ...values.MOCK_DOC, docInfo: { ...mock_doc_info, tokenCounts: [...mock_doc_info.tokenCounts, { fieldName: 'translation', tokens: 30 }] } },
+			},
+			frontend: { getDocumentMetadata: '', getDocumentContents: '<span class="hl" data-hit-start="7" data-hit-end="10">Target</span>' },
+		});
+		const { input$, validPaginationParameters$, hitToHighlight$ } = createArticleStreams(blacklabApi, frontendApi, corpus);
+		input$.next({ ...baseInputs, viewField: 'translation', findhit: 7, pageSize: 5 });
+		expect(await promiseFromLoadableStream(validPaginationParameters$)).toMatchObject({ wordstart: 5, wordend: 10, findhit: 7, maxPage: 5 });
+		const highlight = await promiseFromLoadableStream(hitToHighlight$);
+		expect(highlight).toMatchObject({ hitIndexToHighlight: 0, isHitVisible: true });
+		expect(highlight?.hl?.textContent).toBe('Target');
+		expect(blacklabApi.getHits.mock.calls[0][1].patt).toBe(baseInputs.patt);
+	});
+
 	test('loads document hit ranges from an empty state', async () => {
 		const { hits$, input$ } = createTestStreams();
 		const hitsOutput = loadableFromStream(hits$);
@@ -278,7 +327,7 @@ describe('validPaginationParameters$', () => {
 		expect(output.value).toMatchObject({
 			pageSize: null,
 			wordstart: 0,
-			wordend: values.MOCK_DOC.docInfo.tokenCounts[0].tokenCount,
+			wordend: values.MOCK_DOC.docInfo.tokenCounts[0].tokens,
 			page: 0,
 			maxPage: 0,
 		});
@@ -318,6 +367,16 @@ describe('validPaginationParameters$', () => {
 });
 
 describe('hitToHighlight$', () => {
+	test('finds generated BlackLab highlights when preceding hits are split across XML tags', async () => {
+		const { hitToHighlight$, input$ } = createTestStreams(
+			values.MOCK_HITS,
+			'<span class="hl" start="53" end="54">First piece</span><span class="hl" start="53" end="54">Second piece</span><span class="hl" start="125" end="126">Selected hit</span>',
+		);
+		input$.next({ ...baseInputs, findhit: 125, pageSize: 246 });
+		const highlight = await promiseFromLoadableStream(hitToHighlight$);
+		expect(highlight?.hl?.textContent).toBe('Selected hit');
+	});
+
 	test.each([
 		['before the first hit', 0, 0],
 		['at an exact hit', 125, 1],
@@ -380,7 +439,7 @@ describe('contents$', () => {
 				getDocumentMetadata: '<dl><dt>title</dt><dd>Test</dd></dl>',
 			},
 		});
-		const { contents$, input$ } = createArticleStreams(blacklab, frontend);
+		const { contents$, input$ } = createArticleStreams(blacklab, frontend, corpus);
 
 		input$.next({
 			...baseInputs,
@@ -391,7 +450,9 @@ describe('contents$', () => {
 		await promiseFromLoadableStream(contents$);
 
 		const params = getDocumentContents.mock.calls[0][0];
-		expect(params).not.toHaveProperty('wordstart');
-		expect(params).not.toHaveProperty('wordend');
+		expect(params.wordstart).toBeUndefined();
+		expect(params.wordend).toBeUndefined();
+		expect(params.viewField).toBeUndefined();
+		expect(params.searchfield).toBeUndefined();
 	});
 });

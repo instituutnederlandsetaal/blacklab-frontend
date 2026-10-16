@@ -34,7 +34,7 @@ export type DocumentContentsParameters = {
 	wordstart?: number;
 	wordend?: number;
 	/** Annotated field for which to get contents */
-	viewField: string;
+	viewField?: string;
 	/** Annotated field in which to search (for parallel corpora) - only required if different from field */
 	searchfield?: string;
 };

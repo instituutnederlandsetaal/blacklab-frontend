@@ -180,6 +180,7 @@ describe('ArticlePage statistics tab', () => {
 		await wrapper.get('#articleTabs a[href="#statistics"]').trigger('click');
 		((mock.streams as ReturnType<typeof createStreams>).currentPageSnippet$ as BehaviorSubject<unknown>).next(Loadable.Loaded({}));
 		((mock.streams as ReturnType<typeof createStreams>).metadata$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: document.createElement('div'), json: {} }));
+		((mock.streams as ReturnType<typeof createStreams>).validPaginationParameters$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ pageSize: expected ? pageSize : null }));
 		await flushPromises();
 
 		expect(wrapper.get('[data-testid="statistics-probe"]').attributes('data-paginated')).toBe(String(expected));
@@ -208,12 +209,13 @@ test('updates the displayed metadata when customized field IDs change', async ()
 	((mock.streams as ReturnType<typeof createStreams>).metadata$ as BehaviorSubject<unknown>).next(
 		Loadable.Loaded({
 			html: document.createElement('div'),
-			json: { docInfo: { mayView: true, metadata: { author: ['Author value'], title: ['Title value'] }, tokenCounts: [] } },
+			json: { docInfo: { mayView: true, metadata: { author: ['Author value'], title: ['Title value'] }, tokenCounts: [{ fieldName: 'contents', tokens: 269 }] } },
 		}),
 	);
 	await flushPromises();
 	expect(wrapper.get('#metadata').text()).toContain('Title value');
 	expect(wrapper.get('#metadata').text()).not.toContain('Author value');
+	expect(wrapper.get('#docLengthTokens').text()).toBe('269');
 
 	detailedMetadataIds.value = ['author'];
 	await nextTick();

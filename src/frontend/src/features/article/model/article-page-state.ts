@@ -2,6 +2,7 @@ import { computed, readonly, shallowRef, toValue, type MaybeRefOrGetter } from '
 
 import type { Corpus } from '@/types/apptypes';
 
+import { resolveAnnotatedField } from '@/shared/blacklab-helpers/corpus';
 import useInjectable from '@/shared/utils/useInjectable';
 
 export type ArticleQuery = {
@@ -22,13 +23,14 @@ export const [, provideArticleState, useArticleState] = useInjectable<ArticleSta
 export function createArticlePageState(corpus: MaybeRefOrGetter<Corpus | undefined>) {
 	const empty: ArticleQuery = { docId: null, viewField: null, searchfield: null, wordstart: null, wordend: null, findhit: null, patt: null, pattgapdata: null };
 	const query = shallowRef(empty);
-	function field(value: string | null) {
-		const index = toValue(corpus);
-		return value && index?.allAnnotatedFieldsMap[value] ? value : (index?.mainAnnotatedField ?? '');
-	}
 	return {
 		query: readonly(query),
-		parameters: computed(() => ({ ...query.value, viewField: field(query.value.viewField), searchfield: field(query.value.searchfield) })),
+		parameters: computed(() => {
+			const index = toValue(corpus);
+			const viewField = index && (resolveAnnotatedField(index, query.value.viewField) ?? resolveAnnotatedField(index));
+			const searchField = index && (resolveAnnotatedField(index, query.value.searchfield || viewField?.id) ?? viewField);
+			return { ...query.value, viewField: viewField?.id ?? '', searchfield: searchField?.id ?? '' };
+		}),
 		restore: (value: ArticleQuery) => {
 			query.value = value;
 		},

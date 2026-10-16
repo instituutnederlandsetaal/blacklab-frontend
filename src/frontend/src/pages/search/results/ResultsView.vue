@@ -493,7 +493,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 	const allAnnotationsMap = currentCorpus.allAnnotationsMap;
 
 	return {
-		indexId: currentCorpus.id!,
+		corpus: currentCorpus,
 		mainAnnotation: allAnnotationsMap[concordanceAnnotationId.value],
 		otherAnnotations: annotationIdsToShow.map(annotationId => allAnnotationsMap[annotationId]),
 		detailedAnnotations: isHits.value

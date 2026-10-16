@@ -24,6 +24,8 @@ public class CorpusConfig {
 
     private final Optional<String> corpusDataFormat;
 
+    private final String mainAnnotatedField;
+
     private final String listValues;
 
     private final long lastModified;
@@ -39,6 +41,7 @@ public class CorpusConfig {
         this.jsonUnescaped = configAsJson;
         this.displayName = xp.evaluate("/blacklabResponse/displayName", doc).stream().findFirst().map(XdmItem::getStringValue).or(() -> Optional.of(corpusId));
         this.corpusDataFormat = xp.evaluate("//documentFormat", doc).stream().findFirst().map(XdmItem::getStringValue);
+        this.mainAnnotatedField = xp.evaluate("/blacklabResponse/mainAnnotatedField", doc).stream().findFirst().map(XdmItem::getStringValue).orElse("");
 
         /**
          * Extract annotation ids for which we require the full list of values to be known by the frontend.
@@ -87,6 +90,10 @@ public class CorpusConfig {
     /* TEI, FoLiA, etc */
     public Optional<String> getCorpusDataFormat() {
         return corpusDataFormat;
+    }
+
+    public String getMainAnnotatedField() {
+        return mainAnnotatedField;
     }
 
     public String getListValues() {

@@ -902,7 +902,7 @@ export type BLDocInfoV4 = {
 /** DocInfo in a hits response - Fields without indexed values are omitted! */
 export type BLDocInfo = {
 	metadata: Record<string, string[]>;
-	tokenCounts: Array<{ fieldName: string; tokenCount: number }>;
+	tokenCounts: Array<{ fieldName: string; tokens: number }>;
 	mayView: boolean;
 };
 

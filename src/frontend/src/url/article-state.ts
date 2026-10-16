@@ -1,5 +1,5 @@
 import { toValue, type MaybeRefOrGetter } from 'vue';
-import type { LocationQueryRaw, Router } from 'vue-router';
+import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import type { ArticleState } from '@/features/article/model/article-page-state';
 import type { Corpus } from '@/types/apptypes';
@@ -8,6 +8,23 @@ import { createUrlProjection } from '@/url/url-projection';
 
 export function createArticleUrlBinding(router: Router, state: ArticleState, corpus: MaybeRefOrGetter<Corpus | undefined>) {
 	let extras: LocationQueryRaw = {};
+	function location(route: RouteLocationNormalizedLoaded) {
+		const { docId: _docId, viewField: _viewField, searchfield: _searchfield, ...query } = state.query.value;
+		const { viewField, searchfield } = state.parameters.value;
+		const mainField = toValue(corpus)?.mainAnnotatedField;
+		return {
+			path: route.path,
+			hash: route.hash,
+			query: {
+				...extras,
+				...Object.fromEntries(
+					Object.entries({ ...query, field: viewField !== mainField ? viewField : null, searchfield: query.patt && searchfield !== viewField ? searchfield : null })
+						.filter(([, value]) => value !== null)
+						.map(([key, value]) => [key, String(value)]),
+				),
+			},
+		};
+	}
 	return createUrlProjection(router, {
 		context: route => {
 			const index = toValue(corpus);
@@ -29,21 +46,8 @@ export function createArticleUrlBinding(router: Router, state: ArticleState, cor
 				pattgapdata: queryString(query, 'pattgapdata'),
 			});
 		},
-		write: route => {
-			const { docId: _docId, viewField: field, ...query } = state.query.value;
-			return {
-				path: route.path,
-				hash: route.hash,
-				query: {
-					...extras,
-					...Object.fromEntries(
-						Object.entries({ field, ...query })
-							.filter(([, value]) => value !== null)
-							.map(([key, value]) => [key, String(value)]),
-					),
-				},
-			};
-		},
+		write: location,
+		normalize: route => (router.resolve(location(route)).fullPath !== route.fullPath ? location(route) : undefined),
 		leave: state.reset,
 	});
 }

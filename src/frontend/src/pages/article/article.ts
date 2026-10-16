@@ -1,10 +1,14 @@
 import type { Observable } from 'rxjs';
 import { BehaviorSubject, combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
-import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
+import { getArticlePagination } from '@/features/article/model/article-pagination';
+import type { Corpus } from '@/types/apptypes';
+import type { BLDoc, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 
-import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
-import { getDocumentLength } from '@/shared/blacklab-helpers/normalize/result-helpers';
+import { ApiError, CancelableRequest, type BlackLabApi, type DocumentContentsParameters, type FrontendApi } from '@/shared/api/lib/api-types';
+import { getDocumentLength } from '@/shared/blacklab-helpers/corpus';
+import { getDocumentSnippet } from '@/shared/blacklab-helpers/document-snippet';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import {
 	combineLoadables,
@@ -15,7 +19,6 @@ import {
 	switchMapLoaded,
 	withRequiredKeys,
 } from '@/shared/utils/loadable/loadable-stream';
-import { clamp } from '@/shared/utils/number-utils';
 
 export type Input = Partial<{
 	indexId: string | null;
@@ -63,7 +66,7 @@ type ValidPaginationAndDocDisplayParameters = {
 	viewField: string;
 };
 
-export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendApi) {
+export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendApi, corpus: MaybeRefOrGetter<Corpus>) {
 	/** The initial input */
 	const inputsFromStore$ = new ReplaySubject<Input>(1);
 	const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
@@ -102,27 +105,19 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 			indexId: i.indexId,
 			docpid: i.docId, // NOTE: blacklab requires docpid (lowercased), not docId!
 			patt: i.patt,
-			searchfield: i.searchfield || undefined,
+			field: i.searchfield !== toValue(corpus).mainAnnotatedField ? i.searchfield || undefined : undefined,
+			viewField: i.viewField,
+			searchfield: i.searchfield,
 			pattgapdata: i.pattgapdata || undefined,
 		})),
 		distinctUntilChanged(compareAsSortedJson),
-		switchMapLoaded(i =>
-			blacklab
-				.getHits<BLHitResults>(i.indexId, {
-					...i,
-					first: 0,
-					number: Math.pow(2, 31) - 1, // JAVA BACKEND: max_safe_integer is 2^31-1
-					context: 0,
-					listvalues: '__do_not_send_anything__', // we don't need this info
-				})
-				.toObservable(),
-		),
-		mapLoaded(hits => hits.hits.map(h => [h.start, h.end] as [number, number])),
+		switchMapLoaded(({ indexId, viewField, searchfield, ...params }) => getDocumentHits(blacklab, indexId, params, viewField !== searchfield ? viewField : undefined).toObservable()),
+		mapLoaded(hits => hits.sort((a, b) => a[0] - b[0] || a[1] - b[1])),
 		shareReplay(1),
 	);
 
 	/**
-	 * This is only available after the metadata and hits are loaded.
+	 * This is only available after metadata and any requested hits are loaded.
 	 * It is a guaranteed valid set of pagination parameters.
 	 */
 	const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = metadata$.pipe(
@@ -133,31 +128,23 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 				hits: hits$,
 			}),
 		),
-		mapLoaded(({ input, doc, hits }) => fixInput(input, doc.json, hits)),
+		mapLoaded(({ input, doc, hits }) => fixInput(toValue(corpus), input, doc.json, hits)),
 		distinctUntilChanged(compareAsSortedJson),
 		shareReplay(1),
 	);
 
 	const contents$ = validPaginationParameters$.pipe(
-		mapLoaded(input => {
+		mapLoaded((input): DocumentContentsParameters => ({
 			// only let through the necessary parameters, otherwise we might refresh unnecessarily
-			const request = {
-				indexId: input.indexId,
-				docId: input.docId,
-				viewField: input.viewField,
-				searchfield: input.searchfield,
-				patt: input.patt,
-				pattgapdata: input.pattgapdata,
-			};
-
-			return input.pageSize == null
-				? request
-				: {
-						...request,
-						wordstart: input.wordstart,
-						wordend: input.wordend,
-					};
-		}),
+			indexId: input.indexId,
+			docId: input.docId,
+			viewField: input.viewField !== toValue(corpus).mainAnnotatedField ? input.viewField : undefined,
+			searchfield: input.searchfield !== input.viewField ? input.searchfield : undefined,
+			patt: input.patt,
+			pattgapdata: input.pattgapdata,
+			wordstart: input.pageSize != null ? input.wordstart : undefined,
+			wordend: input.pageSize != null ? input.wordend : undefined,
+		})),
 		distinctUntilChanged(compareAsSortedJson),
 		switchMapLoaded(input => frontend.getDocumentContents(input).toObservable()),
 		mapLoaded(v => {
@@ -173,10 +160,18 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 		map(combineLoadables),
 		mapLoaded(([pagination, hits, { highlights }]) => {
 			const firstHitIndex = findHitIndex(hits, pagination.wordstart);
-			const firstVisibleHitIndex = hits.length ? clamp(firstHitIndex < 0 ? -firstHitIndex - 1 : firstHitIndex, 0, hits.length - 1) : 0;
+			const overlapping = hits.findIndex(([start, end]) => start < pagination.wordend && end > pagination.wordstart);
+			const firstVisibleHitIndex = overlapping >= 0 ? overlapping : hits.length ? Math.min(Math.max(firstHitIndex < 0 ? -firstHitIndex - 1 : firstHitIndex, 0), hits.length - 1) : 0;
 			const hitIndexToHighlight = pagination.findhit != null ? findHitIndex(hits, pagination.findhit) : firstVisibleHitIndex;
 			const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
-			const hl = highlights[localHitIndexToHighlight] as HTMLElement | undefined;
+			// Generated BlackLab stylesheets copy start/end; our built-ins expose data-hit-start/end.
+			const positioned = highlights.filter(highlight => highlight.hasAttribute('data-hit-start') || highlight.hasAttribute('start'));
+			const range = hits[hitIndexToHighlight];
+			const hl = positioned.length
+				? positioned.find(
+						highlight => Number(highlight.dataset.hitStart ?? highlight.getAttribute('start')) === range?.[0] && Number(highlight.dataset.hitEnd ?? highlight.getAttribute('end')) === range?.[1],
+					)
+				: highlights[localHitIndexToHighlight];
 			return {
 				totalHits: hits.length,
 				hitIndexToHighlight,
@@ -189,7 +184,16 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 
 	const currentPageSnippet$ = combineLatest([validPaginationParameters$, retrieveSnippetToggle$] as const).pipe(
 		map(([pagination, enabled]) => (enabled ? pagination : Loadable.Empty())),
-		switchMapLoaded(pagination => blacklab.getSnippet(pagination.indexId, pagination.docId, pagination.viewField, pagination.wordstart, pagination.wordend, 0).toObservable()),
+		switchMapLoaded(pagination =>
+			getDocumentSnippet(
+				blacklab,
+				pagination.indexId,
+				pagination.docId,
+				pagination.viewField !== toValue(corpus).mainAnnotatedField ? pagination.viewField : undefined,
+				pagination.wordstart,
+				pagination.wordend,
+			).toObservable(),
+		),
 		shareReplay(1),
 	);
 
@@ -205,29 +209,6 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	};
 }
 
-/** Given unvalidated pagination parameters and the size of the document, return the validated/fixed pagination parameters. */
-function getDefaultPagination(input: Input, doclength: number): { wordstart: number; wordend: number } {
-	const pageSize = getValidPageSize(input.pageSize);
-	if (pageSize == null) {
-		return { wordstart: 0, wordend: doclength };
-	}
-
-	// Defaults.
-	let wordstart = input.wordstart ?? 0;
-	let wordend = input.wordend ?? doclength;
-	// Fix order (just in case)
-	if (wordstart > wordend) [wordstart, wordend] = [wordend, wordstart];
-	// Fix bounds.
-	return {
-		wordstart: clamp(wordstart, 0, doclength),
-		wordend: clamp(wordend, 0, wordstart + pageSize),
-	};
-}
-
-function getValidPageSize(pageSize: number | null | undefined): number | null {
-	return pageSize != null && pageSize > 0 ? pageSize : null;
-}
-
 /**
  * Given all hits in the document and a findhit, return the findhit if it is a valid hit, otherwise return undefined.
  * @param findhit wordstart of a hit
@@ -239,16 +220,9 @@ function getValidfindhit(findhit: number | undefined | null, hits?: [number, num
 	return findHitIndex(hits, findhit) >= 0 ? findhit : undefined;
 }
 
-function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPaginationAndDocDisplayParameters {
-	const docLength = getDocumentLength(doc.docInfo, input.viewField ?? undefined);
-	let { wordstart, wordend } = getDefaultPagination(input, docLength);
-	const findhit = getValidfindhit(input.findhit, hits);
-	const pageSize = getValidPageSize(input.pageSize);
-
-	if (pageSize != null && findhit != null && (findhit < wordstart || findhit >= wordend)) {
-		wordstart = Math.floor(findhit / pageSize) * pageSize;
-		wordend = clamp(wordstart + pageSize, 0, docLength);
-	}
+function fixInput(corpus: Corpus, input: Input, doc: BLDoc, hits?: [number, number][]): ValidPaginationAndDocDisplayParameters {
+	const docLength = getDocumentLength(corpus, doc.docInfo, input.viewField) ?? 0;
+	const findhit = input.findhit != null && input.findhit >= 0 && input.findhit < docLength ? getValidfindhit(input.findhit, hits) : undefined;
 
 	return {
 		indexId: input.indexId!,
@@ -257,16 +231,36 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 		patt: input.patt || undefined,
 		pattgapdata: input.pattgapdata || undefined,
 
-		wordstart,
-		wordend,
+		...getArticlePagination({ ...input, findhit }, docLength),
 		findhit,
 		// We wouldn't have gotten here if these were missing
-
-		pageSize,
-		page: pageSize == null ? 0 : Math.floor(wordstart / pageSize),
-		maxPage: pageSize == null ? 0 : Math.max(0, Math.ceil(docLength / pageSize) - 1),
 
 		searchfield: input.searchfield!,
 		viewField: input.viewField!,
 	};
+}
+
+/** The server may cap each hits window even when a larger number is requested. */
+function getDocumentHits(blacklab: BlackLabApi, indexId: string, params: Omit<BLSearchParameters, 'number'>, targetField?: string | null): CancelableRequest<[number, number][]> {
+	let pending: CancelableRequest<BLHitResults> | undefined;
+	let cancelled = false;
+	async function retrieve() {
+		const ranges: [number, number][] = [];
+		for (let first = 0; ;) {
+			if (cancelled) throw ApiError.CANCELLED;
+			pending = blacklab.getHits<BLHitResults>(indexId, { ...params, first, number: 2 ** 31 - 1, context: 0, listvalues: '__do_not_send_anything__' });
+			const results = await pending;
+			// Keep the query in its source field; parallel hits already carry target coordinates.
+			for (const hit of results.hits) {
+				const range = targetField ? hit.otherFields?.[targetField] : hit;
+				if (range) ranges.push([range.start, range.end]);
+			}
+			if (!results.summary.results.window.hasNext || !results.hits.length) return ranges;
+			first += results.hits.length;
+		}
+	}
+	return new CancelableRequest(retrieve(), () => {
+		cancelled = true;
+		pending?.cancel();
+	});
 }

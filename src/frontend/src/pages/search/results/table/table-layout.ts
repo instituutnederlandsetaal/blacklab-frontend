@@ -2,6 +2,7 @@ import type { StyleValue } from 'vue';
 
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import type {
+	Corpus,
 	HitContext,
 	HitToken,
 	NormalizedAnnotatedField,
@@ -314,8 +315,8 @@ function isOutsideSelectedResults(indexInRequestedResults: number, selectedRange
 // ===================
 
 export type DisplaySettingsForRendering = {
-	/** ID of the index / the corpus for which to generate the table. Required for generating urls */
-	indexId: string;
+	/** Corpus identity and annotated fields used for document links. */
+	corpus: Pick<Corpus, 'id' | 'mainAnnotatedField'>;
 
 	/** Annotation shown in the before/hit/after columns and expanded concordance */
 	mainAnnotation: NormalizedAnnotation;
@@ -427,8 +428,7 @@ export type DocRowData = {
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRendering, indexInRequestedResults: number): DocRowData {
 	return {
 		doc: p.doc,
-		href: frontendPaths.documentPage({
-			indexId: info.indexId,
+		href: frontendPaths.documentPage(info.corpus, {
 			pid: p.doc.docPid,
 			fieldName: info.sourceField.id,
 			searchfield: undefined,
@@ -472,8 +472,7 @@ function makeHitRow(
 		last_of_hit: p.last_of_hit,
 
 		context: snippetParts(p.hit, highlightColors, info.getMatchInfoHighlightStyle),
-		href: frontendPaths.documentPage({
-			indexId: info.indexId,
+		href: frontendPaths.documentPage(info.corpus, {
 			pid: p.doc.docPid,
 			fieldName: field.id,
 			searchfield: info.sourceField.id,

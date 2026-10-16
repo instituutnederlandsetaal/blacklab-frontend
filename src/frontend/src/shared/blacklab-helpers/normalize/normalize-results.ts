@@ -100,14 +100,16 @@ function normalizeDocInfo(docInfo: BLDocInfoV4): BLDocInfo {
 			else acc[field] = [String(value)];
 			return acc;
 		}, {}),
-		tokenCounts: tokenCounts ?? [{ fieldName: '', tokenCount: lengthInTokens }],
+		// V4 uses tokenCount; normalize to V5's tokens. Older responses have only a document-wide length.
+		tokenCounts: tokenCounts?.map(({ fieldName, tokenCount }) => ({ fieldName, tokens: tokenCount })) ?? [{ fieldName: '', tokens: lengthInTokens }],
 		mayView,
 	};
 }
 
 /** Normalize legacy document info while preserving already-normalized objects by identity. */
 function normalizeDocInfoIfNeeded(docInfo: BLDocInfo | BLDocInfoV4): BLDocInfo {
-	return (docInfo as Partial<BLDocInfo>).metadata != null ? (docInfo as BLDocInfo) : normalizeDocInfo(docInfo as BLDocInfoV4);
+	const metadata = docInfo.metadata;
+	return metadata != null && typeof metadata === 'object' && !Array.isArray(metadata) ? (docInfo as BLDocInfo) : normalizeDocInfo(docInfo as BLDocInfoV4);
 }
 
 export function normalizeDoc(doc: BLDocumentV4): BLDocument;

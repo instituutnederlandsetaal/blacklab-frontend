@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 
-import { type CFPageConfig, type Tagset } from '@/types/apptypes';
+import { type CFPageConfig, type Corpus, type Tagset } from '@/types/apptypes';
 
 import { createEndpoint, type EndpointSettings } from '@/shared/api/lib/api-endpoint';
 import type { ApiError, DocumentContentsParameters, FrontendApi } from '@/shared/api/lib/api-types';
@@ -9,27 +9,29 @@ export const frontendPaths = {
 	root: () => CONTEXT_URL,
 	currentCorpus: (indexId: string) => `${CONTEXT_URL}/${indexId}/search`,
 	/** Get the URL for displaying the document/article in the Frontend, with various highlighting and pagination params. */
-	documentPage: (p: {
-		indexId: string;
-		pid: string;
-		/** CQL Query to use to highlight hits */
-		patt?: string;
-		/** Pattgapdata to go with query */
-		pattgapdata?: string;
-		/** HACK: make the backend figure out which page to display based on the start index of the hit -- see ArticlePagination.vue/PaginationInfo.java */
-		findhit?: number;
-		/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
-		searchfield?: string;
-		/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
-		fieldName?: string;
-	}) => {
-		const url = new URL(`${CONTEXT_URL}/${p.indexId}/docs/${p.pid}`, window.location.origin);
+	documentPage: (
+		corpus: Pick<Corpus, 'id' | 'mainAnnotatedField'>,
+		p: {
+			pid: string;
+			/** CQL Query to use to highlight hits */
+			patt?: string;
+			/** Pattgapdata to go with query */
+			pattgapdata?: string;
+			/** HACK: make the backend figure out which page to display based on the start index of the hit -- see ArticlePagination.vue/PaginationInfo.java */
+			findhit?: number;
+			/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
+			searchfield?: string;
+			/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
+			fieldName?: string;
+		},
+	) => {
+		const url = new URL(`${CONTEXT_URL}/${corpus.id}/docs/${p.pid}`, window.location.origin);
 
 		if (p.patt) url.searchParams.append('patt', p.patt);
 		if (p.pattgapdata) url.searchParams.append('pattgapdata', p.pattgapdata);
 		if (p.findhit !== undefined) url.searchParams.append('findhit', p.findhit.toString());
-		if (p.searchfield) url.searchParams.append('searchfield', p.searchfield);
-		if (p.fieldName) url.searchParams.append('field', p.fieldName);
+		if (p.patt && p.searchfield && p.searchfield !== (p.fieldName ?? corpus.mainAnnotatedField)) url.searchParams.append('searchfield', p.searchfield);
+		if (p.fieldName && p.fieldName !== corpus.mainAnnotatedField) url.searchParams.append('field', p.fieldName);
 		return url.toString();
 	},
 
@@ -52,8 +54,11 @@ export const createFrontendApi = (settings: EndpointSettings): FrontendApi => {
 		getConfig: (indexId: string | null, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<CFPageConfig>(frontendPaths.config(indexId), undefined, requestParameters),
 
 		/** Get transformed document contents */
-		getDocumentContents: (params: DocumentContentsParameters, requestParameters?: AxiosRequestConfig) =>
-			endpoint.getCancelable<string>(frontendPaths.documentContents(params.indexId, params.docId), params, requestParameters),
+		getDocumentContents: ({ indexId, docId, viewField, ...params }: DocumentContentsParameters, requestParameters?: AxiosRequestConfig) => {
+			// The servlet uses `field` for displayed contents; `searchfield` selects a different field for highlighting.
+			if (!params.patt || params.searchfield === viewField) delete params.searchfield;
+			return endpoint.getCancelable<string>(frontendPaths.documentContents(indexId, docId), { ...params, ...(viewField ? { field: viewField } : {}) }, requestParameters);
+		},
 
 		/** Get transformed document metadata */
 		getDocumentMetadata: (indexId: string, pid: string, requestParameters?: AxiosRequestConfig) =>

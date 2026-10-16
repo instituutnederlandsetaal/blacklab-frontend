@@ -68,7 +68,7 @@ function docGroups(): BLDocGroupResults {
 
 function renderingInfo(groupDisplayMode = 'table'): DisplaySettingsForRendering {
 	return {
-		indexId: 'test',
+		corpus: { id: 'test', mainAnnotatedField: 'contents' },
 		mainAnnotation: { id: 'word' },
 		otherAnnotations: [],
 		detailedAnnotations: [],

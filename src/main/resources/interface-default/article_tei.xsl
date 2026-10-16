@@ -41,7 +41,13 @@
 	</xsl:template>
 
 	<xsl:template match="//*[local-name()='hl']">
-		<span class="hl"><xsl:apply-templates /></span>
+		<span class="hl">
+			<xsl:if test="@start and @end">
+				<xsl:attribute name="data-hit-start" select="@start"/>
+				<xsl:attribute name="data-hit-end" select="@end"/>
+			</xsl:if>
+			<xsl:apply-templates />
+		</span>
 	</xsl:template>
 	
 	<xsl:variable name="omitSpaceAfterPunct" as="xs:string*" select="(

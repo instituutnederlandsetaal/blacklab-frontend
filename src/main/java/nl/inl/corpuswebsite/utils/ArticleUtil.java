@@ -41,8 +41,9 @@ import jakarta.servlet.http.HttpServletResponse;
 public class ArticleUtil {
     private static final Logger logger = Logger.getLogger(ArticleUtil.class.getName());
 
-    /** Matches xml open/void tags &lt;namespace:tagname attribute="value"/&gt; excluding hl tags, as those are inserted by blacklab and can result in false positives */
-    private static final Pattern XML_TAG_PATTERN = Pattern.compile("<([\\w]+:)?((?!(hl|blacklabResponse|[xX][mM][lL])\\b)[\\w.]+)(\\s+[\\w\\.:]+=\"[:/()='+\\-\\w\\s,]*\")*/?>");
+    /** Detect source elements, ignoring the wrapper and highlights inserted by BlackLab. */
+    private static final Pattern XML_TAG_PATTERN = Pattern.compile("<(?:[\\w.-]+:)?(?!(?:hl|blacklabResponse)(?=[\\s/>]))[\\w.-]+(?=[\\s/>])");
+    private static final Pattern HIGHLIGHT_TAG_PATTERN = Pattern.compile("<hl(\\s[^<>]*?)?>");
 
     private final MainServlet servlet;
     private final HttpServletRequest request;
@@ -77,19 +78,20 @@ public class ArticleUtil {
      * @param page
      * @return
      */
-    public Result<String, HttpException> getDocumentContent(WebsiteConfig corpusConfig, GlobalConfig config, String docId, PaginationInfo page) {
+    private Result<String, HttpException> getDocumentContent(WebsiteConfig corpusConfig, CorpusConfig corpusMetadata, GlobalConfig config, String docId, PaginationInfo page) {
         // Search a different field than the one we're displaying content from?
         // (used for parallel corpora, where a query can return hits from a different field than the one that was searched,
         //  e.g. search the contents__en field using query rfield('the' -->nl _, 'nl') to find the Dutch translation of 'the')
         Optional<String> fieldToShow = getParameter("field", request); // optional - if different from the default field (left up BlackLab)
         Optional<String> fieldToSearch = getParameter("searchfield", request) ; // optional, if different from default field.
-        Optional<String> queryTargetField = fieldToSearch.isPresent() && !fieldToSearch.equals(fieldToShow) ? fieldToShow : Optional.empty();
+        String displayField = fieldToShow.orElse(corpusMetadata.getMainAnnotatedField());
+        Optional<String> queryTargetField = fieldToSearch.filter(field -> !field.equals(displayField)).map(field -> displayField);
 
         return new BlackLabApi(request, response, config)
             .getDocumentContents(
                     corpusConfig.getCorpusId().orElseThrow(),
                     docId,
-                    fieldToShow,
+                    Optional.of(displayField),
                     fieldToSearch,
                     optTargetField(getParameter("patt", request), queryTargetField),
                     getParameter("pattgapdata", request),
@@ -116,7 +118,7 @@ public class ArticleUtil {
      */
     private Optional<String> optTargetField(Optional<String> query, Optional<String> targetfield) {
         if (query.isPresent() && targetfield.isPresent()) {
-            String f = targetfield.get().replaceAll("'", "\\'");
+            String f = targetfield.get().replace("\\", "\\\\").replace("'", "\\'");
             return Optional.of("rfield(" + query.get() + ", '" + f + "')");
         }
         return query;
@@ -179,9 +181,14 @@ public class ArticleUtil {
     ) {
         // Metadata required for pagination (need to know document length)
         Result<String, HttpException> metadata = docMetadata.or(() -> getDocumentMetadata(corpus, config, docId));
-        PaginationInfo pagination = getPaginationInfo(corpus, request, metadata);
-        Result<String, HttpException> contents = getDocumentContent(corpus, config, docId, pagination);
-        return transformDocument(corpus, corpusMetadata, config, contents, metadata);
+        return metadata.flatMap(xml -> {
+            PaginationInfo pagination = corpus.getPageSize()
+                    .map(size -> new PaginationInfo(size, new DocumentInfo(xml, corpusMetadata).getLength(getParameter("field", request)),
+                            getIntParameter("wordstart", request), getIntParameter("wordend", request), getIntParameter("findhit", request)))
+                    .orElseGet(PaginationInfo::new);
+            Result<String, HttpException> contents = getDocumentContent(corpus, corpusMetadata, config, docId, pagination);
+            return transformDocument(corpus, corpusMetadata, config, contents, metadata);
+        });
     }
 
     public Result<String, HttpException> getTransformedMetadata(
@@ -201,11 +208,8 @@ public class ArticleUtil {
     private Result<String, HttpException> transformDocument(WebsiteConfig corpus, CorpusConfig corpusMetadata, GlobalConfig config, Result<String, HttpException> contents, Result<String, HttpException> metadata) {
         return contents.flatMap(c -> {
             // If the document contents aren't xml, don't bother with the transformer.
-            if (!XML_TAG_PATTERN.matcher(c).find()) {
-                return Result.success("<pre>" + StringUtils.replaceEach(c,
-                        new String[]{"<hl>", "</hl>"},
-                        new String[]{"<span class=\"hl\">", "</span>"}
-                ) + "</pre>");
+            if (!containsSourceXml(c)) {
+                return Result.success(renderPlainText(c));
             }
 
             // we managed to get the contents, and they're definitely xml.
@@ -215,6 +219,14 @@ public class ArticleUtil {
                     .mapWithErrorHandling(trans -> trans.transform(c))
                     .mapError(e -> HttpException.wrap(e, "Error transforming document: " + e.getMessage()));
         });
+    }
+
+    static boolean containsSourceXml(String contents) {
+        return XML_TAG_PATTERN.matcher(contents).find();
+    }
+
+    static String renderPlainText(String contents) {
+        return "<pre>" + HIGHLIGHT_TAG_PATTERN.matcher(contents).replaceAll("<span class=\"hl\"$1>").replace("</hl>", "</span>") + "</pre>";
     }
 
     /**
@@ -245,12 +257,4 @@ public class ArticleUtil {
         });
     }
 
-    public static PaginationInfo getPaginationInfo(WebsiteConfig corpusConfig, HttpServletRequest request, Result<String, HttpException> documentMetadata) {
-        Optional<Integer> pageSize = corpusConfig.getPageSize();
-        Optional<Integer> pageStart = getIntParameter("wordstart", request);
-        Optional<Integer> pageEnd = getIntParameter("wordend", request);
-        Optional<Integer> hitStart = getIntParameter("findhit", request);
-        Optional<String>  fieldToShow = getParameter("field", request);
-        return new PaginationInfo(pageSize, documentMetadata, pageStart, pageEnd, hitStart, fieldToShow);
-    }
 }

@@ -97,7 +97,7 @@
 								</template>
 								<tr>
 									<td>Document length (tokens)</td>
-									<td id="docLengthTokens">{{ metadata.value.json.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs.viewField)?.tokenCount }}</td>
+									<td id="docLengthTokens">{{ getDocumentLength(corpus, metadata.value.json.docInfo, inputs.viewField) }}</td>
 								</tr>
 							</tbody>
 						</table>
@@ -123,7 +123,7 @@
 					v-else-if="statistics.isLoaded()"
 					:snippet="statistics.value[0]"
 					:document="statistics.value[1].json"
-					:is-paginated="cfPageConfig.pageSize != null && cfPageConfig.pageSize > 0"
+					:is-paginated="validPaginationInfo.isLoaded() && validPaginationInfo.value.pageSize != null"
 				/>
 			</div>
 		</div>
@@ -134,10 +134,10 @@
 import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
 import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect } from 'vue';
 
+import * as ArticleStore from '@/app/state/article-configuration';
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/use-customizations';
 import { useArticleState } from '@/features/article/model/article-page-state';
-import * as ArticleStore from '@/app/state/article-configuration';
 import createTooltips from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
@@ -146,10 +146,10 @@ import { createArticleStreams, type Input } from './article';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
+import { getDocumentLength } from '@/shared/blacklab-helpers/corpus';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
-import { clamp } from '@/shared/utils/number-utils';
 
 import Collapsible from '@/shared/ui/Collapsible.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
@@ -160,10 +160,10 @@ const ArticlePageStatistics = defineAsyncComponent(() => import('@/pages/article
 
 const blacklab = useBlackLabApi();
 const pageBootstrap = usePageBootstrap();
-const articleStreams = createArticleStreams(blacklab, useFrontendApi());
+const corpus = useCorpus();
+const articleStreams = createArticleStreams(blacklab, useFrontendApi(), corpus);
 const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
 const cfPageConfig = useCfPageConfig();
-const corpus = useCorpus();
 const articleState = useArticleState();
 const { resultDetailedMetadataIds } = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
@@ -245,8 +245,8 @@ const paginationDraggable = useDraggable(useTemplateRef('article-pagination'), {
 });
 const viewport = useWindowSize();
 watchEffect(() => {
-	paginationDraggable.x.value = draggablePosition.value.x = clamp(paginationDraggable.x.value, 0, viewport.width.value - 150);
-	paginationDraggable.y.value = draggablePosition.value.y = clamp(paginationDraggable.y.value, 50, viewport.height.value - 50);
+	paginationDraggable.x.value = draggablePosition.value.x = Math.min(Math.max(paginationDraggable.x.value, 0), viewport.width.value - 150);
+	paginationDraggable.y.value = draggablePosition.value.y = Math.min(Math.max(paginationDraggable.y.value, 50), viewport.height.value - 50);
 });
 </script>
 

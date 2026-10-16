@@ -1,4 +1,4 @@
-import { isGroups, isHitResults, type BLDocInfo, type BLSearchParameters, type BLSearchResult, type BLSearchResultsStatsV5, type BLSearchSummaryV5, type BLSubcorpusSize } from '@/types/blacklabtypes';
+import { isGroups, isHitResults, type BLSearchParameters, type BLSearchResult, type BLSearchResultsStatsV5, type BLSearchSummaryV5, type BLSubcorpusSize } from '@/types/blacklabtypes';
 
 function summaryFrom(input: BLSearchResult | BLSearchSummaryV5): BLSearchSummaryV5 {
 	return 'summary' in input ? input.summary : input;
@@ -62,9 +62,4 @@ export function getSearchState(input: BLSearchResult | BLSearchSummaryV5): 'coun
 	if (counted.status === 'working') return 'counting';
 	if (counted.stoppedBecauseTooMany) return 'limited';
 	return 'finished';
-}
-
-/** Read a field's token count, falling back to the document's first token count. */
-export function getDocumentLength(docInfo: BLDocInfo, fieldName?: string): number {
-	return docInfo.tokenCounts.find(tokenCount => tokenCount.fieldName === fieldName)?.tokenCount ?? docInfo.tokenCounts[0]?.tokenCount ?? 0;
 }

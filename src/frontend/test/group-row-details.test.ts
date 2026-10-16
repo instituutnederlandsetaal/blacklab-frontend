@@ -22,7 +22,7 @@ let requests: Array<ReturnType<typeof deferredRequest>>;
 
 function renderingInfo(): DisplaySettingsForRendering {
 	return {
-		indexId: 'test',
+		corpus: { id: 'test', mainAnnotatedField: 'contents' },
 		mainAnnotation: { id: 'word' } as DisplaySettingsForRendering['mainAnnotation'],
 		otherAnnotations: [],
 		detailedAnnotations: [],

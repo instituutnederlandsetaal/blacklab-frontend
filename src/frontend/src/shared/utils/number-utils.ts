@@ -32,7 +32,3 @@ export function frac2Percent(n: number, significants: number = 3): string {
 	// (but only when they are in the fractional portion, or we would strip '10' and '100' to '1')
 	return (significants > 0 ? ret.replace(/\.?0*$/, '') : ret) + '%';
 }
-
-export function clamp(value: number, min: number, max: number) {
-	return Math.min(Math.max(value, min), max);
-}
