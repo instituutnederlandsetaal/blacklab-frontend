@@ -48,7 +48,7 @@ HighchartsBoost(Highcharts);
 <script setup lang="ts">
 import { computed, toRefs } from 'vue';
 
-import * as ArticleStore from '@/features/article/model/article-state';
+import * as ArticleStore from '@/app/state/article-configuration';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';

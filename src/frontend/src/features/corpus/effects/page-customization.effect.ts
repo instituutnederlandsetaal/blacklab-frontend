@@ -33,13 +33,14 @@ export function startCustomizationInterop() {
 		}),
 	);
 
-	useCustomJs(
+	const customScriptsReady = useCustomJs(
 		computed(() => {
 			if (!pageBootstrap.scriptsReady.value) return [];
 			const js = context.value?.config.customJs ?? {};
 			return [...(js[''] ?? []), ...(pageName.value ? (js[pageName.value] ?? []) : [])].sort((left, right) => left.index - right.index);
 		}),
 	);
+	watchEffect(() => pageBootstrap.setCustomScriptsSettled(customScriptsReady.value));
 
 	useFavicon(
 		computed(() => {

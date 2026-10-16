@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, shallowRef, type Ref } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
-import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
@@ -25,6 +24,7 @@ import * as GlobalStore from '@/features/search/model/results/global-results-sta
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFormRestoration } from '@/features/search/model/search-form-restoration';
+import * as RootStore from '@/features/search/model/search-store';
 import { createSearchSummary } from '@/features/search/model/search-summary';
 import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
@@ -45,7 +45,7 @@ const corpus = {
 	allAnnotationsMap: {},
 	allMetadataFields: [],
 	allMetadataFieldsMap: {},
-	allAnnotatedFieldsMap: { contents: { annotations: {} } },
+	allAnnotatedFieldsMap: { contents: { id: 'contents', annotations: {} } },
 	parallelAnnotatedFields: [],
 	parallelAnnotatedFieldsMap: {},
 	relations: { spans: {} },
@@ -145,7 +145,7 @@ async function setup(
 		formRestoration.stop();
 		router.options.history.destroy();
 	});
-	return { router, runtime, loadedCorpus, sync, activeSearchParameters };
+	return { router, runtime, loadedCorpus, sync, activeSearchParameters, restoring: formRestoration.loading };
 }
 
 async function restored(activeSearchParameters: Readonly<Ref<EffectiveSearchParameters | undefined>>, patt = pattern) {
@@ -198,12 +198,14 @@ describe('search URLs and browser history', () => {
 
 	test('waits for the incoming search form to finish restoring before the initial page is ready', async () => {
 		const gate = deferred();
-		const { activeSearchParameters, sync } = await setup(undefined, { beforeStateLoaded: () => gate.promise });
+		const { activeSearchParameters, sync, restoring } = await setup(undefined, { beforeStateLoaded: () => gate.promise });
 
 		expect(sync.initialReadSettled.value).toBe(false);
+		expect(restoring.value).toBe(true);
 		gate.resolve();
 		await restored(activeSearchParameters);
 		expect(sync.initialReadSettled.value).toBe(true);
+		expect(restoring.value).toBe(false);
 	});
 
 	test.each(['sample=25', 'samplenum=8'])('shares a generated sampling seed across requests, controls, and pagination for %s', async sampling => {
@@ -289,7 +291,7 @@ describe('search URLs and browser history', () => {
 	test('a replacement form supersedes pending parsing and restores only the current URL', async () => {
 		const pending = deferred();
 		const entered = deferred();
-		const { runtime, router, activeSearchParameters } = await setup(undefined, {
+		const { runtime, router, activeSearchParameters, restoring } = await setup(undefined, {
 			getParsePattern: (_indexId, patt) => {
 				if (patt !== pattern) return rejectedRequest('unsupported pattern');
 				entered.resolve();
@@ -300,9 +302,11 @@ describe('search URLs and browser history', () => {
 			},
 		});
 		await entered.promise;
+		expect(restoring.value).toBe(true);
 		await router.push(`${path}/hits?patt=${encodeURIComponent('[word="new definition"]')}&f.form=search.simple&f.late=author`);
 		runtime.value = form({ withField: true });
 		await restored(activeSearchParameters, '[word="new definition"]');
+		expect(restoring.value).toBe(false);
 		pending.resolve();
 		await flushPromises();
 		expect(runtime.value.state.state.value.late).toEqual({ value: 'author', caseSensitive: false });

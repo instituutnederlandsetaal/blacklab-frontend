@@ -1,9 +1,6 @@
-import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
-import * as ArticleModule from '@/features/article/model/article-state';
-import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import { type CompiledFormResult } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -128,21 +125,16 @@ const setCustomizations = (value: Customizations) => {
 };
 
 const init = (state: CorpusContext) => {
-	debugLog('store', 'Initializing store with new corpus data', state);
+	debugLog('store', 'Initializing search stores with new corpus data', state);
 	context = state;
 	submittedSearch.value = undefined;
-
-	UIModule.init(state);
 
 	if (!customizations) throw new Error('Root store initialized without customizations.');
 	FormManager.init(state, customizations);
 	ViewModule.init(state);
 	GlobalResultsModule.init(state);
 
-	TagsetModule.init(state);
 	HistoryModule.init(state);
-
-	ArticleModule.init(state);
 };
 
 export { actions, get, init, setCustomizations, setSubmittedSearch };

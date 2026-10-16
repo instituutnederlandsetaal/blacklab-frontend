@@ -127,6 +127,52 @@ describe('page customization', () => {
 		}
 	});
 
+	test('becomes ready after all declared scripts load or fail', () => {
+		const scope = effectScope();
+		const ready = scope.run(() =>
+			useCustomJs([
+				{ index: 0, attributes: { src: '/first.js' } },
+				{ index: 1, attributes: { src: '/second.js', async: true } },
+			]),
+		)!;
+
+		try {
+			const scripts = document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]');
+			expect(ready.value).toBe(false);
+			scripts[0].dispatchEvent(new Event('load'));
+			expect(ready.value).toBe(false);
+			scripts[1].dispatchEvent(new Event('error'));
+			expect(ready.value).toBe(true);
+		} finally {
+			scope.stop();
+		}
+	});
+
+	test('waits for replacement scripts and settles scripts disposed before loading', async () => {
+		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/old.js' } }]);
+		const scope = effectScope();
+		const ready = scope.run(() => useCustomJs(entries))!;
+
+		try {
+			const oldScript = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			entries.value = [{ index: 0, attributes: { src: '/replacement.js' } }];
+			await nextTick();
+			const replacement = document.body.querySelector<HTMLScriptElement>('script[data-page-customization-js]')!;
+			oldScript.dispatchEvent(new Event('load'));
+			expect(ready.value).toBe(false);
+			replacement.dispatchEvent(new Event('load'));
+			expect(ready.value).toBe(true);
+
+			entries.value = [{ index: 0, attributes: { src: '/pending.js' } }];
+			await nextTick();
+			expect(ready.value).toBe(false);
+			scope.stop();
+			expect(ready.value).toBe(true);
+		} finally {
+			scope.stop();
+		}
+	});
+
 	test('replaces registrations when a custom script is reloaded', async () => {
 		const entries = ref<CFCustomJsEntry[]>([{ index: 0, attributes: { src: '/customization.js' } }]);
 		const scope = effectScope();

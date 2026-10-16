@@ -3,9 +3,9 @@
 import { createMockI18n } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, effectScope, h, nextTick } from 'vue';
 
-import { useI18n, useI18nManager } from '@/shared/i18n';
+import { createI18n, useI18n, useI18nManager } from '@/shared/i18n';
 import { I18nManager } from '@/shared/i18n/i18n-manager';
 
 const RAW_STATIC_EN_US_BUNDLE = `{
@@ -42,6 +42,40 @@ const TemplateProbe = defineComponent({
 afterEach(() => {
 	vi.useRealTimers();
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
+});
+
+test('refreshes active and fallback translations when the corpus changes without changing locale', async () => {
+	vi.useFakeTimers();
+	vi.stubGlobal('CONTEXT_URL', '/blacklab-frontend');
+	vi.stubGlobal('i18n', undefined);
+	vi.stubGlobal('fetch', async (url: string) => {
+		const corpus = url.includes('/first/') ? 'First' : 'Second';
+		const messages = url.endsWith('/nl-nl.json') ? { current: `${corpus} active` } : { fallback: `${corpus} fallback` };
+		return new Response(JSON.stringify({ test: messages }));
+	});
+	const scope = effectScope();
+	const i18n = scope.run(() => createI18n('first'))!;
+	const Probe = defineComponent({
+		setup() {
+			const { $t } = useI18n();
+			return () => h('div', `${$t('test.current')} / ${$t('test.fallback')}`);
+		},
+	});
+	const wrapper = mount(Probe, { global: { plugins: [i18n] } });
+	try {
+		await i18n.setLocale('nl-nl');
+		await i18n.setFallbackLocale('en-us');
+		await nextTick();
+		expect(wrapper.text()).toBe('First active / First fallback');
+
+		await i18n.setIndexId('second');
+		await nextTick();
+		expect(wrapper.text()).toBe('Second active / Second fallback');
+	} finally {
+		wrapper.unmount();
+		scope.stop();
+	}
 });
 
 test('sets the fallback locale without replacing the active locale', async () => {

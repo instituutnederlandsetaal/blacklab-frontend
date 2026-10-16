@@ -1,35 +1,27 @@
-import { type App } from 'vue';
+import type { App, Ref } from 'vue';
 
-import * as RootStore from '@/app/state/root-store';
+import * as ArticleModule from '@/app/state/article-configuration';
 import * as UIModule from '@/app/state/ui-state';
-import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createExternalCustomizationApi } from '@/customization-api/external/browser-api';
 import type { BlackLabFrontendCustomizationApi } from '@/customization-api/external/external-api';
-import { type CustomizationRegistry } from '@/customization-api/registry';
-import * as ArticleModule from '@/features/article/model/article-state';
+import type { CustomizationRegistry } from '@/customization-api/registry';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import * as HistoryModule from '@/features/history/model/query-history-state';
-import type { ActiveSearchParameters } from '@/features/search/model/active-search';
-import * as ExploreModule from '@/features/search/model/form/explore-state';
-import * as FormManager from '@/features/search/model/form/form-state';
-import * as GapModule from '@/features/search/model/form/gap-state';
-import * as InterfaceModule from '@/features/search/model/form/interface-state';
-import * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
-import * as ViewModule from '@/features/search/model/results/view-state';
 import { createCorpusStoreAdapter } from '@/interop/legacy-store-adapters/corpus';
 import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
+import type { Corpus } from '@/types/apptypes';
 
 type InteropWindow = Window & {
 	vueApp?: App;
 	vueRoot?: unknown;
 	INDEX_ID?: string;
 	frontend?: BlackLabFrontendCustomizationApi;
+	printCustomJs?: () => void;
 };
 
 type InteropGlobal = typeof globalThis & {
 	corpus?: CorpusContext;
-	vuexModules?: unknown;
+	vuexModules?: Record<string, unknown>;
 };
 
 /** Expose the browser customization API used by corpus scripts. */
@@ -37,52 +29,23 @@ export function installCustomizationApiGlobals(registry: CustomizationRegistry) 
 	(window as InteropWindow).frontend = createExternalCustomizationApi(registry);
 }
 
-export function installLegacyStoreGlobals(app: App, registry: CustomizationRegistry, activeSearchParameters: ActiveSearchParameters) {
-	const corpus = app.runWithContext(() => createCorpusStoreAdapter(useCorpus()));
-
-	const vuexModules = {
-		root: {
-			get: {
-				...RootStore.get,
-				blacklabParameters: () => activeSearchParameters.value,
-				...ArticleModule.get,
-			},
-			getState: ArticleModule.getState,
-			actions: {
-				...RootStore.actions,
-				/** Compatibility for scripts that used to wrap store actions in a navigation command. */
-				navigateSearch: async (change: () => unknown) => {
-					change();
-				},
-				...ArticleModule.actions,
-			},
-			init: RootStore.init,
-		},
-		corpus,
-		history: HistoryModule,
-		tagset: TagsetModule,
+/** Expose corpus configuration shared by the search and article pages. */
+export function installCommonStoreGlobals(corpus: Ref<Corpus | undefined>, registry: CustomizationRegistry) {
+	(globalThis as InteropGlobal).vuexModules = {
+		root: ArticleModule,
+		corpus: createCorpusStoreAdapter(corpus),
 		ui: UIModule,
-		explore: ExploreModule,
-		form: FormManager,
-		filters: createFilterStoreAdapter(registry),
-		interface: InterfaceModule,
-		patterns: PatternModule,
-		gap: GapModule,
+		tagset: TagsetModule,
 		article: ArticleModule,
-		views: ViewModule,
-		results: {
-			...ViewModule,
-			get hits() {
-				return ViewModule.getOrCreateModule('hits');
-			},
-			get docs() {
-				return ViewModule.getOrCreateModule('docs');
-			},
-		},
-		global: GlobalResultsModule,
+		filters: createFilterStoreAdapter(registry),
 	};
+	(window as InteropWindow).printCustomJs = UIModule.printCustomizations;
+}
 
-	(globalThis as InteropGlobal).vuexModules = vuexModules;
+/** Expose compatibility stores supplied by the active page runtime. */
+export function installLegacyStoreGlobals(modules: Record<string, unknown>) {
+	const target = ((globalThis as InteropGlobal).vuexModules ??= {});
+	Object.assign(target, modules);
 }
 
 /** Expose the Vue application handles retained for legacy scripts. */

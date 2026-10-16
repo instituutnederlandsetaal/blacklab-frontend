@@ -1,4 +1,4 @@
-import { toValue, watch, type App, type MaybeRefOrGetter, type Ref } from 'vue';
+import { readonly, ref, toValue, watch, type App, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import type { FormRuntime } from '@/features/form';
 import * as FormStore from '@/features/search/model/form/form-state';
@@ -8,6 +8,9 @@ import type { SubmittedFormRestoration, SubmittedSearch, SubmittedSearchState } 
 import type { Corpus } from '@/types/apptypes';
 
 import { debugLog } from '@/shared/debug/debug';
+import useInjectable from '@/shared/utils/useInjectable';
+
+export const [, provideSearchFormRestoring, useSearchFormRestoring] = useInjectable<Readonly<Ref<boolean>>>('search-form-restoring');
 
 /** Incoming searches and runtime replacement restore disposable drafts; submission does not. */
 export function createSearchFormRestoration(dependencies: {
@@ -20,6 +23,7 @@ export function createSearchFormRestoration(dependencies: {
 }) {
 	let stopped = false;
 	let restoration: object | undefined;
+	const loading = ref(false);
 	// The hook may rebuild the runtime, so every restoration of this corpus waits for the same run.
 	const beforeStateLoaded = new WeakMap<Corpus, Promise<unknown>>();
 	function runBeforeStateLoaded(corpus: Corpus) {
@@ -33,10 +37,16 @@ export function createSearchFormRestoration(dependencies: {
 	async function restore() {
 		const corpus = toValue(dependencies.corpus);
 		const submitted = dependencies.submitted.value;
-		if (!corpus || !submitted || stopped) return;
+		if (!corpus || !submitted || stopped) {
+			restoration = undefined;
+			loading.value = false;
+			return;
+		}
 		const operation = {};
 		restoration = operation;
+		loading.value = true;
 		const runtime = dependencies.runtime.value;
+		// A newer URL or rebuilt runtime supersedes this parse; its result must not overwrite the newer draft.
 		const current = () => !stopped && restoration === operation && toValue(dependencies.corpus) === corpus && dependencies.submitted.value === submitted && dependencies.runtime.value === runtime;
 		try {
 			await runBeforeStateLoaded(corpus);
@@ -50,13 +60,25 @@ export function createSearchFormRestoration(dependencies: {
 			if (!form?.submittedResult) dependencies.submitted.value = { ...submitted, summary: summarizeLegacySearch(legacyForm, submitted.params.patt, corpus.allAnnotationsMap) };
 		} catch (error) {
 			if (current()) console.error('Failed to restore search form', error);
+		} finally {
+			if (restoration === operation) loading.value = false;
 		}
 	}
+	// Customization registration rebuilds the runtime, so restore the submitted query into each replacement.
 	const stopRuntime = watch(dependencies.runtime, () => void restore());
 	function stop() {
 		stopped = true;
 		restoration = undefined;
+		loading.value = false;
 		stopRuntime();
 	}
-	return { restore, stop, install: (app: App) => app.onUnmount(stop) };
+	return {
+		restore,
+		stop,
+		loading: readonly(loading),
+		install(app: App) {
+			provideSearchFormRestoring(app, readonly(loading));
+			app.onUnmount(stop);
+		},
+	};
 }

@@ -11,6 +11,24 @@ function afterBootstrapPage(name: string): PageMeta {
 }
 
 describe('page bootstrap state', () => {
+	test('waits for both page bootstrap and declared custom scripts', () => {
+		const pageBootstrap = createPageBootstrapContext();
+		pageBootstrap.changePage(afterBootstrapPage('search'), false);
+		pageBootstrap.setCustomScriptsSettled(true);
+		expect(pageBootstrap.customizationsReady.value).toBe(false);
+
+		pageBootstrap.markScriptsReady();
+		expect(pageBootstrap.customizationsReady.value).toBe(true);
+		pageBootstrap.setCustomScriptsSettled(false);
+		expect(pageBootstrap.customizationsReady.value).toBe(false);
+		expect(pageBootstrap.contentReady.value).toBe(true);
+		pageBootstrap.setCustomScriptsSettled(true);
+		expect(pageBootstrap.customizationsReady.value).toBe(true);
+
+		pageBootstrap.changePage(afterBootstrapPage('article'), false);
+		expect(pageBootstrap.customizationsReady.value).toBe(false);
+	});
+
 	test('content readiness does not enable page scripts', () => {
 		const pageBootstrap = createPageBootstrapContext();
 		pageBootstrap.changePage(afterBootstrapPage('search'), false);

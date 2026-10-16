@@ -41,20 +41,20 @@ function registerDefaultLocales(manager: I18nManager) {
 
 function bridgeManagerToVueI18n(manager: I18nManager, i18n: VueI18nBridge) {
 	const stopLocaleWatch = watch(
-		manager.localeState,
-		newVal => {
-			if (newVal?.messages) {
-				i18n.locale.value = newVal.value;
-				i18n.setLocaleMessage(newVal.value, newVal.messages);
+		[() => manager.localeState.value?.value, () => manager.localeState.value?.messages],
+		([locale, messages]) => {
+			if (locale && messages) {
+				i18n.locale.value = locale;
+				i18n.setLocaleMessage(locale, messages);
 			}
 		},
 		{ immediate: true },
 	);
 
-	const stopFallbackWatch = watch(manager.fallbackLocaleState, newVal => {
-		if (newVal?.messages) {
-			i18n.fallbackLocale.value = newVal.value;
-			i18n.setLocaleMessage(newVal.value, newVal.messages);
+	const stopFallbackWatch = watch([() => manager.fallbackLocaleState.value?.value, () => manager.fallbackLocaleState.value?.messages], ([locale, messages]) => {
+		if (locale && messages) {
+			i18n.fallbackLocale.value = locale;
+			i18n.setLocaleMessage(locale, messages);
 		}
 	});
 

@@ -4,9 +4,9 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, test } from 'vitest';
-import { effectScope, nextTick, type EffectScope } from 'vue';
+import { effectScope, nextTick, ref, type App, type EffectScope } from 'vue';
 
-import * as RootStore from '@/app/state/root-store';
+import * as FilterStore from '@/app/state/legacy-filter-state';
 import * as UIStore from '@/app/state/ui-state';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
@@ -17,7 +17,10 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
+import { provideSearchFormRestoring } from '@/features/search/model/search-form-restoration';
+import * as RootStore from '@/features/search/model/search-store';
 import { createSubmittedSearch, restoreSubmittedForm, submittedSearchFromResult } from '@/features/search/model/submitted-search';
+import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 
 import { createCorpus, resetSearchFormConfig } from './search-form-fixture';
 
@@ -32,7 +35,7 @@ afterEach(() => {
 	GlobalResultsStore.actions.useNewSearchForm(false);
 });
 
-async function mountSearchForm() {
+async function mountSearchForm(useNewForm = true) {
 	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
 	const submitted = createSubmittedSearch();
 	RootStore.setSubmittedSearch(submitted);
@@ -61,6 +64,8 @@ async function mountSearchForm() {
 		const customizations = createCustomizations(registry, context.corpus, UIStore.getState, () => {});
 		RootStore.setCustomizations(customizations);
 		context.beforePublish(state => {
+			UIStore.init(state);
+			FilterStore.init(state);
 			RootStore.init(state);
 			resetSearchFormConfig();
 		});
@@ -69,13 +74,39 @@ async function mountSearchForm() {
 	})!;
 	await flushPromises();
 	expect(context.corpus.value?.id).toBe('test-corpus');
-	GlobalResultsStore.actions.useNewSearchForm(true);
-	const wrapper = mount(QueryForm, { global: { plugins: [api, context, system] } });
+	GlobalResultsStore.actions.useNewSearchForm(useNewForm);
+	const pageBootstrap = createPageBootstrapContext();
+	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
+	pageBootstrap.markScriptsReady();
+	const restoring = ref(false);
+	const wrapper = mount(QueryForm, {
+		global: {
+			plugins: [api, context, system, pageBootstrap, { install: (app: App) => provideSearchFormRestoring(app, restoring) }],
+			stubs: useNewForm ? {} : { QueryFormSearch: true, QueryFormExplore: true, QueryFormFilters: true },
+		},
+	});
 	wrappers.push(wrapper);
-	return { wrapper, runtime: system.runtime.value!, submitted };
+	return { wrapper, runtime: system.runtime.value!, submitted, pageBootstrap, restoring };
 }
 
 describe('search form submission', () => {
+	test.each([true, false])('keeps the newForm=%s controls inert until scripts and restoration settle', async useNewForm => {
+		const { wrapper, pageBootstrap, restoring } = await mountSearchForm(useNewForm);
+		const formRoot = () => wrapper.get(useNewForm ? '.blf-form-system' : 'form');
+		pageBootstrap.setCustomScriptsSettled(false);
+		await nextTick();
+		expect(formRoot().attributes()).toHaveProperty('inert');
+
+		restoring.value = true;
+		pageBootstrap.setCustomScriptsSettled(true);
+		await nextTick();
+		expect(formRoot().attributes()).toHaveProperty('inert');
+
+		restoring.value = false;
+		await nextTick();
+		expect(formRoot().attributes()).not.toHaveProperty('inert');
+	});
+
 	test('submits user input through QueryForm and keeps the running query independent of later edits', async () => {
 		const { wrapper, submitted } = await mountSearchForm();
 		const input = wrapper.get('input[type="text"]');

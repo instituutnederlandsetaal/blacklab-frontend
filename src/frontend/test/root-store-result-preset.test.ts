@@ -3,7 +3,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, shallowRef } from 'vue';
 
-import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
@@ -17,6 +16,7 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
+import * as RootStore from '@/features/search/model/search-store';
 import { createSearchSummary } from '@/features/search/model/search-summary';
 import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 

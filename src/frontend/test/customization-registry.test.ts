@@ -3,10 +3,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, createApp, nextTick, reactive, ref, watchEffect } from 'vue';
 
+import * as FilterStore from '@/app/state/legacy-filter-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations, useCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry, useCustomizationRegistry } from '@/customization-api/registry';
-import * as FilterStore from '@/features/search/model/form/filter-state';
 import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
 import type { Corpus } from '@/types/apptypes';
 
@@ -128,6 +128,24 @@ describe('customization registry corpus lifecycle', () => {
 				query: undefined,
 			},
 		]);
+	});
+
+	test('shares immediate legacy filter definitions and values with search query state', async () => {
+		const corpus = { ...createCorpus('first'), allMetadataFieldsMap: {}, metadataGroups: [] } as unknown as Corpus;
+		const registry = createCustomizationRegistry(corpus);
+		const filters = createFilterStoreAdapter(registry);
+
+		registry.applyLegacyCustomization(legacy => {
+			legacy.search.metadata.addCustomTab('Custom', [{ id: 'author', componentName: 'filter-text', defaultDisplayName: 'Author', metadata: undefined }]);
+		});
+		filters.actions.filterValue({ id: 'author', value: 'Alice' });
+		expect(filters.getState().filters.author).toMatchObject({ groupId: 'Custom', value: 'Alice' });
+
+		const searchFilters = await import('@/features/search/model/form/filter-state');
+		expect(searchFilters.getState()).toBe(FilterStore.getState());
+		expect(searchFilters.get.luceneQuery()).toBe('author:(Alice)');
+		searchFilters.actions.filterValue({ id: 'author', value: 'Bob' });
+		expect(filters.getState().filters.author.value).toBe('Bob');
 	});
 
 	test('adapts legacy filter registration and filter groups', () => {

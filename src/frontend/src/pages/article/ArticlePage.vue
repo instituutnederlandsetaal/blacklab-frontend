@@ -135,9 +135,9 @@ import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
 import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect } from 'vue';
 
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
-import { useCustomizations } from '@/customization-api/internal/internal-api';
+import { useCustomizations } from '@/customization-api/internal/use-customizations';
 import { useArticleState } from '@/features/article/model/article-page-state';
-import * as ArticleStore from '@/features/article/model/article-state';
+import * as ArticleStore from '@/app/state/article-configuration';
 import createTooltips from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';

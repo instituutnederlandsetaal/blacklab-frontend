@@ -1,4 +1,4 @@
-import { toValue, watch, type MaybeRefOrGetter } from 'vue';
+import { computed, shallowReactive, toValue, watch, type MaybeRefOrGetter } from 'vue';
 
 import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
 
@@ -69,20 +69,37 @@ export const useCustomCss = (css: MaybeRefOrGetter<CFCustomCssEntry[]>) => {
 	);
 };
 
+/** Readiness covers declared script elements; asynchronous work started by those scripts may finish later. */
 export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>) => {
+	const pending = shallowReactive(new Set<HTMLScriptElement>());
 	useInsertableContent(
 		js,
 		jsEntries => {
 			jsEntries.forEach(js => {
 				const script = document.createElement('script');
 				Object.entries(js.attributes).forEach(([k, v]) => v && script.setAttribute(k, v.toString()));
+				// Dynamically inserted scripts otherwise default to async and can execute out of configuration order.
 				if (!script.hasAttribute('async')) script.async = false;
 				script.setAttribute(jsElementMarker, '');
+				const settle = () => {
+					script.removeEventListener('load', settle);
+					script.removeEventListener('error', settle);
+					script.removeEventListener(customJsDisposeEvent, settle);
+					pending.delete(script);
+				};
+				if (script.hasAttribute('src')) {
+					pending.add(script);
+					script.addEventListener('load', settle);
+					// Failed or removed scripts must release the form's readiness gate too.
+					script.addEventListener('error', settle);
+					script.addEventListener(customJsDisposeEvent, settle);
+				}
 				document?.body?.appendChild(script);
 			});
 		},
 		() => document?.body?.querySelectorAll?.<HTMLScriptElement>(`script[${jsElementMarker}]`)?.forEach(disposeCustomJs),
 	);
+	return computed(() => pending.size === 0);
 };
 
 export { useFavicon, useTitle } from '@vueuse/core';

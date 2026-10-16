@@ -1,6 +1,6 @@
+import * as FilterStore from '@/app/state/legacy-filter-state';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { CustomizationRegistry } from '@/customization-api/registry';
-import * as FilterStore from '@/features/search/model/form/filter-state';
 import type { FilterDefinition } from '@/types/apptypes';
 
 /** Compatibility adapter for the old filter Vuex module. Not for internal use. */

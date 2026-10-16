@@ -10,7 +10,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, nextTick, ref, type Ref } from 'vue';
 
-import * as ArticleStore from '@/features/article/model/article-state';
+import * as ArticleStore from '@/app/state/article-configuration';
 import type { CFPageConfig, Corpus } from '@/types/apptypes';
 
 import { ApiError } from '@/shared/api/lib/api-types';

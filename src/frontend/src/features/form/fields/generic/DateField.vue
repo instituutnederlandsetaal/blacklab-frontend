@@ -58,9 +58,10 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '../field-presentation';
-import { DateUtils, type DateFieldComponentProps, type DateFieldState } from './date-field';
+import type { DateFieldComponentProps, DateFieldState } from './date-field';
 import { rawRangeModeOptions } from './range-mode';
 
+import { DateUtils } from '@/shared/utils/date-utils';
 import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<DateFieldComponentProps>(), {

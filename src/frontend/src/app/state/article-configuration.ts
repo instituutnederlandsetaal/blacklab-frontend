@@ -1,3 +1,4 @@
+/** Article display configuration remains available to corpus scripts before the article feature loads. */
 import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
@@ -54,4 +55,5 @@ const actions = {
 const init = (_state: CorpusContext) => Object.assign(state, initialState);
 
 export { actions, get, getState, init };
+/** @public Configuration returned by `vuexModules.article.getState()`. */
 export type { ModuleRootState };

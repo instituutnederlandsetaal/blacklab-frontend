@@ -3,7 +3,6 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import cloneDeep from 'clone-deep';
 import { reactive, ref } from 'vue';
 
 import { type CorpusContext } from '@/app/state/useCorpusContext';
@@ -262,8 +261,8 @@ const actions = {
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
 const init = (state: CorpusContext, customizationApi: Customizations) => {
 	customizations = customizationApi;
+	privateActions.clear();
 	if (!state.index) {
-		Object.assign(getState(), cloneDeep(initialState));
 		return;
 	}
 	context = state;

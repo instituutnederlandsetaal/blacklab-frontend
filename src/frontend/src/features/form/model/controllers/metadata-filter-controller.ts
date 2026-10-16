@@ -1,7 +1,7 @@
 import { toValue } from 'vue';
 
 import { createDefaultCheckboxFieldState, type CheckboxFieldDefinition } from '@/features/form/fields/generic/checkbox-field';
-import { createDefaultDateFieldState, DateUtils, type DateFieldDefinition, type DateFieldState } from '@/features/form/fields/generic/date-field';
+import { createDefaultDateFieldState, type DateFieldDefinition, type DateFieldState } from '@/features/form/fields/generic/date-field';
 import { createDefaultRadioFieldState, type RadioFieldDefinition } from '@/features/form/fields/generic/radio-field';
 import { createDefaultRangeFieldState, type RangeFieldDefinition } from '@/features/form/fields/generic/range-field';
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
@@ -11,6 +11,7 @@ import { rangeModePersistenceCodec, rangePersistenceCodec, selectionPersistenceC
 import { booleanNode, filter, filterRange, summary, type LuceneNode } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
+import { DateUtils } from '@/shared/utils/date-utils';
 import { findOption } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
 

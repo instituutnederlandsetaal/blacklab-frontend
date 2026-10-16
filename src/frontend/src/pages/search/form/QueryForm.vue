@@ -1,5 +1,5 @@
 <template>
-	<FormSystem v-if="newForm" :runtime="newForm" @submit="submitNewForm" @reset="resetNewForm" class="container">
+	<FormSystem v-if="newForm" :runtime="newForm" :inert="!formInteractive || undefined" @submit="submitNewForm" @reset="resetNewForm" class="container">
 		<template #actions>
 			<button type="button" class="btn btn-default btn-lg" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
 			<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
@@ -14,7 +14,7 @@
 				<a href="#form-explore">{{ $t('queryForm.explore') }}</a>
 			</li>
 		</ul>
-		<form class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
+		<form class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" :inert="!formInteractive || undefined" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
 			<QueryFormSearch
 				id="form-search"
 				v-show="activeForm === 'search'"
@@ -75,7 +75,6 @@ import { stripIndent } from 'common-tags';
 import { defineComponent } from 'vue';
 
 import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
-import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import type { SearchFormSection } from '@/customization-api/external/external-api';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
@@ -84,6 +83,9 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
+import { useSearchFormRestoring } from '@/features/search/model/search-form-restoration';
+import * as RootStore from '@/features/search/model/search-store';
+import { usePageBootstrap } from '@/navigation/page-bootstrap';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
@@ -108,8 +110,14 @@ export default defineComponent({
 		errorNoParallelSourceVersion: false,
 		corpus: useCorpus(),
 		searchFormRuntime: useSearchFormSystem(),
+		customizationsReady: usePageBootstrap().customizationsReady,
+		formRestoring: useSearchFormRestoring(),
 	}),
 	computed: {
+		// Scripts can replace the form and restoration can replace its draft; accept input once both have settled.
+		formInteractive(): boolean {
+			return this.customizationsReady && !this.formRestoring;
+		},
 		newForm(): FormRuntime | null {
 			const useForm = GlobalViewSettings.getState().useNewSearchForm;
 			return useForm ? this.searchFormRuntime : null;

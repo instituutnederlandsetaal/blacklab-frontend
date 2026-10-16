@@ -53,11 +53,20 @@ describe('page customization effect', () => {
 				'/search-initial.js',
 				'/global-initial.js',
 			]);
+			expect(pageBootstrap.customizationsReady.value).toBe(false);
+			const initialScripts = document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]');
+			initialScripts[0].dispatchEvent(new Event('load'));
+			await nextTick();
+			expect(pageBootstrap.customizationsReady.value).toBe(false);
+			initialScripts[1].dispatchEvent(new Event('error'));
+			await nextTick();
+			expect(pageBootstrap.customizationsReady.value).toBe(true);
 
 			pageBootstrap.changePage({ name: 'article', customScriptTiming: 'after-page-bootstrap' }, false);
 			contextValue.value = { config: config('latest') };
 			await nextTick();
 			expect(pageBootstrap.scriptsReady.value).toBe(false);
+			expect(pageBootstrap.customizationsReady.value).toBe(false);
 			expect(document.body.querySelectorAll('script[data-page-customization-js]')).toHaveLength(0);
 			expect(document.head.querySelector('link[data-page-customization-css]')?.getAttribute('href')).toBe('/style-latest.css');
 
@@ -69,6 +78,10 @@ describe('page customization effect', () => {
 			const scripts = Array.from(document.body.querySelectorAll<HTMLScriptElement>('script[data-page-customization-js]'));
 			expect(scripts.map(script => script.getAttribute('src'))).toEqual(['/article-latest.js', '/global-latest.js']);
 			expect(scripts[1].getAttribute('defer')).toBe('true');
+			expect(pageBootstrap.customizationsReady.value).toBe(false);
+			scripts.forEach(script => script.dispatchEvent(new Event('load')));
+			await nextTick();
+			expect(pageBootstrap.customizationsReady.value).toBe(true);
 		} finally {
 			appendChild.mockRestore();
 			scope.stop();

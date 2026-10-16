@@ -6,8 +6,8 @@ import { Chart } from 'highcharts-vue';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, nextTick, ref } from 'vue';
 
+import * as ArticleStore from '@/app/state/article-configuration';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
-import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';

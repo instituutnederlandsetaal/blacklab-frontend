@@ -30,10 +30,11 @@ import type { BLDoc, BLHitInContext, BLHitGroupResults, BLHitResults, BLMatchInf
 import { isHitGroups } from '@/types/blacklabtypes';
 
 import type { CustomizationRegistry } from '../registry';
+import { provideCustomizations } from './use-customizations';
 
 import type { Translate } from '@/shared/i18n';
 import { optionText, type OptGroup, type Option } from '@/shared/utils/options';
-import useInjectable from '@/shared/utils/useInjectable';
+export { provideCustomizations, useCustomizations } from './use-customizations';
 
 export type SearchFilterTab = {
 	tabname: string;
@@ -459,21 +460,6 @@ function createCustomizationApi(
 
 export type Customizations = ReturnType<typeof createCustomizationApi>;
 export type CustomizationsPlugin = ObjectPlugin & Customizations;
-
-type CustomizationsInjection = {
-	customizations: Customizations;
-	corpus: MaybeRefOrGetter<Corpus | undefined>;
-};
-
-const [_key, provideCustomizations, useInjectedCustomizations] = useInjectable<CustomizationsInjection>('customizations');
-
-export { provideCustomizations };
-
-export function useCustomizations(): Customizations {
-	const injected = useInjectedCustomizations();
-	if (!toValue(injected.corpus)) throw new Error('useCustomizations() called without a loaded corpus.');
-	return injected.customizations;
-}
 
 export function createCustomizations(
 	registry: CustomizationRegistry,

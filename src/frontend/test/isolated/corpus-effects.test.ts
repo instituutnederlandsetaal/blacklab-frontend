@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, shallowRef } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
-import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
+import { startSelectedSubcorpusEffect } from '@/features/search/effects/selected-subcorpus.effect';
 import type { Corpus } from '@/types/apptypes';
 
 import { ApiError, type BlackLabApi } from '@/shared/api/lib/api-types';
@@ -32,13 +32,13 @@ afterEach(() => {
 	mock.sourceField.mockReset().mockReturnValue('contents');
 });
 
-describe('global corpus effects', () => {
+describe('selected subcorpus effect', () => {
 	test('refreshes the selected subcorpus when the committed query changes', async () => {
 		const first = corpus('first');
 		const { loader } = createContextLoader(context(first));
 		const params = shallowRef({ number: 20, searchfield: 'contents', filter: 'year:1800' });
 		const scope = effectScope();
-		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, params));
+		scope.run(() => startSelectedSubcorpusEffect(() => loader.value?.index, blacklab, params));
 		expect(mock.next).toHaveBeenCalledOnce();
 		expect(mock.next).toHaveBeenCalledWith({ index: first, annotatedFieldId: 'contents', filter: 'year:1800', blacklab });
 		params.value = { ...params.value, filter: 'year:1900' };
@@ -56,7 +56,13 @@ describe('global corpus effects', () => {
 		const second = corpus('second');
 		const { loader, snapshot } = createContextLoader();
 		const scope = effectScope();
-		scope.run(() => startGlobalCorpusDependentEffects(loader, blacklab, () => ({ number: 20, searchfield: mock.sourceField(), filter: mock.filterString() })));
+		scope.run(() =>
+			startSelectedSubcorpusEffect(
+				() => loader.value?.index,
+				blacklab,
+				() => ({ number: 20, searchfield: mock.sourceField(), filter: mock.filterString() }),
+			),
+		);
 
 		expect(mock.next).not.toHaveBeenCalled();
 

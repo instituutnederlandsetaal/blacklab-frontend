@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { DateUtils } from '@/features/form/fields/generic/date-field';
+import { DateUtils } from '@/shared/utils/date-utils';
 
 test('date values fill partial bounds and reject invalid dates', () => {
 	expect(DateUtils.dateValueToString(null, 'start')).toBe('');

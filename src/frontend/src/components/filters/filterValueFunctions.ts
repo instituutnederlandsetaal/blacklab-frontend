@@ -1,13 +1,12 @@
 import type { ASTNode, ASTRange } from 'lucene-query-parser';
 
-import { DateUtils as FormDateUtils, type DateValue as FormDateValue } from '@/features/form/fields/generic/date-field';
-// @ts-ignore - weird this doesn't work during builds
-import type { FullFilterState } from '@/features/search/model/form/filter-state';
+import type { FullFilterState } from '@/app/state/legacy-filter-state';
 import type { FilterValue } from '@/types/apptypes';
 
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
+import { DateUtils as FormDateUtils, type DateValue as FormDateValue } from '@/shared/utils/date-utils';
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
 import { unescapeLucene, escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
 

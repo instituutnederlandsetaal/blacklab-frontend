@@ -38,7 +38,6 @@ const actions = {
 
 const init = (state: CorpusContext, customizations: Customizations) => {
 	ExploreModule.init(state, customizations);
-	FilterModule.init(state);
 	InterfaceModule.init(state);
 	PatternModule.init(state, customizations);
 	GapModule.init(state);
