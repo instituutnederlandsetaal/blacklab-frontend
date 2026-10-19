@@ -49,12 +49,12 @@
 							/>
 						</template>
 
-						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :before="true" :after="false"
+						<HitContext tag="span" :dir="row.dir" :data="snippet" :max-tokens="concordanceSize" :html="info.html" :annotation="info.mainAnnotation.id" :before="true" :after="false"
 							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
-						<HitContext tag="strong" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" bold
+						<HitContext tag="strong" :dir="row.dir" :data="snippet" :max-tokens="concordanceSize" :html="info.html" :annotation="info.mainAnnotation.id" bold
 							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
-						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :after="true"  :before="false"
+						<HitContext tag="span" :dir="row.dir" :data="snippet" :max-tokens="concordanceSize" :html="info.html" :annotation="info.mainAnnotation.id" :after="true"  :before="false"
 							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 					</p>
 					<table v-if="info.detailedAnnotations?.length" class="concordance-details-table">
@@ -67,7 +67,7 @@
 						<tbody>
 							<tr v-for="(annot, index) in info.detailedAnnotations" :key="annot.id">
 								<th>{{$tAnnotDisplayName(annot)}}</th>
-								<HitContext v-for="(token, ti) in snippet.match" tag="td" :data="{match: [token]}" :html="info.html" :dir="row.dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
+								<HitContext v-for="(token, ti) in snippet.match" tag="td" :data="{match: [token]}" :max-tokens="concordanceSize" :html="info.html" :dir="row.dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
 									:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 							</tr>
 						</tbody>
@@ -125,6 +125,7 @@ export default Vue.component('HitRowDetails', IRow.extend({
 	}),
 	computed: {
 		hasRelations: CorpusStore.get.hasRelations,
+		concordanceSize(): number { return UIStore.getState().results.shared.concordanceSize; },
 		/** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
 		sentenceAvailable(): boolean { return this.hasRelations && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in this.row.hit; },
 
@@ -165,7 +166,7 @@ export default Vue.component('HitRowDetails', IRow.extend({
 			const transformSnippets = UIStore.getState().results.shared.transformSnippets;
 			const addons = UIStore.getState().results.hits.addons;
 			const formatError = UIStore.getState().global.errorMessage;
-			const concordanceSize = UIStore.getState().results.shared.concordanceSize;
+			const concordanceSize = this.concordanceSize;
 
 			const nonce = this.row.hit;
 			this.snippetRequest = Api.blacklab

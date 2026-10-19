@@ -297,7 +297,9 @@
 			"value": "waarde",
 			"noContext": "Geen context beschikbaar.",
 			"customColumnHeader": "Versie",
-			"goToHitInDocument": "Ga naar deze locatie in het document"
+			"goToHitInDocument": "Ga naar deze locatie in het document",
+			"expandTruncatedSnippetButtonLabel": "[meer]",
+			"collapseTruncatedSnippetButtonLabel": "[minder]"
 		},
 		"export": {
 			"downloading": "Downloaden...",

@@ -284,3 +284,12 @@ a.disabled {
 	opacity: 0.65;
 	cursor: not-allowed;
 }
+
+.btn-inline {
+	padding: 0;
+	margin: 0;
+	line-height: inherit;
+	font-size: inherit;
+	border: none;
+	vertical-align: baseline;
+}

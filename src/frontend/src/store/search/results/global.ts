@@ -20,7 +20,7 @@ type ModuleRootState = {
 	sampleSeed: number|null;
 	sampleSize: number|null;
 	/** context can be a string or number in BlackLab, but for now in the form we only allow numbers. */
-	context: number|string|null;
+	context: number|null;
 };
 
 type ExternalModuleRootState = Omit<ModuleRootState, 'pageSize'>;
@@ -82,7 +82,7 @@ const actions = {
 		}
 
 	}, 'samplesize'),
-	context: b.commit((state, payload: number|string|null) => state.context = payload, 'context'),
+	context: b.commit((state, payload: number|null) => state.context = payload, 'context'),
 
 	reset: b.commit(state => Object.assign(state, initialState), 'reset'),
 	replace: b.commit((state, payload: ExternalModuleRootState) => {
