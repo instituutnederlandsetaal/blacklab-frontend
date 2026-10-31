@@ -43,6 +43,7 @@ import nl.inl.corpuswebsite.response.CorporaDataResponse;
 import nl.inl.corpuswebsite.response.CorporaResponse;
 import nl.inl.corpuswebsite.response.ErrorResponse;
 import nl.inl.corpuswebsite.response.HelpResponse;
+import nl.inl.corpuswebsite.response.IncludePageResponse;
 import nl.inl.corpuswebsite.response.OidcCallbackResponse;
 import nl.inl.corpuswebsite.response.RemoteIndexResponse;
 import nl.inl.corpuswebsite.response.SearchResponse;
@@ -111,6 +112,7 @@ public class MainServlet extends HttpServlet {
             responses.put(DEFAULT_PAGE, CorporaResponse.class);
             responses.put("about", AboutResponse.class);
             responses.put("help", HelpResponse.class);
+            responses.put("pages", IncludePageResponse.class);
             responses.put("search", SearchResponse.class);
             responses.put("docs", ArticleResponse.class);
             responses.put("static", CorporaDataResponse.class);
@@ -383,6 +385,11 @@ public class MainServlet extends HttpServlet {
                 .getOrThrow(IllegalStateException::new); // this file always exists (at least the fallback in our own jar)
     }
 
+    public InputStream getNamedPage(String pageName, Optional<String> corpus) {
+        return Result.from(getProjectFile(corpus, "static/pages/"  + pageName + ".inc"))
+                .mapWithErrorHandling(FileInputStream::new)
+                .getOrThrow(IllegalStateException::new); // this file always exists (at least the fallback in our own jar)
+    }
     /**
      * Check whether caching of things is enabled.
      * @param request if supplied, check if the request contains authentication parameters (according to AUTH_SOURCE_NAME and AUTH_SOURCE_TYPE), and return false if it does.
