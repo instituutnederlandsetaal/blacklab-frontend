@@ -6,11 +6,7 @@ import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as ExploreStore from '@/features/search/model/form/explore-state';
-import * as FilterStore from '@/features/search/model/form/filter-state';
-import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 import * as RootStore from '@/features/search/model/search-store';
@@ -70,20 +66,10 @@ const STORE_GROUPS: StoreGroup[] = [
 		],
 	},
 	{
-		id: 'group:form',
-		label: 'Form',
-		children: [
-			{ id: 'store:explore', label: 'Explore', readState: ExploreStore.getState, readGetters: () => ExploreStore.get },
-			{ id: 'store:filters', label: 'Filters', readState: FilterStore.getState, readGetters: () => FilterStore.get },
-			{ id: 'store:interface', label: 'Interface', readState: InterfaceStore.getState, readGetters: () => InterfaceStore.get },
-			{ id: 'store:patterns', label: 'Patterns', readState: PatternStore.getState, readGetters: () => PatternStore.get },
-			{ id: 'store:gap', label: 'Gap', readState: GapStore.getState, readGetters: () => GapStore.get },
-		],
-	},
-	{
 		id: 'group:results',
 		label: 'Results',
 		children: [
+			{ id: 'store:interface', label: 'Selected View', readState: InterfaceStore.getState, readGetters: () => InterfaceStore.get },
 			{ id: 'store:global-results', label: 'Global', readState: GlobalResultsStore.getState, readGetters: () => GlobalResultsStore.get },
 			{
 				id: 'store:views',

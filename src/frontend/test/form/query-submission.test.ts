@@ -31,11 +31,10 @@ const wrappers: VueWrapper[] = [];
 afterEach(() => {
 	wrappers.splice(0).forEach(wrapper => wrapper.unmount());
 	scopes.splice(0).forEach(scope => scope.stop());
-	InterfaceStore.actions.reset();
-	GlobalResultsStore.actions.useNewSearchForm(false);
+	InterfaceStore.actions.viewedResults(null);
 });
 
-async function mountSearchForm(useNewForm = true) {
+async function mountSearchForm() {
 	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
 	const submitted = createSubmittedSearch();
 	RootStore.setSubmittedSearch(submitted);
@@ -62,7 +61,6 @@ async function mountSearchForm(useNewForm = true) {
 		const context = createCorpusContext(api.blacklabApi, api.frontendApi, 'test-corpus');
 		const registry = createCustomizationRegistry(context.corpus);
 		const customizations = createCustomizations(registry, context.corpus, UIStore.getState, () => {});
-		RootStore.setCustomizations(customizations);
 		context.beforePublish(state => {
 			UIStore.init(state);
 			FilterStore.init(state);
@@ -74,7 +72,6 @@ async function mountSearchForm(useNewForm = true) {
 	})!;
 	await flushPromises();
 	expect(context.corpus.value?.id).toBe('test-corpus');
-	GlobalResultsStore.actions.useNewSearchForm(useNewForm);
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 	pageBootstrap.markScriptsReady();
@@ -82,7 +79,6 @@ async function mountSearchForm(useNewForm = true) {
 	const wrapper = mount(QueryForm, {
 		global: {
 			plugins: [api, context, system, pageBootstrap, { install: (app: App) => provideSearchFormRestoring(app, restoring) }],
-			stubs: useNewForm ? {} : { QueryFormSearch: true, QueryFormExplore: true, QueryFormFilters: true },
 		},
 	});
 	wrappers.push(wrapper);
@@ -90,9 +86,9 @@ async function mountSearchForm(useNewForm = true) {
 }
 
 describe('search form submission', () => {
-	test.each([true, false])('keeps the newForm=%s controls inert until scripts and restoration settle', async useNewForm => {
-		const { wrapper, pageBootstrap, restoring } = await mountSearchForm(useNewForm);
-		const formRoot = () => wrapper.get(useNewForm ? '.blf-form-system' : 'form');
+	test('keeps form controls inert until scripts and restoration settle', async () => {
+		const { wrapper, pageBootstrap, restoring } = await mountSearchForm();
+		const formRoot = () => wrapper.get('.blf-form-system');
 		pageBootstrap.setCustomScriptsSettled(false);
 		await nextTick();
 		expect(formRoot().attributes()).toHaveProperty('inert');

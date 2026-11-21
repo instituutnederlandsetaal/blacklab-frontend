@@ -24,7 +24,6 @@
 		},
 		"advanced": {
 			"heading": "Geavanceerd",
-			"copyAdvancedQuery": "Kopiëren naar CQL-editor",
 
 			"queryBuilder": {
 				"createTokenButton_label": "Voeg een woord toe",
@@ -74,31 +73,17 @@
 		},
 		"expert": {
 			"heading": "Expert",
-			"corpusQueryLanguage": "Corpus Query Language",
-			"parseQuery": "Kopiëren naar query builder",
-			"parseQueryTitle": "Bewerk uw zoekvraag in de querybuilder",
-			"importQuery": "Importeer zoekvraag",
-			"importQueryTitle": "Importeer een eerder gedownloade zoekvraag",
-			"gapFilling": "Gap-filling",
-			"gapFillingTitle": "Upload een lijst waardes gescheiden door tabs om in de query te gebruiken (op de plaats van '{'@'}{'@'}').",
-			"clearGapValues": "Gap-waarden wissen"
+			"corpusQueryLanguage": "Corpus Query Language"
 		},
 		"parallel": {
 			"alignBy": "Aligneer op",
 			"searchSourceVersion": "Zoek in bronversie",
 			"errorNoSourceVersion": "Kies a.u.b. een bronversie.",
-			"andCompareWithTargetVersions": "En vergelijk met doelversie(s)",
-			"queryForSourceVersion": "Bronversie",
-			"queryForTargetVersion": "Doelversie",
-			"addTargetVersion": "Voeg nog een doelversie toe"
+			"andCompareWithTargetVersions": "En vergelijk met doelversie(s)"
 		}
 	},
 	"filter": {
 		"heading": "Filter zoekopdracht op …",
-		"noFilter": {
-			"title": "Geen filters beschikbaar",
-			"content": "Dit corpus bevat geen metadata, of de auteur staat het niet toe om te filteren op metadata."
-		},
 		"range": {
 			"from": "Van",
 			"to": "Tot",
@@ -143,7 +128,6 @@
 		"debugLogCategories": "Debuglog-categorieen",
 		"debugLogCategoriesAll": "Alles",
 		"hideDebugUntilReload": "Verberg debug-informatie checkbox gedurende deze sessie",
-		"useNewSearchForm": "Gebruik nieuw zoekformulier",
 		"close": "Sluiten"
 	},
 	"queryForm": {

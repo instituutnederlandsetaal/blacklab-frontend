@@ -2,7 +2,6 @@ import { computed, shallowRef, toValue, type MaybeRefOrGetter } from 'vue';
 
 import { restoreForm, type CompiledFormResult, type FormRuntime } from '@/features/form';
 import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
-import type { ModuleRootState as InterfaceState } from '@/features/search/model/form/interface-state';
 
 export type SearchSummary = { pattern?: string; filter?: string };
 
@@ -11,16 +10,14 @@ export type SubmittedSearch = {
 	params: Omit<FormOverrides, 'withspans'> & { withspans?: boolean; pattgapdata?: string };
 	/** Form persistence data is opaque to the search application. */
 	form: Record<string, string | null | (string | null)[]>;
-	legacyInterface?: Partial<Omit<InterfaceState, 'viewedResults'>>;
-	summary?: SearchSummary;
+	/** Kept when updating older result URLs so their history export labels can still be read. */
+	legacyInterface?: string;
 };
 
 export function createSubmittedSearch() {
 	return shallowRef<SubmittedSearch>();
 }
 export type SubmittedSearchState = ReturnType<typeof createSubmittedSearch>;
-
-export type SearchSubmission = CompiledFormResult | { params: SubmittedSearch['params']; interface: InterfaceState; summary?: SearchSummary };
 
 /** Restore the editable form from the submitted snapshot. Result controls stay in their stores. */
 export function restoreSubmittedForm(runtime: FormRuntime, submitted: SubmittedSearch) {
@@ -31,21 +28,9 @@ export function restoreSubmittedForm(runtime: FormRuntime, submitted: SubmittedS
 }
 
 /** Capture submitted data once so subsequent draft edits cannot change the running search. */
-export function submittedSearchFromResult(result: SearchSubmission): SubmittedSearch {
-	const { group: _group, sort: _sort, scorertype: _scorer, ...params } = result.params as typeof result.params & { group?: unknown; sort?: unknown; scorertype?: unknown };
-	if ('encoded' in result) return { params, form: Object.fromEntries(Object.entries(result.encoded).map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])) };
-	const ui = result.interface;
-	return {
-		params,
-		form: {},
-		summary: result.summary ? { ...result.summary } : undefined,
-		legacyInterface: {
-			form: ui.form,
-			...(ui.form === 'search' ? { patternMode: ui.patternMode } : { exploreMode: ui.exploreMode }),
-			...(ui.activeAnnotationTab ? { activeAnnotationTab: ui.activeAnnotationTab } : {}),
-			...(ui.activeFilterTab ? { activeFilterTab: ui.activeFilterTab } : {}),
-		},
-	};
+export function submittedSearchFromResult(result: CompiledFormResult): SubmittedSearch {
+	const { group: _group, sort: _sort, scorertype: _scorer, ...params } = result.params as typeof result.params & { scorertype?: string };
+	return { params, form: Object.fromEntries(Object.entries(result.encoded).map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])) };
 }
 
 /** Share the restored snapshot between editable forms and summaries, without reading the draft. */

@@ -9,21 +9,16 @@ import { createCustomizations } from '@/customization-api/internal/internal-api'
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import type { CollocationParams, CompiledFormResult, FormParams } from '@/features/form';
 import { searchParametersFromState } from '@/features/search/model/active-search';
-import * as ExploreStore from '@/features/search/model/form/explore-state';
-import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { handoffCompiledForm } from '@/features/search/model/new-form/form-state-bridge';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import * as RootStore from '@/features/search/model/search-store';
-import { createSearchSummary } from '@/features/search/model/search-summary';
-import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
+import { createSubmittedSearch } from '@/features/search/model/submitted-search';
 
 const corpus = { allMetadataFields: [], relations: { spans: {} } } as never;
 const customizationRegistry = createCustomizationRegistry(corpus);
 const customizations = createCustomizations(customizationRegistry, corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
-RootStore.setCustomizations(customizations);
 const submittedSearch = createSubmittedSearch();
 RootStore.setSubmittedSearch(submittedSearch);
 
@@ -60,10 +55,7 @@ function resetStores() {
 			parallelAnnotatedFieldsMap: {},
 		},
 	} as any as CorpusContext;
-	InterfaceStore.actions.reset();
-	ExploreStore.actions.reset();
-	FilterStore.init({ index: undefined } as CorpusContext);
-	PatternStore.init(context, customizations);
+	InterfaceStore.actions.viewedResults(null);
 	activeCorpus.value = context.index;
 	ViewStore.init({} as CorpusContext);
 	GlobalResultsStore.init({} as CorpusContext);
@@ -197,46 +189,6 @@ describe('compiled-form result handoff', () => {
 		expect(activeSearchParameters.value?.withspans).toBe(withspans);
 	});
 
-	test('derives legacy withspans from submitted active filters, not registered controls', () => {
-		resetStores();
-		InterfaceStore.actions.form('search');
-		InterfaceStore.actions.patternMode('expert');
-		PatternStore.actions.expert.query('[word="water"]');
-		FilterStore.actions.registerFilter({
-			id: 'span:speech:person',
-			componentName: 'filter-text',
-			behaviourName: 'span-text',
-			defaultDisplayName: 'Speaker',
-			metadata: { name: 'speech', attribute: 'person' },
-		});
-
-		RootStore.actions.searchFromSubmit();
-		expect(activeSearchParameters.value?.withspans).toBeUndefined();
-
-		FilterStore.actions.filterValue({ id: 'span:speech:person', value: 'Alice' });
-		RootStore.actions.searchFromSubmit();
-		expect(activeSearchParameters.value).toMatchObject({
-			patt: '([word="water"]) within <speech person="Alice"/>',
-			withspans: true,
-		});
-	});
-
-	test('captures legacy summaries on submit so later draft edits do not change them', () => {
-		resetStores();
-		InterfaceStore.actions.patternMode('expert');
-		PatternStore.actions.expert.query('[word="water"]');
-		FilterStore.actions.registerFilter({ id: 'author', componentName: 'filter-text', defaultDisplayName: 'Author', metadata: undefined });
-		FilterStore.actions.filterValue({ id: 'author', value: 'Alice' });
-		RootStore.actions.searchFromSubmit();
-		const summary = createSearchSummary(submittedSearch, createSubmittedFormRestoration(submittedSearch, null));
-		expect(summary.value).toEqual({ pattern: '[word="water"]', filter: 'Author: Alice' });
-
-		PatternStore.actions.expert.query('[word="ship"]');
-		FilterStore.actions.filterValue({ id: 'author', value: 'Bob' });
-		ViewStore.getOrCreateModule('hits').actions.first(20);
-		expect(summary.value).toEqual({ pattern: '[word="water"]', filter: 'Author: Alice' });
-	});
-
 	test.each([
 		[true, false],
 		[undefined, true],
@@ -245,23 +197,6 @@ describe('compiled-form result handoff', () => {
 		vi.spyOn(customizationRegistry.legacyApi.value!.search.pattern, 'shouldAddWithSpans').mockReturnValue(customized!);
 		submitNewForm(snapshot({ patt: '[word="water"]', withspans: compiled }));
 		expect(activeSearchParameters.value?.withspans).toBe(customized);
-	});
-
-	test('keeps legacy Documents result handling separate from compiled-form handoff', () => {
-		resetStores();
-		InterfaceStore.actions.form('explore');
-		InterfaceStore.actions.exploreMode('corpora');
-		ExploreStore.actions.corpora.groupBy('field:date');
-		ExploreStore.actions.corpora.groupDisplayMode('tokens');
-
-		RootStore.actions.searchFromSubmit();
-
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
-		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({
-			groupBy: ['field:date'],
-			groupDisplayMode: 'tokens',
-			sort: null,
-		});
 	});
 
 	test('constructs explicit effective collocation parameters with compiled context ownership', () => {

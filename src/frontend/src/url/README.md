@@ -10,26 +10,26 @@ view tabs ─────────────> selected view ────┤
 initial load / Back / Forward / saved search ──> restore application state
 ```
 
-| State                                                | Owner                                       | Changes                                    |
-| ---------------------------------------------------- | ------------------------------------------- | ------------------------------------------ |
-| Editable draft                                       | Form runtime and legacy form stores         | Editing, submission, form restoration      |
-| Submitted query                                      | `SubmittedSearch` ref created in `main.ts`  | Submit, reset, incoming search             |
-| Selected view                                        | `InterfaceStore.viewedResults`              | Tab selection, submission, incoming search |
-| Preferred page size                                  | Persisted global results store              | User preference                            |
-| Global result controls                               | Global results store                        | Controls, incoming search                  |
-| Each view's selection, grouping, sort, display state | View store                                  | Controls, submission, incoming search      |
-| Expanded request range                               | Pure derivation of selection and preference | Never stored or serialized                 |
-| Unknown URL parameters and hash                      | URL adapter                                 | Preserved from incoming search             |
+| State                                                | Owner                                               | Changes                                    |
+| ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------ |
+| Editable draft                                       | Form runtime                                        | Editing, submission, form restoration      |
+| Submitted query                                      | `SubmittedSearch` ref created by the search feature | Submit, reset, incoming search             |
+| Selected view                                        | `InterfaceStore.viewedResults`                      | Tab selection, submission, incoming search |
+| Preferred page size                                  | Persisted global results store                      | User preference                            |
+| Global result controls                               | Global results store                                | Controls, incoming search                  |
+| Each view's selection, grouping, sort, display state | View store                                          | Controls, submission, incoming search      |
+| Expanded request range                               | Pure derivation of selection and preference         | Never stored or serialized                 |
+| Unknown URL parameters and hash                      | URL adapter                                         | Preserved from incoming search             |
 
-`main.ts` wires the submitted-search ref to the root store and request composition, and supplies the history store's URL codec. It creates and provides article page state, then passes that state to the article URL binding. Both page bindings are installed here. Components consume the provided state and actions; neither page manages a binding's lifecycle. The legacy singleton stores remain in place; none needs router types or URL decoding helpers.
+The search feature wires the submitted-search ref to the search store and request composition, and supplies the history store's URL codec. The article feature creates article page state and passes it to the article URL binding. Components consume the provided state and actions; neither page manages a binding's lifecycle. The stores do not need router types or URL decoding helpers.
 
 ## State transitions
 
 - **Submit:** capture the compiled form as a submitted query, apply its result presets, select the target view, and reset every view to the first preferred page. Later draft edits do not affect that snapshot.
 - **Result control or tab change:** update the relevant store immediately. Switching views retains each view's selection. Requests derive from the selected view, while the URL projection catches up.
-- **Initial load, browser navigation, or saved-search loading:** decode query and result settings synchronously, reset all views to defaults, then hydrate only the matched view. Restore editable forms asynchronously without replacing result controls. The form is visible for orientation during loading; input made before restoration finishes can be replaced.
+- **Initial load, browser navigation, or saved-search loading:** decode query and result settings synchronously, reset all views to defaults, then hydrate only the matched view. Restore the editable form asynchronously without replacing result controls. The form is visible for orientation during loading; input made before restoration finishes can be replaced.
 - **Reset:** clear the submitted query and selected view and reset the form and result views.
-- **Form runtime replacement:** restore the new form from the submitted search, preserving result settings. Submission, reset, another import, corpus changes, or another runtime replacement prevent an old asynchronous restoration from applying.
+- **Form runtime replacement:** restore the new form from the submitted search, preserving result settings. Changes to the submitted search, corpus, or runtime can supersede a restoration while the before-state-loaded hook runs.
 - **Corpus change:** recreate the view modules and initialize the stores for the new corpus before publishing its context.
 
 Eligibility belongs to the view. Every registered view stays selectable. A collocation query with `docs` selected displays the inactive-view message and makes no documents request.
@@ -48,7 +48,7 @@ An ordinary page satisfies `first % oldPreference === 0 && number === oldPrefere
 | Switch views                             | Each retains its selection          | Selected view's range |
 | Submit new search                        | Every view becomes `(0,preference)` | First page            |
 
-`createViewModule` receives its page-size preference explicitly; `main.ts` wires the legacy view registry to the persisted preference. Each view exposes `selectedRange()` for its stored selection and `expandedRequestRange()` for requests. Reset uses the same current preference.
+`createViewModule` receives its page-size preference explicitly; the search feature wires the view registry to the persisted preference. Each view exposes `selectedRange()` for its stored selection and `expandedRequestRange()` for requests. Reset uses the same current preference.
 
 Missing URL counts use the preference at hydration time. The preference is never imported from a URL. `results/pagination.ts` contains the range derivations, shared by view requests and preference changes.
 
@@ -64,10 +64,10 @@ The projection watcher is detached during incoming hydration and attached afterw
 
 `SearchNavigation.open` restores a saved search, including when its URL is already current. Importing a link is a history action with a decoder supplied at the application entrypoint; it adds an entry without changing the current search or draft. Components use ordinary store actions for all other interactions. The old `vuexModules.root.actions.navigateSearch` wrapper remains only as a compatibility shim for customization scripts.
 
-`search-query.ts` owns search URL decoding and serialization, including aliases, form persistence fields, result controls, and extension parameters. `submitted-search.ts` owns the submitted snapshot and its shared form-restoration computation. `search-form-restoration.ts` applies restored fields on incoming navigation or runtime replacement; `form/restore-legacy-form.ts` interprets the submitted query for legacy widgets. Neither needs URL syntax or router access. `search-summary.ts` derives summaries from the shared restoration and captured legacy summaries. Replacing a form runtime discards its draft without submitting, publishing a URL, or adding a history entry.
+`search-query.ts` owns search URL decoding and serialization, including aliases, form persistence fields, result controls, and extension parameters. `submitted-search.ts` owns the submitted snapshot and its shared form-restoration computation. `search-form-restoration.ts` applies restored fields on incoming navigation or runtime replacement. `search-summary.ts` derives summaries from the shared restoration and falls back to the submitted query text. Replacing a form runtime discards its draft without submitting, publishing a URL, or adding a history entry.
 
 The history model owns entry construction, ordering, persistence, deduplication, and versioned file import/export. `url/query-history.ts` interprets URLs into history metadata and reconstructs display summaries for imported links. The application entrypoint supplies these decoders to history actions. Existing URL-based entries and exports remain readable. Form restoration and summary generation reuse the submitted query's form data when only pagination or result controls change.
 
-Publishing a URL records its history entry synchronously. Legacy submissions capture summary strings from the submitted form; incoming legacy links reuse the form restoration that already runs on navigation. Only importing an external URL without a stored summary needs its own legacy parse. Reading saved entries from local storage uses their embedded summaries.
+Publishing a URL records its history entry synchronously. Imported links use the same form definitions to reconstruct summaries. Reading saved entries from local storage uses their embedded summaries.
 
-The browser smoke suite exercises submissions, reloads, Back/Forward, saved searches, ordinary and custom pagination, preference persistence, tab selection, collocations, and legacy forms against BlackLab. Unit tests cover range invariants, URL normalization, snapshot isolation, and asynchronous restoration/navigation races.
+The browser smoke suite exercises submissions, reloads, Back/Forward, saved searches, ordinary and custom pagination, preference persistence, tab selection, and collocations against BlackLab. Unit tests cover range invariants, URL normalization, snapshot isolation, and asynchronous restoration/navigation races.

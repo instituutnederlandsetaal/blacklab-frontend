@@ -139,11 +139,11 @@ beforeEach(({ onTestFinished }) => {
 	vi.useFakeTimers();
 	vi.stubGlobal('CONTEXT_URL', '');
 	const previousGlobalState = { ...GlobalStore.getState() };
-	const previousInterfaceState = { ...InterfaceStore.getState() };
+	const previousView = InterfaceStore.get.viewedResults();
 	const previousViews = Object.fromEntries(Object.entries(ResultsStore.getState()).map(([id, view]) => [id, { ...view, groupBy: [...view.groupBy] }]));
 	onTestFinished(async () => {
 		Object.assign(GlobalStore.getState(), previousGlobalState);
-		InterfaceStore.actions.replace(previousInterfaceState);
+		InterfaceStore.actions.viewedResults(previousView);
 		ResultsStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
 		ResultsStore.actions.resetAllViews({ resetGroupBy: true });
 		for (const [view, data] of Object.entries(previousViews)) ResultsStore.actions.replaceView({ view, data });

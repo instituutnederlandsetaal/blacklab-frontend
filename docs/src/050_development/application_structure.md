@@ -28,7 +28,7 @@ Production builds use Rolldown's shared-module grouping: application modules use
 
 The corpus context contains normalized corpus metadata, page configuration and tagset data. Shared legacy configuration lives under `app/state/`: UI settings, article settings, and filter definitions and values used by existing customization scripts. These small compatibility modules do not depend on search or article page implementations.
 
-On corpus publication, the composition root initializes shared configuration. If search has already been installed, its legacy stores are initialized at the same publication checkpoint. Configured scripts then register callbacks and set defaults. Search form definitions react to those settings. The form stays inert while declared scripts or URL restoration are pending. Later customization registration discards the current draft and restores from the URL; asynchronous work started by a script is not part of the declared-script loading barrier. If a user first visits another page and opens search later, feature installation preserves the configuration already supplied by scripts.
+On corpus publication, the composition root initializes shared configuration. If search has already been installed, it resets result settings and loads saved searches for the new corpus at the same checkpoint. Configured scripts then register callbacks and set defaults. The search form graph reacts to those settings. The form stays inert while declared scripts or URL restoration are pending. Later customization registration replaces the current draft with fields restored from the submitted search. Only declared script loading is part of the loading barrier. If a user first visits another page and opens search later, feature installation preserves the configuration already supplied by scripts.
 
 The customization registry owns registrations and script disposal. It does not construct forms or execute result hooks itself. Search owns form construction and ongoing result customization; article display consumes only the configuration it needs.
 
@@ -36,7 +36,7 @@ The customization registry owns registrations and script disposal. It does not c
 
 ## Search and article state
 
-`features/search/search-feature.ts` composes submitted search state, the form runtime, active results, query history and URL restoration. `features/search/model/search-store.ts` coordinates the remaining legacy search stores. Selected-subcorpus effects run only on search routes.
+`features/search/search-feature.ts` composes submitted search state, the form runtime, active results, query history and URL restoration. The form runtime holds the editable draft. Submission applies the compiled form and its result preset, and result controls can change the current view independently. Selected-subcorpus effects run only on search routes.
 
 `features/article/article-feature.ts` provides article state and its URL binding. Document loading and display remain within the article feature; article configuration can be set by corpus scripts before that feature is loaded.
 

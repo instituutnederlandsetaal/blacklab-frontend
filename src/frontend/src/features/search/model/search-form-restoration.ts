@@ -1,10 +1,7 @@
 import { readonly, ref, toValue, watch, type App, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import type { FormRuntime } from '@/features/form';
-import * as FormStore from '@/features/search/model/form/form-state';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import { summarizeLegacySearch } from '@/features/search/model/search-summary';
-import type { SubmittedFormRestoration, SubmittedSearch, SubmittedSearchState } from '@/features/search/model/submitted-search';
+import type { SubmittedFormRestoration, SubmittedSearchState } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
 
 import { debugLog } from '@/shared/debug/debug';
@@ -18,7 +15,6 @@ export function createSearchFormRestoration(dependencies: {
 	runtime: Readonly<Ref<FormRuntime | null>>;
 	submitted: SubmittedSearchState;
 	restoredForm: SubmittedFormRestoration;
-	restoreLegacy: (corpus: Corpus, submitted: SubmittedSearch) => Promise<FormStore.ModuleRootState>;
 	beforeStateLoaded: () => Promise<unknown>;
 }) {
 	let stopped = false;
@@ -46,18 +42,14 @@ export function createSearchFormRestoration(dependencies: {
 		restoration = operation;
 		loading.value = true;
 		const runtime = dependencies.runtime.value;
-		// A newer URL or rebuilt runtime supersedes this parse; its result must not overwrite the newer draft.
+		// A newer URL or rebuilt runtime may supersede this restoration while the hook runs.
 		const current = () => !stopped && restoration === operation && toValue(dependencies.corpus) === corpus && dependencies.submitted.value === submitted && dependencies.runtime.value === runtime;
 		try {
 			await runBeforeStateLoaded(corpus);
 			if (!current()) return;
-			const legacyForm = await dependencies.restoreLegacy(corpus, submitted);
-			if (!current()) return;
 			const form = dependencies.restoredForm.value;
 			if (form) runtime?.state.replaceState(form.state);
 			if (form?.state.issues.length) debugLog('form', 'Search form restoration issues', form.state.issues);
-			FormStore.actions.replace({ ...legacyForm, interface: { ...legacyForm.interface, viewedResults: InterfaceStore.get.viewedResults() } });
-			if (!form?.submittedResult) dependencies.submitted.value = { ...submitted, summary: summarizeLegacySearch(legacyForm, submitted.params.patt, corpus.allAnnotationsMap) };
 		} catch (error) {
 			if (current()) console.error('Failed to restore search form', error);
 		} finally {

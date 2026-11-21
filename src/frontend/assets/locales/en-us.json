@@ -24,7 +24,6 @@
 		},
 		"advanced": {
 			"heading": "Advanced",
-			"copyAdvancedQuery": "Copy to CQL editor",
 
 			"queryBuilder": {
 				"createTokenButton_label": "Insert another token",
@@ -74,31 +73,17 @@
 		},
 		"expert": {
 			"heading": "Expert",
-			"corpusQueryLanguage": "Corpus Query Language",
-			"parseQuery": "Copy to query builder",
-			"parseQueryTitle": "Edit your query in the querybuilder",
-			"importQuery": "Import query",
-			"importQueryTitle": "Import a previously downloaded query",
-			"gapFilling": "Gap-filling",
-			"gapFillingTitle": "Upload a tab-separated list of values to substitute for gap values ('{'@'}{'@'}'; in your query).",
-			"clearGapValues": "Clear gap values"
+			"corpusQueryLanguage": "Corpus Query Language"
 		},
 		"parallel": {
 			"alignBy": "Align by",
 			"searchSourceVersion": "Search source version",
 			"errorNoSourceVersion": "Please select a source version.",
-			"andCompareWithTargetVersions": "And compare with target version(s)",
-			"queryForSourceVersion": "Query for source version",
-			"queryForTargetVersion": "Query for target version",
-			"addTargetVersion": "Add another target version"
+			"andCompareWithTargetVersions": "And compare with target version(s)"
 		}
 	},
 	"filter": {
 		"heading": "Filter search by …",
-		"noFilter": {
-			"title": "No filters available",
-			"content": "This corpus does not contain metadata, or the author has chosen not to allow filtering on metadata."
-		},
 		"range": {
 			"from": "From",
 			"to": "To",
@@ -143,7 +128,6 @@
 		"debugLogCategories": "Debug log categories",
 		"debugLogCategoriesAll": "All",
 		"hideDebugUntilReload": "Hide debug checkbox until next reload",
-		"useNewSearchForm": "Use new search form",
 		"close": "Close"
 	},
 	"queryForm": {

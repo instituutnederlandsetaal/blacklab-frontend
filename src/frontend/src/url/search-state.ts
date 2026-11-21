@@ -2,7 +2,6 @@ import { readonly, ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue';
 import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as FormStore from '@/features/search/model/form/form-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
@@ -42,7 +41,6 @@ export function createSearchUrlBinding(
 				const { view, global } = readSearchResultSettings(route.query, GlobalResultsStore.getState().pageSize);
 				const decoded = readSearchQuery(route.query);
 				extras = decoded.extras;
-				FormStore.actions.reset();
 				ViewStore.actions.resetAllViews({ resetGroupBy: true });
 				GlobalResultsStore.actions.replace(global);
 				if (viewName) ViewStore.getOrCreateModule(viewName).actions.replace(view);

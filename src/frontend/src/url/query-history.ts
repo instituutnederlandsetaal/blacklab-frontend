@@ -1,25 +1,17 @@
 import URI from 'urijs';
 
 import { searchFormIds } from '@/customization-api/shared/form/ids';
+import type { FormRuntime } from '@/features/form';
 import type { HistoryUrlDetails } from '@/features/history/model/query-history-state';
-import { LegacyFormRestorer, type LegacyFormDependencies } from '@/features/search/model/form/restore-legacy-form';
-import { summarizeLegacySearch } from '@/features/search/model/search-summary';
+import { summarizeSubmittedSearch } from '@/features/search/model/search-summary';
+import { restoreSubmittedForm } from '@/features/search/model/submitted-search';
 import { queryString } from '@/url/query';
 import { readSearchQuery } from '@/url/search-query';
 
 /** Reconstruct display summaries when importing a URL without a saved summary. */
-export async function queryHistoryFromUrl(url: string, dependencies: LegacyFormDependencies) {
-	const uri = new URI(url);
-	const query = uri.query(true);
-	const { submitted, results } = readSearchQuery(query);
-	const { viewedResults } = queryHistoryDetails(url);
-	const entry = await new LegacyFormRestorer(dependencies, {
-		submitted,
-		viewedResults,
-		groupBy: submitted.params.colltype ? [] : (results.group?.split(',') ?? []),
-		groupDisplayMode: results.groupDisplayMode,
-	}).get();
-	const summary = summarizeLegacySearch(entry, queryString(uri.query(true), 'patt') ?? undefined, dependencies.corpus.allAnnotationsMap);
+export async function queryHistoryFromUrl(url: string, runtime: FormRuntime | null) {
+	const { submitted } = readSearchQuery(new URI(url).query(true));
+	const summary = summarizeSubmittedSearch(submitted, runtime && restoreSubmittedForm(runtime, submitted).submittedResult);
 	return {
 		url,
 		displayValues: {

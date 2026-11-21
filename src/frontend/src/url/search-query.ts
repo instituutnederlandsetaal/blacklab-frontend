@@ -18,17 +18,6 @@ function parseCollocationContext(value: string): number | string | null {
 	return context.length === 1 ? context[0] : context.join(':');
 }
 
-function readLegacyInterface(query: Record<string, unknown>): SubmittedSearch['legacyInterface'] {
-	try {
-		const value = JSON.parse(queryString(query, 'interface') ?? 'null');
-		if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-		const { form, patternMode, exploreMode, activeAnnotationTab, activeFilterTab } = value;
-		return Object.fromEntries(Object.entries({ form, patternMode, exploreMode, activeAnnotationTab, activeFilterTab }).filter(([, value]) => value !== undefined));
-	} catch {
-		return undefined;
-	}
-}
-
 /** Decode URL syntax into the submitted query, result controls, and extension parameters. */
 export function readSearchQuery(query: Record<string, unknown>) {
 	const params: SubmittedSearch['params'] = {};
@@ -100,7 +89,7 @@ export function readSearchQuery(query: Record<string, unknown>) {
 		submitted: {
 			params,
 			form: Object.fromEntries(Object.entries(query).filter(([key]) => key.startsWith('f.'))) as SubmittedSearch['form'],
-			legacyInterface: readLegacyInterface(query),
+			legacyInterface: text('interface'),
 		} satisfies SubmittedSearch,
 		results,
 		extras: Object.fromEntries(Object.entries(query).filter(([key]) => !owned.has(key) && !key.startsWith('f.'))) as LocationQueryRaw,
@@ -147,7 +136,7 @@ export function createSearchPageQuery({
 		...extras,
 		...Object.fromEntries(Object.entries(submitted?.params ?? {}).map(([key, value]) => [key, value == null ? undefined : String(value)])),
 		...submitted?.form,
-		...(submitted?.legacyInterface ? { interface: JSON.stringify(submitted.legacyInterface) } : {}),
+		interface: submitted?.legacyInterface,
 		first: view.first,
 		number: view.number,
 		group: collocations ? undefined : view.groupBy.join(','),

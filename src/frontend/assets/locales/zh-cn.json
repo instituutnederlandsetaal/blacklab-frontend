@@ -24,7 +24,6 @@
 		},
 		"advanced": {
 			"heading": "提高级",
-			"copyAdvancedQuery": "复制到CQL编辑器",
 
 			"queryBuilder": {
 				"createTokenButton_label": "插入另一个标记",
@@ -74,31 +73,17 @@
 		},
 		"expert": {
 			"heading": "专家级",
-			"corpusQueryLanguage": "语料库查询语言",
-			"parseQuery": "复制到查询构建器",
-			"parseQueryTitle": "在查询构建器中编辑您的查询",
-			"importQuery": "导入查询",
-			"importQueryTitle": "导入一个之前下载过的查询",
-			"gapFilling": "替换分隔符",
-			"gapFillingTitle": "上传以制表符分隔的值列表以替换查询中的分隔符（即查询中的'{'@'}{'@'}'）",
-			"clearGapValues": "清除分割"
+			"corpusQueryLanguage": "语料库查询语言"
 		},
 		"parallel": {
 			"alignBy": "对齐方式",
 			"searchSourceVersion": "在源版本中",
 			"errorNoSourceVersion": "Please select a source version.",
-			"andCompareWithTargetVersions": "并与目标版本进行比较",
-			"queryForSourceVersion": "源版本查询",
-			"queryForTargetVersion": "目标版本查询",
-			"addTargetVersion": "添加另一个目标版本"
+			"andCompareWithTargetVersions": "并与目标版本进行比较"
 		}
 	},
 	"filter": {
 		"heading": "筛选器",
-		"noFilter": {
-			"title": "没有可用的筛选器",
-			"content": "该语料库不包含元数据，或者作者选择不允许对元数据进行筛选。"
-		},
 		"range": {
 			"from": "从",
 			"to": "到",
@@ -143,7 +128,6 @@
 		"debugLogCategories": "调试日志类别",
 		"debugLogCategoriesAll": "全部",
 		"hideDebugUntilReload": "在重新加载之前隐藏“显示调试信息”复选框",
-		"useNewSearchForm": "使用新版搜索表单",
 		"close": "关闭"
 	},
 	"queryForm": {

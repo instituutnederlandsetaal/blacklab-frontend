@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createMockApi, rejectedRequest, resolvedRequest } from '@test/mocks/api';
+import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { flushPromises } from '@vue/test-utils';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -12,11 +12,11 @@ import * as UIStore from '@/app/state/ui-state';
 import { createCorpusContext, defaultConfig } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
+import { searchFormIds } from '@/customization-api/shared/form/ids';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
+import { getState as getHistory, useHistoryImport } from '@/features/history/model/query-history-state';
 import { useActiveSearch } from '@/features/search/model/active-search';
-import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import { createSearchFeature } from '@/features/search/search-feature';
 import { useSearchNavigation } from '@/navigation/search-navigation';
@@ -36,7 +36,6 @@ async function setup(initialUrl: string, configure = () => {}) {
 	const api = createMockApi({
 		blacklab: {
 			getCorpus: id => resolvedRequest(id === 'test-corpus' ? createCorpus() : { ...JSON.parse(JSON.stringify(createCorpus()).replaceAll('word', 'token').replaceAll('lemma', 'base')), id }),
-			getParsePattern: () => rejectedRequest('Unsupported pattern'),
 		},
 		frontend: { getConfig: defaultConfig, getTagset: undefined },
 	});
@@ -79,7 +78,7 @@ async function setup(initialUrl: string, configure = () => {}) {
 
 describe('lazy search feature', () => {
 	test('restores an incoming search when installed after corpus publication and provides its systems', async () => {
-		const { app, feature } = await setup('/test-corpus/search/hits?patt=%5Bword%3D%22water%22%5D&f.form=search.simple');
+		const { app, feature } = await setup('/test-corpus/search/hits?patt=%5Bword%3D%22water%22%5D');
 
 		expect(feature.initialReadSettled.value).toBe(true);
 		expect(feature.activeSearchParameters.value?.patt).toBe('[word="water"]');
@@ -122,24 +121,15 @@ describe('lazy search feature', () => {
 		expect(subcorpus.next.mock.calls.length).toBe(calls);
 	});
 
-	test('reconstructs legacy state for a different corpus without reading the previous corpus customizations', async () => {
-		const { router, registry, corpusState } = await setup('/test-corpus/search');
-		registry.registerForm(api => api.configureExplore({ defaultSearchAnnotationId: 'lemma' }));
-		ExploreStore.actions.reset();
-		PatternStore.actions.expert.query('[word="old"]');
-		expect(ExploreStore.getState().ngram.tokens[0].id).toBe('lemma');
-		let initializedAnnotation: string | undefined;
-		corpusState.beforePublish(context => {
-			if (context.index?.id === 'other-corpus') initializedAnnotation = ExploreStore.getState().ngram.tokens[0].id;
-		});
-		await router.push('/other-corpus/docs/document');
-		await flushPromises();
-
-		expect(corpusState.corpus.value?.id).toBe('other-corpus');
-		expect(ExploreStore.getState().ngram.tokens[0].id).toBe('token');
-		expect(initializedAnnotation).toBe('token');
-		expect(registry.formConfigurators.value).toHaveLength(0);
-		expect(PatternStore.getState().extended.annotationValues).not.toHaveProperty('word');
-		expect(PatternStore.getState().expert.query).toBeNull();
+	test('imports graph and older query URLs without changing the active search', async () => {
+		const activePath = '/test-corpus/search/hits?patt=%5Bword%3D%22sea%22%5D';
+		const { app, router, feature } = await setup(activePath);
+		const importUrl = app.runWithContext(useHistoryImport);
+		await importUrl(`/test-corpus/search/hits?patt=%5Bword%3D%22ship%22%5D&f.form=${encodeURIComponent(searchFormIds.searchForm('simple'))}&f.word=ship`);
+		expect(getHistory()[0].displayValues.pattern).toBe('word: ship');
+		await importUrl('/test-corpus/search/hits?query=%5Bword%3D%22water%22%5D&filter=author%3AAusten');
+		expect(getHistory()[0].displayValues).toEqual({ pattern: '[word="water"]', filters: 'author:Austen' });
+		expect(router.currentRoute.value.fullPath).toBe(activePath);
+		expect(feature.activeSearchParameters.value?.patt).toBe('[word="sea"]');
 	});
 });

@@ -53,9 +53,6 @@
 		<div class="checkbox">
 			<label for="wide-view"><input type="checkbox" id="wide-view" name="wide-view" v-model="wideView.value" />{{ $t('setting.wideView') }}</label>
 		</div>
-		<div class="checkbox">
-			<label for="use-new-search-form"> <input type="checkbox" id="use-new-search-form" name="use-new-search-form" v-model="useNewSearchForm" />{{ $t('setting.useNewSearchForm') }} </label>
-		</div>
 
 		<template v-if="debug_visible || debug">
 			<div class="checkbox">
@@ -206,14 +203,6 @@ export default defineComponent({
 			},
 			set(v: string) {
 				GlobalViewSettings.actions.context(this.atoi(v));
-			},
-		},
-		useNewSearchForm: {
-			get(): boolean {
-				return GlobalViewSettings.getState().useNewSearchForm;
-			},
-			set(v: boolean) {
-				GlobalViewSettings.actions.useNewSearchForm(v);
 			},
 		},
 	},

@@ -338,7 +338,6 @@ async function snapshot(page) {
 			url: window.location.href,
 			params: modules?.root?.get?.blacklabParameters?.() ?? null,
 			interface: modules?.interface?.getState?.() ?? null,
-			useNewSearchForm: modules?.global?.getState?.().useNewSearchForm ?? null,
 			title: document.title,
 			bodyText: document.body?.innerText?.slice(0, 2000) ?? '',
 			hasVueRoot: !!document.querySelector('#vue-root'),
@@ -867,32 +866,6 @@ async function runLateCustomizationSmoke(page, term, timeout) {
 	await waitForSearchState(page, term, timeout);
 }
 
-async function runLegacyFormSmoke(page, term, timeout) {
-	await newFormRoot(page).locator('button:has(.glyphicon-cog)').click();
-	await page.locator('#settings #use-new-search-form').uncheck();
-	await page.locator('#settings').getByRole('button', { name: /close/i }).last().click();
-	await page.locator('#searchTabs a[href="#simple"]').click();
-	const legacyForm = page.locator('form').filter({ has: page.locator('#form-search') });
-	const input = legacyForm.locator('#simple input[type="text"]').first();
-	const beforeDraft = page.url();
-	await input.fill(term);
-	await assertUrlUnchanged(page, beforeDraft, 'while editing a legacy draft');
-	await legacyForm.locator('button[type="submit"]').click();
-	await page.waitForFunction(term => new URL(location.href).searchParams.get('patt')?.includes(term), term, { timeout });
-	await page.locator('.results-container:visible .results-table').first().waitFor({ state: 'visible', timeout });
-	const submitted = page.url();
-	await page.locator('#searchTabs a[href="#expert"]').click();
-	await assertUrlUnchanged(page, submitted, 'while changing the legacy draft mode');
-	await page.reload({ waitUntil: 'domcontentloaded', timeout });
-	await input.waitFor({ state: 'visible', timeout });
-	await page.waitForFunction(({ input, term }) => input.value === term, { input: await input.elementHandle(), term }, { timeout });
-	await assertUrlUnchanged(page, submitted, 'after reloading a legacy search');
-	await legacyForm.locator('button[type="reset"]').click();
-	await page.waitForFunction(() => !new URL(location.href).searchParams.has('patt'), null, { timeout });
-	assert((await input.inputValue()) === '', 'Legacy reset did not clear the query input.');
-	console.log('ok legacy submit, draft mode changes, reload and reset');
-}
-
 async function run() {
 	const args = parseArgs(process.argv.slice(2));
 	if (args.help) {
@@ -946,9 +919,6 @@ async function run() {
 		const context = await browser.newContext();
 		page = await context.newPage();
 		page.setDefaultTimeout(timeout);
-		await page.addInitScript(() => {
-			if (localStorage.getItem('cf/useNewSearchForm') == null) localStorage.setItem('cf/useNewSearchForm', 'true');
-		});
 		page.on('pageerror', error => {
 			console.error('pageerror:', error);
 		});
@@ -1005,7 +975,6 @@ async function run() {
 		console.log('ok reset cleared submitted query and scoped URL params');
 
 		await runCollocationSmoke(page, collocationQuery, timeout);
-		await runLegacyFormSmoke(page, queryOne, timeout);
 
 		console.log('url-sync smoke test passed');
 	} catch (error) {

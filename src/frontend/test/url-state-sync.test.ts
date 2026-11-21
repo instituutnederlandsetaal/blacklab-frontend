@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import { createMockApi, rejectedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { flushPromises } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -11,15 +10,10 @@ import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
-import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import { ContainerRenderer, createCollocationTarget, filterTextController, FormBuilder, FormRuntime, TextField, type CompiledFormResult } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import { createActiveSearch } from '@/features/search/model/active-search';
-import * as ExploreStore from '@/features/search/model/form/explore-state';
-import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as PatternStore from '@/features/search/model/form/pattern-state';
-import { LegacyFormRestorer } from '@/features/search/model/form/restore-legacy-form';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
@@ -30,8 +24,6 @@ import { createSubmittedFormRestoration, createSubmittedSearch } from '@/feature
 import type { Corpus } from '@/types/apptypes';
 import { queryHistoryDetails } from '@/url/query-history';
 import { createSearchUrlBinding } from '@/url/search-state';
-
-import { CancelableRequest, type BlackLabApi } from '@/shared/api/lib/api-types';
 
 const cleanup: (() => void)[] = [];
 const base = '/blacklab-frontend';
@@ -73,11 +65,7 @@ function deferred() {
 
 async function setup(
 	url = `${path}/hits?patt=${encodeURIComponent(pattern)}&f.form=search.simple`,
-	{
-		beforeStateLoaded = () => Promise.resolve(),
-		// Unsupported BCQL must survive as a raw pattern when BlackLab cannot parse it.
-		getParsePattern = () => rejectedRequest('unsupported pattern'),
-	}: { beforeStateLoaded?: (runtime: Ref<FormRuntime | null>) => Promise<unknown>; getParsePattern?: BlackLabApi['getParsePattern'] } = {},
+	{ beforeStateLoaded = () => Promise.resolve() }: { beforeStateLoaded?: (runtime: Ref<FormRuntime | null>) => Promise<unknown> } = {},
 ) {
 	window.history.replaceState({}, '', base + url);
 	const router = createRouter({
@@ -116,19 +104,6 @@ async function setup(
 		submitted: submittedSearch,
 		restoredForm,
 		beforeStateLoaded: () => beforeStateLoaded(runtime),
-		restoreLegacy: (corpus, submitted) => {
-			const viewedResults = InterfaceStore.get.viewedResults();
-			const view = viewedResults ? ViewStore.getOrCreateModule(viewedResults).getState() : null;
-			return new LegacyFormRestorer(
-				{ blacklabApi: createMockApi({ blacklab: { getParsePattern } }).blacklabApi, corpus, customizations, filterState: FilterStore.getState(), tagsetState: TagsetStore.getState() },
-				{
-					submitted,
-					viewedResults,
-					groupBy: view?.groupBy ?? [],
-					groupDisplayMode: view?.groupDisplayMode ?? null,
-				},
-			).get();
-		},
 	});
 	const controller = createSearchUrlBinding(router, { corpus: loadedCorpus, submittedSearch, restoreForms: formRestoration.restore, summary });
 
@@ -156,12 +131,8 @@ async function restored(activeSearchParameters: Readonly<Ref<EffectiveSearchPara
 beforeEach(() => {
 	ViewStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
 	vi.stubGlobal('CONTEXT_URL', base);
-	RootStore.setCustomizations(customizations);
 	const context = { index: corpus } as CorpusContext;
-	InterfaceStore.actions.reset();
-	ExploreStore.actions.reset();
-	FilterStore.init({} as CorpusContext);
-	PatternStore.init(context, customizations);
+	InterfaceStore.actions.viewedResults(null);
 	GlobalStore.init(context);
 	GlobalStore.actions.pageSize(20);
 	ViewStore.init(context);
@@ -220,25 +191,6 @@ describe('search URLs and browser history', () => {
 		expect(router.currentRoute.value.query.sampleseed).toBe(String(seed));
 	});
 
-	test.each([
-		{ form: 'search', patternMode: 'expert' },
-		{ form: 'explore', exploreMode: 'frequency' },
-	])('keeps the other form usable when a saved interface only specifies $form settings', async ui => {
-		await setup(`${path}/hits?interface=${encodeURIComponent(JSON.stringify(ui))}`);
-		await flushPromises();
-		InterfaceStore.actions.form(ui.form === 'search' ? 'explore' : 'search');
-		expect(InterfaceStore.getState()).toMatchObject({ patternMode: ui.patternMode ?? 'simple', exploreMode: ui.exploreMode ?? 'corpora' });
-	});
-
-	test('preserves readable history summaries for legacy searches', async () => {
-		const { runtime, loadedCorpus, sync, activeSearchParameters } = await setup(`${path}/hits?patt=[]&group=hit:word`);
-		runtime.value = null;
-		loadedCorpus.value = { ...corpus, allAnnotationsMap: { word: { ...corpus.firstMainAnnotation, defaultDisplayName: 'Word' } } };
-		await restored(activeSearchParameters, '[]');
-		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.first(20));
-		expect(HistoryStore.getState()[0].displayValues.pattern).toBe('Word frequency');
-	});
-
 	test('one submit publishes its completed query and result settings; Back and Forward restore each URL', async () => {
 		const { sync, router, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
@@ -273,44 +225,16 @@ describe('search URLs and browser history', () => {
 		expect(window.history.length).toBe(length + 2);
 	});
 
-	test('legacy submissions and pagination save their summary without reparsing the URL or reading a newer draft', async () => {
-		const getParsePattern = vi.fn<BlackLabApi['getParsePattern']>(() => rejectedRequest('unsupported pattern'));
-		const { sync, runtime } = await setup(path, { getParsePattern });
-		runtime.value = null;
-		await flushPromises();
-		InterfaceStore.actions.patternMode('expert');
-		PatternStore.actions.expert.query('[word="saved"]');
-		await sync.run(() => RootStore.actions.searchFromSubmit());
-		expect(HistoryStore.getState()[0].displayValues.pattern).toBe('[word="saved"]');
-		PatternStore.actions.expert.query('[word="draft"]');
-		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.first(20));
-		expect(HistoryStore.getState()[0].displayValues.pattern).toBe('[word="saved"]');
-		expect(getParsePattern).not.toHaveBeenCalled();
-	});
-
-	test('a replacement form supersedes pending parsing and restores only the current URL', async () => {
+	test('a replacement form restores only the current URL after a pending hook', async () => {
 		const pending = deferred();
-		const entered = deferred();
-		const { runtime, router, activeSearchParameters, restoring } = await setup(undefined, {
-			getParsePattern: (_indexId, patt) => {
-				if (patt !== pattern) return rejectedRequest('unsupported pattern');
-				entered.resolve();
-				return new CancelableRequest(
-					pending.promise.then(() => rejectedRequest('unsupported pattern')),
-					() => {},
-				);
-			},
-		});
-		await entered.promise;
+		const { runtime, router, activeSearchParameters, restoring } = await setup(undefined, { beforeStateLoaded: () => pending.promise });
 		expect(restoring.value).toBe(true);
 		await router.push(`${path}/hits?patt=${encodeURIComponent('[word="new definition"]')}&f.form=search.simple&f.late=author`);
 		runtime.value = form({ withField: true });
+		pending.resolve();
 		await restored(activeSearchParameters, '[word="new definition"]');
 		expect(restoring.value).toBe(false);
-		pending.resolve();
-		await flushPromises();
 		expect(runtime.value.state.state.value.late).toEqual({ value: 'author', caseSensitive: false });
-		expect(activeSearchParameters.value?.patt).toBe('[word="new definition"]');
 	});
 
 	test('replacing a form discards its draft without submitting or changing collocation controls', async () => {
@@ -408,15 +332,19 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('submitting a documents query removes legacy pattern aliases from the projection', async () => {
-		const incoming = `${path}/hits?query=${encodeURIComponent(pattern)}&field=contents&extension=shared#results`;
+		const incoming = `${path}/hits?query=${encodeURIComponent(pattern)}&field=contents&pattgapdata=water&interface=%7B%22form%22%3A%22search%22%7D&extension=shared#results`;
 		const { sync, router, activeSearchParameters } = await setup(incoming);
 		const browserEntries = window.history.length;
 		await restored(activeSearchParameters);
+		expect(activeSearchParameters.value?.pattgapdata).toBe('water');
 		expect(router.currentRoute.value.fullPath).toBe(incoming);
 		expect(window.history.length).toBe(browserEntries);
+		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.first(20));
+		expect(router.currentRoute.value.query).toMatchObject({ patt: pattern, pattgapdata: 'water', interface: '{"form":"search"}' });
 		await sync.run(() => RootStore.actions.searchFromSubmit({ ...submittedQuery(), params: {} }));
 		expect(router.currentRoute.value.query).not.toHaveProperty('query');
 		expect(router.currentRoute.value.query).not.toHaveProperty('field');
+		expect(router.currentRoute.value.query).not.toHaveProperty('interface');
 		expect(router.currentRoute.value.query.extension).toBe('shared');
 		expect(router.currentRoute.value.hash).toBe('#results');
 		await sync.open(router.currentRoute.value.fullPath);
