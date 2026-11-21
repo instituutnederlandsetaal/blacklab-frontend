@@ -48,7 +48,7 @@ export type BooleanOp = {
 	clauses: (Condition | BooleanOp)[];
 };
 
-export type Token = {
+type Token = {
 	leadingXmlTag?: XmlTag;
 	trailingXmlTag?: XmlTag;
 	expression?: BooleanOp | Condition;

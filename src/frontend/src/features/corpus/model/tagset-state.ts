@@ -146,4 +146,4 @@ const actions = {
 
 /** @public Store methods exposed through `vuexModules.tagset`. */
 export { actions, get, getState, init };
-export type { ModuleRootState, Tagset };
+export type { Tagset };

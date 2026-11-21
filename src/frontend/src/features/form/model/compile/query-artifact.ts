@@ -15,7 +15,6 @@ import {
 } from '@/features/form/model/types/form-query-ir';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
-import { parenQueryPartParallel } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { escapeLucene, escapeRegex } from '@/shared/utils/string-utils';
 
@@ -308,7 +307,11 @@ function emitRequiredCql(pattern: CqlPatternNode): string {
 
 /** Group one emitted parallel branch as required by BlackLab's relation syntax. */
 function emitParallelPart(pattern: CqlPatternNode): string {
-	return parenQueryPartParallel(emitRequiredCql(pattern));
+	const emitted = emitRequiredCql(pattern);
+	if (emitted === '[]*') return '_';
+	const query = emitted.trim();
+	if (query === '_' || query === '[]*' || /^\(.+\)$/.test(query) || /^\[[^\]]*\]$/.test(query)) return query;
+	return `(${query})`;
 }
 
 function emitRequiredFilter(filter: LuceneNode): string {

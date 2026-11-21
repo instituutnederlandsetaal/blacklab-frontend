@@ -131,15 +131,6 @@ function escapeLuceneRegexDelimiter(value: string): string {
 	return result;
 }
 
-/** Unescapes every lucene special character including double quotes, except wildcards */
-export function unescapeLucene(original: string) {
-	if (original.startsWith('"') && original.endsWith('"') && !original.endsWith('\\"')) {
-		return original.substring(1, original.length - 1).replace(/\\(["\\])/g, '$1');
-	}
-
-	return original.replace(/\\(\+|-|&&|\|\||!|\(|\)|{|}|\[|]|\^|"|~|:|\\|\/|\*|\?)/g, '$1');
-}
-
 type SplitString = {
 	start: number;
 	end: number;

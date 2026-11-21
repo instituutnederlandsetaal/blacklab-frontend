@@ -187,11 +187,10 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Slider from 'vue-3-slider-component';
 
+import * as FilterModule from '@/app/state/legacy-filter-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
-import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import { useActiveSearch } from '@/features/search/model/active-search';
-import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
@@ -379,8 +378,8 @@ const tagAttributes = computed<OptGroup[]>(() => {
 		});
 		const filter = FilterModule.getState().filters[spanFilterId(tagName, attributeName)];
 		if (shouldInclude === null) {
-			const isSpanFilter = filter ? (getValueFunctions(filter)?.isSpanFilter ?? null) : false;
-			shouldInclude = isSpanFilter || (customizations.legacyShouldIncludeWithinSpan(tagName) && customizations.legacyShouldIncludeWithinAttribute(tagName, attributeName));
+			shouldInclude =
+				(filter != null && FilterModule.isSpanFilter(filter)) || (customizations.legacyShouldIncludeWithinSpan(tagName) && customizations.legacyShouldIncludeWithinAttribute(tagName, attributeName));
 		}
 		if (shouldInclude) {
 			options.push({

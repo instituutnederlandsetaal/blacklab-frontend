@@ -132,6 +132,8 @@ frontend.customizeSearchForm(form => {
 
 A span filter requests span data when it is active. It does not automatically add the attribute to the Group By menu. Use `includeGroupingSpanAttribute` for that.
 
+Span filters created with the legacy `search.metadata.createSpanFilter` and registered through `search.metadata.addCustomTab` still appear in the search form. Legacy span filter registrations can also supply labels for Group By.
+
 ### Changing the form
 
 The second phase receives `form.graph`, which contains the built-in form nodes. Use `form.graph` to find, remove, replace, or move nodes. Use the constructors on `form` to create nodes.

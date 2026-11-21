@@ -1,5 +1,4 @@
 import * as FilterStore from '@/app/state/legacy-filter-state';
-import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { CustomizationRegistry } from '@/customization-api/registry';
 import type { FilterDefinition } from '@/types/apptypes';
 
@@ -53,10 +52,9 @@ function createFilterStoreAdapter(registry: CustomizationRegistry) {
 		}),
 		get: {
 			...FilterStore.get,
-			hasSpanFilters: () => Object.values(FilterStore.getState().filters).some(filter => getValueFunctions(filter).isSpanFilter),
+			hasSpanFilters: () => Object.values(FilterStore.getState().filters).some(FilterStore.isSpanFilter),
 		},
 		actions: {
-			...FilterStore.actions,
 			registerFilterGroup,
 			registerFilter,
 		},

@@ -70,7 +70,6 @@ export function createMockCustomizations(corpus: MaybeRefOrGetter<Corpus | undef
 		groupingSpanAttribute: vi.fn(() => null),
 		sortOptionGroup: vi.fn(group => group),
 		groupOptionGroup: vi.fn(group => group),
-		searchFilterTabs: vi.fn(() => []),
 		legacyShouldIncludeWithinSpan: vi.fn(() => false),
 		legacyShouldIncludeWithinAttribute: vi.fn(() => false),
 	};

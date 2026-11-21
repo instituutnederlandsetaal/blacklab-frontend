@@ -14,7 +14,6 @@ type LegacySearchFilterTab = {
 	tabname?: string;
 	fields?: Array<AppTypes.FilterDefinition<unknown> | string>;
 	subtabs?: Array<{ tabname?: string; fields: Array<AppTypes.FilterDefinition<unknown> | string> }>;
-	query?: Record<string, string[]>;
 };
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
@@ -182,7 +181,6 @@ export function createLegacyCustomizationApi(corpus: AppTypes.Corpus) {
 						widget = valuesForAttribute ? 'select' : 'text';
 					}
 
-					// FilterValueFunctions entry
 					const behaviourName = widget === 'select' || widget === 'range' ? `span-${widget}` : 'span-text';
 
 					// use an intermediate object to avoid setting the 'options' key if we have no options

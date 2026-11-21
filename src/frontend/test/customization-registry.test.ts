@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { createMockTranslate } from '@test/mocks/i18n';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, createApp, nextTick, reactive, ref, watchEffect } from 'vue';
 
@@ -8,9 +9,8 @@ import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations, useCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry, useCustomizationRegistry } from '@/customization-api/registry';
 import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
-import type { Corpus } from '@/types/apptypes';
-
-import type { Translate } from '@/shared/i18n';
+import type { Corpus, FilterDefinition } from '@/types/apptypes';
+import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 function createCorpus(id: string): Corpus {
 	return {
@@ -100,56 +100,8 @@ describe('customization registry corpus lifecycle', () => {
 		expect(withSpans.value).toBeNull();
 	});
 
-	test('resolves filter tabs using current corpus and legacy customization behavior', () => {
-		const corpus = {
-			...createCorpus('first'),
-			allMetadataFieldsMap: { title: {}, author: {}, forced: {} },
-			metadataGroups: [
-				{ id: 'Bibliography', fields: [{ id: 'title' }, { id: 'author' }, { id: 'forced' }] },
-				{ id: 'Empty', fields: [{ id: 'author' }] },
-			],
-		} as unknown as Corpus;
-		const registry = createCustomizationRegistry(corpus);
-		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
-		registry.applyLegacyCustomization(legacy => {
-			legacy.search.metadata.showField = id => (id === 'forced' ? true : id === 'author' ? false : null);
-			legacy.search.metadata.addCustomTab('Bibliography', [{ id: 'custom', componentName: 'filter-text', defaultDisplayName: 'Custom', metadata: undefined }]);
-		});
-		expect(FilterStore.getState().filters.custom?.groupId).toBe('Bibliography');
-
-		const tabs = customizations.searchFilterTabs(FilterStore.getState().filters, ['title', 'author'], {
-			$tMetaGroupName: ((name: string | undefined) => (name == null ? name : `Translated ${name}`)) as Translate['$tMetaGroupName'],
-		});
-
-		expect(tabs).toEqual([
-			{
-				tabname: 'Translated Bibliography',
-				subtabs: [{ tabname: undefined, fields: ['title', 'forced', 'custom'] }],
-				query: undefined,
-			},
-		]);
-	});
-
-	test('shares immediate legacy filter definitions and values with search query state', async () => {
-		const corpus = { ...createCorpus('first'), allMetadataFieldsMap: {}, metadataGroups: [] } as unknown as Corpus;
-		const registry = createCustomizationRegistry(corpus);
-		const filters = createFilterStoreAdapter(registry);
-
-		registry.applyLegacyCustomization(legacy => {
-			legacy.search.metadata.addCustomTab('Custom', [{ id: 'author', componentName: 'filter-text', defaultDisplayName: 'Author', metadata: undefined }]);
-		});
-		filters.actions.filterValue({ id: 'author', value: 'Alice' });
-		expect(filters.getState().filters.author).toMatchObject({ groupId: 'Custom', value: 'Alice' });
-
-		const searchFilters = await import('@/features/search/model/form/filter-state');
-		expect(searchFilters.getState()).toBe(FilterStore.getState());
-		expect(searchFilters.get.luceneQuery()).toBe('author:(Alice)');
-		searchFilters.actions.filterValue({ id: 'author', value: 'Bob' });
-		expect(filters.getState().filters.author.value).toBe('Bob');
-	});
-
-	test('adapts legacy filter registration and filter groups', () => {
-		const corpus = { ...createCorpus('first'), allMetadataFieldsMap: {}, metadataGroups: [] } as unknown as Corpus;
+	test('retains legacy span filter registration for result grouping', () => {
+		const corpus = createCorpus('first');
 		const registry = createCustomizationRegistry(corpus);
 		const filters = createFilterStoreAdapter(registry);
 
@@ -157,14 +109,24 @@ describe('customization registry corpus lifecycle', () => {
 		filters.actions.registerFilter({
 			filter: { id: 'custom', groupId: 'Custom tab', componentName: 'filter-text', defaultDisplayName: 'Custom', metadata: undefined },
 		});
-		filters.getState().filterGroups[0].subtabs![0].tabname = 'Details';
-
-		expect(filters.getState().filters.custom).toBeDefined();
 		expect(filters.get.hasSpanFilters()).toBe(false);
-		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
-		expect(customizations.searchFilterTabs(filters.getState().filters, [], { $tMetaGroupName: (name => name) as Translate['$tMetaGroupName'] })).toEqual([
-			{ tabname: 'Custom tab', subtabs: [{ tabname: 'Details', fields: ['custom'] }], query: undefined },
-		]);
+
+		const speakerId = 'span:utterance:speaker';
+		filters.actions.registerFilter({
+			filter: {
+				id: speakerId,
+				groupId: 'Custom tab',
+				componentName: 'filter-text',
+				behaviourName: 'span-text',
+				displayName: 'Speaker',
+				description: 'Speaker name',
+			} as unknown as FilterDefinition<unknown>,
+			insertBefore: 'custom',
+		});
+		expect(filters.getState().filterGroups[0].subtabs?.[0].fields).toEqual([speakerId, 'custom']);
+		expect(filters.get.filterValue(speakerId)).toMatchObject({ defaultDisplayName: 'Speaker', defaultDescription: 'Speaker name' });
+		expect(filters.get.hasSpanFilters()).toBe(true);
+		expect(humanizeSerializedGroupBy(createMockTranslate(), 'span-attribute:with-spans[utterance]:speaker', {}, {})).toBe('Speaker');
 	});
 
 	test('immediately applies legacy root callbacks to the current corpus target', () => {

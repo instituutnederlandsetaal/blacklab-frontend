@@ -234,50 +234,7 @@ export type NormalizedFormat = INormalizedFormat & Subtract<BLTypes.BLFormat, IN
 // Types used on page
 // ------------------
 
-/**
- * In the central Vuex store, this object represents the value of an "annotation" e.g. word/lemma/pos
- */
-export type AnnotationValue = {
-	/** Unique id of the annotated field  */
-	// readonly annotatedFieldId: string;
-
-	/** Unique ID of the property */
-	readonly id: string;
-	/** Raw value of the property */
-	value: string;
-	/** Should the property match using case sensitivity */
-	case: boolean;
-	/**
-	 * Type of the annotation.
-	 * Some types require special treatment when parsing or serializing from/to cql.
-	 * Always available, but not required to allow committing new values to the store without setting it.
-	 */
-	readonly type?: NormalizedAnnotation['uiType'];
-};
-
-export type FilterValue = {
-	/** Unique id of the metadata field */
-	readonly id: string;
-	/**
-	 * Type of the filter, determines how the values are interpreted and read from the DOM
-	 * See CorpusConfig.java/search.vm
-	 *
-	 * 'range' -> has two numerical inputs, min and max
-	 * 'select' -> is a multiselect field
-	 *
-	 * There is also 'combobox' and 'text',
-	 * but these are just a regular text input (with some autocompletion on combobox)
-	 * and can be treated the same way for the purposes of state and DOM manipulation
-	 *
-	 * It's possible for a user to specify another type (using uiType for annotatedFields and metadataFields in the index format),
-	 * but this should just be ignored and treated as 'text'.
-	 */
-	// type: NormalizedMetadataField['uiType'];
-	/** Values of the filter, for selects, the selected values as array elements, for text, the text as the first array element, for ranges the min and max values in indices [0][1] */
-	values: string[];
-};
-
-/** Everything a filter needs to be rendered. Name of the component, the ID (to connect to the vuex store), list of possible values (when relevant), etc. */
+/** Filter definition accepted by the legacy customization API. */
 export type FilterDefinition<MetadataType> = {
 	/** Id of the filter, this must be unique */
 	id: string;

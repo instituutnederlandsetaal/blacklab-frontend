@@ -91,13 +91,12 @@ describe('lazy search feature', () => {
 	test('retains corpus script configuration when search is activated later', async () => {
 		await setup('/test-corpus/docs/document', () => {
 			FilterStore.actions.registerFilter({ id: 'custom', componentName: 'filter-text', defaultDisplayName: 'Custom', metadata: undefined });
-			FilterStore.actions.filterValue({ id: 'custom', value: 'Austen' });
 			UIStore.actions.search.simple.searchAnnotationId('lemma');
 			UIStore.actions.explore.defaultSearchAnnotationId('pos');
 			UIStore.actions.results.addResultView({ id: 'custom-view', title: 'Custom view', component: 'CustomResults', customInitialState: {} });
 		});
 
-		expect(FilterStore.getState().filters.custom).toMatchObject({ defaultDisplayName: 'Custom', value: 'Austen' });
+		expect(FilterStore.getState().filters.custom).toMatchObject({ defaultDisplayName: 'Custom' });
 		expect(UIStore.getState().search.simple.searchAnnotationId).toBe('lemma');
 		expect(UIStore.getState().explore.defaultSearchAnnotationId).toBe('pos');
 		expect(UIStore.getState().results.customViews).toContainEqual({ id: 'custom-view', title: 'Custom view', component: 'CustomResults', customInitialState: {} });

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { escapeLucene, escapeRegex, tokenizeString, unescapeLucene, unescapeRegex, type LuceneEscapeOptions, type RegexEscapeOptions } from '@/shared/utils/string-utils';
+import { escapeLucene, escapeRegex, tokenizeString, unescapeRegex, type LuceneEscapeOptions, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 type ExpectedPart = {
 	start: number;
@@ -326,9 +326,5 @@ const luceneEscapeCases: Array<{
 describe('escapeLucene', () => {
 	test.each(luceneEscapeCases)('$name', ({ value, options, expected }) => {
 		expect(escapeLucene(value, options)).toBe(expected);
-	});
-
-	test.each(luceneEscapeCases.filter(testCase => testCase.options?.escapeRegex !== false && testCase.options?.escapeWildcards !== false))('unescapes $name', ({ value, expected }) => {
-		expect(unescapeLucene(expected)).toBe(value);
 	});
 });

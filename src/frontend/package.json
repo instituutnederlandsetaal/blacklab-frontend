@@ -44,8 +44,6 @@
 		"highcharts": "^9.0.0",
 		"highcharts-vue": "^2.0.1",
 		"jquery": "^4.0.0",
-		"lucene-query-parser": "^1.2.0",
-		"memoize-decorator": "^1.0.2",
 		"monaco-editor": "^0.47.0",
 		"monaco-yaml": "^5.5.1",
 		"oidc-client-ts": "^2.4.0",

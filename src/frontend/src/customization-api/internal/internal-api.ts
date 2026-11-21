@@ -36,16 +36,6 @@ import type { Translate } from '@/shared/i18n';
 import { optionText, type OptGroup, type Option } from '@/shared/utils/options';
 export { provideCustomizations, useCustomizations } from './use-customizations';
 
-export type SearchFilterTab = {
-	tabname: string;
-	subtabs: Array<{
-		tabname?: string;
-		fields: string[];
-	}>;
-	/** Filter query that is always included while this tab is active. */
-	query?: Record<string, string[]>;
-};
-
 export type ResultHitAddon = ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>;
 
 function activeResultCustomizations(registry: CustomizationRegistry) {
@@ -404,51 +394,6 @@ function createCustomizationApi(
 			resultHook(registry, 'includeGroupingSpanAttribute', attribute, legacy => legacy.group.includeSpanAttribute(attribute.elementName, attribute.attributeName)),
 		sortOptionGroup: (group: OptGroup) => sortOptionGroup(registry, group),
 		groupOptionGroup: (group: OptGroup, translate: Translate) => groupOptionGroup(registry, group, translate),
-
-		searchFilterTabs: (registeredFilters: Readonly<Record<string, unknown>>, builtinFiltersToShow: readonly string[], translate: Pick<Translate, '$tMetaGroupName'>): SearchFilterTab[] => {
-			const currentCorpus = toValue(corpus);
-			const legacy = registry.legacyApi.value!;
-			const filterGroups: SearchFilterTab[] = currentCorpus.metadataGroups.map(group => ({
-				tabname: group.id,
-				subtabs: [{ fields: group.fields.map(field => field.id) }],
-			}));
-
-			for (const tab of legacy.search.metadata._customTabs) {
-				const tabname = tab.name ?? tab.tabname ?? '';
-				const subtabs = tab.subtabs
-					? tab.subtabs.map(subtab => ({
-							tabname: subtab.tabname,
-							fields: subtab.fields.flatMap(field => (typeof field === 'string' ? [field] : field.id ? [field.id] : [])),
-						}))
-					: [{ fields: (tab.fields ?? []).flatMap(field => (typeof field === 'string' ? [field] : field.id ? [field.id] : [])) }];
-				const existingGroup = filterGroups.find(group => group.tabname === tabname);
-				if (existingGroup) {
-					(existingGroup.subtabs[0] ??= { fields: [] }).fields.push(...subtabs.flatMap(subtab => subtab.fields));
-				} else {
-					filterGroups.push({ tabname, subtabs, query: tab.query });
-				}
-			}
-
-			const availableBuiltinFilters = currentCorpus.allMetadataFieldsMap;
-			const customFilters = Object.keys(registeredFilters).filter(id => !availableBuiltinFilters[id]);
-			const allIdsToShow = new Set([...builtinFiltersToShow, ...customFilters]);
-
-			return filterGroups
-				.map(group => ({
-					tabname: translate.$tMetaGroupName(group.tabname)?.toString() ?? '',
-					subtabs: group.subtabs
-						.map(subtab => ({
-							tabname: translate.$tMetaGroupName(subtab.tabname)?.toString(),
-							fields: subtab.fields.filter(id => {
-								const showField = legacy.search.metadata.showField(id);
-								return showField === true || (showField === null && allIdsToShow.has(id));
-							}),
-						}))
-						.filter(subtab => subtab.fields.length),
-					query: group.query,
-				}))
-				.filter(group => group.subtabs.length);
-		},
 
 		/** Legacy behavior: should this span be available in the within widget? */
 		legacyShouldIncludeWithinSpan: (spanName: string) => registry.legacyApi.value!.search.within.includeSpan(spanName),

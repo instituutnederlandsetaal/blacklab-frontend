@@ -26,7 +26,7 @@ export function getParallelFieldParts(fieldName: string) {
 }
 
 /** Get the full name of a parallel annotatedField, consisting of the base name/prefix and the version (e.g. "en", "nl") */
-export function getParallelFieldName(prefix: string, version: string) {
+function getParallelFieldName(prefix: string, version: string) {
 	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
 }
 
