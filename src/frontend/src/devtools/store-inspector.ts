@@ -6,10 +6,8 @@ import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
-import * as RootStore from '@/features/search/model/search-store';
 
 const DEVTOOLS_PLUGIN_ID = 'blacklab-frontend-store-devtools';
 const STORE_INSPECTOR_ID = 'blacklab-frontend-store-inspector';
@@ -49,8 +47,7 @@ type DevtoolsApi = Parameters<Parameters<typeof setupDevtoolsPlugin>[1]>[0];
 const ROOT_STORE: StoreLeaf = {
 	id: ROOT_STORE_ID,
 	label: 'Root Store',
-	readGetters: () => RootStore.get,
-	// watchState: () => RootStore.get.loadingState().value,
+	readGetters: () => ({ viewedResultsSettings: ViewsStore.getSelectedViewSettings }),
 };
 
 const STORE_GROUPS: StoreGroup[] = [
@@ -69,7 +66,7 @@ const STORE_GROUPS: StoreGroup[] = [
 		id: 'group:results',
 		label: 'Results',
 		children: [
-			{ id: 'store:interface', label: 'Selected View', readState: InterfaceStore.getState, readGetters: () => InterfaceStore.get },
+			{ id: 'store:interface', label: 'Selected View', readState: () => ViewsStore.selection, readGetters: () => ({ viewedResults: ViewsStore.getSelectedViewName }) },
 			{ id: 'store:global-results', label: 'Global', readState: GlobalResultsStore.getState, readGetters: () => GlobalResultsStore.get },
 			{
 				id: 'store:views',

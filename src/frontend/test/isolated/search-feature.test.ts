@@ -16,8 +16,8 @@ import { searchFormIds } from '@/customization-api/shared/form/ids';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import { getState as getHistory, useHistoryImport } from '@/features/history/model/query-history-state';
 import { useActiveSearch } from '@/features/search/model/active-search';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFeature } from '@/features/search/search-feature';
 import { useSearchNavigation } from '@/navigation/search-navigation';
 
@@ -82,7 +82,7 @@ describe('lazy search feature', () => {
 
 		expect(feature.initialReadSettled.value).toBe(true);
 		expect(feature.activeSearchParameters.value?.patt).toBe('[word="water"]');
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getSelectedViewName()).toBe('hits');
 		expect(app.runWithContext(useActiveSearch).parameters).toBe(feature.activeSearchParameters);
 		expect(app.runWithContext(useSearchFormSystem).value).toBeTruthy();
 		expect(app.runWithContext(useSearchNavigation).open).toBeTypeOf('function');
@@ -115,7 +115,7 @@ describe('lazy search feature', () => {
 		await flushPromises();
 		expect(feature.activeSearchParameters.value).toBeUndefined();
 		const calls = subcorpus.next.mock.calls.length;
-		InterfaceStore.actions.viewedResults('docs');
+		ViewStore.selectView('docs');
 		await flushPromises();
 		expect(subcorpus.next.mock.calls.length).toBe(calls);
 	});

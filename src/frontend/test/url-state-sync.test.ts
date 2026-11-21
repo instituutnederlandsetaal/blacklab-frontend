@@ -13,7 +13,6 @@ import { createCustomizationRegistry } from '@/customization-api/registry';
 import { ContainerRenderer, createCollocationTarget, filterTextController, FormBuilder, FormRuntime, TextField, type CompiledFormResult } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import { createActiveSearch } from '@/features/search/model/active-search';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
@@ -80,18 +79,11 @@ async function setup(
 	const loadedCorpus = shallowRef<Corpus | undefined>(corpus);
 	const submittedSearch = createSubmittedSearch();
 	const { actions: searchActions } = createSearchStore(submittedSearch);
-	const activeSearch = createActiveSearch(InterfaceStore.get.viewedResults, {
+	const activeSearch = createActiveSearch(ViewStore.getSelectedViewName, {
 		corpus: loadedCorpus,
 		submitted: submittedSearch,
 		global: GlobalStore.getState,
-		viewState: () => {
-			const view = InterfaceStore.get.viewedResults();
-			return view ? ViewStore.getOrCreateModule(view).getState() : undefined;
-		},
-		expandedRequestRange: () => {
-			const view = InterfaceStore.get.viewedResults();
-			return typeof view === 'string' && view ? ViewStore.getOrCreateModule(view).get.expandedRequestRange() : undefined;
-		},
+		getView: ViewStore.getOrCreateModule,
 		withSpans: customizations.searchWithSpans,
 		debug: false,
 	});
@@ -132,7 +124,7 @@ beforeEach(() => {
 	ViewStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
 	vi.stubGlobal('CONTEXT_URL', base);
 	const context = { index: corpus } as CorpusContext;
-	InterfaceStore.actions.viewedResults(null);
+	ViewStore.selectView(null);
 	GlobalStore.init(context);
 	GlobalStore.actions.pageSize(20);
 	ViewStore.init(context);
@@ -313,9 +305,9 @@ describe('search URLs and browser history', () => {
 		await sync.run(() => GlobalStore.actions.pageSize(50));
 		expect(hits.get.selectedRange()).toEqual({ first: 0, number: 50 });
 		expect(docs.get.selectedRange()).toEqual({ first: 45, number: 30 });
-		await sync.run(() => void InterfaceStore.actions.viewedResults('docs'));
+		await sync.run(() => void ViewStore.selectView('docs'));
 		expect(activeSearchParameters.value).toMatchObject({ first: 0, number: 100 });
-		await sync.run(() => void InterfaceStore.actions.viewedResults('hits'));
+		await sync.run(() => void ViewStore.selectView('hits'));
 		expect(activeSearchParameters.value).toMatchObject({ first: 0, number: 50 });
 		expect(docs.get.selectedRange()).toEqual({ first: 45, number: 30 });
 	});
@@ -361,7 +353,7 @@ describe('search URLs and browser history', () => {
 		GlobalStore.actions.pageSize(50);
 		await sync.open(`${path}/docs?patt=${encodeURIComponent(pattern)}&first=105&number=10&sort=field:title`);
 		await flushPromises();
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+		expect(ViewStore.getSelectedViewName()).toBe('docs');
 		expect(hits.getState()).toMatchObject({ first: 0, number: 50, groupBy: [], sort: null, viewGroup: null });
 		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({ first: 105, number: 10, sort: 'field:title' });
 		expect(activeSearchParameters.value).toMatchObject({ first: 100, number: 50 });
@@ -373,7 +365,7 @@ describe('search URLs and browser history', () => {
 		}
 		const { router, activeSearchParameters } = await setup(`${path}/${view}?patt=${encodeURIComponent(pattern)}&first=45&number=30`);
 		await restored(activeSearchParameters);
-		expect(InterfaceStore.get.viewedResults()).toBe(view);
+		expect(ViewStore.getSelectedViewName()).toBe(view);
 		expect(ViewStore.getOrCreateModule(view).get.selectedRange()).toEqual({ first: 45, number: 30 });
 		expect(ViewStore.getOrCreateModule(view === 'hits' ? 'docs' : 'hits').getState()).toMatchObject({ first: 0, number: 20, sort: null });
 		expect(activeSearchParameters.value).toMatchObject({ first: 40, number: 40 });
@@ -414,7 +406,7 @@ describe('search URLs and browser history', () => {
 		await restored(activeSearchParameters);
 		await sync.run(() => searchActions.reset());
 		expect(activeSearchParameters.value).toBeUndefined();
-		expect(InterfaceStore.get.viewedResults()).toBeNull();
+		expect(ViewStore.getSelectedViewName()).toBeNull();
 		expect(router.currentRoute.value.path).toBe(path);
 		expect(router.currentRoute.value.query).toEqual({});
 	});

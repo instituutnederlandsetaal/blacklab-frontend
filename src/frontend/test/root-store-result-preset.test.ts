@@ -9,7 +9,6 @@ import { createCustomizations } from '@/customization-api/internal/internal-api'
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import type { CollocationParams, CompiledFormResult, FormParams } from '@/features/form';
 import { searchParametersFromState } from '@/features/search/model/active-search';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchStore } from '@/features/search/model/search-store';
@@ -25,18 +24,11 @@ const { searchFromSubmit } = searchStore.actions;
 
 const activeCorpus = shallowRef<CorpusContext['index']>();
 const activeSearchParameters = computed(() =>
-	searchParametersFromState(InterfaceStore.get.viewedResults, {
+	searchParametersFromState(ViewStore.getSelectedViewName, {
 		corpus: activeCorpus,
 		submitted: submittedSearch,
 		global: GlobalResultsStore.getState,
-		viewState: () => {
-			const view = InterfaceStore.get.viewedResults();
-			return typeof view === 'string' && view ? ViewStore.getOrCreateModule(view).getState() : undefined;
-		},
-		expandedRequestRange: () => {
-			const view = InterfaceStore.get.viewedResults();
-			return typeof view === 'string' && view ? ViewStore.getOrCreateModule(view).get.expandedRequestRange() : undefined;
-		},
+		getView: ViewStore.getOrCreateModule,
 		withSpans: customizations.searchWithSpans,
 		debug: false,
 	}),
@@ -56,7 +48,7 @@ function resetStores() {
 			parallelAnnotatedFieldsMap: {},
 		},
 	} as any as CorpusContext;
-	InterfaceStore.actions.viewedResults(null);
+	ViewStore.selectView(null);
 	activeCorpus.value = context.index;
 	ViewStore.init({} as CorpusContext);
 	GlobalResultsStore.init({} as CorpusContext);
@@ -103,16 +95,23 @@ describe('compiled-form result handoff', () => {
 			},
 		);
 
-		const { root } = createLegacySearchStoreGlobals(activeSearchParameters, searchStore);
+		const { root, interface: legacyInterface } = createLegacySearchStoreGlobals(activeSearchParameters, searchStore);
+		const selection = legacyInterface.getState();
 		root.actions.searchFromSubmit(submitted);
 
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
-		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({
+		expect(selection.viewedResults).toBe('docs');
+		expect(legacyInterface.get.viewedResults()).toBe('docs');
+		expect(root.get.viewedResultsSettings()).toMatchObject({
 			groupBy: ['field:date'],
 			groupDisplayMode: 'tokens',
 			sort: 'field:author',
 		});
 		expect(root.get.blacklabParameters()).toMatchObject(submitted.params);
+
+		legacyInterface.actions.viewedResults('hits');
+		expect(ViewStore.getSelectedViewName()).toBe('hits');
+		selection.viewedResults = null;
+		expect(root.get.viewedResultsSettings()).toBeNull();
 	});
 
 	test('honors a preferred docs view even when patt is present', () => {
@@ -120,16 +119,16 @@ describe('compiled-form result handoff', () => {
 
 		searchFromSubmit(snapshot({ patt: '[word="water"]' }, { targetView: 'docs' }));
 
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+		expect(ViewStore.getSelectedViewName()).toBe('docs');
 	});
 
 	test('falls back to patt-based view selection when no target preference exists', () => {
 		resetStores();
 		searchFromSubmit(snapshot({ patt: '[word="water"]' }));
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getSelectedViewName()).toBe('hits');
 
 		searchFromSubmit(snapshot({}));
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+		expect(ViewStore.getSelectedViewName()).toBe('docs');
 	});
 
 	test('reapplies form-owned result state on an unchanged submit', () => {
@@ -143,11 +142,11 @@ describe('compiled-form result handoff', () => {
 		view.actions.sort('field:manual');
 		view.actions.groupDisplayMode('docs');
 		view.actions.range({ first: 40, number: 10 });
-		InterfaceStore.actions.viewedResults('hits');
+		ViewStore.selectView('hits');
 
 		searchFromSubmit(submitted);
 
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+		expect(ViewStore.getSelectedViewName()).toBe('docs');
 		expect(view.getState()).toMatchObject({
 			groupBy: ['field:submitted'],
 			sort: 'field:submitted',
@@ -243,7 +242,7 @@ describe('compiled-form result handoff', () => {
 		expect(params).not.toHaveProperty('pattgapdata');
 		expect(params).not.toHaveProperty('adjusthits');
 		expect(params).not.toHaveProperty('withspans');
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getSelectedViewName()).toBe('hits');
 		expect(ViewStore.getOrCreateModule('hits').getState()).toMatchObject({ collocationScorer: 'coll-salience', groupBy: [], viewGroup: null, sort: '-size', groupDisplayMode: 'table' });
 	});
 

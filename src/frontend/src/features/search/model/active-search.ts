@@ -3,8 +3,7 @@ import { computed, toValue, type MaybeRefOrGetter, type Ref } from 'vue';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import type * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import type { ResultRange } from '@/features/search/model/results/view-state';
-import type * as ViewStore from '@/features/search/model/results/view-state';
+import type { ViewModule } from '@/features/search/model/results/view-state';
 import type { SubmittedSearch } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
 
@@ -25,8 +24,7 @@ export function searchParametersFromState(
 		corpus: MaybeRefOrGetter<Corpus | undefined>;
 		submitted: MaybeRefOrGetter<SubmittedSearch | undefined>;
 		global: MaybeRefOrGetter<GlobalResultsStore.ModuleRootState>;
-		viewState: MaybeRefOrGetter<ViewStore.ViewRootState | undefined>;
-		expandedRequestRange: MaybeRefOrGetter<ResultRange | undefined>;
+		getView: (name: string) => Pick<ViewModule, 'get' | 'getState'>;
 		withSpans: Customizations['searchWithSpans'];
 		debug: MaybeRefOrGetter<boolean>;
 	},
@@ -34,9 +32,9 @@ export function searchParametersFromState(
 	const viewName = toValue(selectedView);
 	const corpus = toValue(options.corpus);
 	const submitted = toValue(options.submitted);
-	const view = toValue(options.viewState);
-	const range = toValue(options.expandedRequestRange);
-	if (!viewName || !corpus || !submitted || !view || !range) return undefined;
+	if (!viewName || !corpus || !submitted) return undefined;
+	const viewModule = options.getView(viewName);
+	const view = viewModule.getState();
 	const params = submitted.params;
 	const global = toValue(options.global);
 	const group = view.groupBy.join(',');
@@ -44,7 +42,7 @@ export function searchParametersFromState(
 	const field = params.searchfield ?? corpus.mainAnnotatedField;
 	const shared = {
 		...(toValue(options.debug) ? { explain: true, outputformat: 'json' } : {}),
-		...range,
+		...viewModule.get.expandedRequestRange(),
 		patt: params.patt,
 		filter: params.filter,
 		field,

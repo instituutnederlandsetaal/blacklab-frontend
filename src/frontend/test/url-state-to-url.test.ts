@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { getState } from '@/features/search/model/results/global-results-state';
 import { initialViewState } from '@/features/search/model/results/view-state';
 import { submittedSearchFromResult } from '@/features/search/model/submitted-search';
-import { createSearchPageQuery, readSearchQuery, readSearchResultSettings } from '@/url/search-query';
+import { createSearchPageQuery, readSearchQuery, searchResultSettings } from '@/url/search-query';
 
 const defaults = { ...getState(), context: null, sampleSeed: null, sampleSize: null };
 
@@ -48,14 +48,15 @@ describe('search result URL decoding', () => {
 			sampleseed: '123',
 			context: '7',
 		};
-		const { view, global } = readSearchResultSettings(query, 50);
+		const { view, global } = searchResultSettings(readSearchQuery(query), 50);
 		expect(view).toMatchObject({ first: 45, number: 30, groupBy: ['hit:word'], sort: '-size', viewGroup: 'word:water', groupDisplayMode: 'relative hits', customState: { column: 'lemma' } });
 		expect(global).toEqual({ sampleMode: 'count', sampleSize: 8, sampleSeed: 123, context: 7 });
 	});
 
 	test('uses the preferred count and ignores malformed display state without losing the search', () => {
 		const query = { patt: '[word="water"]', number: '-1', groupDisplayMode: 'unknown', resultViewCustomState: '{broken' };
-		expect(readSearchResultSettings(query, 50).view).toMatchObject({ first: 0, number: 50, groupDisplayMode: null, customState: null });
-		expect(readSearchQuery(query).submitted.params.patt).toBe('[word="water"]');
+		const decoded = readSearchQuery(query);
+		expect(searchResultSettings(decoded, 50).view).toMatchObject({ first: 0, number: 50, groupDisplayMode: null, customState: null });
+		expect(decoded.submitted.params.patt).toBe('[word="water"]');
 	});
 });

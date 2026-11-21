@@ -93,7 +93,6 @@ import { defineComponent } from 'vue';
 
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 import * as ResultsViewSettings from '@/features/search/model/results/view-state';
-import * as RootStore from '@/features/search/model/search-store';
 
 import { useDebugSystem } from '@/shared/debug/debug';
 import { localStorageSynced } from '@/shared/utils/localstore';
@@ -134,7 +133,7 @@ export default defineComponent({
 		wideView,
 	}),
 	computed: {
-		viewedResultsSettings: RootStore.get.viewedResultsSettings,
+		viewedResultsSettings: ResultsViewSettings.getSelectedViewSettings,
 		pageSize: {
 			get(): string {
 				return this.itoa(GlobalViewSettings.getState().pageSize);

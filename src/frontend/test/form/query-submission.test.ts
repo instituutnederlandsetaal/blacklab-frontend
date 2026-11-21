@@ -12,7 +12,6 @@ import { createCustomizations } from '@/customization-api/internal/internal-api'
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult } from '@/features/form';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
@@ -30,7 +29,7 @@ const wrappers: VueWrapper[] = [];
 afterEach(() => {
 	wrappers.splice(0).forEach(wrapper => wrapper.unmount());
 	scopes.splice(0).forEach(scope => scope.stop());
-	InterfaceStore.actions.viewedResults(null);
+	ViewStore.selectView(null);
 });
 
 async function mountSearchForm() {
@@ -117,7 +116,7 @@ describe('search form submission', () => {
 		const input = wrapper.get('input[type="text"]');
 		await input.setValue('water');
 		await wrapper.get('form').trigger('submit');
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getSelectedViewName()).toBe('hits');
 		expect(submitted.value?.params.patt).toBe('[word="water"]');
 		expect(submitted.value?.form['f.form']).toBe(searchFormIds.searchForm('simple'));
 		const snapshot = structuredClone(submitted.value);
@@ -127,7 +126,7 @@ describe('search form submission', () => {
 		expect(submitted.value?.params.patt).toBe('[word="ship"]');
 		await wrapper.get('form').trigger('reset');
 		expect(submitted.value).toBeUndefined();
-		expect(InterfaceStore.get.viewedResults()).toBeNull();
+		expect(ViewStore.getSelectedViewName()).toBeNull();
 	});
 
 	test('regression: submitting a restored pattern drops orphaned collocation parameters', async () => {
@@ -139,7 +138,7 @@ describe('search form submission', () => {
 		runtime.state.replaceState(restored.state);
 		await nextTick();
 		await wrapper.get('form').trigger('submit');
-		expect(InterfaceStore.get.viewedResults()).toBe('hits');
+		expect(ViewStore.getSelectedViewName()).toBe('hits');
 		expect(submitted.value?.params.patt).toBe('[word="restored"]');
 		expect(submitted.value?.params).not.toHaveProperty('collpatt');
 	});

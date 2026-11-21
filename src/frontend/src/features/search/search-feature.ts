@@ -6,7 +6,6 @@ import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import { startSelectedSubcorpusEffect } from '@/features/search/effects/selected-subcorpus.effect';
 import { createActiveSearch, provideActiveSearch } from '@/features/search/model/active-search';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import { DEFAULT_RESULT_CONTEXT_SIZE, provideResultContextSize } from '@/features/search/model/results/result-context-size';
@@ -45,18 +44,11 @@ export function createSearchFeature({ router, corpusState, blacklabApi, customiz
 	// Search may first load after corpus scripts have configured the shared stores; initialize only search state here.
 	if (corpusState.contextLoader.isLoaded()) searchStore.init(corpusState.contextLoader.value);
 
-	const activeSearch = createActiveSearch(InterfaceStore.get.viewedResults, {
+	const activeSearch = createActiveSearch(ViewStore.getSelectedViewName, {
 		corpus: corpusState.corpus,
 		submitted: submittedSearch,
 		global: GlobalResultsStore.getState,
-		viewState: () => {
-			const view = InterfaceStore.get.viewedResults();
-			return view ? ViewStore.getOrCreateModule(view).getState() : undefined;
-		},
-		expandedRequestRange: () => {
-			const view = InterfaceStore.get.viewedResults();
-			return view ? ViewStore.getOrCreateModule(view).get.expandedRequestRange() : undefined;
-		},
+		getView: ViewStore.getOrCreateModule,
 		withSpans: customizations.searchWithSpans,
 		debug,
 	});

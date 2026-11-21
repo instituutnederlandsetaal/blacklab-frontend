@@ -2,7 +2,7 @@
 	<div>
 		<ul id="resultTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li v-for="v in resultViews" :class="[{ active: activeView === v.id }]" :title="v.title">
-				<a href="javascript:void(0);" @click="InterfaceStore.actions.viewedResults(v.id)">{{ v.label || v.title || v.id }}</a>
+				<a href="javascript:void(0);" @click="ViewStore.selectView(v.id)">{{ v.label || v.title || v.id }}</a>
 			</li>
 		</ul>
 
@@ -17,7 +17,6 @@ import { computed } from 'vue';
 
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import { useActiveSearch } from '@/features/search/model/active-search';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { isEffectiveCollocationParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
 

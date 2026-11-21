@@ -96,9 +96,8 @@ export function readSearchQuery(query: Record<string, unknown>) {
 	};
 }
 
-/** Decode result controls without loading a form or parsing BCQL. */
-export function readSearchResultSettings(query: Record<string, unknown>, pageSize: number) {
-	const { results, submitted } = readSearchQuery(query);
+/** Build controls for the selected view from a decoded search URL. */
+export function searchResultSettings({ results, submitted }: ReturnType<typeof readSearchQuery>, pageSize: number) {
 	const view: ViewStore.ViewRootState = {
 		customState: results.resultViewCustomState,
 		groupBy: submitted.params.colltype ? [] : (results.group?.split(',') ?? []),

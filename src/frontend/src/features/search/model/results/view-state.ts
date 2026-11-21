@@ -13,7 +13,6 @@ import type { GroupDisplayMode } from '@/features/search/model/results/result-ty
 import type { BLCollocationScorer } from '@/types/blacklabtypes';
 
 type ModuleRootState = Record<string, ViewRootState>;
-export type { ResultRange } from '@/features/search/model/results/pagination';
 type ViewRootState = {
 	customState: any;
 	groupBy: string[];
@@ -100,6 +99,15 @@ export const createViewModule = (pageSize: MaybeRefOrGetter<number>, customIniti
 	return m;
 };
 type ViewModule = ReturnType<typeof createViewModule>;
+
+export const selection = reactive<{ viewedResults: string | null }>({ viewedResults: null });
+export const getSelectedViewName = () => selection.viewedResults;
+export const selectView = (view: string | null) => (selection.viewedResults = view);
+
+export function getSelectedViewSettings() {
+	const view = getSelectedViewName();
+	return view ? getOrCreateModule(view).getState() : null;
+}
 
 // store the sub-modules we create so we can access them later
 const moduleCache = shallowReactive<Record<string, ViewModule>>({});

@@ -14,7 +14,7 @@ initial load / Back / Forward / saved search ──> restore application state
 | ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------ |
 | Editable draft                                       | Form runtime                                        | Editing, submission, form restoration      |
 | Submitted query                                      | `SubmittedSearch` ref created by the search feature | Submit, reset, incoming search             |
-| Selected view                                        | `InterfaceStore.viewedResults`                      | Tab selection, submission, incoming search |
+| Selected view                                        | View store                                          | Tab selection, submission, incoming search |
 | Preferred page size                                  | Persisted global results store                      | User preference                            |
 | Global result controls                               | Global results store                                | Controls, incoming search                  |
 | Each view's selection, grouping, sort, display state | View store                                          | Controls, submission, incoming search      |

@@ -4,7 +4,7 @@ import { shallowMount } from '@vue/test-utils';
 import { expect, test, vi } from 'vitest';
 import { defineComponent, nextTick, onMounted, ref, watch } from 'vue';
 
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as ViewStore from '@/features/search/model/results/view-state';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 
 import { provideMockActiveSearchParameters } from './mocks/active-search-parameters';
@@ -68,18 +68,18 @@ test('does not retrigger scripts for an already-ready search page', () => {
 });
 
 test('shows results whenever the store selects a result view', async () => {
-	InterfaceStore.actions.viewedResults('hits');
+	ViewStore.selectView('hits');
 	const wrapper = shallowMount(SearchPage, {
 		global: {
-			plugins: [createPageBootstrapContext(), provideMockActiveSearchParameters(ref(undefined), InterfaceStore.get.viewedResults)],
+			plugins: [createPageBootstrapContext(), provideMockActiveSearchParameters(ref(undefined), ViewStore.getSelectedViewName)],
 			stubs: { Debug: true, QueryForm: true, QuerySummary: true, Results: true },
 		},
 	});
 	expect(wrapper.findComponent({ name: 'QuerySummary' }).exists()).toBe(true);
-	InterfaceStore.actions.viewedResults(null);
+	ViewStore.selectView(null);
 	await nextTick();
 	expect(wrapper.findComponent({ name: 'QuerySummary' }).exists()).toBe(false);
-	InterfaceStore.actions.viewedResults('docs');
+	ViewStore.selectView('docs');
 	await nextTick();
 	expect(wrapper.findComponent({ name: 'QuerySummary' }).exists()).toBe(true);
 	wrapper.unmount();

@@ -10,7 +10,6 @@ import { computed, nextTick, reactive, ref, shallowRef, type App } from 'vue';
 
 import { provideActiveSearch } from '@/features/search/model/active-search';
 import { createActiveSearch } from '@/features/search/model/active-search';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ResultsStore from '@/features/search/model/results/view-state';
@@ -116,15 +115,14 @@ async function flush() {
 	await nextTick();
 }
 
-function searchStatePlugin(query: Record<string, unknown> = { patt: 'first' }, view = 'hits', getView = () => store) {
-	InterfaceStore.actions.viewedResults(view);
+function searchStatePlugin(query: Record<string, unknown> = { patt: 'first' }, view = 'hits', getView: (name: string) => ViewModule = () => store) {
+	ResultsStore.selectView(view);
 	const submitted = shallowRef(readSearchQuery(query).submitted);
-	const search = createActiveSearch(InterfaceStore.get.viewedResults, {
+	const search = createActiveSearch(ResultsStore.getSelectedViewName, {
 		corpus,
 		submitted,
 		global: GlobalStore.getState,
-		viewState: () => getView()?.getState(),
-		expandedRequestRange: () => getView()?.get.expandedRequestRange(),
+		getView,
 		withSpans: () => false,
 		debug: false,
 	});
@@ -139,11 +137,11 @@ beforeEach(({ onTestFinished }) => {
 	vi.useFakeTimers();
 	vi.stubGlobal('CONTEXT_URL', '');
 	const previousGlobalState = { ...GlobalStore.getState() };
-	const previousView = InterfaceStore.get.viewedResults();
+	const previousView = ResultsStore.getSelectedViewName();
 	const previousViews = Object.fromEntries(Object.entries(ResultsStore.getState()).map(([id, view]) => [id, { ...view, groupBy: [...view.groupBy] }]));
 	onTestFinished(async () => {
 		Object.assign(GlobalStore.getState(), previousGlobalState);
-		InterfaceStore.actions.viewedResults(previousView);
+		ResultsStore.selectView(previousView);
 		ResultsStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
 		ResultsStore.actions.resetAllViews({ resetGroupBy: true });
 		for (const [view, data] of Object.entries(previousViews)) ResultsStore.actions.replaceView({ view, data });
@@ -225,7 +223,7 @@ describe('Results tabs', () => {
 		]);
 		ResultsStore.getOrCreateModule('hits').actions.range({ first: 40, number: 20 });
 		ResultsStore.getOrCreateModule('docs').actions.range({ first: 45, number: 30 });
-		const { plugin } = searchStatePlugin({ patt: 'first' }, 'hits', () => ResultsStore.getOrCreateModule(InterfaceStore.get.viewedResults()!));
+		const { plugin } = searchStatePlugin({ patt: 'first' }, 'hits', ResultsStore.getOrCreateModule);
 		const wrapper = shallowMount(Results, { global: { plugins: [api, corpusContext, customizations, plugin], components: resultComponents, stubs: { ResultsView: false } } });
 
 		expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
@@ -233,7 +231,7 @@ describe('Results tabs', () => {
 		expect(api.blacklabApi.getDocs).not.toHaveBeenCalled();
 
 		await wrapper.findAll('#resultTabs a')[1].trigger('click');
-		expect(InterfaceStore.get.viewedResults()).toBe('docs');
+		expect(ResultsStore.getSelectedViewName()).toBe('docs');
 		expect(wrapper.find('#resultTabs li.active').text()).toBe('Documents');
 		expect(api.blacklabApi.getDocs).toHaveBeenCalledOnce();
 		expect(api.blacklabApi.getDocs.mock.calls[0][1]).toMatchObject({ first: 40, number: 40 });
