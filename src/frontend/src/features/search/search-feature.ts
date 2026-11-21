@@ -12,7 +12,7 @@ import * as GlobalResultsStore from '@/features/search/model/results/global-resu
 import { DEFAULT_RESULT_CONTEXT_SIZE, provideResultContextSize } from '@/features/search/model/results/result-context-size';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFormRestoration } from '@/features/search/model/search-form-restoration';
-import * as RootStore from '@/features/search/model/search-store';
+import { createSearchStore, provideSearchActions } from '@/features/search/model/search-store';
 import { createSearchSummary, provideSearchSummary } from '@/features/search/model/search-summary';
 import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 import { runHooks } from '@/interop/hooks';
@@ -36,14 +36,14 @@ type SearchFeatureDependencies = {
 /** Install once for an application when its first search route is opened. */
 export function createSearchFeature({ router, corpusState, blacklabApi, customizations, translate, debug }: SearchFeatureDependencies) {
 	const submittedSearch = createSubmittedSearch();
-	RootStore.setSubmittedSearch(submittedSearch);
+	const searchStore = createSearchStore(submittedSearch);
 	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
 	HistoryStore.setUrlDecoder(queryHistoryDetails);
 
 	// Legacy stores must be synchronized before scripts observe the new corpus.
-	corpusState.beforePublish(RootStore.init);
+	corpusState.beforePublish(searchStore.init);
 	// Search may first load after corpus scripts have configured the shared stores; initialize only search state here.
-	if (corpusState.contextLoader.isLoaded()) RootStore.init(corpusState.contextLoader.value);
+	if (corpusState.contextLoader.isLoaded()) searchStore.init(corpusState.contextLoader.value);
 
 	const activeSearch = createActiveSearch(InterfaceStore.get.viewedResults, {
 		corpus: corpusState.corpus,
@@ -87,12 +87,13 @@ export function createSearchFeature({ router, corpusState, blacklabApi, customiz
 				await HistoryStore.actions.importUrl(url, url => queryHistoryFromUrl(url, searchFormSystem.runtime.value));
 			});
 			app.use(searchFormSystem);
+			provideSearchActions(app, searchStore.actions);
 			provideActiveSearch(app, activeSearch);
 			provideResultContextSize(app, contextSize);
 			provideSearchSummary(app, searchSummary);
 			app.use(formRestoration);
 			app.use(searchNavigation);
-			installLegacyStoreGlobals(createLegacySearchStoreGlobals(activeSearch.parameters));
+			installLegacyStoreGlobals(createLegacySearchStoreGlobals(activeSearch.parameters, searchStore));
 			app.onUnmount(startSelectedSubcorpusEffect(() => (router.currentRoute.value.name === 'search' ? corpusState.corpus.value : undefined), blacklabApi, activeSearch.parameters));
 		},
 	};

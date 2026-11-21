@@ -18,7 +18,7 @@ import * as GlobalStore from '@/features/search/model/results/global-results-sta
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFormRestoration } from '@/features/search/model/search-form-restoration';
-import * as RootStore from '@/features/search/model/search-store';
+import { createSearchStore } from '@/features/search/model/search-store';
 import { createSearchSummary } from '@/features/search/model/search-summary';
 import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
@@ -79,7 +79,7 @@ async function setup(
 	const runtime = shallowRef<FormRuntime | null>(form());
 	const loadedCorpus = shallowRef<Corpus | undefined>(corpus);
 	const submittedSearch = createSubmittedSearch();
-	RootStore.setSubmittedSearch(submittedSearch);
+	const { actions: searchActions } = createSearchStore(submittedSearch);
 	const activeSearch = createActiveSearch(InterfaceStore.get.viewedResults, {
 		corpus: loadedCorpus,
 		submitted: submittedSearch,
@@ -120,7 +120,7 @@ async function setup(
 		formRestoration.stop();
 		router.options.history.destroy();
 	});
-	return { router, runtime, loadedCorpus, sync, activeSearchParameters, restoring: formRestoration.loading };
+	return { router, runtime, loadedCorpus, sync, searchActions, activeSearchParameters, restoring: formRestoration.loading };
 }
 
 async function restored(activeSearchParameters: Readonly<Ref<EffectiveSearchParameters | undefined>>, patt = pattern) {
@@ -192,11 +192,11 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('one submit publishes its completed query and result settings; Back and Forward restore each URL', async () => {
-		const { sync, router, activeSearchParameters } = await setup();
+		const { sync, router, searchActions, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
 		const original = window.location.href;
 		const length = window.history.length;
-		await sync.run(() => RootStore.actions.searchFromSubmit(submittedQuery('[word="ship"]')));
+		await sync.run(() => searchActions.searchFromSubmit(submittedQuery('[word="ship"]')));
 		const submitted = window.location.href;
 		expect(new URL(submitted).searchParams.get('patt')).toBe('[word="ship"]');
 		expect(window.history.length).toBe(length + 1);
@@ -238,7 +238,7 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('replacing a form discards its draft without submitting or changing collocation controls', async () => {
-		const { runtime, sync, activeSearchParameters } = await setup(path);
+		const { runtime, sync, searchActions, activeSearchParameters } = await setup(path);
 		runtime.value = form({ collocations: true, withField: true });
 		await nextTick();
 		const params = {
@@ -254,7 +254,7 @@ describe('search URLs and browser history', () => {
 			scorertype: 'coll-dice' as const,
 		};
 		await sync.run(() => {
-			const query = RootStore.actions.searchFromSubmit({ ...submittedQuery(), params });
+			const query = searchActions.searchFromSubmit({ ...submittedQuery(), params });
 			GlobalStore.actions.sampleSeed(123);
 			GlobalStore.actions.sampleSize(25);
 			const view = ViewStore.getOrCreateModule('hits');
@@ -288,11 +288,11 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('opening a saved search restores the visible form even when its URL is already current', async () => {
-		const { runtime, sync, activeSearchParameters } = await setup();
+		const { runtime, sync, searchActions, activeSearchParameters } = await setup();
 		runtime.value = form({ withField: true });
 		await restored(activeSearchParameters);
 		runtime.value.state.state.value.late = { value: 'saved', caseSensitive: false };
-		await sync.run(() => RootStore.actions.searchFromSubmit(runtime.value!.compile('search.simple')));
+		await sync.run(() => searchActions.searchFromSubmit(runtime.value!.compile('search.simple')));
 		const entry = HistoryStore.getState()[0];
 		const url = window.location.href;
 		runtime.value.state.state.value.late = { value: 'unsent draft', caseSensitive: false };
@@ -321,19 +321,19 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('submitting a new query resets every view to the preferred first page', async () => {
-		const { sync, activeSearchParameters } = await setup();
+		const { sync, searchActions, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
 		ViewStore.getOrCreateModule('hits').actions.range({ first: 40, number: 20 });
 		ViewStore.getOrCreateModule('docs').actions.range({ first: 45, number: 30 });
 		GlobalStore.actions.pageSize(50);
-		await sync.run(() => RootStore.actions.searchFromSubmit(submittedQuery('[word="new"]')));
+		await sync.run(() => searchActions.searchFromSubmit(submittedQuery('[word="new"]')));
 		expect(activeSearchParameters.value).toMatchObject({ patt: '[word="new"]', first: 0, number: 50 });
 		for (const name of ['hits', 'docs']) expect(ViewStore.getOrCreateModule(name).get.selectedRange()).toEqual({ first: 0, number: 50 });
 	});
 
 	test('submitting a documents query removes legacy pattern aliases from the projection', async () => {
 		const incoming = `${path}/hits?query=${encodeURIComponent(pattern)}&field=contents&pattgapdata=water&interface=%7B%22form%22%3A%22search%22%7D&extension=shared#results`;
-		const { sync, router, activeSearchParameters } = await setup(incoming);
+		const { sync, router, searchActions, activeSearchParameters } = await setup(incoming);
 		const browserEntries = window.history.length;
 		await restored(activeSearchParameters);
 		expect(activeSearchParameters.value?.pattgapdata).toBe('water');
@@ -341,7 +341,7 @@ describe('search URLs and browser history', () => {
 		expect(window.history.length).toBe(browserEntries);
 		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.first(20));
 		expect(router.currentRoute.value.query).toMatchObject({ patt: pattern, pattgapdata: 'water', interface: '{"form":"search"}' });
-		await sync.run(() => RootStore.actions.searchFromSubmit({ ...submittedQuery(), params: {} }));
+		await sync.run(() => searchActions.searchFromSubmit({ ...submittedQuery(), params: {} }));
 		expect(router.currentRoute.value.query).not.toHaveProperty('query');
 		expect(router.currentRoute.value.query).not.toHaveProperty('field');
 		expect(router.currentRoute.value.query).not.toHaveProperty('interface');
@@ -410,9 +410,9 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('reset clears the submitted search and URL', async () => {
-		const { sync, router, activeSearchParameters } = await setup();
+		const { sync, router, searchActions, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
-		await sync.run(() => RootStore.actions.reset());
+		await sync.run(() => searchActions.reset());
 		expect(activeSearchParameters.value).toBeUndefined();
 		expect(InterfaceStore.get.viewedResults()).toBeNull();
 		expect(router.currentRoute.value.path).toBe(path);

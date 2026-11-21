@@ -1,5 +1,5 @@
 <template>
-	<FormSystem v-if="runtime" :runtime="runtime" :inert="!formInteractive || undefined" @submit="submit" @reset="RootStore.actions.reset" class="container">
+	<FormSystem v-if="runtime" :runtime="runtime" :inert="!formInteractive || undefined" @submit="submit" @reset="searchActions.reset" class="container">
 		<template #actions>
 			<button type="button" class="btn btn-default btn-lg" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
 			<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
@@ -18,7 +18,7 @@ import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult } from '@/features/form';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import { useSearchFormRestoring } from '@/features/search/model/search-form-restoration';
-import * as RootStore from '@/features/search/model/search-store';
+import { useSearchActions } from '@/features/search/model/search-store';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
@@ -26,6 +26,7 @@ import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
 import History from '@/pages/search/History.vue';
 
 const runtime = useSearchFormSystem();
+const searchActions = useSearchActions();
 const customizationsReady = usePageBootstrap().customizationsReady;
 const formRestoring = useSearchFormRestoring();
 // Scripts can replace the form and restoration can replace its draft; accept input once both have settled.
@@ -45,6 +46,6 @@ function submit(snapshot: CompiledFormResult) {
 		if (!confirm(message)) return;
 	}
 	(document.activeElement as HTMLElement | null)?.blur();
-	RootStore.actions.searchFromSubmit(snapshot);
+	searchActions.searchFromSubmit(snapshot);
 }
 </script>

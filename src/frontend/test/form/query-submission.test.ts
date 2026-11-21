@@ -6,7 +6,6 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, test } from 'vitest';
 import { effectScope, nextTick, ref, type App, type EffectScope } from 'vue';
 
-import * as FilterStore from '@/app/state/legacy-filter-state';
 import * as UIStore from '@/app/state/ui-state';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
@@ -18,7 +17,7 @@ import { createSearchFormSystem } from '@/features/search/model/new-form/search-
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import { provideSearchFormRestoring } from '@/features/search/model/search-form-restoration';
-import * as RootStore from '@/features/search/model/search-store';
+import { createSearchStore, provideSearchActions } from '@/features/search/model/search-store';
 import { createSubmittedSearch, restoreSubmittedForm, submittedSearchFromResult } from '@/features/search/model/submitted-search';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 
@@ -37,7 +36,7 @@ afterEach(() => {
 async function mountSearchForm() {
 	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
 	const submitted = createSubmittedSearch();
-	RootStore.setSubmittedSearch(submitted);
+	const searchStore = createSearchStore(submitted);
 	const api = createMockApi({
 		blacklab: { getCorpus: createCorpus() },
 		frontend: {
@@ -63,8 +62,7 @@ async function mountSearchForm() {
 		const customizations = createCustomizations(registry, context.corpus, UIStore.getState, () => {});
 		context.beforePublish(state => {
 			UIStore.init(state);
-			FilterStore.init(state);
-			RootStore.init(state);
+			searchStore.init(state);
 			resetSearchFormConfig();
 		});
 		const system = createSearchFormSystem({ blacklabApi: api.blacklabApi, corpus: context.corpus, customizations, translate: createMockTranslate() });
@@ -78,7 +76,18 @@ async function mountSearchForm() {
 	const restoring = ref(false);
 	const wrapper = mount(QueryForm, {
 		global: {
-			plugins: [api, context, system, pageBootstrap, { install: (app: App) => provideSearchFormRestoring(app, restoring) }],
+			plugins: [
+				api,
+				context,
+				system,
+				pageBootstrap,
+				{
+					install(app: App) {
+						provideSearchFormRestoring(app, restoring);
+						provideSearchActions(app, searchStore.actions);
+					},
+				},
+			],
 		},
 	});
 	wrappers.push(wrapper);
@@ -116,6 +125,9 @@ describe('search form submission', () => {
 		expect(submitted.value).toEqual(snapshot);
 		await wrapper.get('form').trigger('submit');
 		expect(submitted.value?.params.patt).toBe('[word="ship"]');
+		await wrapper.get('form').trigger('reset');
+		expect(submitted.value).toBeUndefined();
+		expect(InterfaceStore.get.viewedResults()).toBeNull();
 	});
 
 	test('regression: submitting a restored pattern drops orphaned collocation parameters', async () => {
