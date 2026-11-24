@@ -172,6 +172,7 @@ export {
 	useCfPageConfig,
 	useCorpus,
 	createCorpusContext,
+	createCorpusValue,
 	provideCorpus,
 	provideCfPageConfig,
 	provideCorpusContextLoader,

@@ -3,14 +3,15 @@ import { createMockTranslate } from '@test/mocks/i18n';
 import { effectScope } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
+import { createCorpusValue } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import type { FormRuntime } from '@/features/form';
+import { restoreSubmittedForm } from '@/features/search/bindings/search-form';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
-import { restoreSubmittedForm } from '@/features/search/model/submitted-search';
 import type { Corpus, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-import { readSearchQuery } from '@/url/search-query';
+import { readSubmittedSearch } from '@/url/search-query';
 
 import debug from '@/shared/debug/debug';
 
@@ -76,50 +77,34 @@ export function createCorpus(): Corpus {
 		mainAnnotationId: 'word',
 	};
 
-	return {
-		allAnnotatedFields: [mainField],
-		allAnnotatedFieldsMap: { contents: mainField },
-		allAnnotations: Object.values(annotations),
-		allAnnotationsMap: annotations,
-		allMetadataFields: Object.values(metadataFields),
-		allMetadataFieldsMap: metadataFields,
+	return createCorpusValue({
 		annotatedFields: { contents: mainField },
 		annotationGroups: [
-			{ annotatedFieldId: 'contents', entries: ['word', 'lemma', 'word_or_lemma'], fields: [annotations.word, annotations.lemma, annotations.word_or_lemma], id: 'Basics', isRemainderGroup: false },
-			{ annotatedFieldId: 'contents', entries: ['pos'], fields: [annotations.pos], id: 'Grammar', isRemainderGroup: false },
+			{ annotatedFieldId: 'contents', entries: ['word', 'lemma', 'word_or_lemma'], id: 'Basics', isRemainderGroup: false },
+			{ annotatedFieldId: 'contents', entries: ['pos'], id: 'Grammar', isRemainderGroup: false },
 		],
 		contentViewable: true,
 		description: '',
 		displayName: 'Test corpus',
 		documentCount: 1,
 		fieldInfo: {},
-		firstMainAnnotation: annotations.word,
-		hasRelations: false,
 		id: 'test-corpus',
 		indexProgress: null,
 		indexerVersion: '4.4.0',
-		isParallelCorpus: false,
 		mainAnnotatedField: 'contents',
 		metadataFieldGroups: [
 			{ entries: ['author'], id: 'Bibliographic', isRemainderGroup: false },
 			{ entries: ['genre'], id: 'Classification', isRemainderGroup: false },
 		],
 		metadataFields,
-		metadataGroups: [
-			{ entries: ['author'], fields: [metadataFields.author], id: 'Bibliographic', isRemainderGroup: false },
-			{ entries: ['genre'], fields: [metadataFields.genre], id: 'Classification', isRemainderGroup: false },
-		],
 		owner: null,
-		parallelAnnotatedFields: [],
-		parallelAnnotatedFieldsMap: {},
-		parallelFieldPrefix: '',
-		relations: { relations: {}, spans: {} },
+		relations: { spans: {} },
 		runtimeVersion: '5.0.0',
 		status: 'available',
 		textDirection: 'ltr',
 		timeModified: '',
 		tokenCount: 1,
-	};
+	});
 }
 
 export function createParallelCorpus(): Corpus {
@@ -128,16 +113,11 @@ export function createParallelCorpus(): Corpus {
 		const id = `contents__${version}`;
 		const annotations = Object.fromEntries(Object.values(corpus.allAnnotationsMap).map(item => [item.id, { ...item, annotatedFieldId: id }]));
 		return {
+			...corpus.allAnnotatedFieldsMap.contents,
 			annotations,
-			defaultDescription: '',
 			defaultDisplayName: version.toUpperCase(),
-			hasContentStore: true,
-			hasLengthTokens: true,
-			hasXmlTags: true,
 			id,
-			isAnnotatedField: true,
 			isParallel: true,
-			mainAnnotationId: 'word',
 			prefix: 'contents',
 			version,
 		};
@@ -145,28 +125,15 @@ export function createParallelCorpus(): Corpus {
 	const source = createParallelField('en');
 	const target = createParallelField('nl');
 
-	return {
+	return createCorpusValue({
 		...corpus,
-		allAnnotatedFields: [source, target],
-		allAnnotatedFieldsMap: { [source.id]: source, [target.id]: target },
-		allAnnotations: Object.values(source.annotations),
-		allAnnotationsMap: source.annotations,
 		annotatedFields: { [source.id]: source, [target.id]: target },
-		annotationGroups: corpus.annotationGroups.map(group => ({
-			...group,
-			annotatedFieldId: source.id,
-			fields: group.entries.map(id => source.annotations[id]),
-		})),
-		firstMainAnnotation: source.annotations.word,
-		isParallelCorpus: true,
+		annotationGroups: corpus.annotationGroups.map(group => ({ ...group, annotatedFieldId: source.id })),
 		mainAnnotatedField: source.id,
-		parallelAnnotatedFields: [source, target],
-		parallelAnnotatedFieldsMap: { [source.id]: source, [target.id]: target },
-		parallelFieldPrefix: 'contents',
-	};
+	});
 }
 
-export function resetSearchFormConfig() {
+function resetSearchFormConfig() {
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
 	state.search.extended.searchAnnotationIds = ['word', 'lemma', 'pos'];
@@ -220,8 +187,8 @@ export function createSearchFormFixture() {
 
 export type SearchFormFixture = ReturnType<typeof createSearchFormFixture>;
 
-export function readSearchFormState(runtime: FormRuntime, query: Record<string, unknown>) {
-	return restoreSubmittedForm(runtime, readSearchQuery(query).submitted).state;
+export function readSearchFormState(runtime: FormRuntime, query: Parameters<typeof readSubmittedSearch>[0]) {
+	return restoreSubmittedForm(runtime, readSubmittedSearch(query)).state;
 }
 
 export function selectRenderedForm(runtime: FormRuntime, formId: string) {

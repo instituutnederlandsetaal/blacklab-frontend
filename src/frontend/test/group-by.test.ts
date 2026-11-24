@@ -1,16 +1,15 @@
 // @vitest-environment jsdom
 
-import { provideMockActiveSearchParameters } from '@test/mocks/active-search-parameters';
 import { createMockApi } from '@test/mocks/api';
 import { createMockCorpusContext } from '@test/mocks/corpus';
 import { createMockCustomizations } from '@test/mocks/customizations';
+import { createTestResultsState } from '@test/mocks/results-state';
 import { flushPromises, shallowMount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { computed, nextTick, reactive } from 'vue';
 
-import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import * as ResultsStore from '@/features/search/model/results/view-state';
+import { type ResultsState, resultsStateKey } from '@/features/search/model/results/results-state';
 import type { Corpus } from '@/types/apptypes';
 import type { BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
 
@@ -18,6 +17,7 @@ import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
+let results: ResultsState;
 let api: ReturnType<typeof createMockApi>;
 let corpusContext: ReturnType<typeof createMockCorpusContext>;
 let corpus: Corpus;
@@ -55,19 +55,16 @@ function hitResults(word: string): BLHitResults {
 function mountGroupBy() {
 	return shallowMount(GroupBy, {
 		global: {
-			plugins: [api, corpusContext, customizations, provideMockActiveSearchParameters(computed(() => ({ ...params })))],
+			provide: { [resultsStateKey]: { settings: results.settings, view: (name: string) => results.view(name), parameters: computed(() => ({ ...params })) } },
+			plugins: [api, corpusContext, customizations],
 		},
 		props: { type: 'hits' },
 	});
 }
 
-beforeEach(({ onTestFinished }) => {
+beforeEach(() => {
 	vi.clearAllMocks();
-	ResultsStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
-	const hits = ResultsStore.getOrCreateModule('hits');
-	const previousHits = { ...hits.getState(), groupBy: [...hits.getState().groupBy] };
-	onTestFinished(() => hits.actions.replace(previousHits));
-	hits.actions.reset({ resetGroupBy: true });
+	results = createTestResultsState();
 	params = reactive({
 		patt: '[]',
 		context: 5,
@@ -103,14 +100,14 @@ beforeEach(({ onTestFinished }) => {
 
 describe('GroupBy', () => {
 	test('tracks external grouping state and clears it without reopening the editor', async () => {
-		const store = ResultsStore.getOrCreateModule('hits');
-		store.actions.groupBy(['field:title']);
+		const store = results.view('hits');
+		store.setGroupBy(['field:title']);
 		const wrapper = mountGroupBy();
 		expect(wrapper.find('.panel').exists()).toBe(true);
 
 		await wrapper.find('.panel-footer.text-right button').trigger('click');
 		await nextTick();
-		expect(store.getState().groupBy).toEqual([]);
+		expect(store.state.groupBy).toEqual([]);
 		expect(wrapper.find('.groupselect').exists()).toBe(true);
 	});
 

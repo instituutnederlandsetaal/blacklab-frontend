@@ -6,33 +6,31 @@ import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@
 import type { NewFormState } from '@/features/form/model/state';
 import { encodeFieldState, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { isFormOutputName, isValidEmission, type Emit, type FormEmission, type FormIssue, type FormOutputName, type ResultPreset, type SummaryEntry } from '@/features/form/model/types/form-output';
-import type { SummaryInput } from '@/features/form/model/types/form-output';
 import { booleanNode, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';
 import type { ScopedFormQuery } from '@/features/form/model/types/form-result';
-import type { FormBoundaryNode, FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
+import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, QueryCombineMode } from '@/features/form/model/types/form-shape';
 
 type Sink = (emission: FormEmission) => void;
-type GatherChannels = {
-	summaries?: SummaryEntry[];
-	persistence?: {
+export type FormFieldVisitor = (field: FormFieldNode, state: unknown, context: GatherContext, sink: Sink) => void;
+
+type GatheredValues = { emissions: FormEmission[]; issues: FormIssue[]; summaries: SummaryEntry[] };
+
+type GatherContext = {
+	values: GatheredValues;
+	runtime: FormRuntimeContext;
+	formState?: NewFormState;
+	visitedFields: Set<FormFieldNode>;
+	fieldVisitor?: FormFieldVisitor;
+	submission?: {
 		encoded: ScopedFormQuery;
 		keys: ReadonlyMap<FormFieldNode, string>;
 		tabs: Set<string>;
+		resultPreset?: ResultPreset;
 	};
-	resultPreset?: { value?: ResultPreset };
-};
-type GatherContext = {
-	runtime: FormRuntimeContext;
-	formState?: NewFormState;
-	issues: FormIssue[];
-	emissions: FormEmission[];
-	channels: GatherChannels;
-	visitedFields: Set<FormFieldNode>;
-	fieldVisitor?: typeof visitField;
 };
 
 function reportIssue(context: GatherContext, severity: FormIssue['severity'], message: string): void {
-	context.issues.push({ severity, message });
+	context.values.issues.push({ severity, message });
 }
 
 function invoke(context: GatherContext, nodeId: string, callback: () => void): void {
@@ -55,15 +53,8 @@ function emitValue(context: GatherContext, nodeId: string, sink: Sink, declared:
 	sink(emission);
 }
 
-function addSummary(summaries: SummaryEntry[], field: FormFieldNode, summary: SummaryInput): void {
-	summaries.push({
-		...summary,
-		summaryType: [...(summary.summaryType ?? field.controller.outputs)],
-	});
-}
-
 function persistField(context: GatherContext, field: FormFieldNode, state: unknown): void {
-	const persistence = context.channels.persistence;
+	const persistence = context.submission;
 	const key = persistence?.keys.get(field);
 	if (!persistence || !key) return;
 	try {
@@ -74,25 +65,34 @@ function persistField(context: GatherContext, field: FormFieldNode, state: unkno
 	}
 }
 
-function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink): void {
+function collectField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink): void {
 	const emit = ((name: unknown, value: unknown) => {
 		emitValue(context, node.id, sink, node.controller.outputs, name, value);
 	}) as Emit;
-	const firstVisit = !context.visitedFields.has(node);
 	invoke(context, node.id, () => node.controller.collect(node, context.runtime, state, emit));
-	if (firstVisit) {
-		const summaries = context.channels.summaries;
-		if (summaries && node.controller.summarize) invoke(context, node.id, () => node.controller.summarize!(node, context.runtime, state, summary => addSummary(summaries, node, summary)));
-		if (context.channels.persistence) persistField(context, node, state);
+}
+
+function visitField(node: FormFieldNode, state: unknown, context: GatherContext, sink: Sink): void {
+	collectField(node, state, context, sink);
+	if (!context.visitedFields.has(node)) {
+		invoke(context, node.id, () =>
+			node.controller.summarize?.(node, context.runtime, state, summary => {
+				context.values.summaries.push({ ...summary, summaryType: [...(summary.summaryType ?? node.controller.outputs)] });
+			}),
+		);
+		persistField(context, node, state);
 	}
-	if (context.channels.resultPreset && node.controller.getResultPreset) {
+	const submission = context.submission;
+	if (submission && node.controller.getResultPreset) {
 		invoke(context, node.id, () => {
 			const preset = node.controller.getResultPreset!(node, context.runtime, state);
-			if (context.channels.resultPreset!.value === undefined && preset !== undefined) context.channels.resultPreset!.value = preset;
+			if (submission.resultPreset === undefined) submission.resultPreset = preset;
 		});
 	}
 	context.visitedFields.add(node);
 }
+
+// Containers combine filter and pattern emissions into AND or OR clauses.
 
 const SCOPED_OUTPUTS = ['patt', 'collpatt', 'filter'] as const;
 type ScopedOutputName = (typeof SCOPED_OUTPUTS)[number];
@@ -118,7 +118,7 @@ function emitCombinedValues(combine: QueryCombineMode, emissions: ScopedEmission
 	}
 }
 
-function visitContainer(node: Extract<FormNode, { kind: 'container' | 'form' }>, context: GatherContext, sink: Sink): void {
+function visitContainer(node: FormContainerLikeNode, context: GatherContext, sink: Sink): void {
 	const emissions: ScopedEmission[] = [];
 	const scopedSink: Sink = emission => {
 		if ((SCOPED_OUTPUTS as readonly FormOutputName[]).includes(emission.name)) emissions.push(emission as ScopedEmission);
@@ -126,7 +126,7 @@ function visitContainer(node: Extract<FormNode, { kind: 'container' | 'form' }>,
 	};
 	const selectedChild = node.activeChildOutputProducers && node.children.find(child => child.id === context.formState?.uiState[node.id]);
 	const activeProducer = selectedChild ? node.activeChildOutputProducers?.[selectedChild.id] : undefined;
-	if (activeProducer) context.channels.persistence?.tabs.add(`${node.id}:${selectedChild!.id}`);
+	if (activeProducer) context.submission?.tabs.add(`${node.id}:${selectedChild!.id}`);
 
 	for (const child of node.children) visitNode(child, context, scopedSink);
 	if (activeProducer) invoke(context, node.id, () => activeProducer(((name: unknown, value: unknown) => emitValue(context, node.id, scopedSink, undefined, name, value)) as Emit));
@@ -138,58 +138,48 @@ function visitNode(node: FormNode, context: GatherContext, sink: Sink): void {
 	else if (isContainerNode(node)) visitContainer(node, context, sink);
 }
 
-function gather(runtime: FormRuntimeContext, formState?: NewFormState, channels: GatherChannels = {}, initialIssues: readonly FormIssue[] = []): GatherContext {
-	return {
-		runtime,
-		formState,
-		issues: [...initialIssues],
-		emissions: [],
-		channels,
-		visitedFields: new Set(),
-	};
+function gather(runtime: FormRuntimeContext, formState?: NewFormState): GatherContext {
+	return { runtime, formState, values: { issues: [], emissions: [], summaries: [] }, visitedFields: new Set() };
 }
 
 export function collectFormValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, schema = resolvePersistenceSchema(node, runtime)) {
-	const context = gather(
-		runtime,
-		formState,
-		{
-			summaries: [],
-			persistence: { encoded: { [`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: node.id }, keys: schema.keys, tabs: new Set() },
-			resultPreset: {},
-		},
-		schema.issues,
-	);
-	visitNode(node, context, emission => context.emissions.push(emission));
-	const persistence = context.channels.persistence!;
-	if (persistence.tabs.size) persistence.encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...persistence.tabs];
-	return context;
+	const encoded: ScopedFormQuery = { [`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: node.id };
+	const tabs = new Set<string>();
+	const context = gather(runtime, formState);
+	context.values.issues.push(...schema.issues);
+	context.submission = { encoded, keys: schema.keys, tabs };
+	visitNode(node, context, emission => context.values.emissions.push(emission));
+	if (tabs.size) encoded[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.tabSelections}`] = [...tabs];
+	const { resultPreset } = context.submission;
+	return { ...context.values, encoded, ...(resultPreset !== undefined ? { resultPreset } : {}) };
 }
 
-export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, fieldVisitor?: typeof visitField) {
-	const context = gather(runtime, formState, { summaries: [] });
+export function collectFormSummaryValues(node: FormBoundaryNode, formState: NewFormState, runtime: FormRuntimeContext, fieldVisitor?: FormFieldVisitor): GatheredValues {
+	const context = gather(runtime, formState);
 	context.fieldVisitor = fieldVisitor;
-	visitNode(node, context, emission => context.emissions.push(emission));
-	return { emissions: context.emissions, summaries: context.channels.summaries!, issues: context.issues };
+	visitNode(node, context, emission => context.values.emissions.push(emission));
+	return context.values;
 }
 
 /** Share reactive field work across live summaries while preserving each graph edge's emissions. */
-export function createSummaryFieldVisitor(state: MaybeRefOrGetter<NewFormState['state']>, runtime: FormRuntimeContext): typeof visitField {
-	const fields = new Map<FormFieldNode, ComputedRef<GatherContext>>();
+export function createSummaryFieldVisitor(state: MaybeRefOrGetter<NewFormState['state']>, runtime: FormRuntimeContext): FormFieldVisitor {
+	const fields = new Map<FormFieldNode, ComputedRef<GatheredValues>>();
 	return (field, _state, context, sink) => {
 		let cached = fields.get(field);
 		if (!cached) {
 			cached = computed(() => {
-				const values = gather(runtime, undefined, { summaries: [] });
-				visitField(field, toValue(state)[field.id], values, emission => values.emissions.push(emission));
-				return values;
+				const context = gather(runtime);
+				visitField(field, toValue(state)[field.id], context, emission => context.values.emissions.push(emission));
+				return context.values;
 			});
 			fields.set(field, cached);
 		}
 		const values = cached.value;
 		values.emissions.forEach(sink);
-		context.issues.push(...values.issues);
-		if (!context.visitedFields.has(field)) values.channels.summaries!.forEach(summary => addSummary(context.channels.summaries!, field, summary));
+		context.values.issues.push(...values.issues);
+		if (!context.visitedFields.has(field)) {
+			for (const summary of values.summaries) context.values.summaries.push({ ...summary, summaryType: [...summary.summaryType] });
+		}
 		context.visitedFields.add(field);
 	};
 }
@@ -197,6 +187,6 @@ export function createSummaryFieldVisitor(state: MaybeRefOrGetter<NewFormState['
 /** Check a field's validated semantic contributions without evaluating auxiliary channels. */
 export function hasEmissions(field: FormFieldNode, state: unknown, runtime: FormRuntimeContext): boolean {
 	let hasEmission = false;
-	visitField(field, state, gather(runtime), () => (hasEmission = true));
+	collectField(field, state, gather(runtime), () => (hasEmission = true));
 	return hasEmission;
 }

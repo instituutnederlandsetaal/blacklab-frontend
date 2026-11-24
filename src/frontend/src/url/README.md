@@ -1,6 +1,6 @@
 # Page state, URLs, and history
 
-Components read and change application state through the search stores. The URL is a projection of the submitted query and the selected result view. Vue Router handles browser navigation and path matching inside the navigation adapters; request composition and search components do not read it.
+Search uses unidirectional data flow. Components read state from the feature instance and send edits to the owner. The URL is a projection of the submitted query and the selected result view. Vue Router handles browser navigation and path matching inside the navigation adapters; request composition and search components do not read it.
 
 ```text
 editable form ──submit──> submitted search ─┐
@@ -10,18 +10,18 @@ view tabs ─────────────> selected view ────┤
 initial load / Back / Forward / saved search ──> restore application state
 ```
 
-| State                                                | Owner                                               | Changes                                    |
-| ---------------------------------------------------- | --------------------------------------------------- | ------------------------------------------ |
-| Editable draft                                       | Form runtime                                        | Editing, submission, form restoration      |
-| Submitted query                                      | `SubmittedSearch` ref created by the search feature | Submit, reset, incoming search             |
-| Selected view                                        | View store                                          | Tab selection, submission, incoming search |
-| Preferred page size                                  | Persisted global results store                      | User preference                            |
-| Global result controls                               | Global results store                                | Controls, incoming search                  |
-| Each view's selection, grouping, sort, display state | View store                                          | Controls, submission, incoming search      |
-| Expanded request range                               | Pure derivation of selection and preference         | Never stored or serialized                 |
-| Unknown URL parameters and hash                      | URL adapter                                         | Preserved from incoming search             |
+| State                                                | Owner                                       | Changes                                    |
+| ---------------------------------------------------- | ------------------------------------------- | ------------------------------------------ |
+| Editable draft                                       | Form runtime                                | Editing, submission, form restoration      |
+| Submitted query                                      | `createSubmittedSearch()`                   | Submit, reset, incoming search             |
+| Selected view                                        | Results instance (views)                    | Tab selection, submission, incoming search |
+| Preferred page size                                  | Results instance (persisted preference)     | User preference                            |
+| Global result controls                               | Results instance (global controls)          | Controls, incoming search                  |
+| Each view's selection, grouping, sort, display state | Results instance (views)                    | Controls, submission, incoming search      |
+| Expanded request range                               | Pure derivation of selection and preference | Never stored or serialized                 |
+| Unknown URL parameters and hash                      | URL adapter                                 | Preserved from incoming search             |
 
-The search feature wires the submitted-search ref to the search store and request composition, and supplies the history store's URL codec. The article feature creates article page state and passes it to the article URL binding. Components consume the provided state and actions; neither page manages a binding's lifecycle. The stores do not need router types or URL decoding helpers.
+The search feature creates the owners and connects them to two bindings. `features/search/bindings/search-form.ts` handles form submission, reset, and draft restoration. `url/search-state.ts` handles navigation and history publication. Corpus changes reset the owners together in `search-feature.ts`. The results instance exposes the effective API request as `results.parameters`, computed from the submitted snapshot, corpus, and selected view controls.
 
 ## State transitions
 
@@ -48,26 +48,16 @@ An ordinary page satisfies `first % oldPreference === 0 && number === oldPrefere
 | Switch views                             | Each retains its selection          | Selected view's range |
 | Submit new search                        | Every view becomes `(0,preference)` | First page            |
 
-`createViewModule` receives its page-size preference explicitly; the search feature wires the view registry to the persisted preference. Each view exposes `selectedRange()` for its stored selection and `expandedRequestRange()` for requests. Reset uses the same current preference.
+Each `ResultView` receives the persisted page-size preference from its results instance. Each view exposes `selectedRange` for its stored selection and `expandedRequestRange` for requests. Reset uses the same current preference.
 
 Missing URL counts use the preference at hydration time. The preference is never imported from a URL. `results/pagination.ts` contains the range derivations, shared by view requests and preference changes.
 
 ## URL and history boundary
 
-`createUrlProjection` provides the binding used by both `createSearchUrlBinding` and `createArticleUrlBinding`. Each adapter supplies its active corpus context, incoming-state reader, and outgoing-state writer. The binding observes serialized application state after Vue batches synchronous mutations, handles browser navigation and explicit saved-link loading, and stops observing when the page is inactive or the application unmounts. Article paging and hit selection use the same state-first flow as search controls.
+Search and article pages share `createUrlProjection`. On incoming navigation it stops publishing, lets the page restore URL-visible state synchronously, then watches for changes. Draft restoration can finish later. Each outgoing write carries an identity until navigation settles, so Back and Forward can restore that same entry on later visits.
 
-A completed action produces one URL publication. Draft edits and inactive-view changes do not affect the search projection. A custom selection's preference change can update the request without changing the URL.
+`search-query.ts` reads and writes the submitted query, selected view controls, and extension parameters. Opening a link preserves its spelling and hash. When a shared link requests sampling without a seed, the search binding replaces the URL with the generated seed.
 
-The projection watcher is detached during incoming hydration and attached afterward, so opening a link preserves its spelling, aliases, hash, and range without pushing another history entry. The exception is seedless sampling: hydration creates one seed in application state and replaces the URL with it.
-
-`createUrlProjection` identifies an in-flight publication through an opaque browser history identity. Its own completed navigation never hydrates stores. Once the publication settles, revisiting that entry through Back or Forward imports it normally. When a newer navigation supersedes an earlier write, only the completed navigation adds a saved-history entry. There are no submission gates, rollbacks, or publication retries.
-
-`SearchNavigation.open` restores a saved search, including when its URL is already current. Importing a link is a history action with a decoder supplied at the application entrypoint; it adds an entry without changing the current search or draft. Components use ordinary store actions for all other interactions. The old `vuexModules.root.actions.navigateSearch` wrapper remains only as a compatibility shim for customization scripts.
-
-`search-query.ts` owns search URL decoding and serialization, including aliases, form persistence fields, result controls, and extension parameters. `submitted-search.ts` owns the submitted snapshot and its shared form-restoration computation. `search-form-restoration.ts` applies restored fields on incoming navigation or runtime replacement. `search-summary.ts` derives summaries from the shared restoration and falls back to the submitted query text. Replacing a form runtime discards its draft without submitting, publishing a URL, or adding a history entry.
-
-The history model owns entry construction, ordering, persistence, deduplication, and versioned file import/export. `url/query-history.ts` interprets URLs into history metadata and reconstructs display summaries for imported links. The application entrypoint supplies these decoders to history actions. Existing URL-based entries and exports remain readable. Form restoration and summary generation reuse the submitted query's form data when only pagination or result controls change.
-
-Publishing a URL records its history entry synchronously. Imported links use the same form definitions to reconstruct summaries. Reading saved entries from local storage uses their embedded summaries.
+`search-state.ts` records a history entry after a successful publication. Opening a saved search restores its draft even if its URL is already current. Importing a link adds it to history and leaves the active search alone. `query-history.ts` decodes the grouping and query identity used for deduplication. The history store reconstructs missing summaries using the form runtime when it imports a URL.
 
 The browser smoke suite exercises submissions, reloads, Back/Forward, saved searches, ordinary and custom pagination, preference persistence, tab selection, and collocations against BlackLab. Unit tests cover range invariants, URL normalization, snapshot isolation, and asynchronous restoration/navigation races.

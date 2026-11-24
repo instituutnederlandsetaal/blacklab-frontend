@@ -1,5 +1,5 @@
 <template>
-	<div class="container">
+	<div :class="containerClass">
 		<div v-if="loadingServerInfo" role="status" aria-live="polite" class="corpora-loading">
 			<Spinner size="40" center />
 			<p>{{ $t('corpora.loading') }}</p>
@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, shallowRef, watch, watchPostEffect } from 'vue';
 
+import { useLayout } from '@/app/state/layout';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
@@ -82,6 +83,8 @@ import ModalShareCorpus from '@/pages/corpora/ModalShare.vue';
 import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import Modal from '@/shared/ui/Modal.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
+
+const { containerClass } = useLayout();
 
 type CorpusPoll = {
 	displayName: string;
@@ -244,6 +247,7 @@ function doDeleteFormat(id: string) {
 	const selectedFormat = format.value!;
 	confirmTitle.value = `Delete import format <em>${selectedFormat.displayName}</em>?`;
 	confirmMessage.value = `You are about to delete the import format <i>${selectedFormat.id}</i>.<br>Are you sure?`;
+
 	modal.value = 'confirm';
 	confirmAction.value = () => {
 		close();

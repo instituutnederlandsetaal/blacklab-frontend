@@ -190,9 +190,7 @@ import Slider from 'vue-3-slider-component';
 import * as FilterModule from '@/app/state/legacy-filter-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { useActiveSearch } from '@/features/search/model/active-search';
-import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
-import * as ResultsStore from '@/features/search/model/results/view-state';
+import { useResultsState } from '@/features/search/model/results/results-state';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
@@ -232,7 +230,8 @@ const {
 	results?: BLSearchResult | null;
 }>();
 
-const activeSearchParameters = useActiveSearch().parameters;
+const resultState = useResultsState();
+const { parameters: activeSearchParameters } = resultState;
 const customizations = useCustomizations();
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
@@ -241,9 +240,9 @@ const addedCriteria = ref<GroupBy[]>([]);
 const selectedCriteriumIndex = ref(0);
 const active = ref(false);
 
-const storeModule = computed<ResultsStore.ViewModule>(() => ResultsStore.getOrCreateModule(type));
+const view = computed(() => resultState.view(type));
 /** This may contain grouping criteria this corpus doesn't support. On page load, it comes directly from the URL. */
-const storeValue = computed(() => storeModule.value.getState().groupBy);
+const storeValue = computed(() => view.value.state.groupBy);
 const defaultAnnotation = computed(() => {
 	const concordanceAnnotation = customizations.resultConcordanceAnnotationId();
 	const allowedAnnotations = customizations.resultGroupAnnotationIds();
@@ -329,7 +328,7 @@ const hits = computed(() => {
 const contextsize = computed(() => {
 	const params = activeSearchParameters.value;
 	if (!isHitParams(params)) return 5;
-	const globalContext = GlobalSearchSettingsStore.getState().context;
+	const globalContext = resultState.settings.context;
 	return typeof params.context === 'number' ? params.context : typeof globalContext === 'number' ? globalContext : 5;
 });
 
@@ -671,7 +670,7 @@ const parallelVersionOptions = computed<Option[]>(() => {
 });
 
 function apply() {
-	storeModule.value.actions.groupBy(serializeSortByOrGroupBy(addedCriteria.value.filter(isValidGroupBy)));
+	view.value.setGroupBy(serializeSortByOrGroupBy(addedCriteria.value.filter(isValidGroupBy)));
 }
 /** Remove a tab while keeping the selected criterium aligned with its predecessor. */
 function removeGroup(index: number) {

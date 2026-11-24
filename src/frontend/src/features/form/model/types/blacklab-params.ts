@@ -1,16 +1,15 @@
-import type { BLCollocationOptions, BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLCollocationOptions, BLCollocationScorer, BLCollocationType } from '@/types/blacklabtypes';
 
 export const SEARCH_STRING_PARAMS = ['patt', 'filter', 'searchfield'] as const;
 export const COLLOCATION_STRING_PARAMS = ['patt', 'collpatt', 'filter', 'searchfield', 'within', 'reltype', 'annotation'] as const;
 
-type SharedFormParams = Pick<BLSearchParameters, (typeof SEARCH_STRING_PARAMS)[number]> & { withspans?: true };
+type SharedFormParams = { patt?: string; filter?: string; searchfield?: string; withspans?: true };
 
 /** Omitted group/sort presets retain result controls; null clears them. */
-export type SearchParams = SharedFormParams & { group?: string | null; sort?: string | null; colltype?: never };
+export type SearchParams = SharedFormParams & { group?: string | null; sort?: string | null; colltype?: never; scorertype?: never };
 
 export type CollocationParams = SharedFormParams &
-	BLCollocationOptions &
-	Required<Pick<BLCollocationOptions, 'colltype' | 'annotation' | 'sensitive' | 'scorertype'>> & { sort?: string | null; group?: never };
+	BLCollocationOptions & { colltype: BLCollocationType; annotation: string; sensitive: boolean; scorertype: BLCollocationScorer; sort?: string | null; group?: never };
 
 export type FormParams = SearchParams | CollocationParams;
 

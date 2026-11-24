@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
+import { createTestResultsState } from '@test/mocks/results-state';
 import { afterEach, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
@@ -21,15 +23,14 @@ it('keeps the removed split-batch customization callable without changing UI sta
 	}
 });
 
-it('accepts custom result view configuration before the search runtime starts', async () => {
+it('accepts custom result view configuration before the search runtime starts', () => {
 	const view = { id: 'custom-result-view', title: 'Custom results', component: 'CustomResults', customInitialState: null };
 	try {
 		UIStore.actions.results.addResultView(view);
 		expect(UIStore.getState().results.customViews).toContainEqual(view);
 
-		const views = await import('@/features/search/model/results/view-state');
-		views.setPageSizePreference(25);
-		expect(views.getOrCreateModule(view.id).getState().number).toBe(25);
+		const results = createTestResultsState(ref(25));
+		expect(results.view(view.id).state.number).toBe(25);
 	} finally {
 		UIStore.actions.results.removeResultView(view.id);
 	}

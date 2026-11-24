@@ -1,16 +1,20 @@
-import { afterEach, describe, expect, test } from 'vitest';
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { installHooksGlobal, runHooks } from '@/interop/hooks';
+import { customJsDisposeEvent } from '@/interop/page-customization';
 
 type Hook = () => unknown;
 type HookTestGlobal = typeof globalThis & {
 	hooks?: Record<string, unknown>;
+	__cfHooksStore?: unknown;
 };
 
 function clearHooksGlobal() {
 	const hookGlobal = globalThis as HookTestGlobal;
 	delete hookGlobal.hooks;
-	delete (hookGlobal as typeof globalThis & { __cfHooksStore?: Record<string, unknown[]> }).__cfHooksStore;
+	delete hookGlobal.__cfHooksStore;
 }
 
 describe('installHooksGlobal', () => {
@@ -30,6 +34,21 @@ describe('installHooksGlobal', () => {
 		await expect(runHooks('registeredBeforeInstall')).resolves.toEqual(['registered before install']);
 		await expect(runHooks('testHook')).resolves.toEqual(['called after install']);
 		await expect(runHooks('otherHook')).resolves.toEqual(['assigned after install']);
+	});
+
+	test('disposes hooks registered by a removed corpus script and keeps page-wide hooks', async () => {
+		const hooks = installHooksGlobal();
+		hooks.beforeStateLoaded(() => 'host');
+		const script = document.createElement('script');
+		const current = vi.spyOn(document, 'currentScript', 'get').mockReturnValue(script);
+		try {
+			hooks.beforeStateLoaded(() => 'corpus');
+		} finally {
+			current.mockRestore();
+		}
+		await expect(runHooks('beforeStateLoaded')).resolves.toEqual(['host', 'corpus']);
+		script.dispatchEvent(new Event(customJsDisposeEvent));
+		await expect(runHooks('beforeStateLoaded')).resolves.toEqual(['host']);
 	});
 
 	test('runs hooks in registration order', async () => {

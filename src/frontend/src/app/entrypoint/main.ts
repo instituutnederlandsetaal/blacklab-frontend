@@ -4,10 +4,11 @@ import 'bootstrap';
 import '@/global.scss';
 
 import FloatingVue from 'floating-vue';
-import { createApp, shallowRef } from 'vue';
+import { createApp, type Ref } from 'vue';
 import type { RouteLocationNormalized } from 'vue-router';
 
 import * as ArticleStore from '@/app/state/article-configuration';
+import { createLayout } from '@/app/state/layout';
 import * as LegacyFilterStore from '@/app/state/legacy-filter-state';
 import * as UIStore from '@/app/state/ui-state';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
@@ -15,7 +16,6 @@ import { createCustomizations } from '@/customization-api/internal/internal-api'
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import type { createSearchFeature } from '@/features/search/search-feature';
 import { installHooksGlobal, runHooks } from '@/interop/hooks';
 import { installCommonStoreGlobals, installCorpusGlobal, installCustomizationApiGlobals, installVueGlobals } from '@/interop/window-globals';
 import { createInitialLoading } from '@/navigation/initial-loading';
@@ -77,6 +77,7 @@ async function start() {
 	});
 	const i18n = createI18n(router.corpusId);
 
+	app.use(createLayout());
 	app.use(loginSystem);
 	app.use(debugSystem);
 	app.use(pageBootstrap);
@@ -91,7 +92,7 @@ async function start() {
 	installCustomizationApiGlobals(customizationRegistry);
 	installCommonStoreGlobals(corpusState.corpus, customizationRegistry);
 
-	const searchFeature = shallowRef<ReturnType<typeof createSearchFeature>>();
+	let searchReadSettled: Readonly<Ref<boolean>> | undefined;
 	let searchInstallation: Promise<void> | undefined;
 	let articleInstallation: Promise<void> | undefined;
 	async function preparePage(route: RouteLocationNormalized) {
@@ -100,6 +101,7 @@ async function start() {
 				.then(async ({ createSearchFeature }) => {
 					const feature = createSearchFeature({
 						router: router.router,
+						customizationsReady: pageBootstrap.customizationsReady,
 						corpusState,
 						blacklabApi: api.blacklabApi,
 						customizations,
@@ -107,11 +109,11 @@ async function start() {
 						debug: debugSystem.debug,
 					});
 					app.use(feature);
-					searchFeature.value = feature;
+					searchReadSettled = feature.initialReadSettled;
 					if (import.meta.env.DEV) {
 						try {
 							const { installStoreInspectorDevtools } = await import('@/devtools/store-inspector');
-							installStoreInspectorDevtools(app);
+							installStoreInspectorDevtools(app, feature.results, corpusState.corpus);
 						} catch (error) {
 							console.error('Could not load the store inspector', error);
 						}
@@ -138,11 +140,7 @@ async function start() {
 	// The initial route resolved before this guard existed; subsequent routes wait here for their providers.
 	await preparePage(router.router.currentRoute.value);
 	router.router.beforeEach(preparePage);
-	app.use(
-		createInitialLoading(() =>
-			isInitialPageReady(router.router.currentRoute.value, corpusState.contextLoader, pageBootstrap.contentReady.value, searchFeature.value?.initialReadSettled.value ?? true),
-		),
-	);
+	app.use(createInitialLoading(() => isInitialPageReady(router.router.currentRoute.value, corpusState.contextLoader, pageBootstrap.contentReady.value, searchReadSettled?.value ?? true)));
 	app.runWithContext(() => startCustomizationInterop());
 	const instance = app.mount('#vue-root');
 	installVueGlobals(app, instance);

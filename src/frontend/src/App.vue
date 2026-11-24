@@ -3,17 +3,20 @@
 
 	<router-view />
 
-	<footer class="container">
+	<footer :class="containerClass">
 		<p :title="versionInfo">Dutch Language Institute Corpus Search Interface {{ version }} &copy; <a href="https://www.ivdnt.org/">INT</a> 2013-{{ new Date().getFullYear() }}</p>
 		<HtmlRenderer v-if="config.footerMessage" :content="config.footerMessage" parse-string-as-html />
 	</footer>
 </template>
 
 <script setup lang="ts">
+import { useLayout } from '@/app/state/layout';
 import { useCfPageConfig } from '@/app/state/useCorpusContext';
 
 import Navbar from '@/components/Navbar.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
+
+const { containerClass } = useLayout();
 
 const config = useCfPageConfig();
 const version = BLF_VERSION;

@@ -1,11 +1,11 @@
 import { computed, toValue, type MaybeRefOrGetter, type Ref } from 'vue';
 
-import { formatSummaryEntries, type CompiledFormResult } from '@/features/form';
-import type { SearchSummary, SubmittedSearch, SubmittedFormRestoration } from '@/features/search/model/submitted-search';
+import { formatSummaryEntries, type CompiledFormResult, type RestoredForm } from '@/features/form';
+import type { SubmittedSearch } from '@/features/search/model/submitted-search';
 
 import useInjectable from '@/shared/utils/useInjectable';
 
-export type { SearchSummary } from '@/features/search/model/submitted-search';
+export type SearchSummary = { pattern?: string; filter?: string };
 
 export const [, provideSearchSummary, useSearchSummary] = useInjectable<Readonly<Ref<SearchSummary>>>('searchSummary');
 
@@ -28,6 +28,6 @@ export function summarizeSubmittedSearch(submitted?: SubmittedSearch, compiled?:
 }
 
 /** Summarize the submitted query; editable drafts and result controls are not inputs. */
-export function createSearchSummary(submittedInput: MaybeRefOrGetter<SubmittedSearch | undefined>, restored: SubmittedFormRestoration) {
+export function createSearchSummary(submittedInput: MaybeRefOrGetter<SubmittedSearch | undefined>, restored: Readonly<Ref<RestoredForm | null>>) {
 	return computed(() => summarizeSubmittedSearch(toValue(submittedInput), restored.value?.submittedResult));
 }

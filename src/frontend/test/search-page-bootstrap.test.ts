@@ -1,19 +1,15 @@
 // @vitest-environment jsdom
 
+import { createTestResultsState } from '@test/mocks/results-state';
 import { shallowMount } from '@vue/test-utils';
 import { expect, test, vi } from 'vitest';
-import { defineComponent, nextTick, onMounted, ref, watch } from 'vue';
+import { defineComponent, nextTick, onMounted, watch } from 'vue';
 
-import * as ViewStore from '@/features/search/model/results/view-state';
+import { createLayout } from '@/app/state/layout';
+import { resultsStateKey } from '@/features/search/model/results/results-state';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 
-import { provideMockActiveSearchParameters } from './mocks/active-search-parameters';
-
 import SearchPage from '@/pages/search/SearchPage.vue';
-
-function inactiveSearchParameters() {
-	return provideMockActiveSearchParameters(ref(undefined), null);
-}
 
 test('enables search page scripts only after its DOM is mounted', () => {
 	const pageBootstrap = createPageBootstrapContext();
@@ -37,7 +33,8 @@ test('enables search page scripts only after its DOM is mounted', () => {
 
 	const wrapper = shallowMount(SearchPage, {
 		global: {
-			plugins: [pageBootstrap, inactiveSearchParameters()],
+			plugins: [pageBootstrap],
+			provide: { [resultsStateKey]: createTestResultsState() },
 			stubs: { Debug: true, QueryForm, QuerySummary: true, Results: true },
 		},
 	});
@@ -56,7 +53,8 @@ test('does not retrigger scripts for an already-ready search page', () => {
 
 	const wrapper = shallowMount(SearchPage, {
 		global: {
-			plugins: [pageBootstrap, inactiveSearchParameters()],
+			plugins: [pageBootstrap],
+			provide: { [resultsStateKey]: createTestResultsState() },
 			stubs: { Debug: true, QueryForm: true, QuerySummary: true, Results: true },
 		},
 	});
@@ -68,19 +66,26 @@ test('does not retrigger scripts for an already-ready search page', () => {
 });
 
 test('shows results whenever the store selects a result view', async () => {
-	ViewStore.selectView('hits');
+	const layout = createLayout();
+	const results = createTestResultsState();
+	results.selectView('hits');
 	const wrapper = shallowMount(SearchPage, {
 		global: {
-			plugins: [createPageBootstrapContext(), provideMockActiveSearchParameters(ref(undefined), ViewStore.getSelectedViewName)],
+			plugins: [createPageBootstrapContext(), layout],
+			provide: { [resultsStateKey]: results },
 			stubs: { Debug: true, QueryForm: true, QuerySummary: true, Results: true },
 		},
 	});
 	expect(wrapper.findComponent({ name: 'QuerySummary' }).exists()).toBe(true);
-	ViewStore.selectView(null);
+	results.selectView(null);
 	await nextTick();
 	expect(wrapper.findComponent({ name: 'QuerySummary' }).exists()).toBe(false);
-	ViewStore.selectView('docs');
+	layout.wideView.value = true;
+	results.selectView('docs');
 	await nextTick();
-	expect(wrapper.findComponent({ name: 'QuerySummary' }).exists()).toBe(true);
+	expect(wrapper.get('#summary').classes()).toContain('container-fluid');
+	layout.wideView.value = false;
+	await nextTick();
+	expect(wrapper.get('#summary').classes()).toContain('container');
 	wrapper.unmount();
 });

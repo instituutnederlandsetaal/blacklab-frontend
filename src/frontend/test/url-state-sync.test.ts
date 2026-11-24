@@ -3,46 +3,29 @@
 import { createMockTranslate } from '@test/mocks/i18n';
 import { flushPromises } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, shallowRef, type Ref } from 'vue';
+import { nextTick, ref, shallowRef, type Ref } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
-import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
-import { createCustomizations } from '@/customization-api/internal/internal-api';
-import { createCustomizationRegistry } from '@/customization-api/registry';
 import { ContainerRenderer, createCollocationTarget, filterTextController, FormBuilder, FormRuntime, TextField, type CompiledFormResult } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import { createActiveSearch } from '@/features/search/model/active-search';
-import * as GlobalStore from '@/features/search/model/results/global-results-state';
+import { createSearchFormBinding } from '@/features/search/bindings/search-form';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import * as ViewStore from '@/features/search/model/results/view-state';
-import { createSearchFormRestoration } from '@/features/search/model/search-form-restoration';
-import { createSearchStore } from '@/features/search/model/search-store';
-import { createSearchSummary } from '@/features/search/model/search-summary';
-import { createSubmittedFormRestoration, createSubmittedSearch } from '@/features/search/model/submitted-search';
+import { ResultsState } from '@/features/search/model/results/results-state';
+import { createSubmittedSearch, type SubmittedSearchState } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
-import { queryHistoryDetails } from '@/url/query-history';
 import { createSearchUrlBinding } from '@/url/search-state';
 
+import { createCorpus } from './form/search-form-fixture';
+
+let loadedCorpus: Ref<Corpus | undefined>;
+let submittedSearch: SubmittedSearchState;
+let results: ResultsState;
 const cleanup: (() => void)[] = [];
 const base = '/blacklab-frontend';
 const path = '/test-corpus/search';
 const pattern = '[word="water"]';
-const corpus = {
-	id: 'test-corpus',
-	mainAnnotatedField: 'contents',
-	firstMainAnnotation: { id: 'word', uiType: 'text' },
-	allAnnotations: [],
-	allAnnotationsMap: {},
-	allMetadataFields: [],
-	allMetadataFieldsMap: {},
-	allAnnotatedFieldsMap: { contents: { id: 'contents', annotations: {} } },
-	parallelAnnotatedFields: [],
-	parallelAnnotatedFieldsMap: {},
-	relations: { spans: {} },
-	isParallelCorpus: false,
-} as unknown as Corpus;
-const customizations = createCustomizations(createCustomizationRegistry(corpus), corpus, UIStore.getState, () => {});
+const corpus = createCorpus();
 
 function form({ withField = false, collocations = false } = {}) {
 	const builder = new FormBuilder({ corpus: { indexId: corpus.id!, textDirection: 'ltr', isParallelCorpus: false }, translate: createMockTranslate() });
@@ -64,7 +47,10 @@ function deferred() {
 
 async function setup(
 	url = `${path}/hits?patt=${encodeURIComponent(pattern)}&f.form=search.simple`,
-	{ beforeStateLoaded = () => Promise.resolve() }: { beforeStateLoaded?: (runtime: Ref<FormRuntime | null>) => Promise<unknown> } = {},
+	{
+		customizationsReady = ref(true),
+		beforeStateLoaded = () => Promise.resolve(),
+	}: { customizationsReady?: Ref<boolean>; beforeStateLoaded?: (runtime: Ref<FormRuntime | null>) => Promise<unknown> } = {},
 ) {
 	window.history.replaceState({}, '', base + url);
 	const router = createRouter({
@@ -76,28 +62,15 @@ async function setup(
 	});
 	await router.push(url);
 	const runtime = shallowRef<FormRuntime | null>(form());
-	const loadedCorpus = shallowRef<Corpus | undefined>(corpus);
-	const submittedSearch = createSubmittedSearch();
-	const { actions: searchActions } = createSearchStore(submittedSearch);
-	const activeSearch = createActiveSearch(ViewStore.getSelectedViewName, {
-		corpus: loadedCorpus,
-		submitted: submittedSearch,
-		global: GlobalStore.getState,
-		getView: ViewStore.getOrCreateModule,
-		withSpans: customizations.searchWithSpans,
-		debug: false,
-	});
-	const activeSearchParameters = activeSearch.parameters;
-	const restoredForm = createSubmittedFormRestoration(submittedSearch, runtime);
-	const summary = createSearchSummary(submittedSearch, restoredForm);
-	const formRestoration = createSearchFormRestoration({
+	const searchForm = createSearchFormBinding({
+		customizationsReady,
+		beforeStateLoaded: () => beforeStateLoaded(runtime),
+		results,
 		corpus: loadedCorpus,
 		runtime,
 		submitted: submittedSearch,
-		restoredForm,
-		beforeStateLoaded: () => beforeStateLoaded(runtime),
 	});
-	const controller = createSearchUrlBinding(router, { corpus: loadedCorpus, submittedSearch, restoreForms: formRestoration.restore, summary });
+	const controller = createSearchUrlBinding(router, { corpus: loadedCorpus, search: submittedSearch, form: searchForm, results, history: HistoryStore.actions });
 
 	const sync = {
 		...controller,
@@ -109,10 +82,10 @@ async function setup(
 	};
 	cleanup.push(() => {
 		sync.stop();
-		formRestoration.stop();
+		searchForm.stop();
 		router.options.history.destroy();
 	});
-	return { router, runtime, loadedCorpus, sync, searchActions, activeSearchParameters, restoring: formRestoration.loading };
+	return { router, runtime, loadedCorpus, sync, searchForm, activeSearchParameters: results.parameters, restoring: searchForm.loading };
 }
 
 async function restored(activeSearchParameters: Readonly<Ref<EffectiveSearchParameters | undefined>>, patt = pattern) {
@@ -121,14 +94,19 @@ async function restored(activeSearchParameters: Readonly<Ref<EffectiveSearchPara
 }
 
 beforeEach(() => {
-	ViewStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
+	loadedCorpus = shallowRef(corpus);
+	submittedSearch = createSubmittedSearch();
+	results = new ResultsState(
+		{
+			corpus: loadedCorpus,
+			submitted: submittedSearch.current,
+			withSpans: () => null,
+			debug: false,
+		},
+		ref(20),
+	);
 	vi.stubGlobal('CONTEXT_URL', base);
 	const context = { index: corpus } as CorpusContext;
-	ViewStore.selectView(null);
-	GlobalStore.init(context);
-	GlobalStore.actions.pageSize(20);
-	ViewStore.init(context);
-	HistoryStore.setUrlDecoder(queryHistoryDetails);
 	HistoryStore.init(context);
 });
 afterEach(() => {
@@ -159,9 +137,48 @@ describe('search URLs and browser history', () => {
 		await vi.waitFor(() => expect(beforeStateLoaded).toHaveBeenCalledTimes(2));
 	});
 
+	test('waits for corpus scripts to register their hooks before restoring the first search', async () => {
+		const customizationsReady = ref(false);
+		const configured = vi.fn();
+		const { sync, runtime } = await setup(`${path}/docs?f.form=search.simple&f.late=Austen`, {
+			customizationsReady,
+			beforeStateLoaded: async runtime => {
+				configured();
+				runtime.value = form({ withField: true });
+			},
+		});
+		await flushPromises();
+		expect(configured).not.toHaveBeenCalled();
+		expect(sync.initialReadSettled.value).toBe(false);
+		customizationsReady.value = true;
+		await flushPromises();
+		expect(configured).toHaveBeenCalledOnce();
+		expect(runtime.value?.state.state.value.late).toMatchObject({ value: 'Austen' });
+		expect(sync.initialReadSettled.value).toBe(true);
+	});
+
+	test('restores the editable form on each navigation after a failed customization hook', async () => {
+		const error = new Error('customization failed');
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const { runtime, sync } = await setup(`${path}/docs?f.form=search.simple&f.late=Austen`, {
+			beforeStateLoaded: async runtime => {
+				runtime.value = form({ withField: true });
+				throw error;
+			},
+		});
+		await flushPromises();
+		expect(runtime.value?.state.state.value.late).toMatchObject({ value: 'Austen' });
+		await sync.open(`${path}/docs?f.form=search.simple&f.late=Woolf`);
+		await flushPromises();
+		expect(runtime.value?.state.state.value.late).toMatchObject({ value: 'Woolf' });
+		expect(log).toHaveBeenCalledWith('beforeStateLoaded hook failed', error);
+	});
+
 	test('waits for the incoming search form to finish restoring before the initial page is ready', async () => {
 		const gate = deferred();
-		const { activeSearchParameters, sync, restoring } = await setup(undefined, { beforeStateLoaded: () => gate.promise });
+		const { router, activeSearchParameters, sync, restoring } = await setup(`${path}/hits?patt=${encodeURIComponent(pattern)}&sample=25`, { beforeStateLoaded: () => gate.promise });
+
+		await vi.waitFor(() => expect(router.currentRoute.value.query.sampleseed).toBeDefined());
 
 		expect(sync.initialReadSettled.value).toBe(false);
 		expect(restoring.value).toBe(true);
@@ -176,27 +193,28 @@ describe('search URLs and browser history', () => {
 		await restored(activeSearchParameters);
 		const seed = activeSearchParameters.value?.sampleseed;
 		expect(Number.isSafeInteger(seed)).toBe(true);
+		expect(sync.initialReadSettled.value).toBe(true);
 		expect(router.currentRoute.value.query.sampleseed).toBe(String(seed));
-		expect(GlobalStore.getState().sampleSeed).toBe(seed);
-		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.first(20));
+		expect(results.settings.sampleSeed).toBe(seed);
+		await sync.run(() => (results.view('hits').state.first = 20));
 		expect(activeSearchParameters.value).toMatchObject({ first: 20, sampleseed: seed });
 		expect(router.currentRoute.value.query.sampleseed).toBe(String(seed));
 	});
 
 	test('one submit publishes its completed query and result settings; Back and Forward restore each URL', async () => {
-		const { sync, router, searchActions, activeSearchParameters } = await setup();
+		const { sync, router, searchForm, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
 		const original = window.location.href;
 		const length = window.history.length;
-		await sync.run(() => searchActions.searchFromSubmit(submittedQuery('[word="ship"]')));
+		await sync.run(() => searchForm.submit(submittedQuery('[word="ship"]')));
 		const submitted = window.location.href;
 		expect(new URL(submitted).searchParams.get('patt')).toBe('[word="ship"]');
 		expect(window.history.length).toBe(length + 1);
 		await sync.run(() => {
-			const view = ViewStore.getOrCreateModule('hits');
-			view.actions.groupBy(['hit:word']);
-			view.actions.range({ first: 40, number: 20 });
-			view.actions.sort('-size');
+			const view = results.view('hits');
+			view.setGroupBy(['hit:word']);
+			view.setRange({ first: 40, number: 20 });
+			view.state.sort = '-size';
 		});
 		const grouped = window.location.href;
 		expect(new URL(grouped).searchParams.get('first')).toBe('40');
@@ -204,7 +222,7 @@ describe('search URLs and browser history', () => {
 		expect(window.history.length).toBe(length + 2);
 		router.back();
 		await vi.waitFor(() => expect(window.location.href).toBe(submitted));
-		await vi.waitFor(() => expect(ViewStore.getOrCreateModule('hits').getState().groupBy).toEqual([]));
+		await vi.waitFor(() => expect(results.view('hits').state.groupBy).toEqual([]));
 		router.back();
 		await vi.waitFor(() => expect(window.location.href).toBe(original));
 		await restored(activeSearchParameters);
@@ -212,9 +230,33 @@ describe('search URLs and browser history', () => {
 		await restored(activeSearchParameters, '[word="ship"]');
 		expect(window.location.href).toBe(submitted);
 		router.forward();
-		await vi.waitFor(() => expect(ViewStore.getOrCreateModule('hits').getState().first).toBe(40));
+		await vi.waitFor(() => expect(results.view('hits').state.first).toBe(40));
 		expect(window.location.href).toBe(grouped);
 		expect(window.history.length).toBe(length + 2);
+	});
+
+	test('incoming navigation supersedes a pending result change without saving it to history', async () => {
+		const { sync, router, activeSearchParameters } = await setup();
+		await restored(activeSearchParameters);
+		const entered = deferred();
+		const release = deferred();
+		router.beforeEach(to => {
+			if (to.query.sort === '-size') {
+				entered.resolve();
+				return release.promise;
+			}
+		});
+		results.view('hits').state.sort = '-size';
+		await entered.promise;
+		try {
+			await sync.open(`${path}/docs?filter=author%3AAusten`);
+		} finally {
+			release.resolve();
+		}
+		await flushPromises();
+		expect(router.currentRoute.value.query).toEqual({ filter: 'author:Austen' });
+		expect(activeSearchParameters.value?.filter).toBe('author:Austen');
+		expect(HistoryStore.getState()).toEqual([]);
 	});
 
 	test('a replacement form restores only the current URL after a pending hook', async () => {
@@ -230,7 +272,7 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('replacing a form discards its draft without submitting or changing collocation controls', async () => {
-		const { runtime, sync, searchActions, activeSearchParameters } = await setup(path);
+		const { runtime, sync, searchForm, activeSearchParameters } = await setup(path);
 		runtime.value = form({ collocations: true, withField: true });
 		await nextTick();
 		const params = {
@@ -246,14 +288,13 @@ describe('search URLs and browser history', () => {
 			scorertype: 'coll-dice' as const,
 		};
 		await sync.run(() => {
-			const query = searchActions.searchFromSubmit({ ...submittedQuery(), params });
-			GlobalStore.actions.sampleSeed(123);
-			GlobalStore.actions.sampleSize(25);
-			const view = ViewStore.getOrCreateModule('hits');
-			view.actions.collocationScorer('coll-salience');
-			view.actions.viewGroup('word:ship');
-			view.actions.sort('-size');
-			return query;
+			searchForm.submit({ ...submittedQuery(), params });
+			results.setSampleSeed(123);
+			results.setSampleSize(25);
+			const view = results.view('hits');
+			view.setCollocationScorer('coll-salience');
+			view.setViewGroup('word:ship');
+			view.state.sort = '-size';
 		});
 		const url = window.location.href;
 		expect(Object.fromEntries(new URL(url).searchParams)).toMatchObject({
@@ -279,16 +320,16 @@ describe('search URLs and browser history', () => {
 		expect(window.location.href).toBe(url);
 	});
 
-	test('opening a saved search restores the visible form even when its URL is already current', async () => {
-		const { runtime, sync, searchActions, activeSearchParameters } = await setup();
+	test.each([false, true])('opening a saved search restores the current draft (alternate URL encoding: %s)', async alternateEncoding => {
+		const { runtime, sync, searchForm, activeSearchParameters } = await setup();
 		runtime.value = form({ withField: true });
 		await restored(activeSearchParameters);
 		runtime.value.state.state.value.late = { value: 'saved', caseSensitive: false };
-		await sync.run(() => searchActions.searchFromSubmit(runtime.value!.compile('search.simple')));
+		await sync.run(() => searchForm.submit(runtime.value!.compile('search.simple')));
 		const entry = HistoryStore.getState()[0];
 		const url = window.location.href;
 		runtime.value.state.state.value.late = { value: 'unsent draft', caseSensitive: false };
-		await sync.open(entry.url);
+		await sync.open(alternateEncoding ? entry.url.replace('saved', '%73aved') : entry.url);
 		expect(runtime.value.state.state.value.late).toEqual({ value: 'saved', caseSensitive: false });
 		expect(activeSearchParameters.value?.filter).toBe('late:(saved)');
 		expect(window.location.href).toBe(url);
@@ -297,43 +338,43 @@ describe('search URLs and browser history', () => {
 	test('keeps independent ordinary and custom ranges across resize and view switches', async () => {
 		const { sync, router, activeSearchParameters } = await setup(`${path}/hits?patt=[word=%22water%22]&first=40&number=20`);
 		await restored(activeSearchParameters);
-		const hits = ViewStore.getOrCreateModule('hits');
-		const docs = ViewStore.getOrCreateModule('docs');
+		const hits = results.view('hits');
+		const docs = results.view('docs');
 		const url = router.currentRoute.value.fullPath;
-		await sync.run(() => docs.actions.range({ first: 45, number: 30 }));
+		await sync.run(() => docs.setRange({ first: 45, number: 30 }));
 		expect(router.currentRoute.value.fullPath).toBe(url);
-		await sync.run(() => GlobalStore.actions.pageSize(50));
-		expect(hits.get.selectedRange()).toEqual({ first: 0, number: 50 });
-		expect(docs.get.selectedRange()).toEqual({ first: 45, number: 30 });
-		await sync.run(() => void ViewStore.selectView('docs'));
+		await sync.run(() => results.setPageSize(50));
+		expect(hits.selectedRange).toEqual({ first: 0, number: 50 });
+		expect(docs.selectedRange).toEqual({ first: 45, number: 30 });
+		await sync.run(() => void results.selectView('docs'));
 		expect(activeSearchParameters.value).toMatchObject({ first: 0, number: 100 });
-		await sync.run(() => void ViewStore.selectView('hits'));
+		await sync.run(() => void results.selectView('hits'));
 		expect(activeSearchParameters.value).toMatchObject({ first: 0, number: 50 });
-		expect(docs.get.selectedRange()).toEqual({ first: 45, number: 30 });
+		expect(docs.selectedRange).toEqual({ first: 45, number: 30 });
 	});
 
 	test('submitting a new query resets every view to the preferred first page', async () => {
-		const { sync, searchActions, activeSearchParameters } = await setup();
+		const { sync, searchForm, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
-		ViewStore.getOrCreateModule('hits').actions.range({ first: 40, number: 20 });
-		ViewStore.getOrCreateModule('docs').actions.range({ first: 45, number: 30 });
-		GlobalStore.actions.pageSize(50);
-		await sync.run(() => searchActions.searchFromSubmit(submittedQuery('[word="new"]')));
+		results.view('hits').setRange({ first: 40, number: 20 });
+		results.view('docs').setRange({ first: 45, number: 30 });
+		results.setPageSize(50);
+		await sync.run(() => searchForm.submit(submittedQuery('[word="new"]')));
 		expect(activeSearchParameters.value).toMatchObject({ patt: '[word="new"]', first: 0, number: 50 });
-		for (const name of ['hits', 'docs']) expect(ViewStore.getOrCreateModule(name).get.selectedRange()).toEqual({ first: 0, number: 50 });
+		for (const name of ['hits', 'docs']) expect(results.view(name).selectedRange).toEqual({ first: 0, number: 50 });
 	});
 
 	test('submitting a documents query removes legacy pattern aliases from the projection', async () => {
 		const incoming = `${path}/hits?query=${encodeURIComponent(pattern)}&field=contents&pattgapdata=water&interface=%7B%22form%22%3A%22search%22%7D&extension=shared#results`;
-		const { sync, router, searchActions, activeSearchParameters } = await setup(incoming);
+		const { sync, router, searchForm, activeSearchParameters } = await setup(incoming);
 		const browserEntries = window.history.length;
 		await restored(activeSearchParameters);
 		expect(activeSearchParameters.value?.pattgapdata).toBe('water');
 		expect(router.currentRoute.value.fullPath).toBe(incoming);
 		expect(window.history.length).toBe(browserEntries);
-		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.first(20));
+		await sync.run(() => (results.view('hits').state.first = 20));
 		expect(router.currentRoute.value.query).toMatchObject({ patt: pattern, pattgapdata: 'water', interface: '{"form":"search"}' });
-		await sync.run(() => searchActions.searchFromSubmit({ ...submittedQuery(), params: {} }));
+		await sync.run(() => searchForm.submit({ ...submittedQuery(), params: {} }));
 		expect(router.currentRoute.value.query).not.toHaveProperty('query');
 		expect(router.currentRoute.value.query).not.toHaveProperty('field');
 		expect(router.currentRoute.value.query).not.toHaveProperty('interface');
@@ -346,28 +387,28 @@ describe('search URLs and browser history', () => {
 	test('opening a saved search resets inactive result controls to their defaults', async () => {
 		const { sync, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
-		const hits = ViewStore.getOrCreateModule('hits');
-		hits.actions.groupBy(['hit:word']);
-		hits.actions.sort('-size');
-		hits.actions.range({ first: 45, number: 30 });
-		GlobalStore.actions.pageSize(50);
+		const hits = results.view('hits');
+		hits.setGroupBy(['hit:word']);
+		hits.state.sort = '-size';
+		hits.setRange({ first: 45, number: 30 });
+		results.setPageSize(50);
 		await sync.open(`${path}/docs?patt=${encodeURIComponent(pattern)}&first=105&number=10&sort=field:title`);
 		await flushPromises();
-		expect(ViewStore.getSelectedViewName()).toBe('docs');
-		expect(hits.getState()).toMatchObject({ first: 0, number: 50, groupBy: [], sort: null, viewGroup: null });
-		expect(ViewStore.getOrCreateModule('docs').getState()).toMatchObject({ first: 105, number: 10, sort: 'field:title' });
+		expect(results.selectedViewName).toBe('docs');
+		expect(hits.state).toMatchObject({ first: 0, number: 50, groupBy: [], sort: null, viewGroup: null });
+		expect(results.view('docs').state).toMatchObject({ first: 105, number: 10, sort: 'field:title' });
 		expect(activeSearchParameters.value).toMatchObject({ first: 100, number: 50 });
 	});
 	test.each(['hits', 'docs'])('opening a %s URL hydrates only that view and expands its selection', async view => {
 		for (const name of ['hits', 'docs']) {
-			ViewStore.getOrCreateModule(name).actions.range({ first: 200, number: 20 });
-			ViewStore.getOrCreateModule(name).actions.sort('-size');
+			results.view(name).setRange({ first: 200, number: 20 });
+			results.view(name).state.sort = '-size';
 		}
 		const { router, activeSearchParameters } = await setup(`${path}/${view}?patt=${encodeURIComponent(pattern)}&first=45&number=30`);
 		await restored(activeSearchParameters);
-		expect(ViewStore.getSelectedViewName()).toBe(view);
-		expect(ViewStore.getOrCreateModule(view).get.selectedRange()).toEqual({ first: 45, number: 30 });
-		expect(ViewStore.getOrCreateModule(view === 'hits' ? 'docs' : 'hits').getState()).toMatchObject({ first: 0, number: 20, sort: null });
+		expect(results.selectedViewName).toBe(view);
+		expect(results.view(view).selectedRange).toEqual({ first: 45, number: 30 });
+		expect(results.view(view === 'hits' ? 'docs' : 'hits').state).toMatchObject({ first: 0, number: 20, sort: null });
 		expect(activeSearchParameters.value).toMatchObject({ first: 40, number: 40 });
 		expect(router.currentRoute.value.query).toMatchObject({ first: '45', number: '30' });
 	});
@@ -381,7 +422,7 @@ describe('search URLs and browser history', () => {
 		await flushPromises();
 		expect(router.currentRoute.value.fullPath).toBe(url);
 		expect(activeSearchParameters.value).toMatchObject({ patt: pattern, filter: 'late:(saved)' });
-		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.sort('hit:word'));
+		await sync.run(() => (results.view('hits').state.sort = 'hit:word'));
 		expect(router.currentRoute.value.query).toMatchObject({ 'f.late': 'saved', filter: 'late:(saved)', sort: 'hit:word' });
 		expect(runtime.value.state.state.value.late).toEqual({ value: 'draft', caseSensitive: false });
 		expect(activeSearchParameters.value).toMatchObject({ patt: pattern, filter: 'late:(saved)', sort: 'hit:word' });
@@ -394,7 +435,7 @@ describe('search URLs and browser history', () => {
 			beforeStateLoaded: () => pending.promise,
 		});
 		expect(activeSearchParameters.value).toMatchObject({ patt: pattern, filter, first: 40, number: 40, group: 'hit:word', sort: '-size' });
-		await sync.run(() => ViewStore.getOrCreateModule('hits').actions.range({ first: 80, number: 20 }));
+		await sync.run(() => results.view('hits').setRange({ first: 80, number: 20 }));
 		pending.resolve();
 		await restored(activeSearchParameters);
 		expect(activeSearchParameters.value).toMatchObject({ patt: pattern, filter, first: 80, number: 20, group: 'hit:word', sort: '-size' });
@@ -402,11 +443,11 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('reset clears the submitted search and URL', async () => {
-		const { sync, router, searchActions, activeSearchParameters } = await setup();
+		const { sync, router, searchForm, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
-		await sync.run(() => searchActions.reset());
+		await sync.run(() => searchForm.reset());
 		expect(activeSearchParameters.value).toBeUndefined();
-		expect(ViewStore.getSelectedViewName()).toBeNull();
+		expect(results.selectedViewName).toBeNull();
 		expect(router.currentRoute.value.path).toBe(path);
 		expect(router.currentRoute.value.query).toEqual({});
 	});

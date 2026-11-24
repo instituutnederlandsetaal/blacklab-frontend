@@ -2,7 +2,7 @@ import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldControllerFor, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 import type { FormOutputName } from '@/features/form/model/types/form-output';
-import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
+import { groupDisplayModes } from '@/features/search/model/results/result-types';
 
 export type ResultControllerConfig = {
 	defaultValue?: string | null;
@@ -24,8 +24,6 @@ function createOutputController<Kind extends string>(kind: Kind, output: Extract
 export const resultGroupByController = createOutputController('result-group-by', 'group');
 export const resultSortController = createOutputController('result-sort', 'sort');
 
-const groupDisplayModes = new Set<GroupDisplayMode>(['table', 'docs', 'hits', 'relative docs', 'relative hits', 'tokens']);
-
 export const resultGroupDisplayModeController = defineFieldController<'result-group-display-mode', SingleSelectFieldDefinition, ResultControllerConfig>({
 	kind: 'result-group-display-mode',
 	outputs: [],
@@ -35,5 +33,5 @@ export const resultGroupDisplayModeController = defineFieldController<'result-gr
 		codec: stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultFieldConfig>) => config.defaultValue ?? ''),
 	},
 	collect() {},
-	getResultPreset: (_config, _runtime, state) => (groupDisplayModes.has(state as GroupDisplayMode) ? (state as GroupDisplayMode) : null),
+	getResultPreset: (_config, _runtime, state) => groupDisplayModes.find(mode => mode === state) ?? null,
 });

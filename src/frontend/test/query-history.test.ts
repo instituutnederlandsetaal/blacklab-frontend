@@ -5,11 +5,9 @@ import { File } from 'node:buffer';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
-import { actions, get, getState, init, setUrlDecoder } from '@/features/history/model/query-history-state';
-import { queryHistoryDetails } from '@/url/query-history';
+import { actions, get, getState, init } from '@/features/history/model/query-history-state';
 
 beforeEach(() => {
-	setUrlDecoder(queryHistoryDetails);
 	window.localStorage.clear();
 });
 
@@ -25,8 +23,7 @@ describe('URL query history', () => {
 		const url = 'https://saved.example/test-corpus/search/hits?patt=%5Bword%3D%22water%22%5D';
 		await actions.importUrl(url, async url => ({ url, displayValues: { pattern: 'Word: water', filters: '-' } }));
 		expect(window.location.href).toBe(currentUrl);
-		expect(getState()).toHaveLength(1);
-		expect(getState()[0]).toMatchObject({ url, displayValues: { pattern: 'Word: water', filters: '-' } });
+		expect(getState()).toMatchObject([{ url, displayValues: { pattern: 'Word: water', filters: '-' } }]);
 	});
 
 	test('does not record URLs without search results', () => {
@@ -50,6 +47,20 @@ describe('URL query history', () => {
 	])('keeps searches with different %s settings', (_label, first, second) => {
 		for (const query of [first, second]) actions.addEntry({ url: '/test-corpus/search/hits?' + query });
 		expect(getState()).toHaveLength(2);
+	});
+
+	test('retains different searches with the same legacy hash', () => {
+		for (const patt of ['Aa', 'BB']) actions.addEntry({ url: '/test/search/hits?patt=' + patt });
+		expect(getState().map(entry => entry.displayValues.pattern)).toEqual(['BB', 'Aa']);
+		expect(getState()[0].hash).toBe(getState()[1].hash);
+	});
+
+	test('ignores grouping on collocations when recording history', () => {
+		const url = '/test/search/hits?patt=water&colltype=proximity';
+		actions.addEntry({ url });
+		actions.addEntry({ url: url + '&group=hit:word' });
+		expect(getState()).toHaveLength(1);
+		expect(get.details(getState()[0]).groupBy).toEqual([]);
 	});
 
 	test('deduplicates queries when only result settings differ', () => {
@@ -79,8 +90,7 @@ describe('URL query history', () => {
 			}),
 		);
 		init({ index: { id: 'test-corpus', timeModified: 'now' } } as CorpusContext);
-		expect(getState()).toHaveLength(1);
-		expect(getState()[0]).toMatchObject({ url: window.location.origin + url, displayValues: { pattern: 'Any word', filters: '-' } });
+		expect(getState()).toMatchObject([{ url: window.location.origin + url, displayValues: { pattern: 'Any word', filters: '-' } }]);
 	});
 
 	test('exported searches retain Unicode queries and readable summaries when imported', async () => {

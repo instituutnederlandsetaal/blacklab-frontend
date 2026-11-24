@@ -1,16 +1,16 @@
 <template>
 	<div>
-		<div v-if="loadingState.isLoading()" class="container main-content">
+		<div v-if="loadingState.isLoading()" class="main-content" :class="containerClass">
 			<Spinner center />
 			<h2>{{ $t('corpus.loading') }}</h2>
 		</div>
-		<div v-else-if="errorPresentation" class="container main-content">
+		<div v-else-if="errorPresentation" class="main-content" :class="containerClass">
 			<h2>{{ errorPresentation.title }}</h2>
 			<p>{{ errorPresentation.message }}</p>
 			<p v-if="loadingState.error?.httpCode === 404"><router-link :to="{ name: 'corpora' }">Browse corpora</router-link></p>
 			<button @click="loadingState.retry()" type="button" class="btn btn-primary">Retry</button>
 		</div>
-		<div v-else-if="loadingState.isLoaded() && !loadingState.value.index" class="container main-content">
+		<div v-else-if="loadingState.isLoaded() && !loadingState.value.index" class="main-content" :class="containerClass">
 			<h2>Corpus not found</h2>
 			<p>The requested corpus is unavailable.</p>
 			<router-link :to="{ name: 'corpora' }">Browse corpora</router-link>
@@ -22,9 +22,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { useLayout } from '@/app/state/layout';
 import { useCorpusContextLoader } from '@/app/state/useCorpusContext';
 
 import Spinner from '@/shared/ui/Spinner.vue';
+
+const { containerClass } = useLayout();
 
 const loadingState = useCorpusContextLoader();
 const errorPresentation = computed(() => {

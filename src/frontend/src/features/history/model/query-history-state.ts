@@ -1,14 +1,14 @@
-/**
- * This module contains the history of executed queries.
- * A new entry is created every time the user executes a query,
- * but also when the user changes the grouping, and when they switch between viewing hits/documents.
- */
-
 import { stripIndent } from 'common-tags';
+import URI from 'urijs';
 import { shallowRef } from 'vue';
 
 import { type CorpusContext } from '@/app/state/useCorpusContext';
+import type { FormRuntime } from '@/features/form';
+import { restoreSubmittedForm } from '@/features/search/bindings/search-form';
+import { summarizeSubmittedSearch } from '@/features/search/model/search-summary';
 import type { Corpus } from '@/types/apptypes';
+import { queryHistoryDetails, type HistoryUrlDetails } from '@/url/query-history';
+import { readSubmittedSearch } from '@/url/search-query';
 
 import { debugLog } from '@/shared/debug/debug';
 import { stableStringify } from '@/shared/utils/stable-stringify';
@@ -24,18 +24,7 @@ type FullHistoryEntry = {
 
 type ModuleRootState = FullHistoryEntry[];
 
-export type HistoryEntryInput = Pick<FullHistoryEntry, 'url'> & Partial<Pick<FullHistoryEntry, 'timestamp' | 'displayValues'>>;
-export type HistoryUrlDetails = {
-	identity: unknown;
-	viewedResults: string | null;
-	collocation: boolean;
-	groupBy: string[];
-	pattern?: string;
-	filters?: string;
-	exportResults: string | null;
-	hasGapValues: boolean;
-};
-
+export type HistoryEntryInput = { url: string; timestamp?: number; displayValues?: { pattern: string; filters: string } };
 type HistoryUrlSummaryDecoder = (url: string) => Promise<HistoryEntryInput>;
 export const [, provideHistoryImport, useHistoryImport] = useInjectable<(url: string) => Promise<void>>('history-import');
 const version = 12;
@@ -48,15 +37,11 @@ type LocalStorageState = {
 
 // Track current corpus for localStorage keying
 let corpus: Corpus | null = null;
-let urlDecoder: ((url: string) => HistoryUrlDetails) | undefined;
+let details = queryHistoryDetails;
 
-const setUrlDecoder = (decode: (url: string) => HistoryUrlDetails) => {
-	urlDecoder = decode;
-};
-
-function details(url: string): HistoryUrlDetails {
-	if (!urlDecoder) throw new Error('Query history initialized without a URL decoder.');
-	return urlDecoder(url);
+/** Legacy history adapters may supply their own URL decoder. */
+function setUrlDecoder(decode: (url: string) => HistoryUrlDetails) {
+	details = decode;
 }
 
 function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntryInput): FullHistoryEntry | null {
@@ -71,6 +56,11 @@ function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntr
 			filters: displayValues?.filters || decoded.filters || '-',
 		},
 	});
+}
+
+function sameQuery(a: FullHistoryEntry, b: FullHistoryEntry) {
+	if (a.hash !== b.hash) return false;
+	return a.url === b.url || stableStringify(details(a.url).identity) === stableStringify(details(b.url).identity);
 }
 
 const state = shallowRef<ModuleRootState>([]);
@@ -131,9 +121,8 @@ const actions = {
 	addEntry: (entry: HistoryEntryInput) => {
 		const fullEntry = createEntry(entry);
 		if (!fullEntry) return;
-		const entries = [fullEntry, ...state.value.filter(entry => entry.hash !== fullEntry.hash)].slice(0, 200);
-		state.value = entries;
-		saveToLocalStorage(entries);
+		state.value = [fullEntry, ...state.value.filter(entry => !sameQuery(entry, fullEntry))].slice(0, 200);
+		saveToLocalStorage(state.value);
 	},
 	removeEntry: (i: number) => {
 		const entries = [...state.value];
@@ -143,9 +132,16 @@ const actions = {
 	},
 	clear: () => {
 		state.value = [];
-		saveToLocalStorage([]);
+		saveToLocalStorage(state.value);
 	},
 };
+
+export function importSearchUrl(url: string, runtime: FormRuntime | null) {
+	if (!corpus) return;
+	const submitted = readSubmittedSearch(new URI(url).query(true));
+	const summary = summarizeSubmittedSearch(submitted, runtime && restoreSubmittedForm(runtime, submitted).submittedResult);
+	actions.addEntry({ url, displayValues: { pattern: summary.pattern || '', filters: summary.filter || '' } });
+}
 
 const init = (change: CorpusContext) => {
 	corpus = change.index ?? null;
@@ -175,7 +171,7 @@ const readFromLocalStorage = (): ModuleRootState => {
 			.filter(entry => typeof entry.url === 'string' && entry.url)
 			.map(createEntry)
 			.filter(entry => entry !== null)
-			.filter((entry, index, entries) => entries.findIndex(other => other.hash === entry.hash) === index);
+			.filter((entry, index, entries) => entries.findIndex(other => sameQuery(other, entry)) === index);
 		if (stored.version !== version) saveToLocalStorage(entries);
 		return entries;
 	} catch (e) {

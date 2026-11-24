@@ -1,6 +1,7 @@
 import type { BLCollocationScorer, BLCollocationsParameters, BLSearchParameters } from '@/types/blacklabtypes';
 
-export type GroupDisplayMode = 'table' | 'docs' | 'hits' | 'relative docs' | 'relative hits' | 'tokens';
+export const groupDisplayModes = ['table', 'docs', 'hits', 'relative docs', 'relative hits', 'tokens'] as const;
+export type GroupDisplayMode = (typeof groupDisplayModes)[number];
 
 export type EffectiveCollocationParameters = BLCollocationsParameters & {
 	number: number;

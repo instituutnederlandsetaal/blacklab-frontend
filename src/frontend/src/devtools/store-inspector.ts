@@ -1,13 +1,12 @@
 import { setupDevtoolsPlugin } from '@vue/devtools-api';
-import { isRef, toRaw, unref, watch, type App } from 'vue';
+import { isRef, toRaw, unref, watch, type App, type Ref } from 'vue';
 
 import * as ArticleStore from '@/app/state/article-configuration';
 import * as UIStore from '@/app/state/ui-state';
-import { useCorpus } from '@/app/state/useCorpusContext';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
-import * as ViewsStore from '@/features/search/model/results/view-state';
+import type { ResultsState } from '@/features/search/model/results/results-state';
+import type { Corpus } from '@/types/apptypes';
 
 const DEVTOOLS_PLUGIN_ID = 'blacklab-frontend-store-devtools';
 const STORE_INSPECTOR_ID = 'blacklab-frontend-store-inspector';
@@ -33,7 +32,6 @@ type StoreLeaf = {
 	label: string;
 	readState?: () => unknown;
 	readGetters: () => unknown;
-	watchState?: () => unknown;
 };
 
 type StoreGroup = {
@@ -42,46 +40,51 @@ type StoreGroup = {
 	children: StoreLeaf[];
 };
 
-type DevtoolsApi = Parameters<Parameters<typeof setupDevtoolsPlugin>[1]>[0];
+type InspectorStores = { root: StoreLeaf; groups: StoreGroup[]; leaves: StoreLeaf[] };
 
-const ROOT_STORE: StoreLeaf = {
-	id: ROOT_STORE_ID,
-	label: 'Root Store',
-	readGetters: () => ({ viewedResultsSettings: ViewsStore.getSelectedViewSettings }),
-};
+function inspectorStores(results: ResultsState, corpus: Readonly<Ref<Corpus | undefined>>): InspectorStores {
+	const viewStates = () => Object.fromEntries([...results.views].map(([name, view]) => [name, view.state]));
+	const root: StoreLeaf = {
+		id: ROOT_STORE_ID,
+		label: 'Root Store',
+		readGetters: () => ({ viewedResultsSettings: () => results.selectedView?.state ?? null }),
+	};
 
-const STORE_GROUPS: StoreGroup[] = [
-	{
-		id: 'group:core',
-		label: 'Core',
-		children: [
-			{ id: 'store:corpus', label: 'Corpus', readState: () => useCorpus().value, readGetters: () => {} },
-			{ id: 'store:history', label: 'History', readState: HistoryStore.getState, readGetters: () => HistoryStore.get },
-			{ id: 'store:tagset', label: 'Tagset', readState: TagsetStore.getState, readGetters: () => TagsetStore.get },
-			{ id: 'store:ui', label: 'UI', readState: UIStore.getState, readGetters: () => UIStore.get },
-			{ id: 'store:article', label: 'Article', readState: ArticleStore.getState, readGetters: () => ArticleStore.get },
-		],
-	},
-	{
-		id: 'group:results',
-		label: 'Results',
-		children: [
-			{ id: 'store:interface', label: 'Selected View', readState: () => ViewsStore.selection, readGetters: () => ({ viewedResults: ViewsStore.getSelectedViewName }) },
-			{ id: 'store:global-results', label: 'Global', readState: GlobalResultsStore.getState, readGetters: () => GlobalResultsStore.get },
-			{
-				id: 'store:views',
-				label: 'Views',
-				readState: ViewsStore.getState,
-				readGetters: () => ViewsStore.get,
-				watchState: () => ({
-					state: ViewsStore.getState(),
-				}),
-			},
-		],
-	},
-];
+	const groups: StoreGroup[] = [
+		{
+			id: 'group:core',
+			label: 'Core',
+			children: [
+				{ id: 'store:corpus', label: 'Corpus', readState: () => corpus.value, readGetters: () => {} },
+				{ id: 'store:history', label: 'History', readState: HistoryStore.getState, readGetters: () => HistoryStore.get },
+				{ id: 'store:tagset', label: 'Tagset', readState: TagsetStore.getState, readGetters: () => TagsetStore.get },
+				{ id: 'store:ui', label: 'UI', readState: UIStore.getState, readGetters: () => UIStore.get },
+				{ id: 'store:article', label: 'Article', readState: ArticleStore.getState, readGetters: () => ArticleStore.get },
+			],
+		},
+		{
+			id: 'group:results',
+			label: 'Results',
+			children: [
+				{
+					id: 'store:interface',
+					label: 'Selected View',
+					readState: () => ({ viewedResults: results.selectedViewName }),
+					readGetters: () => ({ viewedResults: () => results.selectedViewName }),
+				},
+				{ id: 'store:global-results', label: 'Global', readState: () => results.settings, readGetters: () => ({}) },
+				{
+					id: 'store:views',
+					label: 'Views',
+					readState: viewStates,
+					readGetters: () => ({}),
+				},
+			],
+		},
+	];
 
-const STORE_LEAVES = [ROOT_STORE, ...STORE_GROUPS.flatMap(group => group.children)];
+	return { root, groups, leaves: [root, ...groups.flatMap(group => group.children)] };
+}
 
 function unwrapInspectorValue(value: unknown): unknown {
 	if (isRef(value)) {
@@ -89,10 +92,6 @@ function unwrapInspectorValue(value: unknown): unknown {
 	}
 
 	return value != null && typeof value === 'object' ? toRaw(value as object) : value;
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-	return value != null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function formatGetterError(error: unknown): { error: string } {
@@ -120,30 +119,10 @@ function evaluateGetterValue(value: unknown): unknown {
 }
 
 function makeGetterFields(getterTree: unknown, path: string[] = []): InspectorField[] {
-	if (!isPlainRecord(getterTree)) {
-		return path.length
-			? [
-					{
-						key: path.join('.'),
-						value: evaluateGetterValue(getterTree),
-						editable: false,
-					},
-				]
-			: [];
+	if (getterTree != null && typeof getterTree === 'object' && !Array.isArray(getterTree)) {
+		return Object.entries(getterTree).flatMap(([key, value]) => makeGetterFields(value, [...path, key]));
 	}
-
-	return Object.entries(getterTree).flatMap(([key, value]) => {
-		const nextPath = [...path, key];
-		return isPlainRecord(value)
-			? makeGetterFields(value, nextPath)
-			: [
-					{
-						key: nextPath.join('.'),
-						value: evaluateGetterValue(value),
-						editable: false,
-					},
-				];
-	});
+	return path.length ? [{ key: path.join('.'), value: evaluateGetterValue(getterTree), editable: false }] : [];
 }
 
 function makeGetterSnapshot(store: StoreLeaf): Record<string, unknown> | null {
@@ -170,74 +149,25 @@ function makeStoreSnapshot(store: StoreLeaf): unknown {
 	return snapshot;
 }
 
-function makeRootStoreNode(filterText: string): InspectorNode | null {
-	const filter = filterText.trim().toLowerCase();
-	return !filter || ROOT_STORE.label.toLowerCase().includes(filter)
-		? {
-				id: ROOT_STORE.id,
-				label: ROOT_STORE.label,
-			}
-		: null;
-}
-
-function toInspectorNode(group: StoreGroup): InspectorNode {
-	return {
-		id: group.id,
-		label: group.label,
-		children: group.children.map(store => ({
-			id: store.id,
-			label: store.label,
-		})),
-	};
-}
-
-function filterGroup(group: StoreGroup, filter: string): InspectorNode | null {
-	if (!filter) {
-		return toInspectorNode(group);
-	}
-
-	if (group.label.toLowerCase().includes(filter)) {
-		return toInspectorNode(group);
-	}
-
-	const children = group.children
-		.filter(store => store.label.toLowerCase().includes(filter))
-		.map(store => ({
-			id: store.id,
-			label: store.label,
-		}));
-
-	return children.length
-		? {
-				id: group.id,
-				label: group.label,
-				children,
-			}
-		: null;
-}
-
-function makeInspectorTree(filterText: string): InspectorNode[] {
+function makeInspectorTree(stores: InspectorStores, filterText: string): InspectorNode[] {
 	const filter = filterText.trim().toLowerCase();
 	const nodes: InspectorNode[] = [];
 
-	if (!filter || 'all store state'.includes(filter)) {
+	if ('all store state'.includes(filter)) {
 		nodes.push({
 			id: ALL_STORE_STATE_ID,
 			label: 'All Store State',
 		});
 	}
 
-	const rootStoreNode = makeRootStoreNode(filterText);
-	if (rootStoreNode) {
-		nodes.push(rootStoreNode);
-	}
+	const { root } = stores;
+	if (root.label.toLowerCase().includes(filter)) nodes.push({ id: root.id, label: root.label });
 
-	STORE_GROUPS.forEach(group => {
-		const node = filterGroup(group, filter);
-		if (node) {
-			nodes.push(node);
-		}
-	});
+	for (const group of stores.groups) {
+		const groupMatches = group.label.toLowerCase().includes(filter);
+		const children = group.children.filter(child => groupMatches || child.label.toLowerCase().includes(filter));
+		if (groupMatches || children.length) nodes.push({ id: group.id, label: group.label, children: children.map(({ id, label }) => ({ id, label })) });
+	}
 
 	return nodes;
 }
@@ -250,12 +180,12 @@ function makeStoreField(store: StoreLeaf): InspectorField {
 	};
 }
 
-function makeAllStoreState(): InspectorState {
+function makeAllStoreState(stores: InspectorStores): InspectorState {
 	const state: InspectorState = {
-		Root: [makeStoreField(ROOT_STORE)],
+		Root: [makeStoreField(stores.root)],
 	};
 
-	return STORE_GROUPS.reduce<InspectorState>((acc, group) => {
+	return stores.groups.reduce<InspectorState>((acc, group) => {
 		acc[group.label] = group.children.map(makeStoreField);
 		return acc;
 	}, state);
@@ -288,17 +218,17 @@ function makeLeafState(store: StoreLeaf): InspectorState {
 	return state;
 }
 
-function makeInspectorState(nodeId: string): InspectorState {
+function makeInspectorState(stores: InspectorStores, nodeId: string): InspectorState {
 	if (nodeId === ALL_STORE_STATE_ID) {
-		return makeAllStoreState();
+		return makeAllStoreState(stores);
 	}
 
-	const group = STORE_GROUPS.find(candidate => candidate.id === nodeId);
+	const group = stores.groups.find(candidate => candidate.id === nodeId);
 	if (group) {
 		return makeGroupState(group);
 	}
 
-	const store = STORE_LEAVES.find(candidate => candidate.id === nodeId);
+	const store = stores.leaves.find(candidate => candidate.id === nodeId);
 	if (store) {
 		return makeLeafState(store);
 	}
@@ -306,7 +236,7 @@ function makeInspectorState(nodeId: string): InspectorState {
 	return {};
 }
 
-function createRefreshScheduler(api: DevtoolsApi): (includeTree?: boolean) => void {
+function createRefreshScheduler(api: { sendInspectorTree(id: string): void; sendInspectorState(id: string): void }): (includeTree?: boolean) => void {
 	let refreshQueued = false;
 	let treeRefreshRequested = false;
 
@@ -328,7 +258,8 @@ function createRefreshScheduler(api: DevtoolsApi): (includeTree?: boolean) => vo
 	};
 }
 
-export function installStoreInspectorDevtools(app: App): void {
+export function installStoreInspectorDevtools(app: App, results: ResultsState, corpus: Readonly<Ref<Corpus | undefined>>): void {
+	const stores = inspectorStores(results, corpus);
 	setupDevtoolsPlugin(
 		{
 			id: DEVTOOLS_PLUGIN_ID,
@@ -351,7 +282,7 @@ export function installStoreInspectorDevtools(app: App): void {
 					return;
 				}
 
-				payload.rootNodes = makeInspectorTree(payload.filter);
+				payload.rootNodes = makeInspectorTree(stores, payload.filter);
 			});
 
 			api.on.getInspectorState(payload => {
@@ -359,18 +290,11 @@ export function installStoreInspectorDevtools(app: App): void {
 					return;
 				}
 
-				payload.state = makeInspectorState(payload.nodeId);
+				payload.state = makeInspectorState(stores, payload.nodeId);
 			});
 
-			STORE_LEAVES.forEach(store => {
-				const watchSource = store.watchState ?? store.readState ?? store.readGetters;
-				watch(
-					watchSource,
-					() => {
-						refreshInspector();
-					},
-					{ deep: true },
-				);
+			stores.leaves.forEach(store => {
+				watch(store.readState ?? store.readGetters, () => refreshInspector(), { deep: true });
 			});
 
 			refreshInspector(true);

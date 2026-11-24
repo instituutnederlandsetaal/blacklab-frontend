@@ -17,7 +17,7 @@
 					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-					@change="value => store.actions.range({ first: value * pageSize, number: pageSize })"
+					@change="value => store.setRange({ first: value * pageSize, number: pageSize })"
 				/>
 
 				<div class="btn-group" v-if="isGroups && !isCollocations" style="flex: none">
@@ -26,7 +26,7 @@
 						type="button"
 						:class="['btn btn-default btn-sm', { active: renderDisplaySettings.groupDisplayMode === option }]"
 						:key="option"
-						@click="groupDisplayMode = option"
+						@click="store.state.groupDisplayMode = option"
 					>
 						{{ option }}
 					</button>
@@ -37,7 +37,7 @@
 				</button>
 
 				<div style="flex-grow: 1"></div>
-				<CollocationScorerToggle v-if="isCollocations && isGroups" :model-value="selectedCollocationScorer" @update:model-value="value => (selectedCollocationScorer = value)" :disabled="!!request" />
+				<CollocationScorerToggle v-if="isCollocations && isGroups" v-model="selectedCollocationScorer" :disabled="!!request" />
 				<div v-if="concordanceAnnotationOptions.length > 1 && id === 'hits'">
 					<label>{{ $t('results.resultsView.selectAnnotation') }}: </label>
 					<div class="btn-group">
@@ -77,7 +77,7 @@
 					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-					@change="value => store.actions.range({ first: value * pageSize, number: pageSize })"
+					@change="value => store.setRange({ first: value * pageSize, number: pageSize })"
 				/>
 				<div style="flex-grow: 1"></div>
 
@@ -86,8 +86,7 @@
 				</button>
 
 				<Sort
-					:model-value="sort"
-					@update:model-value="value => (sort = value)"
+					v-model="sort"
 					:hits="isHits"
 					:docs="isDocs"
 					:groups="isGroups"
@@ -104,7 +103,7 @@
 			<span class="fa fa-exclamation-triangle text-danger"></span><br />
 			<div style="text-align: initial">{{ error }}</div>
 			<div class="result-error-actions">
-				<CollocationScorerToggle v-if="isCollocations && !viewGroup" :model-value="selectedCollocationScorer" @update:model-value="value => (selectedCollocationScorer = value)" />
+				<CollocationScorerToggle v-if="isCollocations && !viewGroup" v-model="selectedCollocationScorer" />
 				<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty()">{{ $t('results.resultsView.tryAgain') }}</button>
 			</div>
 		</div>
@@ -126,7 +125,7 @@
 				:page2="pagination.shownPage2"
 				:maxPage="pagination.maxShownPage"
 				:disabled="!!request"
-				@change="value => store.actions.range({ first: value * pageSize, number: pageSize })"
+				@change="value => store.setRange({ first: value * pageSize, number: pageSize })"
 			/>
 		</div>
 	</div>
@@ -137,11 +136,9 @@ import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { useActiveSearch } from '@/features/search/model/active-search';
 import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
-import * as GlobalStore from '@/features/search/model/results/global-results-state';
-import { isEffectiveCollocationParameters, type ExecutedSearchRequest, type GroupDisplayMode } from '@/features/search/model/results/result-types';
-import * as ResultsStore from '@/features/search/model/results/view-state';
+import { isEffectiveCollocationParameters, type ExecutedSearchRequest } from '@/features/search/model/results/result-types';
+import { useResultsState, type ResultView } from '@/features/search/model/results/results-state';
 import type { DisplaySettingsForRendering } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
@@ -169,15 +166,15 @@ import Spinner from '@/shared/ui/Spinner.vue';
  * In our case, always 'hits' or 'docs', we don't support adding another ResultsView tab with a different ID.
  * Since we use this ID to determine whether we're getting hits or docs from BlackLab, rendering and logic can depend on it as well.
  */
-const activeSearch = useActiveSearch();
-const activeSearchParameters = activeSearch.parameters;
 
 const { id, active, store } = defineProps<{
 	id: 'hits' | 'docs';
 	active: boolean;
-	store: ResultsStore.ViewModule;
+	store: ResultView;
 }>();
 
+const resultState = useResultsState();
+const { parameters: activeSearchParameters } = resultState;
 const customizations = useCustomizations();
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
@@ -199,24 +196,20 @@ const restoreOnViewGroupLeave = ref<{ first: number; number: number; sort: strin
 const showTitles = localStorageSynced('cf/results/showTitles', true);
 
 const groupBy = computed({
-	get: () => store.getState().groupBy,
-	set: (value: string[]) => store.actions.groupBy(value),
+	get: () => store.state.groupBy,
+	set: (value: string[]) => store.setGroupBy(value),
 });
-const pageSize = computed(() => GlobalStore.getState().pageSize);
-const selectedRange = computed(() => store.get.selectedRange());
+const pageSize = computed(() => resultState.settings.pageSize);
+const selectedRange = computed(() => store.selectedRange);
 const sort = computed({
-	get: () => store.getState().sort,
+	get: () => store.state.sort,
 	set: (value: string | null) => {
-		if (!request.value) store.actions.sort(value);
+		if (!request.value) store.state.sort = value;
 	},
 });
 const viewGroup = computed({
-	get: () => store.getState().viewGroup,
-	set: (value: string | null) => store.actions.viewGroup(value),
-});
-const groupDisplayMode = computed({
-	get: () => store.getState().groupDisplayMode,
-	set: (value: GroupDisplayMode | null) => store.actions.groupDisplayMode(value),
+	get: () => store.state.viewGroup,
+	set: (value: string | null) => store.setViewGroup(value),
 });
 const sourceAnnotatedFieldId = computed(() => activeSearchParameters.value?.searchfield ?? corpus.value.mainAnnotatedField);
 const concordanceAnnotationOptions = computed<NormalizedAnnotation[]>(() => customizations.resultConcordanceAnnotationIdOptions().map(id => corpus.value.allAnnotationsMap[id]));
@@ -235,9 +228,9 @@ const isDocs = computed(() => !!results.value && BLTypes.isDocResults(results.va
 const isGroups = computed(() => !!results.value && BLTypes.isGroups(results.value));
 const isCollocations = computed(() => executedRequest.value?.operation === 'collocations' || isEffectiveCollocationParameters(activeSearchParameters.value));
 const selectedCollocationScorer = computed<BLTypes.BLCollocationScorer>({
-	get: () => store.getState().collocationScorer,
+	get: () => store.state.collocationScorer,
 	set: value => {
-		if (!request.value && value !== store.getState().collocationScorer) store.actions.collocationScorer(value);
+		if (!request.value && value !== store.state.collocationScorer) store.setCollocationScorer(value);
 	},
 });
 const collocationScorer = computed(() => (executedRequest.value?.operation === 'collocations' ? executedRequest.value.params.scorertype : undefined));
@@ -380,10 +373,10 @@ function markDirty() {
 function leaveViewgroup() {
 	viewGroup.value = null;
 	if (restoreOnViewGroupLeave.value) {
-		store.actions.range(restoreOnViewGroupLeave.value);
+		store.setRange(restoreOnViewGroupLeave.value);
 		sort.value = restoreOnViewGroupLeave.value.sort;
 	} else {
-		store.actions.range({ first: 0, number: GlobalStore.getState().pageSize });
+		store.setRange({ first: 0, number: resultState.settings.pageSize });
 		sort.value = isCollocations.value ? 'score' : null;
 	}
 	restoreOnViewGroupLeave.value = null;
@@ -398,7 +391,7 @@ function changeSort(sortProperty: string) {
 
 function changeViewGroup(groupId: string, groupDisplay: string) {
 	if (request.value) return;
-	const { first, number } = store.getState();
+	const { first, number } = store.state;
 	restoreOnViewGroupLeave.value = { first, number, sort: sort.value };
 	viewGroup.value = groupId;
 	storedViewGroupName.value = groupDisplay;
@@ -443,12 +436,12 @@ const breadCrumbs = computed<BreadCrumb[]>(() => {
 			deactivate: leaveViewgroup,
 		});
 	}
-	const { sampleMode, sampleSize } = GlobalStore.getState();
+	const { sampleMode, sampleSize } = resultState.settings;
 	if (sampleSize != null) {
 		crumbs.push({
 			label: translate.$t('results.resultsView.navigation.randomSample', { sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}` }),
 			title: '',
-			deactivate: () => GlobalStore.actions.sampleSize(null),
+			deactivate: () => resultState.setSampleSize(null),
 		});
 	}
 	if (sort.value) {
@@ -512,7 +505,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 		dir: currentCorpus.textDirection,
 		html: customizations.resultConcordanceAsHtml(),
 		i18n: translate,
-		groupDisplayMode: groupDisplayMode.value || (currentResults && BLTypes.isHitGroups(currentResults) ? 'hits' : 'docs'),
+		groupDisplayMode: store.state.groupDisplayMode || (currentResults && BLTypes.isHitGroups(currentResults) ? 'hits' : 'docs'),
 		hasCustomHitInfoColumn: (searchResults, parallelCorpus) =>
 			BLTypes.isHitResults(searchResults) || BLTypes.isHitGroups(searchResults) ? customizations.hitInfoColumnVisible(searchResults, parallelCorpus) : false,
 		getCustomHitInfo: (hit, field, document) => customizations.hitInfoColumnContent(hit, field, document, translate),

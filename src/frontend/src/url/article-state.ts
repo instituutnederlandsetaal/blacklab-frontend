@@ -30,7 +30,7 @@ export function createArticleUrlBinding(router: Router, state: ArticleState, cor
 			const index = toValue(corpus);
 			return route.name === 'article' && index?.id === route.params.corpus ? index : null;
 		},
-		read: route => {
+		read: (route, replaceUrl) => {
 			const query = route.query;
 			extras = { ...query };
 			for (const key of ['field', 'searchfield', 'searchField', 'wordstart', 'wordend', 'findhit', 'patt', 'query', 'pattgapdata']) delete extras[key];
@@ -45,9 +45,10 @@ export function createArticleUrlBinding(router: Router, state: ArticleState, cor
 				patt: queryString(query, 'patt'),
 				pattgapdata: queryString(query, 'pattgapdata'),
 			});
+			const canonical = location(route);
+			if (router.resolve(canonical).fullPath !== route.fullPath) replaceUrl(canonical);
 		},
 		write: location,
-		normalize: route => (router.resolve(location(route)).fullPath !== route.fullPath ? location(route) : undefined),
 		leave: state.reset,
 	});
 }

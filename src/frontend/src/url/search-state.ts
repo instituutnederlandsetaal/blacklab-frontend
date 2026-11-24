@@ -1,78 +1,90 @@
-import { readonly, ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue';
-import type { LocationQueryRaw, Router } from 'vue-router';
+import URI from 'urijs';
+import { computed, nextTick, ref, toValue, type App, type MaybeRefOrGetter, type Ref } from 'vue';
+import { isNavigationFailure, NavigationFailureType, type LocationQueryRaw, type Router } from 'vue-router';
 
-import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
-import * as ViewStore from '@/features/search/model/results/view-state';
-import type { SearchSummary, SubmittedSearchState } from '@/features/search/model/submitted-search';
-import { provideSearchNavigation, type SearchNavigationPlugin } from '@/navigation/search-navigation';
+import type { HistoryEntryInput } from '@/features/history/model/query-history-state';
+import type { ResultsState } from '@/features/search/model/results/results-state';
+import type { SearchSummary } from '@/features/search/model/search-summary';
+import type { SubmittedSearchState } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
-import { queryNumber } from '@/url/query';
-import { createSearchPageQuery, readSearchQuery, searchResultSettings } from '@/url/search-query';
+import { createSearchPageQuery, readSearchQuery } from '@/url/search-query';
 import { createUrlProjection } from '@/url/url-projection';
 
-/** Project the search stores into a URL and restore them on incoming navigation. */
-export function createSearchUrlBinding(
-	router: Router,
-	dependencies: {
-		corpus: MaybeRefOrGetter<Corpus | undefined>;
-		submittedSearch: SubmittedSearchState;
-		restoreForms: () => Promise<void>;
-		summary: MaybeRefOrGetter<SearchSummary>;
-	},
-): SearchNavigationPlugin & { initialReadSettled: Readonly<Ref<boolean>> } {
-	let extras: LocationQueryRaw = {};
-	const initialReadSettled = ref(router.currentRoute.value.name !== 'search');
+import useInjectable from '@/shared/utils/useInjectable';
 
-	const projection = createUrlProjection(router, {
+const [, provideSearchNavigation, useSearchNavigation] = useInjectable<{ open(url: string): Promise<void> }>('search-navigation');
+
+type SearchUrlDependencies = {
+	corpus: MaybeRefOrGetter<Corpus | undefined>;
+	search: SubmittedSearchState;
+	results: ResultsState;
+	form: { restore(): Promise<void>; loading: Readonly<Ref<boolean>>; summary: Readonly<Ref<SearchSummary>> };
+	history: { addEntry(entry: HistoryEntryInput): void };
+};
+
+export function createSearchUrlBinding(router: Router, { corpus, search, results, form, history }: SearchUrlDependencies) {
+	const hasRead = ref(router.currentRoute.value.name !== 'search');
+	const initialReadSettled = computed<boolean>(settled => settled || (hasRead.value && !form.loading.value));
+	let extras: LocationQueryRaw = {};
+	const navigation = createUrlProjection(router, {
 		context: route => {
-			const corpus = toValue(dependencies.corpus);
-			return route.name === 'search' && corpus && corpus.id === route.params.corpus ? corpus : null;
+			const index = toValue(corpus);
+			return route.name === 'search' && index && route.params.corpus === index.id ? index : null;
 		},
-		read: async route => {
-			try {
-				const results = route.params.results;
-				const viewName = (Array.isArray(results) ? results[0] : results) || null;
-				const decoded = readSearchQuery(route.query);
-				const { view, global } = searchResultSettings(decoded, GlobalResultsStore.getState().pageSize);
-				extras = decoded.extras;
-				ViewStore.actions.resetAllViews({ resetGroupBy: true });
-				GlobalResultsStore.actions.replace(global);
-				ViewStore.actions.replaceView({ view: viewName, data: view });
-				ViewStore.selectView(viewName);
-				dependencies.submittedSearch.value = decoded.submitted;
-				await dependencies.restoreForms();
-			} finally {
-				if (route === router.currentRoute.value) initialReadSettled.value = true;
+		read(route, replaceUrl) {
+			const decoded = readSearchQuery(route.query, results.settings.pageSize);
+			extras = decoded.extras;
+			const parameter = route.params.results;
+			const view = (Array.isArray(parameter) ? parameter[0] : parameter) || null;
+			results.restore(decoded.global, view, decoded.view);
+			search.replace(decoded.submitted);
+			const { sampleSize, sampleSeed } = results.settings;
+			if (sampleSize !== null && decoded.global.sampleSeed === null) {
+				replaceUrl({ path: route.path, hash: route.hash, query: { ...route.query, sampleseed: sampleSeed } });
 			}
+			const restored = form.restore();
+			hasRead.value = true;
+			return restored;
 		},
-		write: (route, corpus) => {
-			const results = ViewStore.getSelectedViewName();
-			const view = ViewStore.getSelectedViewSettings();
-			const query = view ? createSearchPageQuery({ submitted: dependencies.submittedSearch.value, extras, global: GlobalResultsStore.getState(), view }) : {};
-			return { name: 'search', params: { corpus: corpus.id, results: results ?? '' }, query, hash: route.hash };
+		write(route, index) {
+			const view = results.selectedView?.state;
+			const query = view ? createSearchPageQuery({ submitted: search.current.value, extras, global: results.settings, view }) : {};
+			return { name: 'search', params: { corpus: index.id, results: results.selectedViewName ?? '' }, query, hash: route.hash };
 		},
-		leave: () => {
-			dependencies.submittedSearch.value = undefined;
-		},
-		normalize: route => {
-			const { sampleSize, sampleSeed } = GlobalResultsStore.getState();
-			if (sampleSize !== null && queryNumber(route.query, 'sampleseed') === null) {
-				return { name: route.name!, params: route.params, hash: route.hash, query: { ...route.query, sampleseed: sampleSeed } };
-			}
-		},
-		published: target => {
+		published(target) {
 			if (!target.params.results) return;
-			const { pattern, filter } = toValue(dependencies.summary);
-			HistoryStore.actions.addEntry({ url: target.href, displayValues: { pattern: pattern ?? '', filters: filter ?? '' } });
+			const { pattern, filter } = form.summary.value;
+			history.addEntry({ url: target.href, displayValues: { pattern: pattern ?? '', filters: filter ?? '' } });
 		},
+		leave: () => search.reset(),
 	});
+	let stopped = false;
+	async function open(url: string) {
+		await nextTick();
+		if (stopped) return;
+		const uri = new URI(url).host('').protocol('').port('');
+		const base = router.options.history.base.replace(/\/+$/, '');
+		const path = uri.path();
+		if (base && (path === base || path.startsWith(base + '/'))) uri.path(path.slice(base.length) || '/');
+		const failure = await router.push(uri.toString());
+		// A saved search can match the current route while the user has an unsent draft.
+		if (isNavigationFailure(failure, NavigationFailureType.duplicated) && !stopped && router.currentRoute.value === failure.from) {
+			await navigation.restoreCurrent();
+		}
+	}
+	function stop() {
+		stopped = true;
+		navigation.stop();
+	}
 	return {
-		...projection,
-		initialReadSettled: readonly(initialReadSettled),
-		install: app => {
-			provideSearchNavigation(app, projection);
-			app.use(projection);
+		open,
+		stop,
+		initialReadSettled,
+		install(app: App) {
+			provideSearchNavigation(app, { open });
+			app.onUnmount(stop);
 		},
 	};
 }
+
+export { useSearchNavigation };

@@ -3,7 +3,7 @@
 import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { flushPromises } from '@vue/test-utils';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, onTestFinished, test, vi } from 'vitest';
 import { computed, createApp, effectScope, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
@@ -15,27 +15,22 @@ import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import { getState as getHistory, useHistoryImport } from '@/features/history/model/query-history-state';
-import { useActiveSearch } from '@/features/search/model/active-search';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
-import * as ViewStore from '@/features/search/model/results/view-state';
+import { useResultsState } from '@/features/search/model/results/results-state';
 import { createSearchFeature } from '@/features/search/search-feature';
-import { useSearchNavigation } from '@/navigation/search-navigation';
+import { useSearchNavigation } from '@/url/search-state';
 
 import { createCorpus } from '../form/search-form-fixture';
 
 const subcorpus = vi.hoisted(() => ({ next: vi.fn() }));
 vi.mock('@/features/search/resources/selected-subcorpus-count.resource', () => ({ selectedSubcorpusLoader: subcorpus }));
 
-const cleanup: Array<() => void> = [];
-afterEach(() => {
-	cleanup.splice(0).forEach(stop => stop());
-	subcorpus.next.mockReset();
-});
+afterEach(() => subcorpus.next.mockReset());
 
 async function setup(initialUrl: string, configure = () => {}) {
 	const api = createMockApi({
 		blacklab: {
-			getCorpus: id => resolvedRequest(id === 'test-corpus' ? createCorpus() : { ...JSON.parse(JSON.stringify(createCorpus()).replaceAll('word', 'token').replaceAll('lemma', 'base')), id }),
+			getCorpus: () => resolvedRequest(createCorpus()),
 		},
 		frontend: { getConfig: defaultConfig, getTagset: undefined },
 	});
@@ -48,7 +43,7 @@ async function setup(initialUrl: string, configure = () => {}) {
 	});
 	await router.push(initialUrl);
 	const scope = effectScope();
-	cleanup.push(() => scope.stop());
+	onTestFinished(() => scope.stop());
 	const corpusState = scope.run(() => {
 		const corpus = createCorpusContext(
 			api.blacklabApi,
@@ -67,11 +62,13 @@ async function setup(initialUrl: string, configure = () => {}) {
 	const registry = createCustomizationRegistry(corpusState.corpus);
 	const customizations = createCustomizations(registry, corpusState.corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
 	configure();
-	const feature = scope.run(() => createSearchFeature({ router, corpusState, blacklabApi: api.blacklabApi, customizations, translate: createMockTranslate(), debug: false }))!;
+	const feature = scope.run(() =>
+		createSearchFeature({ customizationsReady: true, router, corpusState, blacklabApi: api.blacklabApi, customizations, translate: createMockTranslate(), debug: false }),
+	)!;
 	const app = createApp({ render: () => h('div') });
 	app.use(feature);
 	app.mount(document.createElement('div'));
-	cleanup.push(() => app.unmount());
+	onTestFinished(() => app.unmount());
 	await flushPromises();
 	return { app, router, feature, registry, corpusState };
 }
@@ -81,11 +78,11 @@ describe('lazy search feature', () => {
 		const { app, feature } = await setup('/test-corpus/search/hits?patt=%5Bword%3D%22water%22%5D');
 
 		expect(feature.initialReadSettled.value).toBe(true);
-		expect(feature.activeSearchParameters.value?.patt).toBe('[word="water"]');
-		expect(ViewStore.getSelectedViewName()).toBe('hits');
-		expect(app.runWithContext(useActiveSearch).parameters).toBe(feature.activeSearchParameters);
+		expect(feature.results.parameters.value?.patt).toBe('[word="water"]');
+		expect(feature.results.selectedViewName).toBe('hits');
+		expect(app.runWithContext(useResultsState)).toBe(feature.results);
 		expect(app.runWithContext(useSearchFormSystem).value).toBeTruthy();
-		expect(app.runWithContext(useSearchNavigation).open).toBeTypeOf('function');
+		expect(app.runWithContext(useSearchNavigation)).toHaveProperty('open', expect.any(Function));
 	});
 
 	test('retains corpus script configuration when search is activated later', async () => {
@@ -108,14 +105,14 @@ describe('lazy search feature', () => {
 
 		await router.push('/test-corpus/search/hits?patt=%5Bword%3D%22sea%22%5D');
 		await flushPromises();
-		expect(feature.activeSearchParameters.value?.patt).toBe('[word="sea"]');
+		expect(feature.results.parameters.value?.patt).toBe('[word="sea"]');
 		expect(subcorpus.next).toHaveBeenCalled();
 
 		await router.push('/test-corpus/docs/document');
 		await flushPromises();
-		expect(feature.activeSearchParameters.value).toBeUndefined();
+		expect(feature.results.parameters.value).toBeUndefined();
 		const calls = subcorpus.next.mock.calls.length;
-		ViewStore.selectView('docs');
+		feature.results.selectView('docs');
 		await flushPromises();
 		expect(subcorpus.next.mock.calls.length).toBe(calls);
 	});
@@ -129,6 +126,6 @@ describe('lazy search feature', () => {
 		await importUrl('/test-corpus/search/hits?query=%5Bword%3D%22water%22%5D&filter=author%3AAusten');
 		expect(getHistory()[0].displayValues).toEqual({ pattern: '[word="water"]', filters: 'author:Austen' });
 		expect(router.currentRoute.value.fullPath).toBe(activePath);
-		expect(feature.activeSearchParameters.value?.patt).toBe('[word="sea"]');
+		expect(feature.results.parameters.value?.patt).toBe('[word="sea"]');
 	});
 });

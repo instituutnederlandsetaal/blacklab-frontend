@@ -1,5 +1,5 @@
 <template>
-	<div class="container">
+	<div :class="containerClass">
 		<template v-if="corpora.isLoading()">
 			<span class="fa fa-spinner fa-spin fa-4x"></span>
 			{{ $t('remoteIndex.loadingCorpora') }}
@@ -17,8 +17,12 @@
 </template>
 
 <script setup lang="ts">
+import { useLayout } from '@/app/state/layout';
+
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+
+const { containerClass } = useLayout();
 
 const api = useBlackLabApi();
 const corpora = loadableFromRequest(() => api.getCorpora());

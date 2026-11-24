@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { getState } from '@/features/search/model/results/global-results-state';
-import { initialViewState } from '@/features/search/model/results/view-state';
-import { submittedSearchFromResult } from '@/features/search/model/submitted-search';
-import { createSearchPageQuery, readSearchQuery, searchResultSettings } from '@/url/search-query';
+import { submittedSearchFromResult } from '@/features/search/bindings/search-form';
+import { defaults as preferences, initialViewState } from '@/features/search/model/results/results-state';
+import { createSearchPageQuery, readSearchQuery, readSubmittedSearch } from '@/url/search-query';
 
-const defaults = { ...getState(), context: null, sampleSeed: null, sampleSize: null };
+const defaults = { ...preferences, context: null, sampleSeed: null, sampleSize: null };
 
 describe('search URL serialization', () => {
 	test('a new-form documents submission serializes its identity and filter', () => {
@@ -23,9 +22,15 @@ describe('search URL serialization', () => {
 		expect(query).toMatchObject({ ...encoded, first: 40, sort: 'hit:word' });
 	});
 
+	test('retains bare, empty, and repeated extension and form parameters after pagination', () => {
+		const incoming = { flag: null, empty: '', extension: [null, '', 'value'], 'f.widget': ['value', null, ''] };
+		const { submitted, extras, view } = readSearchQuery(incoming, 20);
+		expect(createSearchPageQuery({ submitted, extras, view: { ...view, first: 20 }, global: defaults })).toMatchObject({ ...incoming, first: 20 });
+	});
+
 	test('clears removed result settings and retains collocation context independently of snippet context', () => {
 		const result = createSearchPageQuery({
-			submitted: readSearchQuery({ colltype: 'proximity', context: '3:4', group: 'hit:word', viewgroup: 'word:water', sort: '-size', sample: '20', sampleseed: '123' }).submitted,
+			submitted: readSubmittedSearch({ colltype: 'proximity', context: '3:4', group: 'hit:word', viewgroup: 'word:water', sort: '-size', sample: '20', sampleseed: '123' }),
 			global: { ...defaults, context: 9 },
 			view: initialViewState,
 		});
@@ -48,15 +53,15 @@ describe('search result URL decoding', () => {
 			sampleseed: '123',
 			context: '7',
 		};
-		const { view, global } = searchResultSettings(readSearchQuery(query), 50);
+		const { view, global } = readSearchQuery(query, 50);
 		expect(view).toMatchObject({ first: 45, number: 30, groupBy: ['hit:word'], sort: '-size', viewGroup: 'word:water', groupDisplayMode: 'relative hits', customState: { column: 'lemma' } });
 		expect(global).toEqual({ sampleMode: 'count', sampleSize: 8, sampleSeed: 123, context: 7 });
 	});
 
 	test('uses the preferred count and ignores malformed display state without losing the search', () => {
 		const query = { patt: '[word="water"]', number: '-1', groupDisplayMode: 'unknown', resultViewCustomState: '{broken' };
-		const decoded = readSearchQuery(query);
-		expect(searchResultSettings(decoded, 50).view).toMatchObject({ first: 0, number: 50, groupDisplayMode: null, customState: null });
+		const decoded = readSearchQuery(query, 50);
+		expect(decoded.view).toMatchObject({ first: 0, number: 50, groupDisplayMode: null, customState: null });
 		expect(decoded.submitted.params.patt).toBe('[word="water"]');
 	});
 });

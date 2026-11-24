@@ -1,24 +1,20 @@
-import URI from 'urijs';
-import { computed, nextTick, watch, type App } from 'vue';
-import { isNavigationFailure, NavigationFailureType, type RouteLocationNormalizedLoaded, type RouteLocationRaw, type Router } from 'vue-router';
+import { computed, watch, type App } from 'vue';
+import { type RouteLocationNormalizedLoaded, type RouteLocationResolved, type RouteLocationRaw, type Router } from 'vue-router';
 
 type UrlProjection<Context> = {
 	/** Return a stable context while this page is ready, or null when it is inactive. */
 	context: (route: RouteLocationNormalizedLoaded) => Context | null;
-	read: (route: RouteLocationNormalizedLoaded, context: Context) => void | Promise<unknown>;
+	/** Apply every value used by write() before the first await. The draft may finish restoring asynchronously. */
+	read: (route: RouteLocationNormalizedLoaded, replaceUrl: (location: RouteLocationRaw) => void) => void | Promise<unknown>;
 	write: (route: RouteLocationNormalizedLoaded, context: Context) => RouteLocationRaw;
 	leave?: () => void;
-	normalize?: (route: RouteLocationNormalizedLoaded, context: Context) => RouteLocationRaw | undefined;
-	published?: (route: ReturnType<Router['resolve']>, context: Context) => void;
+	published?: (route: RouteLocationResolved) => void;
 };
 
 /** Bind page state to the URL; only incoming navigation reads state back from it. */
 export function createUrlProjection<Context>(router: Router, options: UrlProjection<Context>) {
-	let stopped = false;
-	let stopState: (() => void) | undefined;
+	// Mark only in-flight writes so Back and Forward can revisit a published entry.
 	const pending = new Set<string>();
-	const context = computed(() => options.context(router.currentRoute.value));
-
 	async function publish(location: RouteLocationRaw, replace = false) {
 		const target = router.resolve(location);
 		const identity = Math.random().toString(36).slice(2);
@@ -33,21 +29,24 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 		}
 	}
 
+	let stopState: (() => void) | undefined;
+	const context = computed(() => options.context(router.currentRoute.value));
+
 	function restore(route: RouteLocationNormalizedLoaded, source: Context) {
 		stopState?.();
-		const restored = options.read(route, source);
+		const restored = options.read(route, location => void publish(location, true));
 		// Subscribe after hydration to preserve an incoming URL until the user changes state.
 		const path = computed(() => router.resolve(options.write(router.currentRoute.value, source)).fullPath);
 		stopState = watch(
 			path,
-			async location => {
+			async (location, _, onCleanup) => {
+				let current = true;
+				onCleanup(() => (current = false));
 				const target = await publish(location);
-				if (target && !stopped && context.value === source && path.value === location) options.published?.(target, source);
+				if (target && current && path.value === location) options.published?.(target);
 			},
 			{ flush: 'post' },
 		);
-		const normalized = options.normalize?.(route, source);
-		if (normalized) void publish(normalized, true);
 		return restored;
 	}
 
@@ -65,7 +64,6 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 	);
 
 	function stop() {
-		stopped = true;
 		stopNavigation();
 		stopState?.();
 	}
@@ -73,19 +71,8 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 	return {
 		stop,
 		install: (app: App) => app.onUnmount(stop),
-		open: async (url: string) => {
-			await nextTick();
-			if (stopped) return;
-			const uri = new URI(url).host('').protocol('').port('');
-			const base = router.options.history.base.replace(/\/+$/, '');
-			const path = uri.path();
-			if (base && (path === base || path.startsWith(base + '/'))) uri.path(path.slice(base.length) || '/');
-			const target = uri.toString();
-			const failure = await router.push(target);
-			// Loading the current saved URL still restores a draft edited since submission.
-			if (isNavigationFailure(failure, NavigationFailureType.duplicated) && router.currentRoute.value.fullPath === router.resolve(target).fullPath && context.value !== null) {
-				await restore(router.currentRoute.value, context.value);
-			}
+		restoreCurrent() {
+			if (context.value !== null) return restore(router.currentRoute.value, context.value);
 		},
 	};
 }

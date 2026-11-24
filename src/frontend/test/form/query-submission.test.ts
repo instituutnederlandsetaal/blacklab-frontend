@@ -1,101 +1,51 @@
 // @vitest-environment jsdom
 
 import { createMockApi } from '@test/mocks/api';
+import { createMockCorpusContext } from '@test/mocks/corpus';
 import { createMockTranslate } from '@test/mocks/i18n';
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, test } from 'vitest';
-import { effectScope, nextTick, ref, type App, type EffectScope } from 'vue';
+import { mount } from '@vue/test-utils';
+import { describe, expect, onTestFinished, test } from 'vitest';
+import { nextTick, ref } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
-import { createCorpusContext } from '@/app/state/useCorpusContext';
-import { createCustomizations } from '@/customization-api/internal/internal-api';
-import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult } from '@/features/form';
-import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
-import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
-import * as ViewStore from '@/features/search/model/results/view-state';
-import { provideSearchFormRestoring } from '@/features/search/model/search-form-restoration';
-import { createSearchStore, provideSearchActions } from '@/features/search/model/search-store';
-import { createSubmittedSearch, restoreSubmittedForm, submittedSearchFromResult } from '@/features/search/model/submitted-search';
+import { createSearchFormBinding, provideSearchFormBinding, restoreSubmittedForm, submittedSearchFromResult } from '@/features/search/bindings/search-form';
+import { ResultsState } from '@/features/search/model/results/results-state';
+import { createSubmittedSearch } from '@/features/search/model/submitted-search';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 
-import { createCorpus, resetSearchFormConfig } from './search-form-fixture';
+import { createCorpus, createSearchFormFixture } from './search-form-fixture';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 
-const scopes: EffectScope[] = [];
-const wrappers: VueWrapper[] = [];
-afterEach(() => {
-	wrappers.splice(0).forEach(wrapper => wrapper.unmount());
-	scopes.splice(0).forEach(scope => scope.stop());
-	ViewStore.selectView(null);
-});
-
-async function mountSearchForm() {
-	ViewStore.setPageSizePreference(() => GlobalResultsStore.getState().pageSize);
+function mountSearchForm() {
+	const corpus = createCorpus();
+	const api = createMockApi();
+	const fixture = createSearchFormFixture();
+	const system = fixture.createSystem({ corpus, blacklabApi: api.blacklabApi, translate: createMockTranslate() });
 	const submitted = createSubmittedSearch();
-	const searchStore = createSearchStore(submitted);
-	const api = createMockApi({
-		blacklab: { getCorpus: createCorpus() },
-		frontend: {
-			getConfig: {
-				analytics: { google: null, plausible: null },
-				bannerMessage: null,
-				customCss: {},
-				customJs: {},
-				displayName: null,
-				faviconDir: '',
-				footerMessage: null,
-				navbarLinks: [],
-				pageSize: null,
-			},
-			getTagset: undefined,
-		},
-	});
-	const scope = effectScope();
-	scopes.push(scope);
-	const { context, system } = scope.run(() => {
-		const context = createCorpusContext(api.blacklabApi, api.frontendApi, 'test-corpus');
-		const registry = createCustomizationRegistry(context.corpus);
-		const customizations = createCustomizations(registry, context.corpus, UIStore.getState, () => {});
-		context.beforePublish(state => {
-			UIStore.init(state);
-			searchStore.init(state);
-			resetSearchFormConfig();
-		});
-		const system = createSearchFormSystem({ blacklabApi: api.blacklabApi, corpus: context.corpus, customizations, translate: createMockTranslate() });
-		return { context, system };
-	})!;
-	await flushPromises();
-	expect(context.corpus.value?.id).toBe('test-corpus');
+	const results = new ResultsState({ corpus, submitted: submitted.current, withSpans: () => null, debug: false }, ref(20));
+	const binding = createSearchFormBinding({ customizationsReady: true, beforeStateLoaded: async () => {}, submitted, results, corpus, runtime: system.runtime });
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 	pageBootstrap.markScriptsReady();
 	const restoring = ref(false);
 	const wrapper = mount(QueryForm, {
 		global: {
-			plugins: [
-				api,
-				context,
-				system,
-				pageBootstrap,
-				{
-					install(app: App) {
-						provideSearchFormRestoring(app, restoring);
-						provideSearchActions(app, searchStore.actions);
-					},
-				},
-			],
+			plugins: [api, createMockCorpusContext({ corpus }), system, pageBootstrap, app => provideSearchFormBinding(app, { ...binding, loading: restoring })],
 		},
 	});
-	wrappers.push(wrapper);
-	return { wrapper, runtime: system.runtime.value!, submitted, pageBootstrap, restoring };
+	onTestFinished(() => {
+		wrapper.unmount();
+		binding.stop();
+		fixture.scope.stop();
+	});
+	return { wrapper, runtime: system.runtime.value!, submitted: submitted.current, results, pageBootstrap, restoring };
 }
 
 describe('search form submission', () => {
 	test('keeps form controls inert until scripts and restoration settle', async () => {
-		const { wrapper, pageBootstrap, restoring } = await mountSearchForm();
+		const { wrapper, pageBootstrap, restoring } = mountSearchForm();
 		const formRoot = () => wrapper.get('.blf-form-system');
 		pageBootstrap.setCustomScriptsSettled(false);
 		await nextTick();
@@ -112,11 +62,11 @@ describe('search form submission', () => {
 	});
 
 	test('submits user input through QueryForm and keeps the running query independent of later edits', async () => {
-		const { wrapper, submitted } = await mountSearchForm();
+		const { wrapper, submitted, results } = mountSearchForm();
 		const input = wrapper.get('input[type="text"]');
 		await input.setValue('water');
 		await wrapper.get('form').trigger('submit');
-		expect(ViewStore.getSelectedViewName()).toBe('hits');
+		expect(results.selectedViewName).toBe('hits');
 		expect(submitted.value?.params.patt).toBe('[word="water"]');
 		expect(submitted.value?.form['f.form']).toBe(searchFormIds.searchForm('simple'));
 		const snapshot = structuredClone(submitted.value);
@@ -126,11 +76,11 @@ describe('search form submission', () => {
 		expect(submitted.value?.params.patt).toBe('[word="ship"]');
 		await wrapper.get('form').trigger('reset');
 		expect(submitted.value).toBeUndefined();
-		expect(ViewStore.getSelectedViewName()).toBeNull();
+		expect(results.selectedViewName).toBeNull();
 	});
 
 	test('regression: submitting a restored pattern drops orphaned collocation parameters', async () => {
-		const { wrapper, runtime, submitted } = await mountSearchForm();
+		const { wrapper, runtime, submitted, results } = mountSearchForm();
 		const restored = restoreSubmittedForm(runtime, {
 			form: { 'f.form': searchFormIds.searchForm('simple') },
 			params: { patt: '[word="restored"]', collpatt: '[lemma="ignored"]' },
@@ -138,7 +88,7 @@ describe('search form submission', () => {
 		runtime.state.replaceState(restored.state);
 		await nextTick();
 		await wrapper.get('form').trigger('submit');
-		expect(ViewStore.getSelectedViewName()).toBe('hits');
+		expect(results.selectedViewName).toBe('hits');
 		expect(submitted.value?.params.patt).toBe('[word="restored"]');
 		expect(submitted.value?.params).not.toHaveProperty('collpatt');
 	});
@@ -152,9 +102,10 @@ test('submitted search snapshots copy parameters and repeated form values', () =
 		issues: [],
 		summaries: [],
 	};
-	const submitted = submittedSearchFromResult(result);
+	const submitted = createSubmittedSearch();
+	submitted.replace(submittedSearchFromResult(result));
 	result.params.patt = '[word="edited"]';
 	(result.encoded['f.tags'] as string[]).push('third');
 	result.encoded['f.form'] = 'edited';
-	expect(submitted).toEqual({ params: { patt: '[word="submitted"]' }, form: { 'f.form': 'search.simple', 'f.tags': ['first', 'second'] } });
+	expect(submitted.current.value).toEqual({ params: { patt: '[word="submitted"]' }, form: { 'f.form': 'search.simple', 'f.tags': ['first', 'second'] } });
 });

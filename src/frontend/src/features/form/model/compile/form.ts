@@ -1,12 +1,12 @@
-import { resolvePersistenceSchema, type PersistenceSchema } from '@/features/form/model/persistence/schema';
+import type { PersistenceSchema } from '@/features/form/model/persistence/schema';
 import type { NewFormState } from '@/features/form/model/state';
-import type { FormOverrides, FormParams } from '@/features/form/model/types/blacklab-params';
+import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormEmission, FormIssue, FormOutputName } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 
-import { collectFormSummaryValues, collectFormValues } from './gather';
+import { collectFormSummaryValues, collectFormValues, type FormFieldVisitor } from './gather';
 
 function filterTargetEmissions(emissions: readonly FormEmission[], acceptedOutputs: readonly FormOutputName[], issues: FormIssue[]): FormEmission[] {
 	return emissions.filter(emission => {
@@ -16,46 +16,31 @@ function filterTargetEmissions(emissions: readonly FormEmission[], acceptedOutpu
 	});
 }
 
-function createCompiledResult(node: FormBoundaryNode, collected: ReturnType<typeof collectFormValues>, params: FormParams, issues: FormIssue[]): CompiledFormResult {
-	const { persistence, resultPreset, summaries } = collected.channels;
-
-	return {
+export function compileFormWithOverrides(
+	node: FormBoundaryNode,
+	state: NewFormState,
+	context: FormRuntimeContext,
+	overrides: Readonly<FormOverrides>,
+	mode: 'submit' | 'restore',
+	schema?: PersistenceSchema,
+) {
+	const { emissions, ...collected } = collectFormValues(node, state, context, schema);
+	const accepted = filterTargetEmissions(emissions, node.target.acceptedOutputs, collected.issues);
+	if (mode === 'restore') {
+		const baseline: FormOverrides = node.target.compile(accepted, []);
+		overrides = Object.fromEntries(Object.entries(overrides).filter(([key, value]) => value !== baseline[key as keyof FormOverrides]));
+	}
+	const result: CompiledFormResult = {
+		...collected,
 		formId: node.id,
-		params,
-		encoded: persistence!.encoded,
-		issues,
-		summaries: summaries!,
+		params: node.target.compile(accepted, collected.issues, overrides),
 		...(node.target.targetView ? { targetView: node.target.targetView } : {}),
-		...(resultPreset!.value !== undefined ? { resultPreset: resultPreset!.value } : {}),
 	};
+	return { result, overrides };
 }
 
-export function compileFormNode(
-	node: FormBoundaryNode,
-	state: NewFormState,
-	context: FormRuntimeContext,
-	overrides: Readonly<FormOverrides> = {},
-	schema: PersistenceSchema = resolvePersistenceSchema(node, context),
-): CompiledFormResult {
-	const collected = collectFormValues(node, state, context, schema);
-	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);
-	const params = node.target.compile(accepted, collected.issues, overrides);
-	return createCompiledResult(node, collected, params, collected.issues);
-}
-
-export function compileRestoredFormNode(
-	node: FormBoundaryNode,
-	state: NewFormState,
-	context: FormRuntimeContext,
-	candidates: Readonly<FormOverrides>,
-	schema: PersistenceSchema = resolvePersistenceSchema(node, context),
-): { result: CompiledFormResult; overrides: FormOverrides } {
-	const collected = collectFormValues(node, state, context, schema);
-	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);
-	const baseline: FormOverrides = node.target.compile(accepted, []);
-	const overrides = Object.fromEntries(Object.entries(candidates).filter(([key, value]) => value !== baseline[key as keyof FormOverrides]));
-	const params = node.target.compile(accepted, collected.issues, overrides);
-	return { result: createCompiledResult(node, collected, params, collected.issues), overrides };
+export function compileFormNode(node: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, overrides: Readonly<FormOverrides> = {}, schema?: PersistenceSchema): CompiledFormResult {
+	return compileFormWithOverrides(node, state, context, overrides, 'submit', schema).result;
 }
 
 /** Compile the live-summary projection without resolving persistence or result-preset channels. */
@@ -64,7 +49,7 @@ export function compileFormSummary(
 	state: NewFormState,
 	context: FormRuntimeContext,
 	overrides: Readonly<FormOverrides> = {},
-	fieldVisitor?: Parameters<typeof collectFormSummaryValues>[3],
+	fieldVisitor?: FormFieldVisitor,
 ): CompiledFormSummary {
 	const collected = collectFormSummaryValues(node, state, context, fieldVisitor);
 	const accepted = filterTargetEmissions(collected.emissions, node.target.acceptedOutputs, collected.issues);

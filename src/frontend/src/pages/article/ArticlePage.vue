@@ -1,6 +1,6 @@
 <template>
 	<!-- TODO: i18n -->
-	<div class="container article">
+	<div class="article" :class="containerClass">
 		<div ref="article-pagination" title="Hold to drag" class="article-pagination" :style="paginationDraggable.style.value">
 			<template v-if="validPaginationInfo.isLoaded() && validPaginationInfo.value.pageSize != null">
 				<div class="pagination-container">
@@ -135,6 +135,7 @@ import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
 import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect } from 'vue';
 
 import * as ArticleStore from '@/app/state/article-configuration';
+import { useLayout } from '@/app/state/layout';
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/use-customizations';
 import { useArticleState } from '@/features/article/model/article-page-state';
@@ -155,6 +156,8 @@ import Collapsible from '@/shared/ui/Collapsible.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 import Pagination from '@/shared/ui/Pagination.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
+
+const { containerClass } = useLayout();
 
 const ArticlePageStatistics = defineAsyncComponent(() => import('@/pages/article/ArticlePageStatistics.vue'));
 

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { readSearchQuery } from '@/url/search-query';
+import { readSearchQuery, readSubmittedSearch } from '@/url/search-query';
 
 describe('search query decoding', () => {
 	test('extracts the curated canonical request parameters and normalizes aliases', () => {
-		const overrides = readSearchQuery({
+		const overrides = readSubmittedSearch({
 			query: ['', '[word="water"]'],
 			filter: ['', 'author:Austen'],
 			searchField: 'contents__nl',
@@ -14,7 +14,7 @@ describe('search query decoding', () => {
 			group: 'field:author',
 			sort: 'field:title',
 			context: '9',
-		}).submitted.params;
+		}).params;
 
 		expect(overrides).toEqual({
 			patt: '[word="water"]',
@@ -26,43 +26,57 @@ describe('search query decoding', () => {
 	});
 
 	test('leaves omitted request defaults out of decoded inputs', () => {
-		const { submitted, results } = readSearchQuery({ patt: '[]', first: '7', number: '33' });
+		const { submitted, view } = readSearchQuery({ patt: '[]', first: '7', number: '33' }, 20);
 		expect(submitted.params.searchfield).toBeUndefined();
-		expect(results).toMatchObject({ first: 7, number: 33, group: undefined, sort: undefined, scorertype: undefined });
+		expect(view).toMatchObject({ first: 7, number: 33, groupBy: [], sort: null });
+	});
+
+	test('accepts a fractional sampling percentage while ignoring fractional integer parameters', () => {
+		const { view, global } = readSearchQuery({ first: '1.5', number: '2.5', context: '3.5', samplenum: '4.5', sampleseed: '5.5', sample: '12.5' }, 20);
+		expect(view).toMatchObject({ first: 0, number: 20 });
+		expect(global).toEqual({ context: null, sampleMode: 'percentage', sampleSize: 12.5, sampleSeed: null });
+	});
+
+	test('falls back to the first page when the selection cannot expand to whole pages safely', () => {
+		const { view } = readSearchQuery({ first: String(Number.MAX_SAFE_INTEGER - 2), number: '1' }, 20);
+		expect(view).toMatchObject({ first: 0, number: 20 });
 	});
 
 	test('retains searchfield independently of form or corpus configuration', () => {
-		expect(readSearchQuery({ searchfield: 'contents__nl' }).submitted.params).toEqual({ searchfield: 'contents__nl' });
+		expect(readSubmittedSearch({ searchfield: 'contents__nl' }).params).toEqual({ searchfield: 'contents__nl' });
 	});
 
 	test('ignores empty values for every accepted URL override', () => {
 		const keys = ['patt', 'query', 'collpatt', 'filter', 'searchfield', 'searchField', 'field', 'withspans', 'colltype', 'context', 'within', 'reltype', 'annotation', 'sensitive', 'scorertype'];
-		expect(readSearchQuery(Object.fromEntries(keys.map(key => [key, '']))).submitted.params).toEqual({});
-		expect(readSearchQuery({ colltype: ['', 'proximity'], context: '' }).submitted.params).toEqual({ colltype: 'proximity' });
+		expect(readSubmittedSearch(Object.fromEntries(keys.map(key => [key, '']))).params).toEqual({});
+		expect(readSubmittedSearch({ colltype: ['', 'proximity'], context: '' }).params).toEqual({ colltype: 'proximity' });
 	});
 
 	test('assigns raw context to the form only for a valid collocation discriminator', () => {
-		expect(readSearchQuery({ colltype: 'proximity', context: '5' }).submitted.params).toEqual({ colltype: 'proximity', context: 5 });
-		expect(readSearchQuery({ colltype: 'proximity', context: '03:04' }).submitted.params).toEqual({ colltype: 'proximity', context: '3:4' });
-		expect(readSearchQuery({ colltype: 'proximity', context: '0' }).submitted.params).toEqual({ colltype: 'proximity', context: 0 });
-		expect(readSearchQuery({ colltype: 'proximity', context: '-1' }).submitted.params).toEqual({ colltype: 'proximity', context: null });
-		expect(readSearchQuery({ colltype: 'invalid', context: '3:4' }).submitted.params).toEqual({});
-		expect(readSearchQuery({ context: '5' }).submitted.params).toEqual({});
+		expect(readSubmittedSearch({ colltype: 'proximity', context: '5' }).params).toEqual({ colltype: 'proximity', context: 5 });
+		expect(readSubmittedSearch({ colltype: 'proximity', context: '03:04' }).params).toEqual({ colltype: 'proximity', context: '3:4' });
+		expect(readSubmittedSearch({ colltype: 'proximity', context: '0' }).params).toEqual({ colltype: 'proximity', context: 0 });
+		expect(readSubmittedSearch({ colltype: 'proximity', context: '-1' }).params).toEqual({ colltype: 'proximity', context: null });
+		expect(readSubmittedSearch({ colltype: 'invalid', context: '3:4' }).params).toEqual({});
+		expect(readSubmittedSearch({ context: '5' }).params).toEqual({});
 	});
 
 	test('keeps collocation query parameters separate from result controls', () => {
-		const { submitted, results } = readSearchQuery({
-			colltype: 'proximity',
-			collpatt: '[lemma="ship"]',
-			annotation: 'lemma',
-			within: 's',
-			reltype: 'aligns',
-			context: '9',
-			sensitive: 'false',
-			scorertype: 'coll-salience',
-			group: 'field:author',
-			sort: 'field:title',
-		});
+		const { submitted, view } = readSearchQuery(
+			{
+				colltype: 'proximity',
+				collpatt: '[lemma="ship"]',
+				annotation: 'lemma',
+				within: 's',
+				reltype: 'aligns',
+				context: '9',
+				sensitive: 'false',
+				scorertype: 'coll-salience',
+				group: 'field:author',
+				sort: 'field:title',
+			},
+			20,
+		);
 
 		expect(submitted.params).toEqual({
 			colltype: 'proximity',
@@ -73,6 +87,6 @@ describe('search query decoding', () => {
 			context: 9,
 			sensitive: false,
 		});
-		expect(results).toMatchObject({ scorertype: 'coll-salience', group: 'field:author', sort: 'field:title' });
+		expect(view).toMatchObject({ collocationScorer: 'coll-salience', groupBy: [], sort: 'field:title' });
 	});
 });

@@ -1,5 +1,5 @@
 <template>
-	<div class="container">
+	<div :class="containerClass">
 		<h2>Welcome to the config helper page</h2>
 		<div>
 			This is a page where some experimental stuff is hidden away. Eventually we may develop it into a full-fledged config helper. But for now, it only contains a tagset builder and the stub of a
@@ -13,7 +13,10 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
+import { useLayout } from '@/app/state/layout';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
+
+const { containerClass } = useLayout();
 
 const pageBootstrap = usePageBootstrap();
 onMounted(() => pageBootstrap.markContentReady());

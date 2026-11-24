@@ -1,28 +1,27 @@
 // @vitest-environment jsdom
 
-import { provideMockActiveSearchParameters } from '@test/mocks/active-search-parameters';
 import { createMockApi } from '@test/mocks/api';
 import { createMockCorpusContext } from '@test/mocks/corpus';
 import { createMockCustomizations } from '@test/mocks/customizations';
+import { createTestResultsState } from '@test/mocks/results-state';
 import { shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { computed, nextTick, reactive, ref, shallowRef, type App } from 'vue';
+import { computed, nextTick, reactive, ref, shallowRef } from 'vue';
+import type { LocationQuery } from 'vue-router';
 
-import { provideActiveSearch } from '@/features/search/model/active-search';
-import { createActiveSearch } from '@/features/search/model/active-search';
-import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import * as ResultsStore from '@/features/search/model/results/view-state';
-import type { ViewModule } from '@/features/search/model/results/view-state';
+import { type ResultsState, resultsStateKey, type ResultView } from '@/features/search/model/results/results-state';
+import type { SubmittedSearch } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
 import type { BLHitGroupResults, BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
-import { readSearchQuery } from '@/url/search-query';
+import { readSubmittedSearch } from '@/url/search-query';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import Results from '@/pages/search/results/Results.vue';
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
+let results: ResultsState;
 let api: ReturnType<typeof createMockApi>;
 let corpusContext: ReturnType<typeof createMockCorpusContext>;
 let corpus: Corpus;
@@ -36,27 +35,25 @@ const resultComponents = {
 
 let params: Record<string, unknown>;
 let requests: Array<ReturnType<typeof deferredRequest>>;
-let store: ViewModule;
+let store: ResultView;
 
-function searchParametersPlugin() {
-	return provideMockActiveSearchParameters(
-		computed(() => {
-			const view = store?.getState();
-			const effective: Record<string, unknown> = {
-				...params,
-				group: view?.groupBy.length ? view.groupBy.join(',') : undefined,
-				first: view?.first,
-				number: view?.number,
-				sort: view?.sort ?? (params as { sort?: string }).sort,
-				...(view?.viewGroup ? { viewgroup: view.viewGroup } : {}),
-			};
-			if (effective.colltype) {
-				delete effective.group;
-				effective.scorertype = view?.collocationScorer ?? effective.scorertype;
-			}
-			return effective as EffectiveSearchParameters;
-		}),
-	);
+function mockParameters() {
+	return computed(() => {
+		const view = store.state;
+		const effective: Record<string, unknown> = {
+			...params,
+			group: view.groupBy.length ? view.groupBy.join(',') : undefined,
+			first: view.first,
+			number: view.number,
+			sort: view.sort ?? (params as { sort?: string }).sort,
+			...(view.viewGroup ? { viewgroup: view.viewGroup } : {}),
+		};
+		if (effective.colltype) {
+			delete effective.group;
+			effective.scorertype = view.collocationScorer ?? effective.scorertype;
+		}
+		return effective as EffectiveSearchParameters;
+	});
 }
 
 function deferredRequest<T extends BLSearchResult = BLSearchResult>() {
@@ -115,42 +112,28 @@ async function flush() {
 	await nextTick();
 }
 
-function searchStatePlugin(query: Record<string, unknown> = { patt: 'first' }, view = 'hits', getView: (name: string) => ViewModule = () => store) {
-	ResultsStore.selectView(view);
-	const submitted = shallowRef(readSearchQuery(query).submitted);
-	const search = createActiveSearch(ResultsStore.getSelectedViewName, {
-		corpus,
-		submitted,
-		global: GlobalStore.getState,
-		getView,
-		withSpans: () => false,
-		debug: false,
+const submitted = shallowRef<SubmittedSearch>();
+function selectSearch(query: Partial<LocationQuery> = { patt: 'first' }, view = 'hits') {
+	submitted.value = readSubmittedSearch(query);
+	results.selectView(view);
+}
+
+function mountViewWithMockParameters(active = true) {
+	return shallowMount(ResultsView, {
+		global: {
+			provide: { [resultsStateKey]: { settings: results.settings, setSampleSize: (value: number | null) => results.setSampleSize(value), parameters: mockParameters() } },
+			plugins: [api, corpusContext, customizations],
+		},
+		props: { id: 'hits', active, store },
 	});
-	return { submitted, parameters: search.parameters, plugin: (app: App) => provideActiveSearch(app, search) };
 }
 
-function mountView(active = true) {
-	return shallowMount(ResultsView, { global: { plugins: [api, corpusContext, customizations, searchParametersPlugin()] }, props: { id: 'hits', active, store } });
-}
-
-beforeEach(({ onTestFinished }) => {
+beforeEach(() => {
 	vi.useFakeTimers();
 	vi.stubGlobal('CONTEXT_URL', '');
-	const previousGlobalState = { ...GlobalStore.getState() };
-	const previousView = ResultsStore.getSelectedViewName();
-	const previousViews = Object.fromEntries(Object.entries(ResultsStore.getState()).map(([id, view]) => [id, { ...view, groupBy: [...view.groupBy] }]));
-	onTestFinished(async () => {
-		Object.assign(GlobalStore.getState(), previousGlobalState);
-		ResultsStore.selectView(previousView);
-		ResultsStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
-		ResultsStore.actions.resetAllViews({ resetGroupBy: true });
-		for (const [view, data] of Object.entries(previousViews)) ResultsStore.actions.replaceView({ view, data });
-		await nextTick();
-	});
-	Object.assign(GlobalStore.getState(), { pageSize: 20, sampleMode: 'percentage', sampleSize: null, sampleSeed: null, context: null });
-	ResultsStore.setPageSizePreference(() => GlobalStore.getState().pageSize);
-	ResultsStore.actions.resetAllViews({ resetGroupBy: true });
-	store = ResultsStore.createViewModule(() => GlobalStore.getState().pageSize);
+	submitted.value = undefined;
+	results = createTestResultsState(ref(20), { corpus: () => corpus, submitted, withSpans: () => false });
+	store = results.view('hits');
 	params = reactive({ patt: 'first' });
 	const annotation = { id: 'word', isInternal: false, hasForwardIndex: true };
 	const dependencyAnnotation = { id: 'lemma', isInternal: false, hasForwardIndex: true };
@@ -221,25 +204,42 @@ describe('Results tabs', () => {
 			{ id: 'hits', title: 'Hits', component: 'ResultsView' },
 			{ id: 'docs', title: 'Documents', component: 'ResultsView' },
 		]);
-		ResultsStore.getOrCreateModule('hits').actions.range({ first: 40, number: 20 });
-		ResultsStore.getOrCreateModule('docs').actions.range({ first: 45, number: 30 });
-		const { plugin } = searchStatePlugin({ patt: 'first' }, 'hits', ResultsStore.getOrCreateModule);
-		const wrapper = shallowMount(Results, { global: { plugins: [api, corpusContext, customizations, plugin], components: resultComponents, stubs: { ResultsView: false } } });
+		results.view('hits').setRange({ first: 40, number: 20 });
+		results.view('docs').setRange({ first: 45, number: 30 });
+		selectSearch();
+		const wrapper = shallowMount(Results, {
+			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations], components: resultComponents, stubs: { ResultsView: false } },
+		});
 
 		expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
 		expect(api.blacklabApi.getHits.mock.calls[0][1]).toMatchObject({ first: 40, number: 20 });
 		expect(api.blacklabApi.getDocs).not.toHaveBeenCalled();
 
 		await wrapper.findAll('#resultTabs a')[1].trigger('click');
-		expect(ResultsStore.getSelectedViewName()).toBe('docs');
+		expect(results.selectedViewName).toBe('docs');
 		expect(wrapper.find('#resultTabs li.active').text()).toBe('Documents');
 		expect(api.blacklabApi.getDocs).toHaveBeenCalledOnce();
 		expect(api.blacklabApi.getDocs.mock.calls[0][1]).toMatchObject({ first: 40, number: 40 });
 
 		await wrapper.findAll('#resultTabs a')[0].trigger('click');
 		expect(wrapper.find('#resultTabs li.active').text()).toBe('Hits');
-		expect(ResultsStore.getOrCreateModule('hits').get.selectedRange()).toEqual({ first: 40, number: 20 });
-		expect(ResultsStore.getOrCreateModule('docs').get.selectedRange()).toEqual({ first: 45, number: 30 });
+		expect(results.view('hits').selectedRange).toEqual({ first: 40, number: 20 });
+		expect(results.view('docs').selectedRange).toEqual({ first: 45, number: 30 });
+	});
+
+	test('custom result components can still read and update their view through the store prop', async () => {
+		customizations.resultViews.mockReturnValue([{ id: 'custom', title: 'Custom', component: 'CustomResults' }]);
+		selectSearch({ patt: 'first' }, 'custom');
+		const wrapper = shallowMount(Results, {
+			global: {
+				provide: { [resultsStateKey]: results },
+				plugins: [api, corpusContext, customizations],
+				stubs: { CustomResults: { props: ['store'], template: '<button @click="store.actions.first(20)">{{ store.getState().first }}</button>' } },
+			},
+		});
+		await wrapper.get('button').trigger('click');
+		expect(wrapper.get('button').text()).toBe('20');
+		expect(results.selectedView?.state.first).toBe(20);
 	});
 
 	test('shows the inactive docs view for a collocation URL targeting docs', async () => {
@@ -247,8 +247,10 @@ describe('Results tabs', () => {
 			{ id: 'hits', title: 'Hits', component: 'ResultsView' },
 			{ id: 'docs', title: 'Documents', component: 'ResultsView' },
 		]);
-		const { plugin } = searchStatePlugin({ patt: 'first', colltype: 'proximity', context: '3' }, 'docs');
-		const wrapper = shallowMount(Results, { global: { plugins: [api, corpusContext, customizations, plugin], components: resultComponents, stubs: { ResultsView: false } } });
+		selectSearch({ patt: 'first', colltype: 'proximity', context: '3' }, 'docs');
+		const wrapper = shallowMount(Results, {
+			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations], components: resultComponents, stubs: { ResultsView: false } },
+		});
 
 		await flush();
 		expect(wrapper.find('#resultTabs li.active').text()).toBe('Documents');
@@ -264,10 +266,13 @@ describe('Results tabs', () => {
 
 describe('ResultsView', () => {
 	test('passes the selected range to the table while pagination follows the live page-size preference', async () => {
-		const global = GlobalStore.getState();
-		store.actions.range({ first: 45, number: 30 });
-		const { plugin } = searchStatePlugin();
-		const wrapper = shallowMount(ResultsView, { global: { plugins: [api, corpusContext, customizations, plugin] }, props: { id: 'hits', active: true, store } });
+		const global = results.settings;
+		store.setRange({ first: 45, number: 30 });
+		selectSearch();
+		const wrapper = shallowMount(ResultsView, {
+			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] },
+			props: { id: 'hits', active: true, store },
+		});
 
 		requests[0].resolve(result('first', 105, 40, 40, 40));
 		await flush();
@@ -285,20 +290,20 @@ describe('ResultsView', () => {
 		await flush();
 		pagination.vm.$emit('change', 3);
 		await nextTick();
-		expect(store.get.selectedRange()).toEqual({ first: 150, number: 50 });
+		expect(store.selectedRange).toEqual({ first: 150, number: 50 });
 		expect(api.blacklabApi.getHits.mock.calls.at(-1)?.[1]).toMatchObject({ first: 150, number: 50 });
 	});
 
 	test('changes display mode without refetching and requests a newly submitted query', async () => {
-		const { submitted, plugin } = searchStatePlugin();
-		shallowMount(ResultsView, { global: { plugins: [api, corpusContext, customizations, plugin] }, props: { id: 'hits', active: true, store } });
+		selectSearch();
+		shallowMount(ResultsView, { global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] }, props: { id: 'hits', active: true, store } });
 
-		store.actions.groupDisplayMode('hits');
+		store.state.groupDisplayMode = 'hits';
 		await nextTick();
 		expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
 		expect(requests[0].request.cancel).not.toHaveBeenCalled();
 
-		submitted.value = readSearchQuery({ patt: 'second' }).submitted;
+		submitted.value = readSubmittedSearch({ patt: 'second' });
 		await nextTick();
 		expect(api.blacklabApi.getHits).toHaveBeenCalledTimes(2);
 		expect(api.blacklabApi.getHits.mock.calls[1][1]).toMatchObject({ patt: 'second' });
@@ -306,7 +311,7 @@ describe('ResultsView', () => {
 
 	test('refreshes equivalent parameters when the corpus changes', async () => {
 		corpus = reactive(corpus);
-		mountView();
+		mountViewWithMockParameters();
 		corpus.id = 'other';
 		await nextTick();
 		expect(api.blacklabApi.getHits).toHaveBeenCalledTimes(2);
@@ -314,7 +319,7 @@ describe('ResultsView', () => {
 	});
 
 	test('defers dirty inactive views and refreshes when activated', async () => {
-		const wrapper = mountView(false);
+		const wrapper = mountViewWithMockParameters(false);
 		expect(api.blacklabApi.getHits).not.toHaveBeenCalled();
 
 		(params as { patt: string }).patt = 'changed';
@@ -326,7 +331,7 @@ describe('ResultsView', () => {
 	});
 
 	test.each(['success', 'cancellation'])('ignores a stale %s after the user returns to an earlier query', async outcome => {
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		const stale = requests[0];
 		(params as { patt: string }).patt = 'second';
 		await nextTick();
@@ -348,23 +353,23 @@ describe('ResultsView', () => {
 	});
 
 	test('corrects invalid capture grouping in the store before retrying', async () => {
-		store.actions.groupBy(['capture:word:i:capture']);
-		const { plugin } = searchStatePlugin();
+		store.setGroupBy(['capture:word:i:capture']);
+		selectSearch();
 		shallowMount(ResultsView, {
-			global: { plugins: [api, corpusContext, customizations, plugin] },
+			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] },
 			props: { id: 'hits', active: true, store },
 		});
 
 		requests[0].reject({ title: 'UNKNOWN_MATCH_INFO', isCancelledRequest: false });
 		await flush();
 
-		expect(store.getState().groupBy).toEqual([]);
+		expect(store.state.groupBy).toEqual([]);
 		expect(customizations.formatError).toHaveBeenCalledWith(expect.anything(), 'groups');
 		expect(api.blacklabApi.getHits).toHaveBeenCalledTimes(2);
 	});
 
 	test('cancels on unmount and ignores noncooperative late settlement', async () => {
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		const pending = requests[0];
 		wrapper.unmount();
 		expect(pending.request.cancel).toHaveBeenCalledOnce();
@@ -377,7 +382,7 @@ describe('ResultsView', () => {
 	});
 
 	test('updated totals extend pagination and page clicks request the selected page', async () => {
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		const currentResult = result('first');
 		requests[0].resolve(currentResult);
 		await flush();
@@ -394,18 +399,18 @@ describe('ResultsView', () => {
 		expect(pagination.props('maxPage')).toBe(10);
 		pagination.vm.$emit('change', 2);
 		await nextTick();
-		expect(store.get.selectedRange()).toEqual({ first: 40, number: 20 });
+		expect(store.selectedRange).toEqual({ first: 40, number: 20 });
 		expect(api.blacklabApi.getHits.mock.calls.at(-1)?.[1]).toMatchObject({ first: 40, number: 20 });
 	});
 
 	test('applies table sort and view-group events, gates them while loading, and restores the previous range and sort', async () => {
-		store.actions.range({ first: 20, number: 20 });
-		const wrapper = mountView();
+		store.setRange({ first: 20, number: 20 });
+		const wrapper = mountViewWithMockParameters();
 		requests[0].resolve(result('first'));
 		await flush();
 
 		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('changeSort', 'hit:word:i');
-		expect(store.getState().sort).toBe('hit:word:i');
+		expect(store.state.sort).toBe('hit:word:i');
 		await nextTick();
 		expect(requests).toHaveLength(2);
 		expect(wrapper.findComponent({ name: 'GenericTable' }).props('disabled')).toBe(true);
@@ -414,27 +419,26 @@ describe('ResultsView', () => {
 		const loadingTable = wrapper.findComponent({ name: 'GenericTable' });
 		loadingTable.vm.$emit('changeSort', 'other');
 		loadingTable.vm.$emit('viewgroup', 'blocked', 'Blocked');
-		expect(store.getState()).toMatchObject({ sort: 'hit:word:i', viewGroup: null, first: 20, number: 20 });
+		expect(store.state).toMatchObject({ sort: 'hit:word:i', viewGroup: null, first: 20, number: 20 });
 
 		requests[1].resolve(result('sorted'));
 		await flush();
 		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('viewgroup', 'group-id', 'Group');
-		expect(store.getState()).toMatchObject({ sort: null, viewGroup: 'group-id', first: 0 });
+		expect(store.state).toMatchObject({ sort: null, viewGroup: 'group-id', first: 0 });
 		await nextTick();
 		requests[2].resolve(result('group'));
 		await flush();
 
 		const back = wrapper.findAll('button').find(button => button.text().includes('backToGroupedResults'))!;
 		await back.trigger('click');
-		expect(store.getState()).toMatchObject({ sort: 'hit:word:i', viewGroup: null, first: 20, number: 20 });
+		expect(store.state).toMatchObject({ sort: 'hit:word:i', viewGroup: null, first: 20, number: 20 });
 	});
 
 	test('uses effective default sorting without modifying the selected sort', async () => {
-		store = ResultsStore.getOrCreateModule('hits');
 		corpus.isParallelCorpus = true;
 		(params as { sort?: string }).sort = 'alignments';
-		mountView();
-		expect(store.getState().sort).toBeNull();
+		mountViewWithMockParameters();
+		expect(store.state.sort).toBeNull();
 		expect(api.blacklabApi.getHits.mock.calls[0][1]).toMatchObject({ sort: 'alignments' });
 
 		await nextTick();
@@ -443,7 +447,6 @@ describe('ResultsView', () => {
 	});
 
 	test('dispatches a collocation list with the exact executed request and expandable rows', async () => {
-		store = ResultsStore.getOrCreateModule('hits');
 		corpus.isParallelCorpus = true;
 		(params as { sort?: string }).sort = 'alignments';
 		Object.assign(params as object, {
@@ -456,10 +459,10 @@ describe('ResultsView', () => {
 			scorertype: 'coll-dice',
 		});
 
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		expect(api.blacklabApi.getCollocations).toHaveBeenCalledOnce();
 		expect(api.blacklabApi.getHits).not.toHaveBeenCalled();
-		expect(store.getState().sort).toBeNull();
+		expect(store.state.sort).toBeNull();
 		const [indexId, executedParams, config] = api.blacklabApi.getCollocations.mock.calls[0];
 		expect(indexId).toBe('test');
 		expect(executedParams).toMatchObject({
@@ -496,15 +499,16 @@ describe('ResultsView', () => {
 		expect(totalsRequest.operation).toBe('collocations');
 		expect(totalsRequest.params).toEqual(executedParams);
 
-		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('changeSort', 'size');
-		expect(store.getState().sort).toBe('size');
+		wrapper.findComponent({ name: 'Sort' }).vm.$emit('update:modelValue', 'size');
+		expect(store.state.sort).toBe('size');
 		await nextTick();
 		expect(api.blacklabApi.getCollocations).toHaveBeenCalledTimes(2);
+		expect(api.blacklabApi.getCollocations.mock.calls[1][1].sort).toBe('size');
 	});
 
 	test('clears and scrolls results when the submitted collocation window changes', async () => {
 		Object.assign(params as object, { colltype: 'proximity', context: 5, annotation: 'word', sensitive: false });
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		requests[0].resolve(groupedResult('first'));
 		await flush();
 		expect(wrapper.findComponent({ name: 'GenericTable' }).exists()).toBe(true);
@@ -526,15 +530,15 @@ describe('ResultsView', () => {
 			sensitive: false,
 			scorertype: 'coll-dice',
 		});
-		store.actions.range({ first: 20, number: 20 });
-		store.actions.sort('score');
+		store.setRange({ first: 20, number: 20 });
+		store.state.sort = 'score';
 
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		requests[0].resolve(groupedResult('[word="water"]'));
 		await flush();
 
 		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('viewgroup', 'ship', 'ship');
-		expect(store.getState()).toMatchObject({ first: 0, viewGroup: 'ship', sort: null });
+		expect(store.state).toMatchObject({ first: 0, viewGroup: 'ship', sort: null });
 		await nextTick();
 		expect(api.blacklabApi.getCollocations).toHaveBeenCalledOnce();
 		expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
@@ -563,7 +567,7 @@ describe('ResultsView', () => {
 			.findAll('button')
 			.find(button => button.text().includes('backToCollocations'))!
 			.trigger('click');
-		expect(store.getState()).toMatchObject({ first: 20, number: 20, viewGroup: null, sort: 'score' });
+		expect(store.state).toMatchObject({ first: 20, number: 20, viewGroup: null, sort: 'score' });
 		await nextTick();
 		expect(api.blacklabApi.getCollocations).toHaveBeenCalledTimes(2);
 		expect(api.blacklabApi.getCollocations.mock.calls[1][1]).toMatchObject({ first: 20, number: 20, patt: '[word="water"]', sort: 'score' });
@@ -579,10 +583,10 @@ describe('ResultsView', () => {
 			sensitive: false,
 			scorertype: 'coll-dice',
 		});
-		store.actions.range({ first: 40, number: 20 });
-		store.actions.sort('size');
+		store.setRange({ first: 40, number: 20 });
+		store.state.sort = 'size';
 
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		requests[0].resolve(groupedResult('[word="water"]'));
 		await flush();
 		wrapper.findComponent({ name: 'GenericTable' }).vm.$emit('viewgroup', 'ship', 'ship');
@@ -596,7 +600,7 @@ describe('ResultsView', () => {
 			.findAll('button')
 			.find(button => button.text().includes('backToCollocations'))!
 			.trigger('click');
-		expect(store.getState()).toMatchObject({ first: 40, number: 20, viewGroup: null, sort: 'size' });
+		expect(store.state).toMatchObject({ first: 40, number: 20, viewGroup: null, sort: 'size' });
 		expect(api.blacklabApi.getCollocations.mock.calls.at(-1)?.[1]).toMatchObject({ first: 40, sort: 'size' });
 	});
 
@@ -609,9 +613,9 @@ describe('ResultsView', () => {
 			sensitive: false,
 			scorertype: 'coll-dice',
 		});
-		store.actions.range({ first: 40, number: 20 });
+		store.setRange({ first: 40, number: 20 });
 
-		const wrapper = mountView();
+		const wrapper = mountViewWithMockParameters();
 		requests[0].resolve(groupedResult('[word="water"]'));
 		await flush();
 
@@ -620,7 +624,7 @@ describe('ResultsView', () => {
 
 		scorerToggle.vm.$emit('update:modelValue', 'coll-salience');
 		await nextTick();
-		expect(store.getState()).toMatchObject({ collocationScorer: 'coll-salience', first: 0 });
+		expect(store.state).toMatchObject({ collocationScorer: 'coll-salience', first: 0 });
 		expect(api.blacklabApi.getCollocations).toHaveBeenCalledTimes(2);
 		expect(api.blacklabApi.getCollocations.mock.calls[1][1]).toMatchObject({ first: 0, scorertype: 'coll-salience' });
 	});
@@ -634,9 +638,9 @@ describe('ResultsView', () => {
 			sensitive: false,
 			scorertype: 'coll-dice',
 		});
-		store.actions.groupBy(['stale']);
-		store.actions.collocationScorer('coll-salience');
-		const wrapper = mountView();
+		store.setGroupBy(['stale']);
+		store.setCollocationScorer('coll-salience');
+		const wrapper = mountViewWithMockParameters();
 		requests[0].reject({ title: 'failure', isCancelledRequest: false });
 		await flush();
 
@@ -653,14 +657,13 @@ describe('ResultsView', () => {
 
 	test('renders invalid, loading, cancelled, error, retry, and empty states', async () => {
 		(params as { patt?: string }).patt = undefined;
-		let wrapper = mountView();
+		let wrapper = mountViewWithMockParameters();
 		expect(api.blacklabApi.getHits).not.toHaveBeenCalled();
 		expect(wrapper.text()).toContain('results.resultsView.inactiveView');
 		wrapper.unmount();
 
-		store = ResultsStore.createViewModule(() => GlobalStore.getState().pageSize);
 		(params as { patt?: string }).patt = 'first';
-		wrapper = mountView();
+		wrapper = mountViewWithMockParameters();
 		expect(wrapper.findComponent({ name: 'Spinner' }).exists()).toBe(true);
 		requests[0].reject({ title: 'cancelled', isCancelledRequest: true });
 		await flush();
@@ -668,8 +671,7 @@ describe('ResultsView', () => {
 		expect(wrapper.find('.no-results-found').exists()).toBe(false);
 		wrapper.unmount();
 
-		store = ResultsStore.createViewModule(() => GlobalStore.getState().pageSize);
-		wrapper = mountView();
+		wrapper = mountViewWithMockParameters();
 		requests[1].reject({ title: 'failure', isCancelledRequest: false });
 		await flush();
 		expect(wrapper.text()).toContain('formatted error');
@@ -683,11 +685,11 @@ describe('ResultsView', () => {
 	});
 
 	test('builds sortable breadcrumbs and deactivates grouping, sampling, and sorting from the root crumb', async () => {
-		store.actions.groupBy(['hit:word:i']);
-		store.actions.sort('size');
-		GlobalStore.actions.sampleSeed(3);
-		GlobalStore.actions.sampleSize(25);
-		const wrapper = mountView();
+		store.setGroupBy(['hit:word:i']);
+		store.state.sort = 'size';
+		results.setSampleSeed(3);
+		results.setSampleSize(25);
+		const wrapper = mountViewWithMockParameters();
 		const grouped = groupedResult('first');
 		Object.assign(grouped.summary.params, { group: 'hit:word:i', sample: 25, sampleseed: 3, sort: 'size' });
 		requests[0].resolve(grouped);
@@ -701,16 +703,16 @@ describe('ResultsView', () => {
 			'results.resultsView.navigation.sortedBy',
 		]);
 		crumbs.at(-1)!.onClick!();
-		expect(store.getState().sort).toBe('-size');
+		expect(store.state.sort).toBe('-size');
 		crumbs[0].onClick!();
-		expect(store.getState()).toMatchObject({ groupBy: [], sort: null });
-		expect(GlobalStore.getState().sampleSize).toBeNull();
+		expect(store.state).toMatchObject({ groupBy: [], sort: null });
+		expect(results.settings.sampleSize).toBeNull();
 	});
 });
 
 test('does not request documents before active search parameters are available', async () => {
 	shallowMount(ResultsView, {
-		global: { plugins: [api, corpusContext, customizations, provideMockActiveSearchParameters(ref(undefined))] },
+		global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] },
 		props: { id: 'docs', active: true, store },
 	});
 

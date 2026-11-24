@@ -1,44 +1,48 @@
-import { computed, shallowRef, toValue, type MaybeRefOrGetter } from 'vue';
+import { shallowReadonly, shallowRef, type Ref } from 'vue';
 
-import { restoreForm, type CompiledFormResult, type FormRuntime } from '@/features/form';
-import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
+import type { BLCollocationType } from '@/types/blacklabtypes';
 
-export type SearchSummary = { pattern?: string; filter?: string };
-
-/** The submitted query is independent of the editable form and result controls. */
-export type SubmittedSearch = {
-	params: Omit<FormOverrides, 'withspans'> & { withspans?: boolean; pattgapdata?: string };
-	/** Form persistence data is opaque to the search application. */
-	form: Record<string, string | null | (string | null)[]>;
-	/** Kept when updating older result URLs so their history export labels can still be read. */
-	legacyInterface?: string;
+export type SubmittedQuery = {
+	patt?: string;
+	filter?: string;
+	searchfield?: string;
+	withspans?: boolean;
+	pattgapdata?: string;
+	colltype?: BLCollocationType;
+	collpatt?: string;
+	context?: number | string | null;
+	within?: string;
+	reltype?: string;
+	annotation?: string;
+	sensitive?: boolean;
 };
 
-export function createSubmittedSearch() {
-	return shallowRef<SubmittedSearch>();
-}
-export type SubmittedSearchState = ReturnType<typeof createSubmittedSearch>;
+export type SubmittedSearch = {
+	readonly params: Readonly<SubmittedQuery>;
+	readonly form: Readonly<Record<string, string | null | readonly (string | null)[]>>;
+	/** Older saved searches use this field for export labels. */
+	readonly legacyInterface?: string;
+};
 
-/** Restore the editable form from the submitted snapshot. Result controls stay in their stores. */
-export function restoreSubmittedForm(runtime: FormRuntime, submitted: SubmittedSearch) {
-	const { withspans, pattgapdata: _gap, ...params } = submitted.params;
-	const overrides: FormOverrides = { ...params, ...(withspans ? { withspans } : {}) };
-	if (runtime.definition.context.corpus.isParallelCorpus === false) delete overrides.searchfield;
-	return restoreForm(runtime.definition, submitted.form, overrides);
-}
+export type SubmittedSearchState = {
+	current: Readonly<Ref<SubmittedSearch | undefined>>;
+	replace(snapshot: SubmittedSearch): void;
+	reset(): void;
+};
 
-/** Capture submitted data once so subsequent draft edits cannot change the running search. */
-export function submittedSearchFromResult(result: CompiledFormResult): SubmittedSearch {
-	const { group: _group, sort: _sort, scorertype: _scorer, ...params } = result.params as typeof result.params & { scorertype?: string };
-	return { params, form: Object.fromEntries(Object.entries(result.encoded).map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])) };
+export function createSubmittedSearch(): SubmittedSearchState {
+	const current = shallowRef<SubmittedSearch>();
+	return {
+		current: shallowReadonly(current),
+		replace(snapshot: SubmittedSearch) {
+			const form = { ...snapshot.form };
+			for (const [key, value] of Object.entries(form)) {
+				if (Array.isArray(value)) form[key] = Object.freeze([...value]);
+			}
+			current.value = Object.freeze({ ...snapshot, params: Object.freeze({ ...snapshot.params }), form: Object.freeze(form) });
+		},
+		reset() {
+			current.value = undefined;
+		},
+	};
 }
-
-/** Share the restored snapshot between editable forms and summaries, without reading the draft. */
-export function createSubmittedFormRestoration(submitted: MaybeRefOrGetter<SubmittedSearch | undefined>, runtime: MaybeRefOrGetter<FormRuntime | null>) {
-	return computed(() => {
-		const form = toValue(runtime);
-		const search = toValue(submitted);
-		return form && search ? restoreSubmittedForm(form, search) : null;
-	});
-}
-export type SubmittedFormRestoration = ReturnType<typeof createSubmittedFormRestoration>;

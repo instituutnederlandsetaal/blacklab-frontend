@@ -14,7 +14,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="({ entry, grouping, viewedResults, collocation }, index) in recentHistory" :key="entry.hash">
+					<tr v-for="({ entry, grouping, viewedResults, collocation }, index) in recentHistory" :key="entry.url">
 						<td>
 							<strong>{{ index + 1 }}.</strong>
 						</td>
@@ -97,7 +97,7 @@ import { computed, nextTick, ref, useTemplateRef } from 'vue';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import { useSearchNavigation } from '@/navigation/search-navigation';
+import { useSearchNavigation } from '@/url/search-state';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 import { useI18n } from '@/shared/i18n';

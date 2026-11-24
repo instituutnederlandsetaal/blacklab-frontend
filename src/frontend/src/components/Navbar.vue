@@ -1,11 +1,11 @@
 <template>
 	<div ref="navbarElement" class="navbar-inverse navbar-fixed-top" :class="{ 'navbar-has-logo': hasLogo, 'navbar-scrolled': hasLogo && isScrolled }">
-		<div class="navbar-alert container" v-if="showBanner">
+		<div class="navbar-alert" :class="containerClass" v-if="showBanner">
 			<div class="navbar-brand" v-html="config.bannerMessage"></div>
 			<button type="button" class="btn btn-navbar" title="Hide banner for one week" @click="hideBanner"><span class="fa fa-times"></span></button>
 		</div>
 
-		<div class="navbar-main container">
+		<div class="navbar-main" :class="containerClass">
 			<div class="navbar-logo-container">
 				<router-link :to="indexId ? { name: 'search', params: { corpus: indexId } } : { name: 'corpora' }">
 					<div ref="logoElement" class="navbar-logo"></div>
@@ -40,6 +40,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+import { useLayout } from '@/app/state/layout';
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { customCssChangedEvent } from '@/interop/page-customization';
 import { useCorpusId } from '@/navigation/page-context';
@@ -48,6 +49,8 @@ import { localStorageSynced } from '@/shared/utils/localstore';
 
 import LoginButton from '@/shared/auth/LoginButton.vue';
 import LocaleSelector from '@/shared/i18n/LocaleSelector.vue';
+
+const { containerClass } = useLayout();
 
 type LogoDimensions = { width: number; height: number };
 type LogoStyles = {
