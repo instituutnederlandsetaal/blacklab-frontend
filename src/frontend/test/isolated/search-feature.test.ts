@@ -3,7 +3,7 @@
 import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { flushPromises } from '@vue/test-utils';
-import { afterEach, describe, expect, onTestFinished, test, vi } from 'vitest';
+import { describe, expect, onTestFinished, test } from 'vitest';
 import { computed, createApp, effectScope, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
@@ -21,11 +21,6 @@ import { createSearchFeature } from '@/features/search/search-feature';
 import { useSearchNavigation } from '@/url/search-state';
 
 import { createCorpus } from '../form/search-form-fixture';
-
-const subcorpus = vi.hoisted(() => ({ next: vi.fn() }));
-vi.mock('@/features/search/resources/selected-subcorpus-count.resource', () => ({ selectedSubcorpusLoader: subcorpus }));
-
-afterEach(() => subcorpus.next.mockReset());
 
 async function setup(initialUrl: string, configure = () => {}) {
 	const api = createMockApi({
@@ -99,22 +94,16 @@ describe('lazy search feature', () => {
 		expect(UIStore.getState().results.customViews).toContainEqual({ id: 'custom-view', title: 'Custom view', component: 'CustomResults', customInitialState: {} });
 	});
 
-	test('keeps search effects inactive away from search and restores saved searches on later navigation', async () => {
+	test('restores a search on entry and clears its parameters on leaving', async () => {
 		const { router, feature } = await setup('/test-corpus/docs/document');
-		expect(subcorpus.next).not.toHaveBeenCalled();
 
 		await router.push('/test-corpus/search/hits?patt=%5Bword%3D%22sea%22%5D');
 		await flushPromises();
 		expect(feature.results.parameters.value?.patt).toBe('[word="sea"]');
-		expect(subcorpus.next).toHaveBeenCalled();
 
 		await router.push('/test-corpus/docs/document');
 		await flushPromises();
 		expect(feature.results.parameters.value).toBeUndefined();
-		const calls = subcorpus.next.mock.calls.length;
-		feature.results.selectView('docs');
-		await flushPromises();
-		expect(subcorpus.next.mock.calls.length).toBe(calls);
 	});
 
 	test('imports graph and older query URLs without changing the active search', async () => {

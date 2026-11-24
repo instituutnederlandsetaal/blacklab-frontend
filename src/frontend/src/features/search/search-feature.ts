@@ -6,7 +6,6 @@ import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import { createSearchFormBinding } from '@/features/search/bindings/search-form';
-import { startSelectedSubcorpusEffect } from '@/features/search/effects/selected-subcorpus.effect';
 import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import { DEFAULT_RESULT_CONTEXT_SIZE, provideResultContextSize } from '@/features/search/model/results/result-context-size';
 import { ResultsState, defaults, provideResultsState } from '@/features/search/model/results/results-state';
@@ -81,7 +80,6 @@ export function createSearchFeature({ router, customizationsReady, corpusState, 
 			app.use(form);
 			app.use(searchNavigation);
 			installLegacyStoreGlobals(createLegacySearchStoreGlobals(results, form, initializeCorpus));
-			app.onUnmount(startSelectedSubcorpusEffect(() => (router.currentRoute.value.name === 'search' ? corpusState.corpus.value : undefined), blacklabApi, results.parameters));
 		},
 	};
 }

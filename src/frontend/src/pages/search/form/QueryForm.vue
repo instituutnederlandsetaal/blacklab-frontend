@@ -11,15 +11,19 @@
 
 <script setup lang="ts">
 import { stripIndent } from 'common-tags';
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 
-import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
+import { createFilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import { useLayout } from '@/app/state/layout';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult } from '@/features/form';
 import { useSearchFormBinding } from '@/features/search/bindings/search-form';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import { useResultsState } from '@/features/search/model/results/results-state';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
+
+import { useBlackLabApi } from '@/shared/api';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
 import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
@@ -35,8 +39,18 @@ const formInteractive = computed(() => customizationsReady.value && !formBinding
 const settingsOpen = ref(false);
 const historyOpen = ref(false);
 
+const corpus = useCorpus();
+const blacklab = useBlackLabApi();
+const { parameters } = useResultsState();
+const subcorpus = createFilteredResultCountLoader();
+watch(
+	[corpus, () => parameters.value?.searchfield, () => parameters.value?.filter],
+	([index, field, filter]) => subcorpus.next({ index, annotatedFieldId: field ?? index.mainAnnotatedField, filter, blacklab }),
+	{ immediate: true },
+);
+onScopeDispose(subcorpus.dispose);
+
 function submit(snapshot: CompiledFormResult) {
-	const subcorpus = selectedSubcorpusLoader;
 	if (searchFormIds.formKind(snapshot.formId) === 'explore' && subcorpus.isLoaded() && subcorpus.value.tokensInMatchingDocuments > 5000000) {
 		const message = stripIndent`
 			You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.

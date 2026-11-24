@@ -4,23 +4,23 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockCorpusContext } from '@test/mocks/corpus';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
-import { describe, expect, onTestFinished, test } from 'vitest';
+import { describe, expect, onTestFinished, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult } from '@/features/form';
 import { createSearchFormBinding, provideSearchFormBinding, restoreSubmittedForm, submittedSearchFromResult } from '@/features/search/bindings/search-form';
-import { ResultsState } from '@/features/search/model/results/results-state';
+import { ResultsState, resultsStateKey } from '@/features/search/model/results/results-state';
 import { createSubmittedSearch } from '@/features/search/model/submitted-search';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 
-import { createCorpus, createSearchFormFixture } from './search-form-fixture';
+import { createCorpus, createSearchFormFixture, selectRenderedForm } from './search-form-fixture';
+
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 
-function mountSearchForm() {
-	const corpus = createCorpus();
-	const api = createMockApi();
+function mountSearchForm({ corpus = createCorpus(), api = createMockApi() } = {}) {
 	const fixture = createSearchFormFixture();
 	const system = fixture.createSystem({ corpus, blacklabApi: api.blacklabApi, translate: createMockTranslate() });
 	const submitted = createSubmittedSearch();
@@ -32,11 +32,11 @@ function mountSearchForm() {
 	const restoring = ref(false);
 	const wrapper = mount(QueryForm, {
 		global: {
+			provide: { [resultsStateKey]: results },
 			plugins: [api, createMockCorpusContext({ corpus }), system, pageBootstrap, app => provideSearchFormBinding(app, { ...binding, loading: restoring })],
 		},
 	});
 	onTestFinished(() => {
-		wrapper.unmount();
 		binding.stop();
 		fixture.scope.stop();
 	});
@@ -44,6 +44,47 @@ function mountSearchForm() {
 }
 
 describe('search form submission', () => {
+	test('allows the user to cancel Explore on a large subcorpus', async () => {
+		const corpus = createCorpus();
+		corpus.tokenCount = 10_000_000;
+		const { wrapper, runtime, submitted } = mountSearchForm({ corpus });
+		const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+		onTestFinished(() => confirm.mockRestore());
+		selectRenderedForm(runtime, searchFormIds.exploreForm('corpora'));
+		await nextTick();
+		await wrapper.get('form').trigger('submit');
+		expect(confirm).toHaveBeenCalledOnce();
+		expect(submitted.value).toBeUndefined();
+		confirm.mockReturnValue(true);
+		await wrapper.get('form').trigger('submit');
+		expect(submitted.value?.form['f.form']).toBe(searchFormIds.exploreForm('corpora'));
+	});
+
+	test('counts the submitted filter and cancels the request when the form unmounts', async () => {
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+		const cancel = vi.fn();
+		const api = createMockApi({ blacklab: { getDocs: () => new CancelableRequest(new Promise<never>(() => {}), cancel) } });
+		const { wrapper, runtime, results } = mountSearchForm({ api });
+		runtime.state.rawOverrides.value.filter = 'author:Austen';
+		await nextTick();
+		await vi.runOnlyPendingTimersAsync();
+		expect(api.blacklabApi.getDocs).not.toHaveBeenCalled();
+
+		await wrapper.get('form').trigger('submit');
+		await vi.runOnlyPendingTimersAsync();
+		expect(api.blacklabApi.getDocs).toHaveBeenCalledWith('test-corpus', expect.objectContaining({ filter: 'author:Austen' }));
+		results.setPageSize(50);
+		await nextTick();
+		await vi.runOnlyPendingTimersAsync();
+		expect(api.blacklabApi.getDocs).toHaveBeenCalledOnce();
+		expect(cancel).not.toHaveBeenCalled();
+		wrapper.unmount();
+		expect(cancel).toHaveBeenCalledOnce();
+	});
+
 	test('keeps form controls inert until scripts and restoration settle', async () => {
 		const { wrapper, pageBootstrap, restoring } = mountSearchForm();
 		const formRoot = () => wrapper.get('.blf-form-system');

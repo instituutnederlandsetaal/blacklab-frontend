@@ -36,7 +36,7 @@ The customization registry owns registrations and script disposal. It does not c
 
 ## Search and article state
 
-`features/search/search-feature.ts` composes submitted search state, the form runtime, active results, query history and URL restoration. The form runtime holds the editable draft. Submission applies the compiled form and its result preset, and result controls can change the current view independently. Selected-subcorpus effects run only on search routes.
+`features/search/search-feature.ts` composes submitted search state, the form runtime, active results, query history and URL restoration. The form runtime holds the editable draft. Submission applies the compiled form and its result preset, and result controls can change the current view independently. `QueryForm.vue` owns the selected-subcorpus count used to confirm large explore queries. It follows the committed search filter and field and cancels pending work when the form unmounts.
 
 `features/article/article-feature.ts` provides article state and its URL binding. Document loading and display remain within the article feature; article configuration can be set by corpus scripts before that feature is loaded.
 
