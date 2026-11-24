@@ -4,8 +4,9 @@ import type { LocationQueryRaw, Router } from 'vue-router';
 import type { ResultsState } from '@/features/search/model/results/results-state';
 import type { SubmittedSearchState } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
-import { writeSearchQuery, readSearchQuery } from '@/url/search-query';
-import { createUrlProjection } from '@/url/url-projection';
+import { queryString } from '@/url/query';
+import { readSearchQuery, writeSearchQuery } from '@/url/search-query';
+import { createUrlBinding } from '@/url/url-binding';
 
 type SearchUrlDependencies = {
 	corpus: MaybeRefOrGetter<Corpus | undefined>;
@@ -19,7 +20,7 @@ export function createSearchUrlBinding(router: Router, { corpus, search, results
 	const hasRead = ref(router.currentRoute.value.name !== 'search');
 	const initialReadSettled = computed<boolean>(settled => settled || (hasRead.value && !form.loading.value));
 	let extras: LocationQueryRaw = {};
-	const projection = createUrlProjection(router, {
+	const binding = createUrlBinding(router, {
 		context: route => {
 			const index = toValue(corpus);
 			return route.name === 'search' && index && route.params.corpus === index.id ? index : null;
@@ -27,8 +28,7 @@ export function createSearchUrlBinding(router: Router, { corpus, search, results
 		read(route, replaceUrl) {
 			const decoded = readSearchQuery(route.query, results.settings.pageSize);
 			extras = decoded.extras;
-			const parameter = route.params.results;
-			const view = (Array.isArray(parameter) ? parameter[0] : parameter) || null;
+			const view = queryString(route.params, 'results');
 			results.restore(decoded.global, view, decoded.view);
 			search.replace(decoded.submitted);
 			const { sampleSize, sampleSeed } = results.settings;
@@ -48,5 +48,5 @@ export function createSearchUrlBinding(router: Router, { corpus, search, results
 		},
 		leave: () => search.reset(),
 	});
-	return { ...projection, initialReadSettled };
+	return { ...binding, initialReadSettled };
 }

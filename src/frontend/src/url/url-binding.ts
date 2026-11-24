@@ -1,7 +1,7 @@
 import { computed, watch, type App } from 'vue';
 import { type RouteLocationNormalizedLoaded, type RouteLocationResolved, type RouteLocationRaw, type Router } from 'vue-router';
 
-type UrlProjection<Context> = {
+type UrlBindingOptions<Context> = {
 	/** Return a stable context while this page is ready, or null when it is inactive. */
 	context: (route: RouteLocationNormalizedLoaded) => Context | null;
 	/** Apply every value used by write() before the first await. The draft may finish restoring asynchronously. */
@@ -12,7 +12,7 @@ type UrlProjection<Context> = {
 };
 
 /** Bind page state to the URL; only incoming navigation reads state back from it. */
-export function createUrlProjection<Context>(router: Router, options: UrlProjection<Context>) {
+export function createUrlBinding<Context>(router: Router, options: UrlBindingOptions<Context>) {
 	// Mark only in-flight writes so Back and Forward can revisit a published entry.
 	const pending = new Set<string>();
 	async function publish(location: RouteLocationRaw, replace = false) {
@@ -21,7 +21,7 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 		pending.add(identity);
 		try {
 			const { path, query, hash } = target;
-			const failure = await router.push({ path, query, hash, replace, state: { blfProjection: identity } });
+			const failure = await router.push({ path, query, hash, replace, state: { blfUrlWriteId: identity } });
 			if (!failure && router.currentRoute.value.fullPath === target.fullPath) return target;
 		} catch (error) {
 			console.error('Failed to publish page URL', error);
@@ -56,7 +56,7 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 			if (source === null) {
 				stopState?.();
 				options.leave?.();
-			} else if (previous?.[1] !== source || !pending.has(router.options.history.state.blfProjection as string)) {
+			} else if (previous?.[1] !== source || !pending.has(router.options.history.state.blfUrlWriteId as string)) {
 				restore(route, source);
 			}
 		},

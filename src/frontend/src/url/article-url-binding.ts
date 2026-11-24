@@ -4,14 +4,14 @@ import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vu
 import type { ArticleState } from '@/features/article/model/article-page-state';
 import type { Corpus } from '@/types/apptypes';
 import { readArticleQuery, writeArticleQuery } from '@/url/article-query';
-import { createUrlProjection } from '@/url/url-projection';
+import { createUrlBinding } from '@/url/url-binding';
 
 export function createArticleUrlBinding(router: Router, state: ArticleState, corpus: MaybeRefOrGetter<Corpus | undefined>) {
 	let extras: LocationQueryRaw = {};
 	function location(route: RouteLocationNormalizedLoaded) {
 		return { path: route.path, hash: route.hash, query: { ...extras, ...writeArticleQuery(state.parameters.value, toValue(corpus)?.mainAnnotatedField) } };
 	}
-	return createUrlProjection(router, {
+	return createUrlBinding(router, {
 		context: route => {
 			const index = toValue(corpus);
 			return route.name === 'article' && index?.id === route.params.corpus ? index : null;

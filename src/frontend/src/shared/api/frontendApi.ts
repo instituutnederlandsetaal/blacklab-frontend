@@ -8,7 +8,8 @@ import type { ApiError, DocumentContentsParameters, FrontendApi } from '@/shared
 const frontendPaths = {
 	config: (indexId: string | null) => (indexId ? `${indexId}/api/config` : `api/config`),
 	tagset: (indexId: string) => `${indexId}/static/tagset.json`,
-	document: (indexId: string, pid: string) => `${encodeURIComponent(indexId)}/api/docs/${encodeURIComponent(pid)}`,
+	documentMetadata: (indexId: string, pid: string) => `${encodeURIComponent(indexId)}/api/docs/${encodeURIComponent(pid)}`,
+	documentContent: (indexId: string, pid: string) => frontendPaths.documentMetadata(indexId, pid) + '/contents',
 
 	help: (indexId?: string) => `${indexId ? indexId + '/' : ''}api/help`,
 	about: (indexId?: string) => `${indexId ? indexId + '/' : ''}api/about`,
@@ -26,11 +27,12 @@ export const createFrontendApi = (settings: EndpointSettings): FrontendApi => {
 		getDocumentContents: ({ indexId, docId, viewField, ...params }: DocumentContentsParameters, requestParameters?: AxiosRequestConfig) => {
 			// The servlet uses `field` for displayed contents; `searchfield` selects a different field for highlighting.
 			if (!params.patt || params.searchfield === viewField) delete params.searchfield;
-			return endpoint.getCancelable<string>(frontendPaths.document(indexId, docId) + '/contents', { ...params, ...(viewField ? { field: viewField } : {}) }, requestParameters);
+			return endpoint.getCancelable<string>(frontendPaths.documentContent(indexId, docId), { ...params, ...(viewField ? { field: viewField } : {}) }, requestParameters);
 		},
 
 		/** Get transformed document metadata */
-		getDocumentMetadata: (indexId: string, pid: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<string>(frontendPaths.document(indexId, pid), undefined, requestParameters),
+		getDocumentMetadata: (indexId: string, pid: string, requestParameters?: AxiosRequestConfig) =>
+			endpoint.getCancelable<string>(frontendPaths.documentMetadata(indexId, pid), undefined, requestParameters),
 
 		/** Get html content of the help page. */
 		getHelp: (indexId?: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<string>(frontendPaths.help(indexId), undefined, requestParameters),

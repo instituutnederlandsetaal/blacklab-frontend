@@ -349,7 +349,7 @@ describe('search URLs and browser history', () => {
 		for (const name of ['hits', 'docs']) expect(results.view(name).selectedRange).toEqual({ first: 0, number: 50 });
 	});
 
-	test('submitting a documents query removes legacy pattern aliases from the projection', async () => {
+	test('submitting a documents query removes legacy pattern aliases from the URL', async () => {
 		const incoming = `${path}/hits?query=${encodeURIComponent(pattern)}&field=contents&pattgapdata=water&interface=%7B%22form%22%3A%22search%22%7D&extension=shared#results`;
 		const { sync, router, searchForm, activeSearchParameters } = await setup(incoming);
 		const browserEntries = window.history.length;

@@ -40,7 +40,7 @@ The customization registry owns registrations and script disposal. It does not c
 
 `features/article/article-feature.ts` provides article state and its URL binding. Document loading and display remain within the article feature; article configuration can be set by corpus scripts before that feature is loaded.
 
-Each feature owns its URL projection. Incoming navigation restores that page's state, and subsequent user changes publish URL updates. URL bindings stop on application unmount. Opening another page does not initialize the other feature's implementation.
+Each feature owns its URL binding. Incoming navigation restores that page's state, and subsequent user changes publish URL updates. URL bindings stop on application unmount. Opening another page does not initialize the other feature's implementation.
 
 Article pagination uses zero-based, half-open word ranges in the displayed annotated field. Parallel hit navigation reads that version's ranges from the query's `otherFields` results before selecting pages or highlights. Default field names are omitted from document links and contents requests; a separate search field is retained when highlighting a query from another version.
 

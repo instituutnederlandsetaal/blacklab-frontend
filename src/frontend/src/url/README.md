@@ -1,6 +1,6 @@
 # Page state, URLs, and history
 
-Search uses unidirectional data flow. Components read state from the feature instance and send edits to the owner. The URL is a projection of the submitted query and the selected result view. The URL bindings restore page state on navigation. The history dialog navigates with Vue Router, and result tables use its named article route to build links.
+Search uses unidirectional data flow. Components read state from the feature instance and send edits to the owner. The URL represents the submitted query and the selected result view. The URL bindings restore page state on navigation. The history dialog navigates with Vue Router, and result tables use its named article route to build links.
 
 ```text
 editable form ──submit──> submitted search ─┐
@@ -26,7 +26,7 @@ The search feature creates the owners and connects them to two bindings. `featur
 ## State transitions
 
 - **Submit:** capture the compiled form as a submitted query, apply its result presets, select the target view, and reset every view to the first preferred page. Later draft edits do not affect that snapshot.
-- **Result control or tab change:** update the relevant store immediately. Switching views retains each view's selection. Requests derive from the selected view, while the URL projection catches up.
+- **Result control or tab change:** update the relevant store immediately. Switching views retains each view's selection. Requests derive from the selected view, and the binding updates the URL afterward.
 - **Initial load, browser navigation, or saved-search loading:** decode query and result settings synchronously, reset all views to defaults, then hydrate only the matched view. Restore the editable form asynchronously without replacing result controls. The form is visible for orientation during loading; input made before restoration finishes can be replaced.
 - **Reset:** clear the submitted query and selected view and reset the form and result views.
 - **Form runtime replacement:** restore the new form from the submitted search, preserving result settings. Changes to the submitted search, corpus, or runtime can supersede a restoration while the before-state-loaded hook runs.
@@ -54,7 +54,7 @@ Missing URL counts use the preference at hydration time. The preference is never
 
 ## URL and history boundary
 
-The search and article URL bindings share `createUrlProjection` in `url-projection.ts`. On incoming navigation it stops publishing, lets the page restore URL-visible state synchronously, then watches for changes. Draft restoration can finish later. Each outgoing write carries an identity until navigation settles, so Back and Forward can restore that same entry on later visits.
+The search and article URL bindings share `createUrlBinding` in `url-binding.ts`. On incoming navigation it stops publishing, lets the page restore URL-visible state synchronously, then watches for changes. Draft restoration can finish later. Each outgoing write carries an identity until navigation settles, so Back and Forward can restore that same entry on later visits.
 
 `article-query.ts` reads article parameters and writes the query used by both result links and the article URL binding.
 

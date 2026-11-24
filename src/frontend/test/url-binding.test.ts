@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { nextTick, reactive } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { createUrlProjection } from '@/url/url-projection';
+import { createUrlBinding } from '@/url/url-binding';
 
 const cleanup: (() => void)[] = [];
 afterEach(() => cleanup.splice(0).forEach(stop => stop()));
@@ -14,7 +14,7 @@ async function setup() {
 	const state = reactive({ query: '', draft: '' });
 	const saved: string[] = [];
 	const context = {};
-	const projection = createUrlProjection(router, {
+	const binding = createUrlBinding(router, {
 		context: () => context,
 		read: route => {
 			state.query = state.draft = String(route.query.q ?? '');
@@ -22,11 +22,11 @@ async function setup() {
 		write: () => ({ name: 'search', query: { q: state.query } }),
 		published: route => saved.push(String(route.query.q)),
 	});
-	cleanup.push(projection.stop);
+	cleanup.push(binding.stop);
 	return { router, state, saved };
 }
 
-describe('URL projection', () => {
+describe('URL binding', () => {
 	test('Back and Forward restore previously published entries without adding saved history', async () => {
 		const { router, state, saved } = await setup();
 		state.query = 'second';
