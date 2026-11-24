@@ -7,7 +7,7 @@ import type { FormRuntime } from '@/features/form';
 import { restoreSubmittedForm } from '@/features/search/bindings/search-form';
 import { summarizeSubmittedSearch } from '@/features/search/model/search-summary';
 import type { Corpus } from '@/types/apptypes';
-import { queryHistoryDetails, type HistoryUrlDetails } from '@/url/query-history';
+import { queryHistoryDetails } from '@/url/query-history';
 import { readSubmittedSearch } from '@/url/search-query';
 
 import { debugLog } from '@/shared/debug/debug';
@@ -37,15 +37,8 @@ type LocalStorageState = {
 
 // Track current corpus for localStorage keying
 let corpus: Corpus | null = null;
-let details = queryHistoryDetails;
-
-/** Legacy history adapters may supply their own URL decoder. */
-function setUrlDecoder(decode: (url: string) => HistoryUrlDetails) {
-	details = decode;
-}
-
 function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntryInput): FullHistoryEntry | null {
-	const decoded = details(url);
+	const decoded = queryHistoryDetails(url);
 	if (!decoded.viewedResults) return null;
 	return Object.freeze({
 		url: new URL(url, window.location.origin).toString(),
@@ -60,7 +53,7 @@ function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntr
 
 function sameQuery(a: FullHistoryEntry, b: FullHistoryEntry) {
 	if (a.hash !== b.hash) return false;
-	return a.url === b.url || stableStringify(details(a.url).identity) === stableStringify(details(b.url).identity);
+	return a.url === b.url || stableStringify(queryHistoryDetails(a.url).identity) === stableStringify(queryHistoryDetails(b.url).identity);
 }
 
 const state = shallowRef<ModuleRootState>([]);
@@ -68,7 +61,7 @@ const getState = () => state.value;
 
 const get = {
 	details: (entry: FullHistoryEntry) => {
-		const { viewedResults, collocation, groupBy } = details(entry.url);
+		const { viewedResults, collocation, groupBy } = queryHistoryDetails(entry.url);
 		return { viewedResults, collocation, groupBy };
 	},
 	asFile: (entry: FullHistoryEntry) => {
@@ -81,7 +74,7 @@ const get = {
 			minute: '2-digit',
 			second: '2-digit',
 		});
-		const { groupBy, exportResults, hasGapValues } = details(entry.url);
+		const { groupBy, exportResults, hasGapValues } = queryHistoryDetails(entry.url);
 		const fileContents = stripIndent`
 			# Date: ${date}
 			# Results: ${exportResults || '-'}
@@ -195,4 +188,4 @@ const saveToLocalStorage = (entries: ModuleRootState) => {
 	window.localStorage.setItem(key, JSON.stringify(stored));
 };
 
-export { actions, get, getState, init, setUrlDecoder, type FullHistoryEntry, type ModuleRootState };
+export { actions, get, getState, init, type FullHistoryEntry, type ModuleRootState };
