@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { toRaw } from 'vue';
 
-import { createDefaultFormState } from '@/features/form/model/state';
+import { createDefaultFormState } from '@/features/form/model/form-state';
 
 import { TestTextField, createTestBuilder, type createTestContext, createTestRuntime, testTextController } from './helpers';
 

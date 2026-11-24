@@ -5,7 +5,7 @@ import { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import type { NamedFieldDefinition } from '@/features/form/model/field-component-props';
 import { FormRuntime } from '@/features/form/model/form-runtime';
-import { useFormSystemRuntime, useParentForm } from '@/features/form/model/runtime';
+import { useFormSystemRuntime, useParentForm } from '@/features/form/model/form-runtime-injection';
 import { defineFieldController, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { annotation } from '@/features/form/model/types/form-query-ir';
 

@@ -3,7 +3,7 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import * as UIStore from '@/app/state/ui-state';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { FormSystem, type TokenSequenceFieldState } from '@/features/form';
 

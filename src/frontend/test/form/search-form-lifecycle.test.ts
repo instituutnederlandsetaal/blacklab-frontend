@@ -5,9 +5,9 @@ import { createMockTranslate } from '@test/mocks/i18n';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { ref, toValue } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
-import { normalizeTagset } from '@/features/corpus/model/tagset-state';
+import { normalizeTagset } from '@/features/corpus/normalize-tagset';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { AnnotationPosField, TextField, type AnnotationPosFieldConfig, type ParallelFieldState } from '@/features/form';
 import type { SummaryViewConfig } from '@/features/form/model/views/summary-view';

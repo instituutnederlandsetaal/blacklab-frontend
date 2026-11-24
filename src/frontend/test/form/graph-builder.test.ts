@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { isReactive } from 'vue';
 
 import { createFormContainerNode, createFormFieldNode, createFormNode, createFormViewNode } from '@/features/form/model/form-node';
-import { createDefaultFormState } from '@/features/form/model/state';
+import { createDefaultFormState } from '@/features/form/model/form-state';
 import type { FormOutputProducer } from '@/features/form/model/types/form-output';
 import { filter } from '@/features/form/model/types/form-query-ir';
 

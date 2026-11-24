@@ -135,17 +135,17 @@
 import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { useCorpus } from '@/app/state/useCorpusContext';
+import { writeArticleQuery } from '@/app/router/url/article-query';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
-import { isEffectiveCollocationParameters, type ExecutedSearchRequest } from '@/features/search/model/results/result-types';
-import { useResultsState, type ResultView } from '@/features/search/model/results/results-state';
+import { useCorpus } from '@/features/corpus/corpus-context';
+import { createCollocationHitsParameters } from '@/pages/search/model/results/collocation-request';
+import { isEffectiveCollocationParameters, type ExecutedSearchRequest } from '@/pages/search/model/results/result-types';
+import { useResultsState, type ResultView } from '@/pages/search/model/results/results-state';
+import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/pages/search/results/groupby/grouping';
 import type { DisplaySettingsForRendering } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
-import { writeArticleQuery } from '@/url/article-query';
-import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
 import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types';

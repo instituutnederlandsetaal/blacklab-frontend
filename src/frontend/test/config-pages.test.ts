@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
 import type { Corpus, NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';

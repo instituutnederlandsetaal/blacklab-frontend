@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, toValue, watch } from 'vue';
 
-import { useFormSystemRuntime, useParentForm } from '../model/runtime';
+import { useFormSystemRuntime, useParentForm } from '../model/form-runtime-injection';
 import type { SummaryViewConfig } from '../model/views/summary-view';
 
 import { frac2Percent } from '@/shared/utils/number-utils';

@@ -1,6 +1,6 @@
 import { isObject } from '@vueuse/core';
 
-import * as FilterStore from '@/app/state/legacy-filter-state';
+import * as FilterStore from '@/app/legacy-stores/filter-store';
 import type { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';

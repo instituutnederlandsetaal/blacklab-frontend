@@ -2,7 +2,7 @@ import { createMockBlackLabApi, createMockFrontendApi, resolvedRequest } from '@
 import { describe, expect, test, vi } from 'vitest';
 import { nextTick, ref, watch } from 'vue';
 
-import { createCorpusContext } from '@/app/state/useCorpusContext';
+import { createCorpusContext } from '@/features/corpus/corpus-context';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';

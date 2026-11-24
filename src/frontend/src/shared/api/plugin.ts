@@ -1,7 +1,7 @@
 import type { ObjectPlugin } from 'vue';
 
 import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
-import useInjectable from '@/shared/utils/useInjectable';
+import createAppInjection from '@/shared/vue/injection';
 
 export type ApiPluginParts = {
 	blacklabApi: BlackLabApi;
@@ -10,8 +10,8 @@ export type ApiPluginParts = {
 
 export type ApiPlugin = ObjectPlugin & ApiPluginParts;
 
-const [, provideFrontendApi, useFrontendApi] = useInjectable<FrontendApi>('frontendApi');
-const [, provideBlackLabApi, useBlackLabApi] = useInjectable<BlackLabApi>('blacklabApi');
+const [, provideFrontendApi, useFrontendApi] = createAppInjection<FrontendApi>('frontendApi');
+const [, provideBlackLabApi, useBlackLabApi] = createAppInjection<BlackLabApi>('blacklabApi');
 
 export function createApiPlugin(parts: ApiPluginParts): ApiPlugin {
 	return {

@@ -7,7 +7,7 @@
 
 import { computed, markRaw, toValue, type MaybeRefOrGetter, type ObjectPlugin } from 'vue';
 
-import type * as UIStore from '@/app/state/ui-state';
+import type * as UIStore from '@/app/legacy-stores/ui-store';
 import type {
 	SearchFormAnnotationControl,
 	SearchFormCustomizationApi,
@@ -30,11 +30,11 @@ import type { BLDoc, BLHitInContext, BLHitGroupResults, BLHitResults, BLMatchInf
 import { isHitGroups } from '@/types/blacklabtypes';
 
 import type { CustomizationRegistry } from '../registry';
-import { provideCustomizations } from './use-customizations';
+import { provideCustomizations } from './customizations-injection';
 
 import type { Translate } from '@/shared/i18n';
 import { optionText, type OptGroup, type Option } from '@/shared/utils/options';
-export { provideCustomizations, useCustomizations } from './use-customizations';
+export { provideCustomizations, useCustomizations } from './customizations-injection';
 
 export type ResultHitAddon = ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>;
 

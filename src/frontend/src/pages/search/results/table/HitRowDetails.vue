@@ -110,8 +110,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations, type ResultHitAddon } from '@/customization-api/internal/internal-api';
+import { useCorpus } from '@/features/corpus/corpus-context';
 import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';

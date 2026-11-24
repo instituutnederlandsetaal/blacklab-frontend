@@ -4,7 +4,7 @@ import { createTestResultsState } from '@test/mocks/results-state';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { ref } from 'vue';
 
-import { type ResultsState } from '@/features/search/model/results/results-state';
+import { type ResultsState } from '@/pages/search/model/results/results-state';
 
 let results: ResultsState;
 beforeEach(() => {

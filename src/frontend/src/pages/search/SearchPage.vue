@@ -18,9 +18,9 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 
-import { useLayout } from '@/app/state/layout';
-import { useResultsState } from '@/features/search/model/results/results-state';
-import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { usePageBootstrap } from '@/app/router/page-bootstrap';
+import { useLayout } from '@/app/shell/layout';
+import { useResultsState } from '@/pages/search/model/results/results-state';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';

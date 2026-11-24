@@ -6,7 +6,7 @@
 import { computed } from 'vue';
 
 import { createRenderedNodeProps } from '@/features/form/model/field-component-props';
-import { useFormSystemRuntime } from '@/features/form/model/runtime';
+import { useFormSystemRuntime } from '@/features/form/model/form-runtime-injection';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 const props = defineProps<{

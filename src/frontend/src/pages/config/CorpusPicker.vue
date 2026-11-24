@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { useLayout } from '@/app/state/layout';
+import { useLayout } from '@/app/shell/layout';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';

@@ -16,9 +16,9 @@
 import { computed } from 'vue';
 
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { isEffectiveCollocationParameters } from '@/features/search/model/results/result-types';
-import { useResultsState } from '@/features/search/model/results/results-state';
 import { LegacyResultView } from '@/interop/legacy-store-adapters/search';
+import { isEffectiveCollocationParameters } from '@/pages/search/model/results/result-types';
+import { useResultsState } from '@/pages/search/model/results/results-state';
 
 import { useI18n } from '@/shared/i18n';
 

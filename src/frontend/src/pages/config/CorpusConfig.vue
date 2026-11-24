@@ -16,8 +16,8 @@
 import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { useCorpus } from '@/app/state/useCorpusContext';
-import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { usePageBootstrap } from '@/app/router/page-bootstrap';
+import { useCorpus } from '@/features/corpus/corpus-context';
 
 const route = useRoute();
 const tabs = ['tagset builder', 'interface'];

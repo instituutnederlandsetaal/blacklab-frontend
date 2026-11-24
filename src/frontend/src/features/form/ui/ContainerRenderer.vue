@@ -43,8 +43,8 @@
 import { computed, toRef, toValue } from 'vue';
 
 import { hasEmissions } from '@/features/form/model/compile';
+import { provideParentForm, useFormSystemRuntime } from '@/features/form/model/form-runtime-injection';
 import { getAllNodes } from '@/features/form/model/form-utils';
-import { provideParentForm, useFormSystemRuntime } from '@/features/form/model/runtime';
 import { createTabs, tabId } from '@/features/form/ui/tab-utils';
 
 import type { CompiledFormResult, ImplicitContainerComponentProps } from '../model/types';

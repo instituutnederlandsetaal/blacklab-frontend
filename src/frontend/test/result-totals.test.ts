@@ -4,7 +4,7 @@ import { createMockApi } from '@test/mocks/api';
 import { shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
+import type { ExecutedSearchRequest } from '@/pages/search/model/results/result-types';
 import type { BLDocResults, BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';

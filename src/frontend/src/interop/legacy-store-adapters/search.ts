@@ -1,10 +1,10 @@
 import { reactive, type MaybeRefOrGetter } from 'vue';
 
-import * as ArticleModule from '@/app/state/article-configuration';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
-import * as HistoryModule from '@/features/history/model/query-history-state';
-import type { SearchFormActions } from '@/features/search/bindings/search-form';
-import { defaults, type ResultsState, ResultView, initialViewState, type ResultViewState } from '@/features/search/model/results/results-state';
+import * as ArticleModule from '@/app/legacy-stores/article-configuration-store';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
+import type { SearchFormActions } from '@/pages/search/bindings/search-form-binding';
+import * as HistoryModule from '@/pages/search/history/query-history-store';
+import { defaults, type ResultsState, ResultView, initialViewState, type ResultViewState } from '@/pages/search/model/results/results-state';
 
 /** Custom results components receive the same store shape as legacy window globals. */
 export class LegacyResultView {

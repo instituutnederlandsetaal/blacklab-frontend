@@ -4,8 +4,8 @@ import { File } from 'node:buffer';
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import type { CorpusContext } from '@/app/state/useCorpusContext';
-import { actions, get, getState, init } from '@/features/history/model/query-history-state';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
+import { actions, get, getState, init } from '@/pages/search/history/query-history-store';
 
 beforeEach(() => {
 	window.localStorage.clear();

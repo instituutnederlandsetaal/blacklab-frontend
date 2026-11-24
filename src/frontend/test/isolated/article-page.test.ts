@@ -10,7 +10,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { defineComponent, nextTick, ref, type Ref } from 'vue';
 
-import * as ArticleStore from '@/app/state/article-configuration';
+import * as ArticleStore from '@/app/legacy-stores/article-configuration-store';
 import type { CFPageConfig, Corpus } from '@/types/apptypes';
 
 import { ApiError } from '@/shared/api/lib/api-types';
@@ -33,12 +33,12 @@ vi.mock('@vueuse/core', async importOriginal => ({
 	useLocalStorage: (_key: string, initialValue: unknown) => ref(initialValue),
 	useWindowSize: () => ({ width: ref(1024), height: ref(768) }),
 }));
-vi.mock('@/modules/expandable-tooltips', () => ({ default: mock.createTooltips }));
-vi.mock('@/navigation/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
-vi.mock('@/features/article/model/article-page-state', () => ({
+vi.mock('@/pages/article/expandable-tooltips', () => ({ default: mock.createTooltips }));
+vi.mock('@/app/router/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
+vi.mock('@/pages/article/model/article-page-state', () => ({
 	useArticleState: () => ({ parameters: ref(mock.articleRoute), showPage: vi.fn(), showHit: vi.fn() }),
 }));
-vi.mock('@/pages/article/article', () => ({ createArticleStreams: () => mock.streams }));
+vi.mock('@/pages/article/model/article-streams', () => ({ createArticleStreams: () => mock.streams }));
 
 function createStreams() {
 	const empty = () => new BehaviorSubject(Loadable.Empty());

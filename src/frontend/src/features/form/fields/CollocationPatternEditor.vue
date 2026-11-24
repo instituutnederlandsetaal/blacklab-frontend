@@ -79,7 +79,7 @@ import {
 } from '@/features/form/fields/collocation-field';
 import { collocationPatternToCql } from '@/features/form/model/controllers/collocation-controller';
 import { queryBuilderStateToPattern } from '@/features/form/model/controllers/query-builder-controller';
-import { useFormSystemRuntime } from '@/features/form/model/runtime';
+import { useFormSystemRuntime } from '@/features/form/model/form-runtime-injection';
 
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';

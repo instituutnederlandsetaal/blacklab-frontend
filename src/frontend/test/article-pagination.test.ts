@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { getArticlePagination } from '@/features/article/model/article-pagination';
+import { getArticlePagination } from '@/pages/article/model/article-pagination';
 
 describe('article word ranges', () => {
 	test.each([

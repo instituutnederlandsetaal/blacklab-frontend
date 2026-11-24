@@ -4,8 +4,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, expect, test } from 'vitest';
 import { defineComponent, h, ref, shallowRef } from 'vue';
 
+import { createInitialLoading } from '@/app/entrypoint/initial-loading';
 import { isInitialPageReady } from '@/app/entrypoint/initial-readiness';
-import { createInitialLoading } from '@/navigation/initial-loading';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable, type Loadable as LoadableType } from '@/shared/utils/loadable/loadable-core';

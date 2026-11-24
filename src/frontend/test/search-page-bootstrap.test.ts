@@ -5,9 +5,9 @@ import { shallowMount } from '@vue/test-utils';
 import { expect, test, vi } from 'vitest';
 import { defineComponent, nextTick, onMounted, watch } from 'vue';
 
-import { createLayout } from '@/app/state/layout';
-import { resultsStateKey } from '@/features/search/model/results/results-state';
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
+import { createLayout } from '@/app/shell/layout';
+import { resultsStateKey } from '@/pages/search/model/results/results-state';
 
 import SearchPage from '@/pages/search/SearchPage.vue';
 

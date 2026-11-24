@@ -3,9 +3,9 @@ import { describe, expect, test } from 'vitest';
 import { computed, shallowRef } from 'vue';
 
 import { ContainerRenderer, filterTextController, FormBuilder, FormRuntime, TextField, type CompiledFormResult } from '@/features/form';
-import { restoreSubmittedForm } from '@/features/search/bindings/search-form';
-import { createSearchSummary, summarizeCompiledForm } from '@/features/search/model/search-summary';
-import type { SubmittedSearch } from '@/features/search/model/submitted-search';
+import { restoreSubmittedForm } from '@/pages/search/bindings/search-form-binding';
+import { createSearchSummary, summarizeCompiledForm } from '@/pages/search/model/search-summary';
+import type { SubmittedSearch } from '@/pages/search/model/submitted-search';
 
 function form(displayName = 'Author') {
 	const builder = new FormBuilder({ corpus: { indexId: 'test', textDirection: 'ltr', isParallelCorpus: false }, translate: createMockTranslate() });

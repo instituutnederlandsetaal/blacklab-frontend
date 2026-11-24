@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, type CSSProperties } from 'vue';
 
-import { DEFAULT_RESULT_CONTEXT_SIZE } from '@/features/search/model/results/result-context-size';
+import { DEFAULT_RESULT_CONTEXT_SIZE } from '@/pages/search/model/results/result-context-size-injection';
 import type { HitContext } from '@/types/apptypes';
 
 const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '

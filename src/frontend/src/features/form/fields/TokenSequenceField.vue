@@ -47,7 +47,7 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
-import { useFormSystemRuntime } from '@/features/form/model/runtime';
+import { useFormSystemRuntime } from '@/features/form/model/form-runtime-injection';
 
 import {
 	createDefaultTokenSequenceToken,

@@ -134,16 +134,16 @@
 import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
 import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect } from 'vue';
 
-import * as ArticleStore from '@/app/state/article-configuration';
-import { useLayout } from '@/app/state/layout';
-import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
-import { useCustomizations } from '@/customization-api/internal/use-customizations';
-import { useArticleState } from '@/features/article/model/article-page-state';
-import createTooltips from '@/modules/expandable-tooltips';
-import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import * as ArticleStore from '@/app/legacy-stores/article-configuration-store';
+import { usePageBootstrap } from '@/app/router/page-bootstrap';
+import { useLayout } from '@/app/shell/layout';
+import { useCustomizations } from '@/customization-api/internal/customizations-injection';
+import { useCfPageConfig, useCorpus } from '@/features/corpus/corpus-context';
+import createTooltips from '@/pages/article/expandable-tooltips';
+import { useArticlePageState } from '@/pages/article/model/article-page-state';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
-import { createArticleStreams, type Input } from './article';
+import { createArticleStreams, type Input } from './model/article-streams';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
@@ -167,7 +167,7 @@ const corpus = useCorpus();
 const articleStreams = createArticleStreams(blacklab, useFrontendApi(), corpus);
 const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
 const cfPageConfig = useCfPageConfig();
-const articleState = useArticleState();
+const articleState = useArticlePageState();
 const { resultDetailedMetadataIds } = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 

@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { computed, toValue, type App, type MaybeRefOrGetter, type Ref } from 'vue';
 
-import { defaultConfig, provideCorpus, provideCfPageConfig, provideCorpusContextLoader, type CorpusContext } from '@/app/state/useCorpusContext';
+import { defaultConfig, provideCorpus, provideCfPageConfig, provideCorpusContextLoader, type CorpusContext } from '@/features/corpus/corpus-context';
 import type { CFPageConfig, Corpus } from '@/types/apptypes';
 
 import { Loadable } from '@/shared/utils/loadable/loadable-core';

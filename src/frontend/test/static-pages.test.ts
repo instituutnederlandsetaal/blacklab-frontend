@@ -5,13 +5,13 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ref, watch, type Ref } from 'vue';
 
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
-import { provideCorpusId } from '@/navigation/page-context';
+import { provideCorpusId } from '@/app/router/corpus-id-injection';
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 
-import AboutPage from '@/pages/about/AboutPage.vue';
-import HelpPage from '@/pages/help/HelpPage.vue';
+import AboutPage from '@/pages/info/AboutPage.vue';
+import HelpPage from '@/pages/info/HelpPage.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 

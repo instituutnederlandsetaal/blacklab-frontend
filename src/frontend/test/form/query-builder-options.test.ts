@@ -4,7 +4,7 @@ import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { describe, expect, test, vi } from 'vitest';
 
-import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
+import { createQueryBuilderOptions } from '@/pages/search/model/form/query-builder-options';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
 import { findOption, optionLabel, optionText, optionValues } from '@/shared/utils/options';

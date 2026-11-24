@@ -4,7 +4,7 @@ import { createTestResultsState } from '@test/mocks/results-state';
 import { shallowMount } from '@vue/test-utils';
 import { expect, test } from 'vitest';
 
-import { resultsStateKey } from '@/features/search/model/results/results-state';
+import { resultsStateKey } from '@/pages/search/model/results/results-state';
 
 import { createDebugSystem } from '@/shared/debug/debug';
 

@@ -5,7 +5,7 @@ import type { I18nPlugin } from './plugin';
 import { createVueI18nParts, installVueI18nParts, type VueI18nBridge } from './vue-i18n';
 
 import { I18nManager } from '@/shared/i18n/i18n-manager';
-import useInjectable from '@/shared/utils/useInjectable';
+import createAppInjection from '@/shared/vue/injection';
 
 /**
  * This module contains the glue code between our internal i18n message bundle manager (i18n-manager) and the Vue I18n plugin.
@@ -17,7 +17,7 @@ import useInjectable from '@/shared/utils/useInjectable';
 
 const LOCALE_STORAGE_KEY = 'cf/locale';
 
-const [_i18nManagerInjectionKey, provideI18nManager, useI18nManager] = useInjectable<I18nManager>('i18nManager');
+const [_i18nManagerInjectionKey, provideI18nManager, useI18nManager] = createAppInjection<I18nManager>('i18nManager');
 
 export { useI18nManager };
 

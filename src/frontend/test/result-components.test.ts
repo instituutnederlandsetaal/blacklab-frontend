@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { ref } from 'vue';
 
-import { provideSearchSummary } from '@/features/search/model/search-summary';
+import { provideSearchSummary } from '@/pages/search/model/search-summary';
 
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';

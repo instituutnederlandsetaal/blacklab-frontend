@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { readSearchQuery, readSubmittedSearch } from '@/url/search-query';
+import { readSearchQuery, readSubmittedSearch } from '@/pages/search/bindings/search-query';
 
 describe('search query decoding', () => {
 	test('extracts the curated canonical request parameters and normalizes aliases', () => {

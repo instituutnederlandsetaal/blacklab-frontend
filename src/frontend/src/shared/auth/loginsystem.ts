@@ -5,7 +5,7 @@ import type { App } from 'vue';
 
 import type { BLServer } from '@/types/blacklabtypes';
 
-import useInjectable from '@/shared/utils/useInjectable';
+import createAppInjection from '@/shared/vue/injection';
 
 export type OidcLoginSystemConfig = {
 	mode: 'oidc';
@@ -32,7 +32,7 @@ type LoginSystem = {
 	logout(): void;
 };
 
-const [_loginSystemInjectionKey, provideLoginSystem, useLoginSystem] = useInjectable<LoginSystem>('loginSystem');
+const [_loginSystemInjectionKey, provideLoginSystem, useLoginSystem] = createAppInjection<LoginSystem>('loginSystem');
 
 function createUserManager(config: OidcLoginSystemConfig): UserManager {
 	return new UserManager({

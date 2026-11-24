@@ -2,16 +2,16 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { effectScope } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
-import { createCorpusValue } from '@/app/state/useCorpusContext';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
+import { createCorpusValue } from '@/features/corpus/corpus-context';
 import type { FormRuntime } from '@/features/form';
-import { restoreSubmittedForm } from '@/features/search/bindings/search-form';
-import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import { restoreSubmittedForm } from '@/pages/search/bindings/search-form-binding';
+import { readSubmittedSearch } from '@/pages/search/bindings/search-query';
+import { createSearchFormSystem } from '@/pages/search/model/form/search-form-system';
 import type { Corpus, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-import { readSubmittedSearch } from '@/url/search-query';
 
 import debug from '@/shared/debug/debug';
 

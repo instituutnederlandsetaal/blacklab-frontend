@@ -6,11 +6,11 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { provideCorpusId } from '@/app/router/corpus-id-injection';
+import { routerPath } from '@/app/router/router-path';
 import { customCssChangedEvent } from '@/interop/page-customization';
-import { provideCorpusId } from '@/navigation/page-context';
-import { routerPath } from '@/navigation/router-path';
 
-import Navbar from '@/components/Navbar.vue';
+import Navbar from '@/app/shell/Navbar.vue';
 
 class ControlledImage extends EventTarget {
 	static instances: ControlledImage[] = [];

@@ -1,6 +1,6 @@
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { compileFormNode, compileFormSummary, createSummaryFieldVisitor } from '@/features/form/model/compile';
-import createFormState, { createDefaultFormState } from '@/features/form/model/state';
+import createFormState, { createDefaultFormState } from '@/features/form/model/form-state';
 import type { CompiledFormResult, CompiledFormSummary } from '@/features/form/model/types/form-result';
 import { renderFormNode } from '@/features/form/ui/renderable-graph';
 

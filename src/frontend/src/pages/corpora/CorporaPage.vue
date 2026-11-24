@@ -67,8 +67,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, shallowRef, watch, watchPostEffect } from 'vue';
 
-import { useLayout } from '@/app/state/layout';
-import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { usePageBootstrap } from '@/app/router/page-bootstrap';
+import { useLayout } from '@/app/shell/layout';
 import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';

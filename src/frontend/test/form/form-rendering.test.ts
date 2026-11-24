@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { defineComponent, h, nextTick, ref, shallowRef, toRaw } from 'vue';
 
 import { annotationTextController, FormSystem, createFormFieldNode, expertQueryController } from '@/features/form';
-import { provideFormSystemRuntime } from '@/features/form/model/runtime';
+import { provideFormSystemRuntime } from '@/features/form/model/form-runtime-injection';
 
 import { createSingleFormFixture, createNestedFormRuntime, type FormFixture } from './form-ui-fixtures';
 import { createTestBuilder, createTestRuntime } from './helpers';

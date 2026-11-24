@@ -19,7 +19,7 @@ import { computed, toRef } from 'vue';
 import type { FormRuntime } from '@/features/form/model/form-runtime';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';
 
-import { provideFormSystemRuntime } from '../model/runtime';
+import { provideFormSystemRuntime } from '../model/form-runtime-injection';
 
 const props = defineProps<{
 	runtime: FormRuntime;

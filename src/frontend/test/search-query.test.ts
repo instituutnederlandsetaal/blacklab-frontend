@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 
-import { submittedSearchFromResult } from '@/features/search/bindings/search-form';
-import { defaults as preferences, initialViewState } from '@/features/search/model/results/results-state';
-import { writeSearchQuery, readSearchQuery, readSubmittedSearch } from '@/url/search-query';
+import { submittedSearchFromResult } from '@/pages/search/bindings/search-form-binding';
+import { writeSearchQuery, readSearchQuery, readSubmittedSearch } from '@/pages/search/bindings/search-query';
+import { defaults as preferences, initialViewState } from '@/pages/search/model/results/results-state';
 
 const defaults = { ...preferences, context: null, sampleSeed: null, sampleSize: null };
 

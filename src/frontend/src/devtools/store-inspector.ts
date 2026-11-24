@@ -1,11 +1,11 @@
 import { setupDevtoolsPlugin } from '@vue/devtools-api';
 import { isRef, toRaw, unref, watch, type App, type Ref } from 'vue';
 
-import * as ArticleStore from '@/app/state/article-configuration';
-import * as UIStore from '@/app/state/ui-state';
-import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import * as HistoryStore from '@/features/history/model/query-history-state';
-import type { ResultsState } from '@/features/search/model/results/results-state';
+import * as ArticleStore from '@/app/legacy-stores/article-configuration-store';
+import * as TagsetStore from '@/app/legacy-stores/tagset-store';
+import * as UIStore from '@/app/legacy-stores/ui-store';
+import * as HistoryStore from '@/pages/search/history/query-history-store';
+import type { ResultsState } from '@/pages/search/model/results/results-state';
 import type { Corpus } from '@/types/apptypes';
 
 const DEVTOOLS_PLUGIN_ID = 'blacklab-frontend-store-devtools';

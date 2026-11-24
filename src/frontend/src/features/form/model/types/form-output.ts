@@ -1,5 +1,5 @@
-import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import { isBLCollocationType } from '@/types/blacklabtypes';
+import type { GroupDisplayMode } from '@/types/group-display-mode';
 
 import type { FormOverrides } from './blacklab-params';
 import { isCqlPatternNode, isLuceneNode, type CqlPatternNode, type LuceneNode } from './form-query-ir';
@@ -70,12 +70,6 @@ type SummaryValue = {
 };
 export type SummaryInput = SummaryValue & { summaryType?: readonly SummaryType[] };
 export type SummaryEntry = SummaryValue & { summaryType: readonly SummaryType[] };
-
-/** Return undefined when no field contributes, so callers can fall back to raw query text. */
-export function formatSummaryEntries(entries: readonly SummaryEntry[], type: SummaryType): string | undefined {
-	const matching = entries.filter(entry => entry.summaryType.includes(type));
-	return matching.length ? matching.map(entry => `${entry.label}: ${entry.value}`).join(', ') : undefined;
-}
 
 /** Narrow names from untyped extension producers to the shared output vocabulary. */
 export function isFormOutputName(value: string): value is FormOutputName {

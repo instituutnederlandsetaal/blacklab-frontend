@@ -1,7 +1,7 @@
 import { useLocalStorage } from '@vueuse/core';
 import { computed, reactive, ref, type App, type ComputedRef, type Ref } from 'vue';
 
-import useInjectable from '@/shared/utils/useInjectable';
+import createAppInjection from '@/shared/vue/injection';
 
 type BuiltInLogCategory = 'article' | 'autocomplete' | 'export' | 'filter' | 'history' | 'init' | 'parallel' | 'query' | 'remote-index' | 'results' | 'shared' | 'store' | 'tooltip' | 'ui' | 'url';
 export type LogCategory = BuiltInLogCategory | (string & {});
@@ -25,7 +25,7 @@ type DebugSystem = {
 	hide(): void;
 };
 
-const [_debugSystemKey, provideDebugSystem, useDebugSystem] = useInjectable<DebugSystem>('debugSystem');
+const [_debugSystemKey, provideDebugSystem, useDebugSystem] = createAppInjection<DebugSystem>('debugSystem');
 
 const debug = useLocalStorage<boolean>('cf/debug', import.meta.env.DEV, { writeDefaults: false });
 const debug_visible = ref(debug.value);

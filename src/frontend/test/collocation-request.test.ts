@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
-import type { EffectiveCollocationParameters } from '@/features/search/model/results/result-types';
+import { createCollocationHitsParameters } from '@/pages/search/model/results/collocation-request';
+import type { EffectiveCollocationParameters } from '@/pages/search/model/results/result-types';
 
 function parameters(overrides: Partial<EffectiveCollocationParameters> = {}): EffectiveCollocationParameters {
 	return {

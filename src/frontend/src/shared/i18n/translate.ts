@@ -4,7 +4,7 @@ import type { Translate } from './types';
 
 import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { optionText, type Option } from '@/shared/utils/options';
-import useInjectable from '@/shared/utils/useInjectable';
+import createAppInjection from '@/shared/vue/injection';
 
 type TranslateRuntime = {
 	t: (key: string, params?: Record<string, unknown> | string) => unknown;
@@ -13,7 +13,7 @@ type TranslateRuntime = {
 	fallbackLocale: { value: unknown };
 };
 
-const [_I18N_INJECTION_KEY, provideInjectedTranslate, useI18n] = useInjectable<Translate>('i18n');
+const [_I18N_INJECTION_KEY, provideInjectedTranslate, useI18n] = createAppInjection<Translate>('i18n');
 
 /** Install the translation facade on Vue globals and through injection. */
 export function provideTranslate(app: App, translate: Translate) {

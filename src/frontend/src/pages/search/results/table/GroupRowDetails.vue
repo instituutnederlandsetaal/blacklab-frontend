@@ -46,9 +46,9 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 
-import { useCorpus } from '@/app/state/useCorpusContext';
-import { createCollocationHitsParameters } from '@/features/search/model/results/collocation-request';
-import type { EffectiveCollocationParameters } from '@/features/search/model/results/result-types';
+import { useCorpus } from '@/features/corpus/corpus-context';
+import { createCollocationHitsParameters } from '@/pages/search/model/results/collocation-request';
+import type { EffectiveCollocationParameters } from '@/pages/search/model/results/result-types';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';

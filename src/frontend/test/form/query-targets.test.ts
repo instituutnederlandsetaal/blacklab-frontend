@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { compileFormNode } from '@/features/form/model/compile/form';
-import { createDefaultFormState } from '@/features/form/model/state';
+import { createDefaultFormState } from '@/features/form/model/form-state';
 import { COLLOCATION_OUTPUTS, createCollocationTarget, createSearchTarget, docsSearchTarget, hitsSearchTarget, searchTarget, type SearchOutputName } from '@/features/form/model/targets';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import { isValidEmission, type FormEmission, type FormIssue, type FormOutputName } from '@/features/form/model/types/form-output';

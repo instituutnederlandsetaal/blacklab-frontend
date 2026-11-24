@@ -3,9 +3,9 @@ import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field'
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { compileFormWithOverrides } from '@/features/form/model/compile/form';
 import { expertQueryController, parallelController, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
+import { createDefaultFormState, type NewFormState } from '@/features/form/model/form-state';
 import { findPathToNode, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@/features/form/model/persistence/schema';
-import { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
 import { restoreFieldState } from '@/features/form/model/types/form-controllers';
 import type { FormIssue } from '@/features/form/model/types/form-output';
 import type { CompiledFormResult } from '@/features/form/model/types/form-result';

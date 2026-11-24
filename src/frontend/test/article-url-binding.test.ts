@@ -3,9 +3,9 @@ import { describe, expect, test } from 'vitest';
 import { nextTick, shallowRef } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { createArticlePageState } from '@/features/article/model/article-page-state';
+import { createArticleUrlBinding } from '@/pages/article/bindings/article-url-binding';
+import { createArticlePageState } from '@/pages/article/model/article-page-state';
 import type { Corpus } from '@/types/apptypes';
-import { createArticleUrlBinding } from '@/url/article-url-binding';
 
 const annotatedFields = { contents: { id: 'contents' }, translation: { id: 'translation' } };
 

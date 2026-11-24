@@ -1,5 +1,5 @@
+import type { NewFormState } from '@/features/form/model/form-state';
 import type { PersistenceSchema } from '@/features/form/model/persistence/schema';
-import type { NewFormState } from '@/features/form/model/state';
 import type { FormOverrides } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormEmission, FormIssue, FormOutputName } from '@/features/form/model/types/form-output';

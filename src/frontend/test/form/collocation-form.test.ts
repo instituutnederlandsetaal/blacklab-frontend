@@ -6,7 +6,7 @@ import { DOMWrapper, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import { FormSystem, createCollocationTarget, type CollocationFieldState } from '@/features/form';
 import { createCollocationSimpleFieldNode } from '@/features/form/fields/collocation-field';

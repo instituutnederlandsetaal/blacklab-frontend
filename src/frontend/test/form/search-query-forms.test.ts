@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { FormSystem, type CollocationFieldState, type ParallelFieldState } from '@/features/form';

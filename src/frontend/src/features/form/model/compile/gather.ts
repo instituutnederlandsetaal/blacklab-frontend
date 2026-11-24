@@ -1,9 +1,9 @@
 import { computed, toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 
 import { combineCqlPatterns } from '@/features/form/model/compile/query-artifact';
+import type { NewFormState } from '@/features/form/model/form-state';
 import { isContainerNode } from '@/features/form/model/form-utils';
 import { FORM_QUERY_PREFIX, resolvePersistenceSchema, SCOPED_FORM_KEYS } from '@/features/form/model/persistence/schema';
-import type { NewFormState } from '@/features/form/model/state';
 import { encodeFieldState, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import { isFormOutputName, isValidEmission, type Emit, type FormEmission, type FormIssue, type FormOutputName, type ResultPreset, type SummaryEntry } from '@/features/form/model/types/form-output';
 import { booleanNode, type CqlPatternNode, type LuceneNode } from '@/features/form/model/types/form-query-ir';

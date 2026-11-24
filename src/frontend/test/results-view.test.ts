@@ -9,12 +9,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { computed, nextTick, reactive, ref, shallowRef } from 'vue';
 import { createRouter, createMemoryHistory, type Router, type LocationQuery } from 'vue-router';
 
-import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import { type ResultsState, resultsStateKey, type ResultView } from '@/features/search/model/results/results-state';
-import type { SubmittedSearch } from '@/features/search/model/submitted-search';
+import { readSubmittedSearch } from '@/pages/search/bindings/search-query';
+import type { EffectiveSearchParameters } from '@/pages/search/model/results/result-types';
+import { type ResultsState, resultsStateKey, type ResultView } from '@/pages/search/model/results/results-state';
+import type { SubmittedSearch } from '@/pages/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
 import type { BLHitGroupResults, BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
-import { readSubmittedSearch } from '@/url/search-query';
 
 import { CancelableRequest } from '@/shared/api/lib/api-types';
 

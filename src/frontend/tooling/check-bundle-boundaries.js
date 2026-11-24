@@ -43,24 +43,28 @@ const main = entry('/app/entrypoint/main.ts');
 const locale = entry('/locales/en-us.json?raw');
 const pages = {
 	global: closure([main]),
-	index: closure([main, locale, entry('/pages/corpora/CorporaPage.vue')]),
-	search: closure([main, locale, entry('/features/search/entrypoint.ts')]),
-	article: closure([main, locale, entry('/features/article/entrypoint.ts')]),
+	corpora: closure([main, locale, entry('/pages/corpora/CorporaPage.vue')]),
+	search: closure([main, locale, entry('/pages/search/entrypoint.ts')]),
+	article: closure([main, locale, entry('/pages/article/entrypoint.ts')]),
 	config: closure([main, locale, entry('/pages/config/entrypoint.ts')]),
-	info: closure([main, locale, entry('/pages/info.ts')]),
+	info: closure([main, locale, entry('/pages/info/entrypoint.ts')]),
 };
 const template = await readFile(path.join(root, '../main/webapp/WEB-INF/templates/index.vm'), 'utf8');
 for (const stylesheet of new Set(pages.global.flatMap(chunk => [...chunk.viteMetadata.importedCss]))) {
 	assert.ok(template.includes(`/js/${stylesheet}?`), `The server template is missing the application stylesheet ${stylesheet}`);
 }
-const search = /\/src\/(?:features\/(?:search|form|cql-query-builder|history)\/|pages\/search\/)/;
-const article = /\/src\/(?:features|pages)\/article\//;
-const config = /\/src\/pages\/config\//;
+const pageModules = {
+	corpora: /\/src\/pages\/corpora\//,
+	search: /\/src\/(?:features\/(?:form|cql-query-builder)|pages\/search)\//,
+	article: /\/src\/pages\/article\//,
+	config: /\/src\/pages\/config\//,
+	info: /\/src\/pages\/info\//,
+};
 const heavy = /\/node_modules\/(?:monaco-editor|monaco-yaml|highcharts|highcharts-vue|@vue\/compiler-[^/]+|@vue\/devtools[^/]*)\//;
 
 for (const [name, output] of Object.entries(pages)) {
 	const modules = output.flatMap(chunk => Object.keys(chunk.modules));
-	const forbidden = [heavy, ...(name === 'search' ? [] : [search]), ...(name === 'article' ? [] : [article]), ...(name === 'config' ? [] : [config])];
+	const forbidden = [heavy, ...Object.entries(pageModules).filter(([owner]) => owner !== name).map(([, pattern]) => pattern)];
 	const leaks = modules.filter(id => forbidden.some(pattern => pattern.test(id)));
 	assert.deepEqual(leaks, [], `${name} eagerly loads another feature:\n${leaks.join('\n')}`);
 }

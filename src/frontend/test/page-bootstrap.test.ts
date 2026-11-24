@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
-import type { PageMeta } from '@/navigation/page-context';
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
+import type { PageMeta } from '@/app/router/page-meta';
 
 function afterBootstrapPage(name: string): PageMeta {
 	return {

@@ -8,8 +8,8 @@ import { flushPromises, shallowMount } from '@vue/test-utils';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { computed, nextTick, reactive } from 'vue';
 
-import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import { type ResultsState, resultsStateKey } from '@/features/search/model/results/results-state';
+import type { EffectiveSearchParameters } from '@/pages/search/model/results/result-types';
+import { type ResultsState, resultsStateKey } from '@/pages/search/model/results/results-state';
 import type { Corpus } from '@/types/apptypes';
 import type { BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
 

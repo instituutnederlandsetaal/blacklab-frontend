@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { nextTick, reactive } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { createUrlBinding } from '@/url/url-binding';
+import { createUrlBinding } from '@/app/router/url/url-binding';
 
 const cleanup: (() => void)[] = [];
 afterEach(() => cleanup.splice(0).forEach(stop => stop()));

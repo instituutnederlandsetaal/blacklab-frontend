@@ -13,8 +13,8 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
-import { useLayout } from '@/app/state/layout';
-import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { usePageBootstrap } from '@/app/router/page-bootstrap';
+import { useLayout } from '@/app/shell/layout';
 
 const { containerClass } = useLayout();
 

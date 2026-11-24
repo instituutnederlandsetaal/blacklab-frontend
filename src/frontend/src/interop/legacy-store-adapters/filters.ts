@@ -1,4 +1,4 @@
-import * as FilterStore from '@/app/state/legacy-filter-state';
+import * as FilterStore from '@/app/legacy-stores/filter-store';
 import type { CustomizationRegistry } from '@/customization-api/registry';
 import type { FilterDefinition } from '@/types/apptypes';
 

@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { useSearchSummary } from '@/features/search/model/search-summary';
+import { useSearchSummary } from '@/pages/search/model/search-summary';
 
 import { useI18n } from '@/shared/i18n';
 

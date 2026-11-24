@@ -5,15 +5,15 @@ import { createMockTranslate } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import * as UIStore from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { createExternalCustomizationApi } from '@/customization-api/external/browser-api';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds as ids } from '@/customization-api/shared/form/ids';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { FormSystem, RangeField, SelectField, TextField } from '@/features/form';
-import { createSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import { createSearchFormSystem } from '@/pages/search/model/form/search-form-system';
 
 import { createCorpus, createSearchFormFixture, readSearchFormState, type SearchFormFixture } from './search-form-fixture';
 

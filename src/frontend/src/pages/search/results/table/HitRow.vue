@@ -35,7 +35,7 @@
 import { computed } from 'vue';
 
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { useResultContextSize } from '@/features/search/model/results/result-context-size';
+import { useResultContextSize } from '@/pages/search/model/results/result-context-size-injection';
 import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { HitRowData } from '@/pages/search/results/table/table-layout';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';

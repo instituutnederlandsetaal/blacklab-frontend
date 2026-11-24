@@ -2,7 +2,7 @@ import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldControllerFor, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 import type { FormOutputName } from '@/features/form/model/types/form-output';
-import { groupDisplayModes } from '@/features/search/model/results/result-types';
+import { groupDisplayModes } from '@/types/group-display-mode';
 
 export type ResultControllerConfig = {
 	defaultValue?: string | null;

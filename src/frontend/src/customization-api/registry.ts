@@ -5,7 +5,7 @@ import { createLegacyCustomizationApi, type LegacyCustomizationApi } from '@/cus
 import { customJsDisposeEvent } from '@/interop/page-customization';
 import type { Corpus } from '@/types/apptypes';
 
-import useInjectable from '@/shared/utils/useInjectable';
+import createAppInjection from '@/shared/vue/injection';
 
 type UnregisterCustomization = () => void;
 export type CustomizationRegistry = {
@@ -22,7 +22,7 @@ export type CustomizationRegistry = {
 };
 export type CustomizationRegistryPlugin = ObjectPlugin & CustomizationRegistry;
 
-const [_key, provideCustomizationRegistry, useCustomizationRegistry] = useInjectable<CustomizationRegistry>('customization-registry');
+const [_key, provideCustomizationRegistry, useCustomizationRegistry] = createAppInjection<CustomizationRegistry>('customization-registry');
 export { useCustomizationRegistry };
 
 export function createCustomizationRegistry(corpus: MaybeRefOrGetter<Corpus | undefined>): CustomizationRegistryPlugin {

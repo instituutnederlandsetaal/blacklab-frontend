@@ -116,8 +116,8 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
 
-import { useLayout } from '@/app/state/layout';
-import { useResultsState, type ResultSettings } from '@/features/search/model/results/results-state';
+import { useLayout } from '@/app/shell/layout';
+import { useResultsState, type ResultSettings } from '@/pages/search/model/results/results-state';
 
 import { useDebugSystem } from '@/shared/debug/debug';
 import { useI18n } from '@/shared/i18n';

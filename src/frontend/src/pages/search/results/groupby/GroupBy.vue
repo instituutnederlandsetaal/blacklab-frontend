@@ -187,17 +187,17 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Slider from 'vue-3-slider-component';
 
-import * as FilterModule from '@/app/state/legacy-filter-state';
-import { useCorpus } from '@/app/state/useCorpusContext';
+import * as FilterModule from '@/app/legacy-stores/filter-store';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
-import { useResultsState } from '@/features/search/model/results/results-state';
+import { useCorpus } from '@/features/corpus/corpus-context';
+import { useResultsState } from '@/pages/search/model/results/results-state';
+import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/pages/search/results/groupby/grouping';
+import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/pages/search/results/groupby/grouping';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 import type { BLHitGroupResults, BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
-import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
-import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
 import { getMetadataSubset, getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';

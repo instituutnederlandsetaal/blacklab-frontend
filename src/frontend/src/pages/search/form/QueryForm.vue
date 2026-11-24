@@ -13,21 +13,21 @@
 import { stripIndent } from 'common-tags';
 import { computed, onScopeDispose, ref, watch } from 'vue';
 
-import { createFilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
-import { useLayout } from '@/app/state/layout';
-import { useCorpus } from '@/app/state/useCorpusContext';
+import { usePageBootstrap } from '@/app/router/page-bootstrap';
+import { useLayout } from '@/app/shell/layout';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
+import { useCorpus } from '@/features/corpus/corpus-context';
 import type { CompiledFormResult } from '@/features/form';
-import { useSearchFormBinding } from '@/features/search/bindings/search-form';
-import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
-import { useResultsState } from '@/features/search/model/results/results-state';
-import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { useSearchFormBinding } from '@/pages/search/bindings/search-form-binding';
+import { useSearchFormSystem } from '@/pages/search/model/form/search-form-system';
+import { createFilteredResultCountLoader } from '@/pages/search/model/result-count/result-count-from-filters';
+import { useResultsState } from '@/pages/search/model/results/results-state';
 
 import { useBlackLabApi } from '@/shared/api';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
 import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
-import History from '@/pages/search/History.vue';
+import History from '@/pages/search/history/History.vue';
 
 const { containerClass } = useLayout();
 

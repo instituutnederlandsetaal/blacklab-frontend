@@ -5,7 +5,7 @@ import { mount } from '@vue/test-utils';
 import { expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, ref, shallowRef } from 'vue';
 
-import { defaultConfig, useCfPageConfig, useCorpus, useCorpusContextLoader, type CorpusContext } from '@/app/state/useCorpusContext';
+import { defaultConfig, useCfPageConfig, useCorpus, useCorpusContextLoader, type CorpusContext } from '@/features/corpus/corpus-context';
 import type { Corpus } from '@/types/apptypes';
 
 import { ApiError } from '@/shared/api/lib/api-types';

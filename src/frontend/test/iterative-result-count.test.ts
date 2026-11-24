@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { watch } from 'vue';
 
-import { createIterativeResultCountLoader, type TotalsInput } from '@/api/async/logic/result-count/result-count-from-query';
-import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
+import { createIterativeResultCountLoader, type TotalsInput } from '@/pages/search/model/result-count/result-count-from-query';
+import type { ExecutedSearchRequest } from '@/pages/search/model/results/result-types';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
 import { ApiError, type BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';

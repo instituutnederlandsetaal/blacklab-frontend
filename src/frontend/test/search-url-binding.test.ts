@@ -6,15 +6,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { nextTick, ref, shallowRef, type Ref } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
 import { ContainerRenderer, createCollocationTarget, filterTextController, FormBuilder, FormRuntime, TextField, type CompiledFormResult } from '@/features/form';
-import * as HistoryStore from '@/features/history/model/query-history-state';
-import { createSearchFormBinding } from '@/features/search/bindings/search-form';
-import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
-import { ResultsState } from '@/features/search/model/results/results-state';
-import { createSubmittedSearch, type SubmittedSearchState } from '@/features/search/model/submitted-search';
+import { createSearchFormBinding } from '@/pages/search/bindings/search-form-binding';
+import { createSearchUrlBinding } from '@/pages/search/bindings/search-url-binding';
+import * as HistoryStore from '@/pages/search/history/query-history-store';
+import type { EffectiveSearchParameters } from '@/pages/search/model/results/result-types';
+import { ResultsState } from '@/pages/search/model/results/results-state';
+import { createSubmittedSearch, type SubmittedSearchState } from '@/pages/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
-import { createSearchUrlBinding } from '@/url/search-url-binding';
 
 import { createCorpus } from './form/search-form-fixture';
 

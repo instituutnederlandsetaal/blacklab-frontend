@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, ref, shallowRef } from 'vue';
 
 import { type FormRuntime, type SummaryTotalsState } from '@/features/form';
-import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/runtime';
+import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/form-runtime-injection';
 import { type CompiledFormSummary } from '@/features/form/model/types/form-result';
 
 import HeadingView from '@/features/form/views/HeadingView.vue';

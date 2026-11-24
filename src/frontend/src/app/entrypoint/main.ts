@@ -1,4 +1,4 @@
-import '@/utils/jquery-globals';
+import '@/interop/jquery-globals';
 import 'bootstrap';
 
 import '@/global.scss';
@@ -7,20 +7,20 @@ import FloatingVue from 'floating-vue';
 import { createApp, type Ref } from 'vue';
 import type { RouteLocationNormalized } from 'vue-router';
 
-import * as ArticleStore from '@/app/state/article-configuration';
-import { createLayout } from '@/app/state/layout';
-import * as LegacyFilterStore from '@/app/state/legacy-filter-state';
-import * as UIStore from '@/app/state/ui-state';
-import { createCorpusContext } from '@/app/state/useCorpusContext';
+import { createInitialLoading } from '@/app/entrypoint/initial-loading';
+import * as ArticleStore from '@/app/legacy-stores/article-configuration-store';
+import * as LegacyFilterStore from '@/app/legacy-stores/filter-store';
+import * as TagsetStore from '@/app/legacy-stores/tagset-store';
+import * as UIStore from '@/app/legacy-stores/ui-store';
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
+import { createBlfRouter } from '@/app/router/router';
+import { createLayout } from '@/app/shell/layout';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
-import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import * as TagsetStore from '@/features/corpus/model/tagset-state';
+import { createCorpusContext } from '@/features/corpus/corpus-context';
 import { installHooksGlobal, runHooks } from '@/interop/hooks';
+import { startCustomizationInterop } from '@/interop/page-customization-setup';
 import { installCommonStoreGlobals, installCorpusGlobal, installCustomizationApiGlobals, installVueGlobals } from '@/interop/window-globals';
-import { createInitialLoading } from '@/navigation/initial-loading';
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
-import { createBlfRouter } from '@/navigation/router';
 
 import { isInitialPageReady } from './initial-readiness';
 
@@ -29,7 +29,7 @@ import { createLoginSystem, type LoginSystemConfig } from '@/shared/auth/loginsy
 import { createDebugSystem } from '@/shared/debug/debug';
 import { createI18n } from '@/shared/i18n';
 
-import AppRoot from '@/App.vue';
+import AppRoot from '@/app/shell/App.vue';
 import DebugComponent from '@/shared/debug/Debug.vue';
 import AudioPlayer from '@/shared/ui/AudioPlayer.vue';
 
@@ -97,9 +97,9 @@ async function start() {
 	let articleInstallation: Promise<void> | undefined;
 	async function preparePage(route: RouteLocationNormalized) {
 		if (route.name === 'search') {
-			searchInstallation ??= import('@/features/search/entrypoint')
-				.then(async ({ createSearchFeature }) => {
-					const feature = createSearchFeature({
+			searchInstallation ??= import('@/pages/search/entrypoint')
+				.then(async ({ createSearchPlugin }) => {
+					const feature = createSearchPlugin({
 						router: router.router,
 						customizationsReady: pageBootstrap.customizationsReady,
 						corpusState,
@@ -125,9 +125,9 @@ async function start() {
 				});
 			await searchInstallation;
 		} else if (route.name === 'article') {
-			articleInstallation ??= import('@/features/article/entrypoint')
-				.then(({ createArticleFeature }) => {
-					app.use(createArticleFeature({ corpus: corpusState.corpus, router: router.router }));
+			articleInstallation ??= import('@/pages/article/entrypoint')
+				.then(({ createArticlePlugin }) => {
+					app.use(createArticlePlugin({ corpus: corpusState.corpus, router: router.router }));
 				})
 				.catch(error => {
 					articleInstallation = undefined;

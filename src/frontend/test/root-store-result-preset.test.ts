@@ -3,14 +3,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { ref, shallowRef } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
+import * as UIStore from '@/app/legacy-stores/ui-store';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import type { CollocationParams, CompiledFormResult, FormParams } from '@/features/form';
-import { createSearchFormBinding } from '@/features/search/bindings/search-form';
-import { ResultsState } from '@/features/search/model/results/results-state';
-import { createSubmittedSearch } from '@/features/search/model/submitted-search';
 import { createLegacySearchStoreGlobals } from '@/interop/legacy-store-adapters/search';
+import { createSearchFormBinding } from '@/pages/search/bindings/search-form-binding';
+import { ResultsState } from '@/pages/search/model/results/results-state';
+import { createSubmittedSearch } from '@/pages/search/model/submitted-search';
 
 import { createCorpus } from './form/search-form-fixture';
 

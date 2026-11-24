@@ -1,12 +1,12 @@
 import type { App, Ref } from 'vue';
 
-import * as ArticleModule from '@/app/state/article-configuration';
-import * as UIModule from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import * as ArticleModule from '@/app/legacy-stores/article-configuration-store';
+import * as TagsetModule from '@/app/legacy-stores/tagset-store';
+import * as UIModule from '@/app/legacy-stores/ui-store';
 import { createExternalCustomizationApi } from '@/customization-api/external/browser-api';
 import type { BlackLabFrontendCustomizationApi } from '@/customization-api/external/external-api';
 import type { CustomizationRegistry } from '@/customization-api/registry';
-import * as TagsetModule from '@/features/corpus/model/tagset-state';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
 import { createCorpusStoreAdapter } from '@/interop/legacy-store-adapters/corpus';
 import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
 import type { Corpus } from '@/types/apptypes';

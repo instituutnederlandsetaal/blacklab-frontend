@@ -4,8 +4,8 @@ import { createTestResultsState } from '@test/mocks/results-state';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import * as UIStore from '@/app/legacy-stores/ui-store';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
 
 import { createCorpus } from './form/search-form-fixture';
 

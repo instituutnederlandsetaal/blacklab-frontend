@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { writeArticleQuery } from '@/url/article-query';
+import { writeArticleQuery } from '@/app/router/url/article-query';
 
 test.each([
 	{ mainField: 'contents', viewField: 'contents', searchfield: 'contents', expected: { patt: '[]' } },

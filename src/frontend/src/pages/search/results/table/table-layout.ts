@@ -1,6 +1,6 @@
 import type { StyleValue } from 'vue';
 
-import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
+import type { ArticleParameters } from '@/app/router/url/article-query';
 import type {
 	HitContext,
 	HitToken,
@@ -29,8 +29,8 @@ import type {
 	BLSearchResult,
 } from '@/types/blacklabtypes';
 import { getMetadataFieldValues, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import type { GroupDisplayMode } from '@/types/group-display-mode';
 import type { KeysOfType } from '@/types/helpers';
-import type { ArticleParameters } from '@/url/article-query';
 
 import * as Highlights from './hit-highlighting';
 

@@ -4,7 +4,7 @@ import { createMockApi } from '@test/mocks/api';
 import { flushPromises, shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
 import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { BLResponse } from '@/types/blacklabtypes';
 

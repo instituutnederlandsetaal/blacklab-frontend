@@ -26,8 +26,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
+import { useCorpus } from '@/features/corpus/corpus-context';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
 

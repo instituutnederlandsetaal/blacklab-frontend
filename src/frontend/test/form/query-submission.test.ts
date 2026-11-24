@@ -7,12 +7,12 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, onTestFinished, test, vi } from 'vitest';
 import { nextTick, ref } from 'vue';
 
+import { createPageBootstrapContext } from '@/app/router/page-bootstrap';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { CompiledFormResult } from '@/features/form';
-import { createSearchFormBinding, provideSearchFormBinding, restoreSubmittedForm, submittedSearchFromResult } from '@/features/search/bindings/search-form';
-import { ResultsState, resultsStateKey } from '@/features/search/model/results/results-state';
-import { createSubmittedSearch } from '@/features/search/model/submitted-search';
-import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
+import { createSearchFormBinding, provideSearchFormBinding, restoreSubmittedForm, submittedSearchFromResult } from '@/pages/search/bindings/search-form-binding';
+import { ResultsState, resultsStateKey } from '@/pages/search/model/results/results-state';
+import { createSubmittedSearch } from '@/pages/search/model/submitted-search';
 
 import { createCorpus, createSearchFormFixture, selectRenderedForm } from './search-form-fixture';
 

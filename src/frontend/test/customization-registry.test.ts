@@ -4,13 +4,13 @@ import { createMockTranslate } from '@test/mocks/i18n';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, createApp, nextTick, reactive, ref, watchEffect } from 'vue';
 
-import * as FilterStore from '@/app/state/legacy-filter-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import * as FilterStore from '@/app/legacy-stores/filter-store';
 import { createCustomizations, useCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry, useCustomizationRegistry } from '@/customization-api/registry';
+import type { CorpusContext } from '@/features/corpus/corpus-context';
 import { createFilterStoreAdapter } from '@/interop/legacy-store-adapters/filters';
+import { humanizeSerializedGroupBy } from '@/pages/search/results/groupby/grouping';
 import type { Corpus, FilterDefinition } from '@/types/apptypes';
-import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 function createCorpus(id: string): Corpus {
 	return {

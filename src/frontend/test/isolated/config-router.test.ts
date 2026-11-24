@@ -2,16 +2,16 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { createBlfRouter } from '@/navigation/router';
+import { createBlfRouter } from '@/app/router/router';
 
 // Route matching and bootstrap transitions do not mount page components.
-vi.mock('@/pages/corpus/CorpusPage.vue', () => ({ default: {} }));
+vi.mock('@/pages/corpus/CorpusRouteLayout.vue', () => ({ default: {} }));
 vi.mock('@/pages/config/CorpusConfig.vue', () => ({ default: {} }));
 vi.mock('@/pages/config/POS.vue', () => ({ default: {} }));
 vi.mock('@/pages/config/Interface.vue', () => ({ default: {} }));
 vi.mock('@/pages/search/SearchPage.vue', () => ({ default: {} }));
 vi.mock('@/pages/article/ArticlePage.vue', () => ({ default: {} }));
-vi.mock('@/pages/about/AboutPage.vue', () => ({ default: {} }));
+vi.mock('@/pages/info/AboutPage.vue', () => ({ default: {} }));
 
 const cleanup: (() => void)[] = [];
 

@@ -57,9 +57,9 @@
 <script setup lang="ts">
 import { computed, onUnmounted, watch } from 'vue';
 
-import { createIterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
-import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
-import type { ExecutedSearchRequest } from '@/features/search/model/results/result-types';
+import { createIterativeResultCountLoader } from '@/pages/search/model/result-count/result-count-from-query';
+import type { TotalsOutput } from '@/pages/search/model/result-count/result-count-helpers';
+import type { ExecutedSearchRequest } from '@/pages/search/model/results/result-types';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
