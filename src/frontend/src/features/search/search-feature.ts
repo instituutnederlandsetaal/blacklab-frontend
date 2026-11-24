@@ -15,7 +15,7 @@ import { runHooks } from '@/interop/hooks';
 import { createLegacySearchStoreGlobals } from '@/interop/legacy-store-adapters/search';
 import { installLegacyStoreGlobals } from '@/interop/window-globals';
 import type { Corpus, Tagset } from '@/types/apptypes';
-import { createSearchUrlBinding } from '@/url/search-state';
+import { createSearchUrlBinding } from '@/url/search-url-binding';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type { Translate } from '@/shared/i18n';
@@ -60,25 +60,27 @@ export function createSearchFeature({ router, customizationsReady, corpusState, 
 		runtime: searchFormSystem.runtime,
 		submitted: submittedSearch,
 	});
-	const searchNavigation = createSearchUrlBinding(router, {
+	const urlBinding = createSearchUrlBinding(router, {
 		corpus: corpusState.corpus,
 		search: submittedSearch,
 		results,
 		form,
-		history: HistoryStore.actions,
+		onResultsUrl(url) {
+			const { pattern, filter } = form.summary.value;
+			HistoryStore.actions.addEntry({ url, displayValues: { pattern: pattern ?? '', filters: filter ?? '' } });
+		},
 	});
 
 	return {
 		results,
-		initialReadSettled: searchNavigation.initialReadSettled,
+		initialReadSettled: urlBinding.initialReadSettled,
 		install(app: App) {
-			HistoryStore.provideHistoryImport(app, async url => HistoryStore.importSearchUrl(url, searchFormSystem.runtime.value));
 			app.use(searchFormSystem);
 			provideResultsState(app, results);
 			provideResultContextSize(app, contextSize);
 			provideSearchSummary(app, form.summary);
 			app.use(form);
-			app.use(searchNavigation);
+			app.use(urlBinding);
 			installLegacyStoreGlobals(createLegacySearchStoreGlobals(results, form, initializeCorpus));
 		},
 	};

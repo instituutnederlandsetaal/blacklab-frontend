@@ -19,7 +19,7 @@
 					<debug
 						><li v-if="$route.name !== 'corpora'"><router-link :to="{ name: 'corpora' }">[Corpora]</router-link></li></debug
 					>
-					<li v-for="link in links" :key="link.attributes.href">
+					<li v-for="link in links" :key="link.attributes.href ?? link.attributes.to">
 						<component :is="link.isExternal ? 'a' : 'router-link'" v-bind="link.attributes">{{ link.label }}</component>
 					</li>
 				</ul>
@@ -44,6 +44,7 @@ import { useLayout } from '@/app/state/layout';
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import { customCssChangedEvent } from '@/interop/page-customization';
 import { useCorpusId } from '@/navigation/page-context';
+import { routerPath } from '@/navigation/router-path';
 
 import { localStorageSynced } from '@/shared/utils/localstore';
 
@@ -74,23 +75,11 @@ const indexId = useCorpusId();
 const index = useCorpus({ IAcknowledgeItCanBeUndefined: true });
 const displayNameInNavbar = computed(() => config.value.displayName || index.value?.displayName || indexId.value || 'BlackLab Frontend');
 const links = computed<Array<{ label: string; attributes: Record<string, string>; isExternal: boolean }>>(() =>
-	config.value.navbarLinks.map(l => {
-		const parsed = new URL(l.attributes.href, window.location.origin);
-		const routerBase = router.options.history.base || '/';
-		const isExternal = parsed.origin !== window.location.origin || !parsed.pathname.startsWith(routerBase);
-		if (isExternal) return { ...l, isExternal };
-		// else we need to remove the router's base from the link, or it will double up
-		// so reconstruct the link..
-		// Also we need to make sure that 'href' is not in the attributes (or router-link will not add the href attribute to its <a> at all???)
-		const { href, target, ...attributesWithoutHref } = l.attributes;
-		return {
-			isExternal,
-			...l,
-			attributes: {
-				...attributesWithoutHref,
-				to: parsed.pathname.substring(routerBase.length) + parsed.search + parsed.hash,
-			},
-		};
+	config.value.navbarLinks.map(({ label, attributes }) => {
+		const { href, target, ...rest } = attributes;
+		const url = new URL(href, window.location.origin);
+		const to = url.origin === window.location.origin && routerPath(url, router.options.history.base);
+		return to ? { label, attributes: { ...rest, to }, isExternal: false } : { label, attributes, isExternal: true };
 	}),
 );
 

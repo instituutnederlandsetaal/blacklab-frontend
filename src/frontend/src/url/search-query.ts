@@ -118,7 +118,7 @@ export function readSearchQuery(query: Partial<LocationQuery>, pageSize: number)
 }
 
 /** Serialize application state using the selected view's stored selection. */
-export function createSearchPageQuery({
+export function writeSearchQuery({
 	submitted,
 	global,
 	view,

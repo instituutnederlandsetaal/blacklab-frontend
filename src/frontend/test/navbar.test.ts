@@ -8,6 +8,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { customCssChangedEvent } from '@/interop/page-customization';
 import { provideCorpusId } from '@/navigation/page-context';
+import { routerPath } from '@/navigation/router-path';
 
 import Navbar from '@/components/Navbar.vue';
 
@@ -44,6 +45,15 @@ afterEach(() => {
 	else document.body.setAttribute('style', savedBodyStyle);
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
+});
+
+test.each([
+	['/', '/corpus/search?q=term#hits', '/corpus/search?q=term#hits'],
+	['/blf', '/blf', '/'],
+	['/blf', '/blf/corpus/search?q=term#hits', '/corpus/search?q=term#hits'],
+	['/blf', '/blf-other/help', null],
+] as const)('maps navbar and saved-search URLs under %s', (base, href, expected) => {
+	expect(routerPath(new URL(href, window.location.origin), base)).toBe(expected);
 });
 
 test('suppresses resolved logo writes after reconfiguration and unmount', async () => {

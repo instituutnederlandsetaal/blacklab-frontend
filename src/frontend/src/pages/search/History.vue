@@ -14,7 +14,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="({ entry, grouping, viewedResults, collocation }, index) in recentHistory" :key="entry.url">
+					<tr v-for="(entry, index) in recentHistory" :key="entry.url">
 						<td>
 							<strong>{{ index + 1 }}.</strong>
 						</td>
@@ -30,13 +30,13 @@
 								})
 							}}</small>
 						</td>
-						<td>{{ resultLabel(viewedResults, collocation) }}</td>
+						<td>{{ resultLabel(entry.viewedResults, entry.collocation) }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0, 1000) || undefined">{{ entry.displayValues.pattern }}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0, 1000) || undefined">{{ entry.displayValues.filters }}</td>
-						<td class="history-table-contain-text" :title="grouping">{{ grouping }}</td>
+						<td class="history-table-contain-text" :title="entry.grouping">{{ entry.grouping }}</td>
 						<td>
 							<div class="btn-group">
-								<button type="button" class="btn btn-default" @click="searchNavigation.open(entry.url).then(() => emit('close'))">{{ $t('history.search') }}</button>
+								<button type="button" class="btn btn-default" @click="openSearch(entry.url)">{{ $t('history.search') }}</button>
 								<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret" /></button>
 								<ul class="dropdown-menu dropdown-menu-right">
 									<li>
@@ -94,10 +94,12 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef } from 'vue';
+import { useRouter, isNavigationFailure, NavigationFailureType } from 'vue-router';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import { useSearchNavigation } from '@/url/search-state';
+import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
+import { routerPath } from '@/navigation/router-path';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 import { useI18n } from '@/shared/i18n';
@@ -106,8 +108,8 @@ import useUid from '@/shared/utils/uid';
 import Modal from '@/shared/ui/Modal.vue';
 
 const emit = defineEmits<{ close: [] }>();
-const searchNavigation = useSearchNavigation();
-const importHistoryUrl = HistoryStore.useHistoryImport();
+const router = useRouter();
+const runtime = useSearchFormSystem();
 const corpus = useCorpus();
 const translate = useI18n();
 const importUrlInput = useTemplateRef<HTMLInputElement>('importUrlInput');
@@ -125,15 +127,10 @@ const recentHistory = computed(() => {
 	let olderEntryCount = 0;
 	return history.value
 		.filter((entry, index) => entry.timestamp >= sessionStart || olderEntryCount++ < shownOlderEntries.value || index < 2)
-		.map(entry => {
-			const { viewedResults, collocation, groupBy } = HistoryStore.get.details(entry);
-			return {
-				entry,
-				viewedResults,
-				collocation,
-				grouping: humanizeSerializedGroupBy(translate, groupBy, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(' ') || '-',
-			};
-		});
+		.map(entry => ({
+			...entry,
+			grouping: humanizeSerializedGroupBy(translate, entry.groupBy, corpus.value.allAnnotationsMap, corpus.value.allMetadataFieldsMap).join(' ') || '-',
+		}));
 });
 
 function resultLabel(viewedResults: string | null | undefined, collocation: boolean): string {
@@ -141,6 +138,18 @@ function resultLabel(viewedResults: string | null | undefined, collocation: bool
 	if (viewedResults === 'hits') return translate.$t('results.resultsView.navigation.hits').toString();
 	if (viewedResults === 'docs') return translate.$t('results.resultsView.navigation.documents').toString();
 	return viewedResults ?? '-';
+}
+
+async function openSearch(href: string) {
+	const url = new URL(href);
+	await nextTick();
+	let failure = await router.push(routerPath(url, router.options.history.base) ?? url.pathname + url.search + url.hash);
+	// Replaying the current search must also discard its unsent draft.
+	if (isNavigationFailure(failure, NavigationFailureType.duplicated) && router.currentRoute.value === failure.from) {
+		const { path, query, hash } = failure.from;
+		failure = await router.replace({ path, query, hash, force: true });
+	}
+	if (!failure) emit('close');
 }
 
 async function openShareUrl(entry: HistoryStore.FullHistoryEntry) {
@@ -160,7 +169,7 @@ function downloadAsFile(entry: HistoryStore.FullHistoryEntry) {
 	import('file-saver').then(({ saveAs }) => saveAs(file, fileName));
 }
 
-async function importFromUrl() {
+function importFromUrl() {
 	const input = importUrlInput.value!;
 	const importUrl = input.value;
 	if (!importUrl) {
@@ -173,7 +182,7 @@ async function importFromUrl() {
 		return;
 	}
 
-	await importHistoryUrl(importUrl);
+	HistoryStore.actions.addEntry({ url: importUrl }, runtime.value);
 	importUrlError.value = null;
 	importUrlVisible.value = false;
 }

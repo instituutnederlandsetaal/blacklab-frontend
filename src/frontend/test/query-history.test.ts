@@ -18,14 +18,6 @@ afterEach(() => {
 });
 
 describe('URL query history', () => {
-	test('importing a link saves its decoded summary without loading the search', async () => {
-		const currentUrl = window.location.href;
-		const url = 'https://saved.example/test-corpus/search/hits?patt=%5Bword%3D%22water%22%5D';
-		await actions.importUrl(url, async url => ({ url, displayValues: { pattern: 'Word: water', filters: '-' } }));
-		expect(window.location.href).toBe(currentUrl);
-		expect(getState()).toMatchObject([{ url, displayValues: { pattern: 'Word: water', filters: '-' } }]);
-	});
-
 	test('does not record URLs without search results', () => {
 		for (const url of ['/test/search', '/test/docs/document']) actions.addEntry({ url });
 		expect(getState()).toEqual([]);
@@ -35,7 +27,7 @@ describe('URL query history', () => {
 		const url = `${base}/test-corpus/search/hits/?patt=[]#results`;
 		actions.addEntry({ url });
 		expect(getState()[0].url).toBe(window.location.origin + url);
-		expect(get.details(getState()[0])).toEqual({ viewedResults: 'hits', collocation: false, groupBy: [] });
+		expect(getState()[0]).toMatchObject({ viewedResults: 'hits', collocation: false, groupBy: [] });
 	});
 
 	test.each([
@@ -52,7 +44,6 @@ describe('URL query history', () => {
 	test('retains different searches with the same legacy hash', () => {
 		for (const patt of ['Aa', 'BB']) actions.addEntry({ url: '/test/search/hits?patt=' + patt });
 		expect(getState().map(entry => entry.displayValues.pattern)).toEqual(['BB', 'Aa']);
-		expect(getState()[0].hash).toBe(getState()[1].hash);
 	});
 
 	test('ignores grouping on collocations when recording history', () => {
@@ -60,7 +51,7 @@ describe('URL query history', () => {
 		actions.addEntry({ url });
 		actions.addEntry({ url: url + '&group=hit:word' });
 		expect(getState()).toHaveLength(1);
-		expect(get.details(getState()[0]).groupBy).toEqual([]);
+		expect(getState()[0].groupBy).toEqual([]);
 	});
 
 	test('deduplicates queries when only result settings differ', () => {

@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { createArticlePageState } from '@/features/article/model/article-page-state';
 import type { Corpus } from '@/types/apptypes';
-import { createArticleUrlBinding } from '@/url/article-state';
+import { createArticleUrlBinding } from '@/url/article-url-binding';
 
 const annotatedFields = { contents: { id: 'contents' }, translation: { id: 'translation' } };
 
@@ -23,6 +23,20 @@ async function setup(query: Record<string, string | string[]> = {}) {
 }
 
 describe('article URLs', () => {
+	test('opening an article link restores the hit and preserves extension parameters and hash while paging', async () => {
+		const { router, state, stop } = await setup();
+		await router.push('/test/docs/doc%2F2?field=translation&searchfield=contents&patt=[]&pattgapdata=two+words&findhit=0&flag&ext=one&ext=two#text');
+		await flushPromises();
+		expect(state.parameters.value).toMatchObject({ docId: 'doc/2', viewField: 'translation', searchfield: 'contents', patt: '[]', pattgapdata: 'two words', findhit: 0 });
+		state.showPage(1, 10);
+		await flushPromises();
+		expect(router.currentRoute.value).toMatchObject({
+			hash: '#text',
+			query: { field: 'translation', searchfield: 'contents', patt: '[]', pattgapdata: 'two words', wordstart: '10', wordend: '20', flag: null, ext: ['one', 'two'] },
+		});
+		stop();
+	});
+
 	test('removes redundant default fields on arrival and keeps them out of subsequent page URLs', async () => {
 		const { router, state, stop } = await setup({ field: 'contents', searchfield: 'contents', patt: '[]' });
 		expect(router.currentRoute.value.query).toEqual({ patt: '[]' });

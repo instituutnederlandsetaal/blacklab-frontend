@@ -5,7 +5,7 @@ type UrlProjection<Context> = {
 	/** Return a stable context while this page is ready, or null when it is inactive. */
 	context: (route: RouteLocationNormalizedLoaded) => Context | null;
 	/** Apply every value used by write() before the first await. The draft may finish restoring asynchronously. */
-	read: (route: RouteLocationNormalizedLoaded, replaceUrl: (location: RouteLocationRaw) => void) => void | Promise<unknown>;
+	read: (route: RouteLocationNormalizedLoaded, replaceUrl: (location: RouteLocationRaw) => void) => void;
 	write: (route: RouteLocationNormalizedLoaded, context: Context) => RouteLocationRaw;
 	leave?: () => void;
 	published?: (route: RouteLocationResolved) => void;
@@ -20,7 +20,8 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 		const identity = Math.random().toString(36).slice(2);
 		pending.add(identity);
 		try {
-			const failure = await router.push({ ...target, replace, state: { blfProjection: identity } });
+			const { path, query, hash } = target;
+			const failure = await router.push({ path, query, hash, replace, state: { blfProjection: identity } });
 			if (!failure && router.currentRoute.value.fullPath === target.fullPath) return target;
 		} catch (error) {
 			console.error('Failed to publish page URL', error);
@@ -34,7 +35,7 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 
 	function restore(route: RouteLocationNormalizedLoaded, source: Context) {
 		stopState?.();
-		const restored = options.read(route, location => void publish(location, true));
+		options.read(route, location => void publish(location, true));
 		// Subscribe after hydration to preserve an incoming URL until the user changes state.
 		const path = computed(() => router.resolve(options.write(router.currentRoute.value, source)).fullPath);
 		stopState = watch(
@@ -47,7 +48,6 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 			},
 			{ flush: 'post' },
 		);
-		return restored;
 	}
 
 	const stopNavigation = watch(
@@ -57,7 +57,7 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 				stopState?.();
 				options.leave?.();
 			} else if (previous?.[1] !== source || !pending.has(router.options.history.state.blfProjection as string)) {
-				void restore(route, source);
+				restore(route, source);
 			}
 		},
 		{ immediate: true },
@@ -68,11 +68,5 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 		stopState?.();
 	}
 
-	return {
-		stop,
-		install: (app: App) => app.onUnmount(stop),
-		restoreCurrent() {
-			if (context.value !== null) return restore(router.currentRoute.value, context.value);
-		},
-	};
+	return { stop, install: (app: App) => app.onUnmount(stop) };
 }

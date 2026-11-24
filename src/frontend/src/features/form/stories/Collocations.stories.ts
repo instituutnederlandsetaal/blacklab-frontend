@@ -227,7 +227,7 @@ function collocationResults(): BLHitGroupResults {
 
 function renderingInfo(translate: Translate): DisplaySettingsForRendering {
 	return {
-		corpus: { id: 'storybook-collocations', mainAnnotatedField: sourceField.id },
+		articleUrl: () => '#',
 		mainAnnotation: annotations.word,
 		otherAnnotations: [],
 		detailedAnnotations: [],

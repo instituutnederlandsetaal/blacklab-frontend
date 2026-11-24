@@ -14,7 +14,7 @@ import type { EffectiveSearchParameters } from '@/features/search/model/results/
 import { ResultsState } from '@/features/search/model/results/results-state';
 import { createSubmittedSearch, type SubmittedSearchState } from '@/features/search/model/submitted-search';
 import type { Corpus } from '@/types/apptypes';
-import { createSearchUrlBinding } from '@/url/search-state';
+import { createSearchUrlBinding } from '@/url/search-url-binding';
 
 import { createCorpus } from './form/search-form-fixture';
 
@@ -70,10 +70,10 @@ async function setup(
 		runtime,
 		submitted: submittedSearch,
 	});
-	const controller = createSearchUrlBinding(router, { corpus: loadedCorpus, search: submittedSearch, form: searchForm, results, history: HistoryStore.actions });
+	const binding = createSearchUrlBinding(router, { corpus: loadedCorpus, search: submittedSearch, form: searchForm, results, onResultsUrl: url => HistoryStore.actions.addEntry({ url }) });
 
 	const sync = {
-		...controller,
+		...binding,
 		run: async (change: () => unknown) => {
 			change();
 			await nextTick();
@@ -123,13 +123,13 @@ describe('search URLs and browser history', () => {
 		const beforeStateLoaded = vi.fn(async (runtime: Ref<FormRuntime | null>) => {
 			runtime.value = form({ withField: true });
 		});
-		const { runtime, loadedCorpus, sync, activeSearchParameters } = await setup(undefined, { beforeStateLoaded });
+		const { router, runtime, loadedCorpus, sync, activeSearchParameters } = await setup(undefined, { beforeStateLoaded });
 		await restored(activeSearchParameters);
 		expect(beforeStateLoaded).toHaveBeenCalledTimes(1);
 
 		runtime.value = form({ withField: true });
 		await sync.run(() => undefined);
-		await sync.open(`${path}/hits?patt=${encodeURIComponent('[word="later"]')}`);
+		await router.push(`${path}/hits?patt=${encodeURIComponent('[word="later"]')}`);
 		await restored(activeSearchParameters, '[word="later"]');
 		expect(beforeStateLoaded).toHaveBeenCalledTimes(1);
 
@@ -160,7 +160,7 @@ describe('search URLs and browser history', () => {
 	test('restores the editable form on each navigation after a failed customization hook', async () => {
 		const error = new Error('customization failed');
 		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-		const { runtime, sync } = await setup(`${path}/docs?f.form=search.simple&f.late=Austen`, {
+		const { runtime, router } = await setup(`${path}/docs?f.form=search.simple&f.late=Austen`, {
 			beforeStateLoaded: async runtime => {
 				runtime.value = form({ withField: true });
 				throw error;
@@ -168,7 +168,7 @@ describe('search URLs and browser history', () => {
 		});
 		await flushPromises();
 		expect(runtime.value?.state.state.value.late).toMatchObject({ value: 'Austen' });
-		await sync.open(`${path}/docs?f.form=search.simple&f.late=Woolf`);
+		await router.push(`${path}/docs?f.form=search.simple&f.late=Woolf`);
 		await flushPromises();
 		expect(runtime.value?.state.state.value.late).toMatchObject({ value: 'Woolf' });
 		expect(log).toHaveBeenCalledWith('beforeStateLoaded hook failed', error);
@@ -236,7 +236,7 @@ describe('search URLs and browser history', () => {
 	});
 
 	test('incoming navigation supersedes a pending result change without saving it to history', async () => {
-		const { sync, router, activeSearchParameters } = await setup();
+		const { router, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
 		const entered = deferred();
 		const release = deferred();
@@ -249,7 +249,7 @@ describe('search URLs and browser history', () => {
 		results.view('hits').state.sort = '-size';
 		await entered.promise;
 		try {
-			await sync.open(`${path}/docs?filter=author%3AAusten`);
+			await router.push(`${path}/docs?filter=author%3AAusten`);
 		} finally {
 			release.resolve();
 		}
@@ -320,21 +320,6 @@ describe('search URLs and browser history', () => {
 		expect(window.location.href).toBe(url);
 	});
 
-	test.each([false, true])('opening a saved search restores the current draft (alternate URL encoding: %s)', async alternateEncoding => {
-		const { runtime, sync, searchForm, activeSearchParameters } = await setup();
-		runtime.value = form({ withField: true });
-		await restored(activeSearchParameters);
-		runtime.value.state.state.value.late = { value: 'saved', caseSensitive: false };
-		await sync.run(() => searchForm.submit(runtime.value!.compile('search.simple')));
-		const entry = HistoryStore.getState()[0];
-		const url = window.location.href;
-		runtime.value.state.state.value.late = { value: 'unsent draft', caseSensitive: false };
-		await sync.open(alternateEncoding ? entry.url.replace('saved', '%73aved') : entry.url);
-		expect(runtime.value.state.state.value.late).toEqual({ value: 'saved', caseSensitive: false });
-		expect(activeSearchParameters.value?.filter).toBe('late:(saved)');
-		expect(window.location.href).toBe(url);
-	});
-
 	test('keeps independent ordinary and custom ranges across resize and view switches', async () => {
 		const { sync, router, activeSearchParameters } = await setup(`${path}/hits?patt=[word=%22water%22]&first=40&number=20`);
 		await restored(activeSearchParameters);
@@ -380,19 +365,20 @@ describe('search URLs and browser history', () => {
 		expect(router.currentRoute.value.query).not.toHaveProperty('interface');
 		expect(router.currentRoute.value.query.extension).toBe('shared');
 		expect(router.currentRoute.value.hash).toBe('#results');
-		await sync.open(router.currentRoute.value.fullPath);
+
 		expect(activeSearchParameters.value?.patt).toBeUndefined();
 	});
 
 	test('opening a saved search resets inactive result controls to their defaults', async () => {
-		const { sync, activeSearchParameters } = await setup();
+		const { router, activeSearchParameters } = await setup();
 		await restored(activeSearchParameters);
 		const hits = results.view('hits');
 		hits.setGroupBy(['hit:word']);
 		hits.state.sort = '-size';
 		hits.setRange({ first: 45, number: 30 });
 		results.setPageSize(50);
-		await sync.open(`${path}/docs?patt=${encodeURIComponent(pattern)}&first=105&number=10&sort=field:title`);
+		await nextTick();
+		await router.push(`${path}/docs?patt=${encodeURIComponent(pattern)}&first=105&number=10&sort=field:title`);
 		await flushPromises();
 		expect(results.selectedViewName).toBe('docs');
 		expect(hits.state).toMatchObject({ first: 0, number: 50, groupBy: [], sort: null, viewGroup: null });

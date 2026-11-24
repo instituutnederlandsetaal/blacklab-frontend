@@ -1,6 +1,6 @@
 # Page state, URLs, and history
 
-Search uses unidirectional data flow. Components read state from the feature instance and send edits to the owner. The URL is a projection of the submitted query and the selected result view. Vue Router handles browser navigation and path matching inside the navigation adapters; request composition and search components do not read it.
+Search uses unidirectional data flow. Components read state from the feature instance and send edits to the owner. The URL is a projection of the submitted query and the selected result view. The URL bindings restore page state on navigation. The history dialog navigates with Vue Router, and result tables use its named article route to build links.
 
 ```text
 editable form ──submit──> submitted search ─┐
@@ -19,9 +19,9 @@ initial load / Back / Forward / saved search ──> restore application state
 | Global result controls                               | Results instance (global controls)          | Controls, incoming search                  |
 | Each view's selection, grouping, sort, display state | Results instance (views)                    | Controls, submission, incoming search      |
 | Expanded request range                               | Pure derivation of selection and preference | Never stored or serialized                 |
-| Unknown URL parameters and hash                      | URL adapter                                 | Preserved from incoming search             |
+| Unknown URL parameters and hash                      | URL binding                                 | Preserved from incoming search             |
 
-The search feature creates the owners and connects them to two bindings. `features/search/bindings/search-form.ts` handles form submission, reset, and draft restoration. `url/search-state.ts` handles navigation and history publication. Corpus changes reset the owners together in `search-feature.ts`. The results instance exposes the effective API request as `results.parameters`, computed from the submitted snapshot, corpus, and selected view controls.
+The search feature creates the owners and connects them to two bindings. `features/search/bindings/search-form.ts` handles form submission, reset, and draft restoration. `url/search-url-binding.ts` restores incoming routes and publishes result changes. Corpus changes reset the owners together in `search-feature.ts`. The results instance exposes the effective API request as `results.parameters`, computed from the submitted snapshot, corpus, and selected view controls.
 
 ## State transitions
 
@@ -54,10 +54,12 @@ Missing URL counts use the preference at hydration time. The preference is never
 
 ## URL and history boundary
 
-Search and article pages share `createUrlProjection`. On incoming navigation it stops publishing, lets the page restore URL-visible state synchronously, then watches for changes. Draft restoration can finish later. Each outgoing write carries an identity until navigation settles, so Back and Forward can restore that same entry on later visits.
+The search and article URL bindings share `createUrlProjection` in `url-projection.ts`. On incoming navigation it stops publishing, lets the page restore URL-visible state synchronously, then watches for changes. Draft restoration can finish later. Each outgoing write carries an identity until navigation settles, so Back and Forward can restore that same entry on later visits.
+
+`article-query.ts` reads article parameters and writes the query used by both result links and the article URL binding.
 
 `search-query.ts` reads and writes the submitted query, selected view controls, and extension parameters. Opening a link preserves its spelling and hash. When a shared link requests sampling without a seed, the search binding replaces the URL with the generated seed.
 
-`search-state.ts` records a history entry after a successful publication. Opening a saved search restores its draft even if its URL is already current. Importing a link adds it to history and leaves the active search alone. `query-history.ts` decodes the grouping and query identity used for deduplication. The history store reconstructs missing summaries using the form runtime when it imports a URL.
+The search feature records a history entry after the binding publishes a result URL. Opening a saved search restores its draft even if its URL is already current. Importing a link adds it to history and leaves the active search alone. The history store decodes each entry once and uses its submitted search and grouping for deduplication. On import it uses the form runtime to reconstruct the display summary.
 
 The browser smoke suite exercises submissions, reloads, Back/Forward, saved searches, ordinary and custom pagination, preference persistence, tab selection, and collocations against BlackLab. Unit tests cover range invariants, URL normalization, snapshot isolation, and asynchronous restoration/navigation races.

@@ -218,17 +218,3 @@ function isEscapedAt(value: string, index: number): boolean {
 	}
 	return backslashes % 2 === 1;
 }
-
-export function hashJavaDJB2(str: string) {
-	let hash = 0;
-	let i = 0;
-	let char: number;
-	const l = str.length;
-	while (i < l) {
-		char = str.charCodeAt(i);
-		hash = (hash << 5) - hash + char;
-		hash |= 0;
-		++i;
-	}
-	return hash;
-}

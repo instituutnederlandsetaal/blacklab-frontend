@@ -1,69 +1,78 @@
 import { stripIndent } from 'common-tags';
-import URI from 'urijs';
 import { shallowRef } from 'vue';
+import { parseQuery } from 'vue-router';
 
 import { type CorpusContext } from '@/app/state/useCorpusContext';
+import { searchFormIds } from '@/customization-api/shared/form/ids';
 import type { FormRuntime } from '@/features/form';
 import { restoreSubmittedForm } from '@/features/search/bindings/search-form';
 import { summarizeSubmittedSearch } from '@/features/search/model/search-summary';
 import type { Corpus } from '@/types/apptypes';
-import { queryHistoryDetails } from '@/url/query-history';
-import { readSubmittedSearch } from '@/url/search-query';
+import { queryString } from '@/url/query';
+import { readGroupBy, readSubmittedSearch } from '@/url/search-query';
 
 import { debugLog } from '@/shared/debug/debug';
 import { stableStringify } from '@/shared/utils/stable-stringify';
-import { hashJavaDJB2 } from '@/shared/utils/string-utils';
-import useInjectable from '@/shared/utils/useInjectable';
 
-type FullHistoryEntry = {
-	displayValues: { filters: string; pattern: string };
-	hash: number;
-	url: string;
-	timestamp: number;
+type HistoryEntryInput = { url: string; timestamp?: number; displayValues?: { pattern: string; filters: string } };
+type FullHistoryEntry = Required<HistoryEntryInput> & {
+	identity: string;
+	viewedResults: string;
+	groupBy: string[];
+	collocation: boolean;
+	exportResults: string | null;
+	hasGapValues: boolean;
 };
-
 type ModuleRootState = FullHistoryEntry[];
-
-export type HistoryEntryInput = { url: string; timestamp?: number; displayValues?: { pattern: string; filters: string } };
-type HistoryUrlSummaryDecoder = (url: string) => Promise<HistoryEntryInput>;
-export const [, provideHistoryImport, useHistoryImport] = useInjectable<(url: string) => Promise<void>>('history-import');
 const version = 12;
 
 type LocalStorageState = {
 	indexLastModified: string;
 	version: number;
-	history: ModuleRootState;
+	history: HistoryEntryInput[];
 };
 
 // Track current corpus for localStorage keying
 let corpus: Corpus | null = null;
-function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntryInput): FullHistoryEntry | null {
-	const decoded = queryHistoryDetails(url);
-	if (!decoded.viewedResults) return null;
-	return Object.freeze({
-		url: new URL(url, window.location.origin).toString(),
-		timestamp,
-		hash: hashJavaDJB2(stableStringify(decoded.identity)),
-		displayValues: {
-			pattern: displayValues?.pattern || decoded.pattern || '-',
-			filters: displayValues?.filters || decoded.filters || '-',
-		},
-	});
+function exportView(query: Record<string, unknown>, viewedResults: string | null) {
+	const formId = queryString(query, 'f.form');
+	const exportResults = (['corpora', 'frequency', 'ngram'] as const).find(mode => searchFormIds.exploreForm(mode) === formId) ?? viewedResults;
+	try {
+		const ui = JSON.parse(queryString(query, 'interface') ?? 'null');
+		if (!formId && ui?.form === 'explore' && typeof ui.exploreMode === 'string') return ui.exploreMode as string;
+	} catch {
+		/* Older links may contain malformed interface state. */
+	}
+	return exportResults;
 }
 
-function sameQuery(a: FullHistoryEntry, b: FullHistoryEntry) {
-	if (a.hash !== b.hash) return false;
-	return a.url === b.url || stableStringify(queryHistoryDetails(a.url).identity) === stableStringify(queryHistoryDetails(b.url).identity);
+function createEntry({ url, displayValues, timestamp = Date.now() }: HistoryEntryInput, runtime?: FormRuntime | null): FullHistoryEntry | null {
+	const uri = new URL(url, window.location.origin);
+	const path = uri.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+	const viewedResults = path.at(-1);
+	if (!viewedResults || path.at(-2) !== 'search') return null;
+	const query = parseQuery(uri.search);
+	const submitted = readSubmittedSearch(query);
+	const { params, form } = submitted;
+	const groupBy = params.colltype ? [] : readGroupBy(query);
+	const summary = summarizeSubmittedSearch(submitted, runtime && restoreSubmittedForm(runtime, submitted).submittedResult);
+	return Object.freeze({
+		url: uri.href,
+		timestamp,
+		viewedResults,
+		groupBy,
+		collocation: !!params.colltype,
+		hasGapValues: !!params.pattgapdata,
+		exportResults: exportView(query, viewedResults),
+		identity: stableStringify({ params, form, groupBy: [...groupBy].sort() }),
+		displayValues: { pattern: displayValues?.pattern || summary.pattern || '-', filters: displayValues?.filters || summary.filter || '-' },
+	});
 }
 
 const state = shallowRef<ModuleRootState>([]);
 const getState = () => state.value;
 
 const get = {
-	details: (entry: FullHistoryEntry) => {
-		const { viewedResults, collocation, groupBy } = queryHistoryDetails(entry.url);
-		return { viewedResults, collocation, groupBy };
-	},
 	asFile: (entry: FullHistoryEntry) => {
 		const date = new Date().toLocaleString('en-EN', {
 			hour12: false,
@@ -74,7 +83,7 @@ const get = {
 			minute: '2-digit',
 			second: '2-digit',
 		});
-		const { groupBy, exportResults, hasGapValues } = queryHistoryDetails(entry.url);
+		const { groupBy, exportResults, hasGapValues } = entry;
 		const fileContents = stripIndent`
 			# Date: ${date}
 			# Results: ${exportResults || '-'}
@@ -106,15 +115,10 @@ const get = {
 };
 
 const actions = {
-	importUrl: async (url: string, decodeSummary: HistoryUrlSummaryDecoder) => {
-		const targetCorpus = corpus;
-		const entry = await decodeSummary(url);
-		if (corpus === targetCorpus) actions.addEntry(entry);
-	},
-	addEntry: (entry: HistoryEntryInput) => {
-		const fullEntry = createEntry(entry);
+	addEntry: (entry: HistoryEntryInput, runtime?: FormRuntime | null) => {
+		const fullEntry = createEntry(entry, runtime);
 		if (!fullEntry) return;
-		state.value = [fullEntry, ...state.value.filter(entry => !sameQuery(entry, fullEntry))].slice(0, 200);
+		state.value = [fullEntry, ...state.value.filter(entry => entry.identity !== fullEntry.identity)].slice(0, 200);
 		saveToLocalStorage(state.value);
 	},
 	removeEntry: (i: number) => {
@@ -128,13 +132,6 @@ const actions = {
 		saveToLocalStorage(state.value);
 	},
 };
-
-export function importSearchUrl(url: string, runtime: FormRuntime | null) {
-	if (!corpus) return;
-	const submitted = readSubmittedSearch(new URI(url).query(true));
-	const summary = summarizeSubmittedSearch(submitted, runtime && restoreSubmittedForm(runtime, submitted).submittedResult);
-	actions.addEntry({ url, displayValues: { pattern: summary.pattern || '', filters: summary.filter || '' } });
-}
 
 const init = (change: CorpusContext) => {
 	corpus = change.index ?? null;
@@ -162,9 +159,9 @@ const readFromLocalStorage = (): ModuleRootState => {
 		// Old entries already contain replayable URLs; drop their form snapshots on load.
 		const entries = stored.history
 			.filter(entry => typeof entry.url === 'string' && entry.url)
-			.map(createEntry)
+			.map(entry => createEntry(entry))
 			.filter(entry => entry !== null)
-			.filter((entry, index, entries) => entries.findIndex(other => sameQuery(other, entry)) === index);
+			.filter((entry, index, entries) => entries.findIndex(other => other.identity === entry.identity) === index);
 		if (stored.version !== version) saveToLocalStorage(entries);
 		return entries;
 	} catch (e) {
@@ -181,7 +178,7 @@ const saveToLocalStorage = (entries: ModuleRootState) => {
 	const key = `cf/history/${corpus.id}`;
 	const stored: LocalStorageState = {
 		version,
-		history: entries,
+		history: entries.map(({ url, timestamp, displayValues }) => ({ url, timestamp, displayValues })),
 		indexLastModified: corpus.timeModified,
 	};
 

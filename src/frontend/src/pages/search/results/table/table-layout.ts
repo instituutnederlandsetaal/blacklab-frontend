@@ -2,7 +2,6 @@ import type { StyleValue } from 'vue';
 
 import type { GroupDisplayMode } from '@/features/search/model/results/result-types';
 import type {
-	Corpus,
 	HitContext,
 	HitToken,
 	NormalizedAnnotatedField,
@@ -31,10 +30,10 @@ import type {
 } from '@/types/blacklabtypes';
 import { getMetadataFieldValues, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import type { KeysOfType } from '@/types/helpers';
+import type { ArticleParameters } from '@/url/article-query';
 
 import * as Highlights from './hit-highlighting';
 
-import { frontendPaths } from '@/shared/api/frontendApi';
 import { getLargestGroupSize, getMatchingDocuments, getMatchingHits, getSearchParameters, getSubcorpusSize } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option, Options } from '@/shared/utils/options';
@@ -315,8 +314,7 @@ function isOutsideSelectedResults(indexInRequestedResults: number, selectedRange
 // ===================
 
 export type DisplaySettingsForRendering = {
-	/** Corpus identity and annotated fields used for document links. */
-	corpus: Pick<Corpus, 'id' | 'mainAnnotatedField'>;
+	articleUrl(docId: string, parameters: Partial<ArticleParameters>): string;
 
 	/** Annotation shown in the before/hit/after columns and expanded concordance */
 	mainAnnotation: NormalizedAnnotation;
@@ -428,10 +426,8 @@ export type DocRowData = {
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRendering, indexInRequestedResults: number): DocRowData {
 	return {
 		doc: p.doc,
-		href: frontendPaths.documentPage(info.corpus, {
-			pid: p.doc.docPid,
-			fieldName: info.sourceField.id,
-			searchfield: undefined,
+		href: info.articleUrl(p.doc.docPid, {
+			viewField: info.sourceField.id,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,
 		}),
@@ -472,9 +468,8 @@ function makeHitRow(
 		last_of_hit: p.last_of_hit,
 
 		context: snippetParts(p.hit, highlightColors, info.getMatchInfoHighlightStyle),
-		href: frontendPaths.documentPage(info.corpus, {
-			pid: p.doc.docPid,
-			fieldName: field.id,
+		href: info.articleUrl(p.doc.docPid, {
+			viewField: field.id,
 			searchfield: info.sourceField.id,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,

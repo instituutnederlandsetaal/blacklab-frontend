@@ -7,7 +7,7 @@ import { createTestResultsState } from '@test/mocks/results-state';
 import { shallowMount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { computed, nextTick, reactive, ref, shallowRef } from 'vue';
-import type { LocationQuery } from 'vue-router';
+import { createRouter, createMemoryHistory, type Router, type LocationQuery } from 'vue-router';
 
 import type { EffectiveSearchParameters } from '@/features/search/model/results/result-types';
 import { type ResultsState, resultsStateKey, type ResultView } from '@/features/search/model/results/results-state';
@@ -22,6 +22,7 @@ import Results from '@/pages/search/results/Results.vue';
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
 let results: ResultsState;
+let router: Router;
 let api: ReturnType<typeof createMockApi>;
 let corpusContext: ReturnType<typeof createMockCorpusContext>;
 let corpus: Corpus;
@@ -70,14 +71,14 @@ function result(patt: string, total = 105, hitCount = 1, first = 0, number = 20)
 	const stats = { status: 'finished' as const, hits: total, documents: 1, timeMs: 1, stoppedBecauseTooMany: false };
 	return {
 		hits: Array.from({ length: hitCount }, (_, index) => ({
-			docPid: 'doc',
+			docPid: 'vol/1?#',
 			start: first + index,
 			end: first + index + 1,
 			before: { punct: [], word: [], lemma: [] },
 			match: { punct: [''], word: [`token-${first + index}`], lemma: [`lemma-${first + index}`] },
 			after: { punct: [], word: [], lemma: [] },
 		})),
-		docInfos: { doc: { metadata: { title: ['Document title'] }, tokenCounts: [], mayView: true } },
+		docInfos: { 'vol/1?#': { metadata: { title: ['Document title'] }, tokenCounts: [], mayView: true } },
 		summary: {
 			params: { patt, first, number },
 			pattern: { bcql: patt, fieldName: 'contents', otherFields: ['parallel'] },
@@ -120,7 +121,7 @@ function mountViewWithMockParameters(active = true) {
 	return shallowMount(ResultsView, {
 		global: {
 			provide: { [resultsStateKey]: { settings: results.settings, setSampleSize: (value: number | null) => results.setSampleSize(value), parameters: mockParameters() } },
-			plugins: [api, corpusContext, customizations],
+			plugins: [router, api, corpusContext, customizations],
 		},
 		props: { id: 'hits', active, store },
 	});
@@ -128,7 +129,7 @@ function mountViewWithMockParameters(active = true) {
 
 beforeEach(() => {
 	vi.useFakeTimers();
-	vi.stubGlobal('CONTEXT_URL', '');
+	router = createRouter({ history: createMemoryHistory('/frontend'), routes: [{ name: 'article', path: '/:corpus/docs/:docId', component: {} }] });
 	submitted.value = undefined;
 	results = createTestResultsState(ref(20), { corpus: () => corpus, submitted, withSpans: () => false });
 	store = results.view('hits');
@@ -206,7 +207,7 @@ describe('Results tabs', () => {
 		results.view('docs').setRange({ first: 45, number: 30 });
 		selectSearch();
 		const wrapper = shallowMount(Results, {
-			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations], components: resultComponents, stubs: { ResultsView: false } },
+			global: { provide: { [resultsStateKey]: results }, plugins: [router, api, corpusContext, customizations], components: resultComponents, stubs: { ResultsView: false } },
 		});
 
 		expect(api.blacklabApi.getHits).toHaveBeenCalledOnce();
@@ -231,7 +232,7 @@ describe('Results tabs', () => {
 		const wrapper = shallowMount(Results, {
 			global: {
 				provide: { [resultsStateKey]: results },
-				plugins: [api, corpusContext, customizations],
+				plugins: [router, api, corpusContext, customizations],
 				stubs: { CustomResults: { props: ['store'], template: '<button @click="store.actions.first(20)">{{ store.getState().first }}</button>' } },
 			},
 		});
@@ -247,7 +248,7 @@ describe('Results tabs', () => {
 		]);
 		selectSearch({ patt: 'first', colltype: 'proximity', context: '3' }, 'docs');
 		const wrapper = shallowMount(Results, {
-			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations], components: resultComponents, stubs: { ResultsView: false } },
+			global: { provide: { [resultsStateKey]: results }, plugins: [router, api, corpusContext, customizations], components: resultComponents, stubs: { ResultsView: false } },
 		});
 
 		await flush();
@@ -268,7 +269,7 @@ describe('ResultsView', () => {
 		store.setRange({ first: 45, number: 30 });
 		selectSearch();
 		const wrapper = shallowMount(ResultsView, {
-			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] },
+			global: { provide: { [resultsStateKey]: results }, plugins: [router, api, corpusContext, customizations] },
 			props: { id: 'hits', active: true, store },
 		});
 
@@ -294,7 +295,7 @@ describe('ResultsView', () => {
 
 	test('changes display mode without refetching and requests a newly submitted query', async () => {
 		selectSearch();
-		shallowMount(ResultsView, { global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] }, props: { id: 'hits', active: true, store } });
+		shallowMount(ResultsView, { global: { provide: { [resultsStateKey]: results }, plugins: [router, api, corpusContext, customizations] }, props: { id: 'hits', active: true, store } });
 
 		store.state.groupDisplayMode = 'hits';
 		await nextTick();
@@ -354,7 +355,7 @@ describe('ResultsView', () => {
 		store.setGroupBy(['capture:word:i:capture']);
 		selectSearch();
 		shallowMount(ResultsView, {
-			global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] },
+			global: { provide: { [resultsStateKey]: results }, plugins: [router, api, corpusContext, customizations] },
 			props: { id: 'hits', active: true, store },
 		});
 
@@ -386,7 +387,7 @@ describe('ResultsView', () => {
 		await flush();
 		expect(wrapper.findComponent({ name: 'GenericTable' }).exists()).toBe(true);
 		expect(wrapper.findComponent({ name: 'GenericTable' }).props('rows').rows).toMatchObject([
-			{ type: 'doc', summary: 'summary', doc: { docPid: 'doc' } },
+			{ type: 'doc', summary: 'summary', href: window.location.origin + '/frontend/test/docs/vol%2F1%3F%23?patt=first' },
 			{ type: 'hit', customHitInfo: 'custom', context: { match: [{ annotations: { word: 'token-0', lemma: 'lemma-0' } }] } },
 		]);
 		expect(wrapper.findComponent({ name: 'Export' }).props()).toMatchObject({ results: currentResult, type: 'hits', disabled: false });
@@ -710,7 +711,7 @@ describe('ResultsView', () => {
 
 test('does not request documents before active search parameters are available', async () => {
 	shallowMount(ResultsView, {
-		global: { provide: { [resultsStateKey]: results }, plugins: [api, corpusContext, customizations] },
+		global: { provide: { [resultsStateKey]: results }, plugins: [router, api, corpusContext, customizations] },
 		props: { id: 'docs', active: true, store },
 	});
 

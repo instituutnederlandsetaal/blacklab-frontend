@@ -70,9 +70,9 @@ The deprecated API intentionally has two stages:
 
 ```js
 frontend.customize(function configureImmediately(customizations) {
-  customizations.someHook = function invokeLater(context) {
-    // ...
-  };
+	customizations.someHook = function invokeLater(context) {
+		// ...
+	};
 });
 ```
 
@@ -120,3 +120,4 @@ frontend.customize(function configureImmediately(customizations) {
 - Never use explicit tracking/version/cycle/change number variables for tracking reactive changes, this is an antipattern. Instead think harder about the intended reactivity and set up regular reactive dependencies accordingly. It's almost always a smell to use `watch()`.
 - Use `npm run format` in the `src/frontend` folder to fix style, whitespace, indentation, and imports. Do not bother manually editing these.
 - When writing comments comments or editing docs, avoid llm-isms, such as short sentences, repeated full stops, "not x, but y", invented, needless or uncommon terminology, and assess whether introducing a term contributes meaningful additional information to a developer, often it does not. A good reference is wikipedia's guide on what to avoid in llm-output: https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing , particularly the "Language_and_grammar" section.
+- avoid using `ReturnType<typeof ...>`, `Pick<..., 'multiple'|'complex'|'properties'>` or `Omit<..., 'multiple'|'complex'|'properties'>` for the same reason; prefer explicit types that clearly communicate the intended structure and constraints. Limited use of `Pick` and `Omit` in function arguments is acceptable to aid decoupling and maintain flexibility, but avoid indirect type obfuscation, especially when the underlying type lies outside the immediate context or is imported from external modules.

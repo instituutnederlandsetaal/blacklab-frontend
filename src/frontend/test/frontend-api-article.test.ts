@@ -1,7 +1,7 @@
 import { createMockHttp } from '@test/mocks/http';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
-import { createFrontendApi, frontendPaths } from '@/shared/api/frontendApi';
+import { createFrontendApi } from '@/shared/api/frontendApi';
 
 beforeEach(() => {
 	vi.stubGlobal('WITH_CREDENTIALS', false);
@@ -9,24 +9,20 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-test.each([
-	{ mainField: 'contents', fieldName: 'contents', searchfield: 'contents', expected: { patt: '[]' } },
-	{ mainField: 'contents__nl', fieldName: 'contents__en', searchfield: 'contents__nl', expected: { patt: '[]', field: 'contents__en', searchfield: 'contents__nl' } },
-	{ mainField: 'contents__nl', fieldName: 'contents__en', searchfield: 'contents__en', expected: { patt: '[]', field: 'contents__en' } },
-	{ mainField: 'contents__nl', fieldName: 'contents__nl', searchfield: 'contents__en', expected: { patt: '[]', searchfield: 'contents__en' } },
-])('document links preserve necessary fields for $fieldName from $searchfield', ({ expected, mainField, ...fields }) => {
-	const url = new URL(frontendPaths.documentPage({ id: 'corpus', mainAnnotatedField: mainField }, { pid: 'doc', patt: '[]', ...fields }));
-	expect(Object.fromEntries(url.searchParams)).toEqual(expected);
-});
-
 test('default contents need neither field names nor word bounds', async () => {
 	const http = createMockHttp();
 	const api = createFrontendApi({ baseUrl: '/frontend', user: null, axiosOptions: { adapter: http.adapter } });
-	const request = api.getDocumentContents({ indexId: 'BaB', docId: 'bab0954' });
+	const request = api.getDocumentContents({ indexId: 'BaB', docId: 'vol/1?#' });
 	const sent = await http.nextRequest();
+	expect(sent.config.url).toBe('BaB/api/docs/vol%2F1%3F%23/contents');
 	expect(Object.fromEntries(sent.query)).toEqual({});
 	sent.respond('Document');
 	await request;
+	const metadata = api.getDocumentMetadata('BaB', 'vol/1?#');
+	const metaRequest = await http.nextRequest();
+	expect(metaRequest.config.url).toBe('BaB/api/docs/vol%2F1%3F%23');
+	metaRequest.respond('Metadata');
+	await metadata;
 });
 
 test.each([

@@ -2,9 +2,9 @@
 
 import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
-import { flushPromises } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, onTestFinished, test } from 'vitest';
-import { computed, createApp, effectScope, h } from 'vue';
+import { computed, effectScope, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import * as FilterStore from '@/app/state/legacy-filter-state';
@@ -14,13 +14,14 @@ import { createCustomizations } from '@/customization-api/internal/internal-api'
 import { createCustomizationRegistry } from '@/customization-api/registry';
 import { searchFormIds } from '@/customization-api/shared/form/ids';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import { getState as getHistory, useHistoryImport } from '@/features/history/model/query-history-state';
+import { getState as getHistory, actions as history } from '@/features/history/model/query-history-state';
 import { useSearchFormSystem } from '@/features/search/model/new-form/search-form-system';
 import { useResultsState } from '@/features/search/model/results/results-state';
 import { createSearchFeature } from '@/features/search/search-feature';
-import { useSearchNavigation } from '@/url/search-state';
 
 import { createCorpus } from '../form/search-form-fixture';
+
+import History from '@/pages/search/History.vue';
 
 async function setup(initialUrl: string, configure = () => {}) {
 	const api = createMockApi({
@@ -30,7 +31,7 @@ async function setup(initialUrl: string, configure = () => {}) {
 		frontend: { getConfig: defaultConfig, getTagset: undefined },
 	});
 	const router = createRouter({
-		history: createMemoryHistory(),
+		history: createMemoryHistory('/frontend'),
 		routes: [
 			{ name: 'search', path: '/:corpus/search/:results?', component: { render: () => h('div') } },
 			{ name: 'article', path: '/:corpus/docs/:docId', component: { render: () => h('div') } },
@@ -60,12 +61,9 @@ async function setup(initialUrl: string, configure = () => {}) {
 	const feature = scope.run(() =>
 		createSearchFeature({ customizationsReady: true, router, corpusState, blacklabApi: api.blacklabApi, customizations, translate: createMockTranslate(), debug: false }),
 	)!;
-	const app = createApp({ render: () => h('div') });
-	app.use(feature);
-	app.mount(document.createElement('div'));
-	onTestFinished(() => app.unmount());
+	const dialog = mount(History, { global: { plugins: [router, corpusState, feature] } });
 	await flushPromises();
-	return { app, router, feature, registry, corpusState };
+	return { app: dialog.vm.$.appContext.app, router, feature, dialog };
 }
 
 describe('lazy search feature', () => {
@@ -77,7 +75,6 @@ describe('lazy search feature', () => {
 		expect(feature.results.selectedViewName).toBe('hits');
 		expect(app.runWithContext(useResultsState)).toBe(feature.results);
 		expect(app.runWithContext(useSearchFormSystem).value).toBeTruthy();
-		expect(app.runWithContext(useSearchNavigation)).toHaveProperty('open', expect.any(Function));
 	});
 
 	test('retains corpus script configuration when search is activated later', async () => {
@@ -106,13 +103,35 @@ describe('lazy search feature', () => {
 		expect(feature.results.parameters.value).toBeUndefined();
 	});
 
+	test('replays the current saved search and closes only after successful navigation', async () => {
+		const path = `/test-corpus/search/hits?f.form=${searchFormIds.searchForm('simple')}&f.word=saved`;
+		const { app, router, dialog } = await setup(path);
+		const runtime = app.runWithContext(useSearchFormSystem).value!;
+		const field = searchFormIds.queryField('simple');
+		runtime.state.state.value[field] = { value: 'unsent', caseSensitive: false };
+		history.addEntry({ url: '/frontend' + path.replace('saved', '%73aved') });
+		await flushPromises();
+		const button = dialog.get('tbody button');
+		const removeGuard = router.beforeEach(() => false);
+		await button.trigger('click');
+		await flushPromises();
+		expect(dialog.emitted('close')).toBeUndefined();
+		expect(runtime.state.state.value[field]).toMatchObject({ value: 'unsent' });
+		removeGuard();
+		await button.trigger('click');
+		await flushPromises();
+		expect(dialog.emitted('close')).toHaveLength(1);
+		expect(runtime.state.state.value[field]).toMatchObject({ value: 'saved' });
+		expect(router.currentRoute.value.fullPath).toBe(path);
+	});
+
 	test('imports graph and older query URLs without changing the active search', async () => {
 		const activePath = '/test-corpus/search/hits?patt=%5Bword%3D%22sea%22%5D';
 		const { app, router, feature } = await setup(activePath);
-		const importUrl = app.runWithContext(useHistoryImport);
-		await importUrl(`/test-corpus/search/hits?patt=%5Bword%3D%22ship%22%5D&f.form=${encodeURIComponent(searchFormIds.searchForm('simple'))}&f.word=ship`);
+		const runtime = app.runWithContext(useSearchFormSystem).value;
+		history.addEntry({ url: `/test-corpus/search/hits?patt=%5Bword%3D%22ship%22%5D&f.form=${encodeURIComponent(searchFormIds.searchForm('simple'))}&f.word=ship` }, runtime);
 		expect(getHistory()[0].displayValues.pattern).toBe('word: ship');
-		await importUrl('/test-corpus/search/hits?query=%5Bword%3D%22water%22%5D&filter=author%3AAusten');
+		history.addEntry({ url: '/test-corpus/search/hits?query=%5Bword%3D%22water%22%5D&filter=author%3AAusten' }, runtime);
 		expect(getHistory()[0].displayValues).toEqual({ pattern: '[word="water"]', filters: 'author:Austen' });
 		expect(router.currentRoute.value.fullPath).toBe(activePath);
 		expect(feature.results.parameters.value?.patt).toBe('[word="sea"]');

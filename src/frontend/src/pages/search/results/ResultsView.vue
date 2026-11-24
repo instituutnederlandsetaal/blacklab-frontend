@@ -133,6 +133,7 @@
 
 <script setup lang="ts">
 import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
@@ -143,6 +144,7 @@ import type { DisplaySettingsForRendering } from '@/pages/search/results/table/t
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
+import { writeArticleQuery } from '@/url/article-query';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -178,6 +180,7 @@ const { parameters: activeSearchParameters } = resultState;
 const customizations = useCustomizations();
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
+const router = useRouter();
 const translate = useI18n();
 const root = ref<HTMLElement | null>(null);
 const isDirty = ref(true);
@@ -486,7 +489,11 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 	const allAnnotationsMap = currentCorpus.allAnnotationsMap;
 
 	return {
-		corpus: currentCorpus,
+		articleUrl(docId, parameters) {
+			const query = writeArticleQuery(parameters, currentCorpus.mainAnnotatedField);
+			const { href } = router.resolve({ name: 'article', params: { corpus: currentCorpus.id, docId }, query });
+			return new URL(href, window.location.origin).href;
+		},
 		mainAnnotation: allAnnotationsMap[concordanceAnnotationId.value],
 		otherAnnotations: annotationIdsToShow.map(annotationId => allAnnotationsMap[annotationId]),
 		detailedAnnotations: isHits.value
