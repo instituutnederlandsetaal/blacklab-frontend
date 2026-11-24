@@ -46,7 +46,6 @@ function hitResults(word: string): BLHitResults {
 					numberOfGroups: undefined,
 					largestGroupSize: undefined,
 				},
-				sample: { percentage: undefined, seed: undefined, sample: undefined },
 			},
 		},
 	};

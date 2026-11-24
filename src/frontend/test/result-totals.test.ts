@@ -31,7 +31,6 @@ function result(count = 1, status: 'working' | 'finished' = 'working'): BLHitRes
 						annotatedFields: [{ fieldName: 'parallel', documents: 10, tokens: 200 }],
 					},
 				},
-				sample: { percentage: undefined, sample: undefined, seed: undefined },
 			},
 		},
 	};

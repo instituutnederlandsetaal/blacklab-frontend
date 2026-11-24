@@ -41,29 +41,34 @@ describe('normalizeDoc', () => {
 });
 
 describe('normalizeDocResponse', () => {
-	test('normalizes legacy v5 totals when no documents match', () => {
+	test('normalizes v4 window and fixed sample into the v5 shape', () => {
 		const results = normalizeDocResponse({
 			docs: [],
 			summary: {
-				params: { filter: 'bookName:("1 John")', first: 0, number: 0 },
-				resultWindow: {
-					firstResult: 0,
-					requestedSize: 0,
-					actualSize: 0,
-					hasPrevious: false,
-					hasNext: false,
-				},
-				resultsStats: {
-					status: 'finished',
-					hits: 0,
-					documents: 0,
-					timeMs: 10,
-					subcorpusSize: { documents: 0, tokens: 0 },
-				},
+				searchParam: { first: 20, number: 10 },
+				docFields: {} as never,
+				windowFirstResult: 20,
+				requestedWindowSize: 10,
+				actualWindowSize: 3,
+				windowHasPrevious: true,
+				windowHasNext: false,
+				searchTime: 10,
+				numberOfDocs: 23,
+				numberOfDocsRetrieved: 23,
+				stillCounting: false,
+				sampleSeed: 42,
+				sampleSize: 23,
 			},
-		} as never);
+		});
 
-		expect(results.summary.results.stats.counted.documents).toBe(0);
-		expect(results.summary.results.stats.subcorpusSize).toEqual({ documents: 0, tokens: 0 });
+		expect(results.summary.results.window).toEqual({ firstResult: 20, requestedSize: 10, actualSize: 3, hasPrevious: true, hasNext: false });
+		expect(results.summary.results.sample).toEqual({ size: 23, seed: 42 });
+		expect(results.summary.results.stats.counted.documents).toBe(23);
+	});
+
+	test('preserves v5 results without a window or sample', () => {
+		const stats = { status: 'finished' as const, hits: 0, documents: 0, timeMs: 10, stoppedBecauseTooMany: false };
+		const summary = { params: { first: 0, number: 0 }, results: { stats: { processed: stats, counted: stats, subcorpusSize: { documents: 0, tokens: 0 } } } };
+		expect(normalizeDocResponse({ docs: [], summary }).summary).toEqual(summary);
 	});
 });

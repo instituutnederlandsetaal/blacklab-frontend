@@ -255,7 +255,7 @@ function getDocumentHits(blacklab: BlackLabApi, indexId: string, params: Omit<BL
 				const range = targetField ? hit.otherFields?.[targetField] : hit;
 				if (range) ranges.push([range.start, range.end]);
 			}
-			if (!results.summary.results.window.hasNext || !results.hits.length) return ranges;
+			if (!results.summary.results.window?.hasNext || !results.hits.length) return ranges;
 			first += results.hits.length;
 		}
 	}

@@ -77,7 +77,6 @@ function hitResults(first = 0, number = 20): BLHitResults {
 					numberOfGroups: undefined,
 					largestGroupSize: undefined,
 				},
-				sample: { percentage: undefined, seed: undefined, sample: undefined },
 			},
 		},
 	};

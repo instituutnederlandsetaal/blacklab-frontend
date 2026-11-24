@@ -208,7 +208,6 @@ function collocationSummary(): BLSearchSummaryV5 {
 				numberOfGroups: 183,
 				largestGroupSize: 164,
 			},
-			sample: { percentage: undefined, seed: undefined, sample: undefined },
 		},
 	};
 }

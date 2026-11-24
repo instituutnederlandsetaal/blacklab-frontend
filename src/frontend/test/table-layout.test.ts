@@ -29,7 +29,6 @@ function summary(group: string, pattern: boolean): BLSearchSummaryV5 {
 				numberOfGroups: 1,
 				largestGroupSize: pattern ? 20 : 10,
 			},
-			sample: { percentage: undefined, seed: undefined, sample: undefined },
 		},
 	};
 }

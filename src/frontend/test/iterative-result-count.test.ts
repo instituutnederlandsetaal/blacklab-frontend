@@ -29,7 +29,6 @@ function result(state: SearchState, count: number): BLSearchResult {
 		summary: {
 			params: { number: 0, patt: '[]' },
 			results: {
-				sample: { percentage: undefined, sample: undefined, seed: undefined },
 				stats: {
 					counted: stats,
 					largestGroupSize: undefined,

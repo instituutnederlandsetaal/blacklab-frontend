@@ -103,7 +103,7 @@ const values = {
 					subcorpusSize: undefined,
 				},
 				sample: {
-					sample: 0,
+					size: 0,
 					seed: 0,
 				},
 			},

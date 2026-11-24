@@ -26,12 +26,10 @@ import {
 	type BLHitV4,
 	type BLHitV5,
 	type BLSearchResultsStatsV5,
-	type BLSearchParameters,
 	type BLSearchSummaryGroupedV4,
 	type BLSearchSummaryPatternV4,
 	type BLSearchSummaryV4,
 	type BLSearchSummaryV5,
-	type BLSearchSummaryWindowV5,
 	type BLSubcorpusSize,
 } from '@/types/blacklabtypes';
 
@@ -50,13 +48,6 @@ type AnyRawSnippet = {
 	right?: BLHitSnippetPart;
 	before?: BLHitSnippetPart;
 	after?: BLHitSnippetPart;
-};
-
-/** Summary shape returned by older BlackLab 5 responses. */
-type BLSearchSummaryV5Legacy = {
-	params: BLSearchParameters;
-	resultWindow: BLSearchSummaryWindowV5;
-	resultsStats: Pick<BLSearchResultsStatsV5, 'status' | 'hits' | 'documents' | 'timeMs'> & { subcorpusSize?: BLSubcorpusSize };
 };
 
 const getBefore = (hit: AnyRawSnippet): BLHitSnippetPart => {
@@ -174,34 +165,19 @@ function normalizeSearchSummary(summary: BLSearchSummaryV4 & Partial<BLSearchSum
 								seed: summary.sampleSeed,
 							}
 						: {
-								sample: summary.sampleSize,
+								size: summary.sampleSize,
 								seed: summary.sampleSeed,
 							}
-					: { percentage: undefined, seed: undefined, sample: undefined },
+					: undefined,
 		},
 	};
 	return r;
 }
 
-type NormalizableSummary = BLSearchSummaryV5 | BLSearchSummaryV5Legacy | (BLSearchSummaryV4 & Partial<BLSearchSummaryPatternV4> & Partial<BLSearchSummaryGroupedV4>);
+type NormalizableSummary = BLSearchSummaryV5 | (BLSearchSummaryV4 & Partial<BLSearchSummaryPatternV4> & Partial<BLSearchSummaryGroupedV4>);
 
 function normalizeSummary(summary: NormalizableSummary): BLSearchSummaryV5 {
 	if ('results' in summary) return summary;
-	if ('resultsStats' in summary)
-		return {
-			params: summary.params,
-			results: {
-				window: summary.resultWindow,
-				stats: {
-					processed: { ...summary.resultsStats, stoppedBecauseTooMany: false },
-					counted: { ...summary.resultsStats, stoppedBecauseTooMany: false },
-					subcorpusSize: summary.resultsStats.subcorpusSize,
-					numberOfGroups: undefined,
-					largestGroupSize: undefined,
-				},
-				sample: { percentage: undefined, seed: undefined, sample: undefined },
-			},
-		};
 	return normalizeSearchSummary(summary);
 }
 

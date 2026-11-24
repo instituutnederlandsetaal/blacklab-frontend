@@ -84,7 +84,6 @@ function result(patt: string, total = 105, hitCount = 1, first = 0, number = 20)
 			results: {
 				window: { firstResult: first, requestedSize: number, actualSize: hitCount, hasPrevious: first > 0, hasNext: first + hitCount < total },
 				stats: { processed: stats, counted: stats, numberOfGroups: undefined, largestGroupSize: undefined },
-				sample: { percentage: undefined, seed: undefined, sample: undefined },
 			},
 		},
 	};
@@ -100,7 +99,6 @@ function groupedResult(patt: string, total = 105): BLHitGroupResults {
 			results: {
 				window: { firstResult: 0, requestedSize: 20, actualSize: 1, hasPrevious: false, hasNext: false },
 				stats: { processed: stats, counted: stats, numberOfGroups: 1, largestGroupSize: 12 },
-				sample: { percentage: undefined, seed: undefined, sample: undefined },
 			},
 		},
 	};

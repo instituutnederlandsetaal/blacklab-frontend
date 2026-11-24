@@ -541,7 +541,7 @@ export type BLSearchSummaryV4 = {
 	stillCounting: boolean;
 } & BLSearchSummarySampleV4;
 
-export type BLSearchSummaryWindowV5 = {
+type BLSearchSummaryWindowV5 = {
 	firstResult: number;
 	requestedSize: number;
 	actualSize: number;
@@ -573,18 +573,17 @@ export type BLSearchSummaryV5 = {
 	params: BLSearchParameters;
 	pattern?: BLSearchSummaryPatternInfo;
 	results: {
-		/** Always present, but mostly empty when  */
-		window: BLSearchSummaryWindowV5;
+		window?: BLSearchSummaryWindowV5;
 		stats: {
 			processed: BLSearchResultsStatsV5;
 			counted: BLSearchResultsStatsV5;
 			/** Subcorpus across the whole query; i.e. what would be matched if pattern wasn't present */
 			subcorpusSize?: BLSubcorpusSize;
-		} & ({ numberOfGroups: undefined; largestGroupSize: undefined } | { numberOfGroups: number; largestGroupSize: number });
+		} & ({ numberOfGroups?: never; largestGroupSize?: never } | { numberOfGroups: number; largestGroupSize: number });
 
-		sample:
+		sample?:
 			| {
-					sample: number;
+					size: number;
 					seed: number;
 			  }
 			| {
