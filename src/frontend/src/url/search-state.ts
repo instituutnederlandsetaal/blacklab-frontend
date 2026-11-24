@@ -1,5 +1,5 @@
 import { readonly, ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue';
-import type { LocationQueryRaw, RouteLocationNormalizedLoaded, Router } from 'vue-router';
+import type { LocationQueryRaw, Router } from 'vue-router';
 
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
@@ -23,12 +23,7 @@ export function createSearchUrlBinding(
 ): SearchNavigationPlugin & { initialReadSettled: Readonly<Ref<boolean>> } {
 	let extras: LocationQueryRaw = {};
 	const initialReadSettled = ref(router.currentRoute.value.name !== 'search');
-	function location(route: RouteLocationNormalizedLoaded, corpus: Corpus) {
-		const results = ViewStore.getSelectedViewName();
-		const view = results ? ViewStore.getOrCreateModule(results).getState() : null;
-		const query = view ? createSearchPageQuery({ submitted: dependencies.submittedSearch.value, extras, global: GlobalResultsStore.getState(), view }) : {};
-		return { name: 'search', params: { corpus: corpus.id, results: results ?? '' }, query, hash: route.hash };
-	}
+
 	const projection = createUrlProjection(router, {
 		context: route => {
 			const corpus = toValue(dependencies.corpus);
@@ -51,7 +46,12 @@ export function createSearchUrlBinding(
 				if (route === router.currentRoute.value) initialReadSettled.value = true;
 			}
 		},
-		write: location,
+		write: (route, corpus) => {
+			const results = ViewStore.getSelectedViewName();
+			const view = ViewStore.getSelectedViewSettings();
+			const query = view ? createSearchPageQuery({ submitted: dependencies.submittedSearch.value, extras, global: GlobalResultsStore.getState(), view }) : {};
+			return { name: 'search', params: { corpus: corpus.id, results: results ?? '' }, query, hash: route.hash };
+		},
 		leave: () => {
 			dependencies.submittedSearch.value = undefined;
 		},

@@ -19,24 +19,17 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 	const pending = new Set<string>();
 	const context = computed(() => options.context(router.currentRoute.value));
 
-	async function publish(location: RouteLocationRaw, source: Context, replace = false) {
-		if (stopped || context.value !== source) return;
+	async function publish(location: RouteLocationRaw, replace = false) {
 		const target = router.resolve(location);
 		const identity = Math.random().toString(36).slice(2);
 		pending.add(identity);
 		try {
-			const failure = await router.push({ ...target, replace, state: { blfProjection: identity } }).finally(() => pending.delete(identity));
-			if (
-				!failure &&
-				!replace &&
-				!stopped &&
-				context.value === source &&
-				router.currentRoute.value.fullPath === target.fullPath &&
-				router.resolve(options.write(router.currentRoute.value, source)).fullPath === target.fullPath
-			)
-				options.published?.(target, source);
+			const failure = await router.push({ ...target, replace, state: { blfProjection: identity } });
+			if (!failure && router.currentRoute.value.fullPath === target.fullPath) return target;
 		} catch (error) {
 			console.error('Failed to publish page URL', error);
+		} finally {
+			pending.delete(identity);
 		}
 	}
 
@@ -44,13 +37,17 @@ export function createUrlProjection<Context>(router: Router, options: UrlProject
 		stopState?.();
 		const restored = options.read(route, source);
 		// Subscribe after hydration to preserve an incoming URL until the user changes state.
+		const path = computed(() => router.resolve(options.write(router.currentRoute.value, source)).fullPath);
 		stopState = watch(
-			() => router.resolve(options.write(router.currentRoute.value, source)).fullPath,
-			location => void publish(location, source),
+			path,
+			async location => {
+				const target = await publish(location);
+				if (target && !stopped && context.value === source && path.value === location) options.published?.(target, source);
+			},
 			{ flush: 'post' },
 		);
 		const normalized = options.normalize?.(route, source);
-		if (normalized) void publish(normalized, source, true);
+		if (normalized) void publish(normalized, true);
 		return restored;
 	}
 

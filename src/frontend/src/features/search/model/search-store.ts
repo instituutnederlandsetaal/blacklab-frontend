@@ -29,12 +29,10 @@ export function createSearchStore(submittedSearch: SubmittedSearchState) {
 					view.actions.collocationScorer(params.scorertype);
 					view.actions.sort(params.sort ?? 'score');
 				} else {
-					if (Object.hasOwn(params, 'group')) {
-						const previousSort = view.getState().sort;
-						view.actions.groupBy(params.group ? params.group.split(',') : []);
-						if (!Object.hasOwn(params, 'sort')) view.actions.sort(previousSort);
-					}
-					if (Object.hasOwn(params, 'sort')) view.actions.sort(params.sort ?? null);
+					// Changing groups clears the view's sort. A form can override either setting independently.
+					const sort = Object.hasOwn(params, 'sort') ? (params.sort ?? null) : view.getState().sort;
+					if (Object.hasOwn(params, 'group')) view.actions.groupBy(params.group ? params.group.split(',') : []);
+					view.actions.sort(sort);
 				}
 				if (resultPreset !== undefined) view.actions.groupDisplayMode(resultPreset);
 				submittedSearch.value = submittedSearchFromResult(snapshot);

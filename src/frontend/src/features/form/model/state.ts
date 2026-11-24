@@ -1,4 +1,4 @@
-import { ref, toRaw } from 'vue';
+import { reactive, toRaw, toRefs } from 'vue';
 
 import { isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import type { FormNode } from '@/features/form/model/types';
@@ -26,29 +26,15 @@ export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes
 }
 
 export default function createFormState(initialState?: NewFormState) {
-	const state = ref<Record<string, unknown>>(structuredClone(toRaw(initialState?.state ?? {})));
-	const uiState = ref<Record<string, string | null>>(structuredClone(toRaw(initialState?.uiState ?? {})));
-	const rawOverrides = ref<FormOverrides>(structuredClone(toRaw(initialState?.rawOverrides ?? {})));
-
-	function replaceState(newState: NewFormState): void {
-		state.value = structuredClone(toRaw(newState.state));
-		uiState.value = structuredClone(toRaw(newState.uiState));
-		rawOverrides.value = structuredClone(toRaw(newState.rawOverrides));
+	const draft = reactive<NewFormState>({ state: {}, uiState: {}, rawOverrides: {} });
+	/** Copy the editable fields so draft edits cannot mutate the submitted snapshot. */
+	function replaceState({ state, uiState, rawOverrides }: NewFormState) {
+		Object.assign(draft, structuredClone({ state: toRaw(state), uiState: toRaw(uiState), rawOverrides: toRaw(rawOverrides) }));
 	}
-
-	function getReactiveState(): NewFormState {
-		return {
-			state: state.value,
-			uiState: uiState.value,
-			rawOverrides: rawOverrides.value,
-		};
-	}
-
+	if (initialState) replaceState(initialState);
 	return {
+		...toRefs(draft),
 		replaceState,
-		getReactiveState,
-		state,
-		uiState,
-		rawOverrides,
+		getReactiveState: () => ({ ...draft }),
 	};
 }

@@ -1,4 +1,4 @@
-import { readonly, ref, toValue, watch, type App, type MaybeRefOrGetter, type Ref } from 'vue';
+import { computed, shallowRef, toValue, watch, type App, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import type { FormRuntime } from '@/features/form';
 import type { SubmittedFormRestoration, SubmittedSearchState } from '@/features/search/model/submitted-search';
@@ -18,58 +18,46 @@ export function createSearchFormRestoration(dependencies: {
 	beforeStateLoaded: () => Promise<unknown>;
 }) {
 	let stopped = false;
-	let restoration: object | undefined;
-	const loading = ref(false);
-	// The hook may rebuild the runtime, so every restoration of this corpus waits for the same run.
-	const beforeStateLoaded = new WeakMap<Corpus, Promise<unknown>>();
-	function runBeforeStateLoaded(corpus: Corpus) {
-		let pending = beforeStateLoaded.get(corpus);
-		if (!pending) {
-			pending = Promise.resolve().then(dependencies.beforeStateLoaded);
-			beforeStateLoaded.set(corpus, pending);
-		}
-		return pending;
-	}
-	async function restore() {
+	const target = computed(() => {
 		const corpus = toValue(dependencies.corpus);
-		const submitted = dependencies.submitted.value;
-		if (!corpus || !submitted || stopped) {
-			restoration = undefined;
-			loading.value = false;
-			return;
-		}
-		const operation = {};
-		restoration = operation;
-		loading.value = true;
-		const runtime = dependencies.runtime.value;
-		// A newer URL or rebuilt runtime may supersede this restoration while the hook runs.
-		const current = () => !stopped && restoration === operation && toValue(dependencies.corpus) === corpus && dependencies.submitted.value === submitted && dependencies.runtime.value === runtime;
+		return corpus && dependencies.submitted.value ? { corpus, runtime: dependencies.runtime.value } : null;
+	});
+	const pending = shallowRef<typeof target.value>(null);
+	const loading = computed(() => pending.value !== null);
+	// The hook may rebuild the runtime, so all restores for this corpus share its promise.
+	const hooks = new WeakMap<Corpus, Promise<unknown>>();
+	async function restore() {
+		if (stopped) return;
+		const snapshot = target.value;
+		pending.value = snapshot;
+		if (!snapshot) return;
+		const { corpus, runtime } = snapshot;
+		if (!hooks.has(corpus)) hooks.set(corpus, Promise.resolve().then(dependencies.beforeStateLoaded));
 		try {
-			await runBeforeStateLoaded(corpus);
-			if (!current()) return;
+			await hooks.get(corpus);
+			if (target.value !== snapshot || pending.value !== snapshot) return;
 			const form = dependencies.restoredForm.value;
 			if (form) runtime?.state.replaceState(form.state);
 			if (form?.state.issues.length) debugLog('form', 'Search form restoration issues', form.state.issues);
 		} catch (error) {
-			if (current()) console.error('Failed to restore search form', error);
+			if (target.value === snapshot && pending.value === snapshot) console.error('Failed to restore search form', error);
 		} finally {
-			if (restoration === operation) loading.value = false;
+			if (pending.value === snapshot) pending.value = null;
 		}
 	}
 	// Customization registration rebuilds the runtime, so restore the submitted query into each replacement.
 	const stopRuntime = watch(dependencies.runtime, () => void restore());
 	function stop() {
 		stopped = true;
-		restoration = undefined;
-		loading.value = false;
+		pending.value = null;
 		stopRuntime();
 	}
 	return {
 		restore,
 		stop,
-		loading: readonly(loading),
+		loading,
 		install(app: App) {
-			provideSearchFormRestoring(app, readonly(loading));
+			provideSearchFormRestoring(app, loading);
 			app.onUnmount(stop);
 		},
 	};
