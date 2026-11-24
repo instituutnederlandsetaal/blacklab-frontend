@@ -24,11 +24,8 @@ export const createFrontendApi = (settings: EndpointSettings): FrontendApi => {
 		getConfig: (indexId: string | null, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<CFPageConfig>(frontendPaths.config(indexId), undefined, requestParameters),
 
 		/** Get transformed document contents */
-		getDocumentContents: ({ indexId, docId, viewField, ...params }: DocumentContentsParameters, requestParameters?: AxiosRequestConfig) => {
-			// The servlet uses `field` for displayed contents; `searchfield` selects a different field for highlighting.
-			if (!params.patt || params.searchfield === viewField) delete params.searchfield;
-			return endpoint.getCancelable<string>(frontendPaths.documentContent(indexId, docId), { ...params, ...(viewField ? { field: viewField } : {}) }, requestParameters);
-		},
+		getDocumentContents: ({ indexId, docId, ...params }: DocumentContentsParameters, requestParameters?: AxiosRequestConfig) =>
+			endpoint.getCancelable<string>(frontendPaths.documentContent(indexId, docId), params, requestParameters),
 
 		/** Get transformed document metadata */
 		getDocumentMetadata: (indexId: string, pid: string, requestParameters?: AxiosRequestConfig) =>

@@ -110,14 +110,8 @@ const modal = ref(''),
 	formatId = ref<string | null>(null);
 const corpusPolls = new Map<string, CorpusPoll>();
 
-const corporaRefresh = useRequestResource<void, NormalizedIndexBase[]>({
-	mode: 'manual',
-	request: () => blacklab.getCorpora(),
-});
-const formatsRefresh = useRequestResource<void, NormalizedFormat[]>({
-	mode: 'manual',
-	request: () => blacklab.getFormats(),
-});
+const corporaRefresh = useRequestResource(() => blacklab.getCorpora());
+const formatsRefresh = useRequestResource(() => blacklab.getFormats());
 const loadingCorpora = computed(() => loadingServerInfo.value || loadingCorpusMutation.value || corporaRefresh.state.value.loading);
 const loadingFormats = computed(() => loadingServerInfo.value || loadingFormatMutation.value || formatsRefresh.state.value.loading);
 
@@ -273,14 +267,14 @@ watch(
 	{ immediate: true },
 );
 
-watch(corporaRefresh.state, state => {
-	if (!state.loading && state.settled.isLoaded()) corpora.value = state.settled.value.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	else if (!state.loading && state.settled.isError()) errorMessage.value = state.settled.error.message;
+watch(corporaRefresh.current, state => {
+	if (state.isLoaded()) corpora.value = state.value.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (state.isError()) errorMessage.value = state.error.message;
 });
 
-watch(formatsRefresh.state, state => {
-	if (!state.loading && state.settled.isLoaded()) formats.value = state.settled.value.sort((a, b) => a.displayName.localeCompare(b.displayName));
-	else if (!state.loading && state.settled.isError()) errorMessage.value = state.settled.error.message;
+watch(formatsRefresh.current, state => {
+	if (state.isLoaded()) formats.value = state.value.sort((a, b) => a.displayName.localeCompare(b.displayName));
+	else if (state.isError()) errorMessage.value = state.error.message;
 });
 
 onUnmounted(() => [...corpusPolls.keys()].forEach(stopCorpusPoll));

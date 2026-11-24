@@ -5,7 +5,7 @@
 			{{ $t('remoteIndex.loadingCorpora') }}
 		</template>
 		<div v-else-if="corpora.isError()">
-			{{ corpora.error.message }} <button type="button" @click="corpora.retry()">{{ $t('remoteIndex.retry') }}</button>
+			{{ corpora.error.message }} <button type="button" @click="request.retry()">{{ $t('remoteIndex.retry') }}</button>
 		</div>
 		<template v-else-if="corpora.isLoaded()">
 			<div v-for="c in corpora.value" :key="c.id">
@@ -20,10 +20,12 @@
 import { useLayout } from '@/app/shell/layout';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
-import { loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 
 const { containerClass } = useLayout();
 
 const api = useBlackLabApi();
-const corpora = loadableFromRequest(() => api.getCorpora());
+const request = useRequestResource(() => api.getCorpora());
+request.run();
+const corpora = request.current;
 </script>

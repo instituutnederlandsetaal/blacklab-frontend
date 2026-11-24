@@ -13,7 +13,7 @@ BlackLab Frontend has a Java backend and a Vue application. The backend serves t
 | `/:corpus/search/:results?` | `pages/search/entrypoint.ts` | Search forms, stores, results, history and URL synchronization |
 | `/:corpus/docs/:docId` | `pages/article/entrypoint.ts` | Article state, document display and URL synchronization |
 | `/configwizard`, `/:corpus/configwizard/*` | `pages/config/entrypoint.ts` | Corpus picker and configuration wizard |
-| `/about`, `/help`, `/:corpus/about`, `/:corpus/help` | `pages/info/entrypoint.ts` | Static page content |
+| `/about`, `/help`, `/:corpus/about`, `/:corpus/help` | `pages/info/InfoPage.vue` | Static page content |
 | `/callback` | `app/entrypoint/callback.ts` | OIDC authentication callback |
 
 The search and article entries export both their page component and their feature plugin. This gives each feature a single dynamic import boundary. The composition root passes dependencies into each plugin.
@@ -45,7 +45,7 @@ Paths below are relative to `src/frontend/src/`.
 - Name TypeScript files in kebab-case and Vue components in PascalCase. Use a domain noun for an instance that owns behavior (`corpus-context.ts`, `form-runtime.ts`), and `*-state.ts` for state owned by an instance. A module-level legacy singleton uses `*-store.ts`.
 - A `create*` function or class constructor builds an instance from explicit dependencies. A `provide*` function publishes a value and its matching `use*` function retrieves it in Vue. Use `*-injection.ts` when this contract has its own file. Small modules can keep the contract alongside the instance. For example, `form-runtime-injection.ts` exposes the runtime built elsewhere, while `article-page-state.ts` defines both the state factory and its accessors.
 - When construction and installation are separate, a service can expose both through its directory. For example, `shared/api/index.ts` constructs the two API clients, and `shared/api/plugin.ts` lets the application or a test provide its own clients.
-- A `use-*.ts` file implements a component composable, such as `pages/info/use-page-content.ts`. A `*-binding.ts` file connects existing owners, such as search state and the URL.
+- A `use-*.ts` file implements a component composable. A `*-binding.ts` file connects existing owners, such as search state and the URL.
 
 ## Corpus configuration and custom scripts
 

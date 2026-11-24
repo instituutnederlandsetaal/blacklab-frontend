@@ -1,15 +1,5 @@
 import { type VNodeProps, type AllowedComponentProps, type ComponentCustomProps, type Component } from 'vue';
 
-type NonNullableObject<T> = {
-	[P in keyof T]: NonNullable<T[P]>;
-};
-
-export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> = T extends string | number | boolean
-	? T
-	: T extends undefined | null
-		? never
-		: Omit<T, K> & Required<Pick<NonNullableObject<T>, K>>;
-
 /** Keep only those properties assignable to T  */
 type FilterProps<TObj, T> = {
 	[K in keyof TObj as TObj[K] extends T ? K : never]: TObj[K];

@@ -1,14 +1,13 @@
-import { computed, hasInjectionContext, toValue, watch, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
+import { computed, hasInjectionContext, shallowRef, toValue, watch, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import { normalizeTagset } from '@/features/corpus/normalize-tagset';
 import type { CFPageConfig, Corpus, NormalizedAnnotatedFieldParallel, NormalizedIndex, Tagset } from '@/types/apptypes';
 
-import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/lib/api-types';
-import { resolvedRequest } from '@/shared/api/lib/api-utils';
+import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import { mapReduce } from '@/shared/utils/array-utils';
-import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
-import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
-import { tapLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
+import type { Loadable } from '@/shared/utils/loadable/loadable-core';
+import { loadableReactiveFromSnapshot, type RetryableLoadable } from '@/shared/utils/loadable/loadable-reactive';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 import createAppInjection from '@/shared/vue/injection';
 
 type CorpusContext = {
@@ -32,7 +31,7 @@ const defaultConfig = {
 	pageSize: null,
 };
 
-const [_corpusLoadableKey, provideCorpusContextLoader, _useCorpusContextLoader] = createAppInjection<LoadableFromRequest<CorpusContext>>('corpus_context_loader');
+const [_corpusLoadableKey, provideCorpusContextLoader, _useCorpusContextLoader] = createAppInjection<RetryableLoadable<CorpusContext>>('corpus_context_loader');
 const [_cfPageConfigKey, provideCfPageConfig, _useCfPageConfig] = createAppInjection<Ref<CFPageConfig>>('cf_page_config');
 const [_corpusKey, provideCorpus, _useCorpus] = createAppInjection<Ref<Corpus>>('corpus');
 
@@ -106,38 +105,34 @@ function createCorpusValue(index: NormalizedIndex): Corpus {
 function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>) {
 	const onBeforePublishCallbacks: Array<(context: CorpusContext) => void> = [];
 
-	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> =>
-		frontend.getConfig(id ?? null, {
-			// The backend supplies ETags. Revalidate on each application load so a
-			// changed search.xml is not hidden by max-age/stale-while-revalidate.
-			headers: { 'Cache-Control': 'no-cache' },
-		});
-
-	// These loadables retain their identity for the lifetime of the context. A corpus
-	// id change replaces only their request, so downstream combiners never have to
-	// subscribe to computed factories that create and discard reactive loadables.
-	const corpusLoadable = loadableFromRequest(() => {
-		const id = toValue(corpusId);
-		return (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined)).then(index => (index ? createCorpusValue(index) : undefined));
-	});
-	const configLoadable = loadableFromRequest(() => getConfig(toValue(corpusId)));
-	const tagsetLoadable = loadableFromRequest(() => {
-		const id = toValue(corpusId);
-		return id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined);
-	});
-	watch(
-		() => toValue(corpusId),
-		() => [corpusLoadable, configLoadable, tagsetLoadable].forEach(loadable => loadable.retry()),
-	);
-	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable });
-	const publishedContext = tapLoadedReactive(loadedContext, context => {
-		if (context.index) {
-			const annotations = context.index.annotatedFields[context.index.mainAnnotatedField].annotations;
+	// The global configuration is a real request, including when the route has no corpus.
+	const resource = useRequestResource(
+		async ({ id }, run): Promise<CorpusContext> => {
+			const [index, config, tagset] = await Promise.all([
+				id ? run.wait(blacklab.getCorpus(id)) : undefined,
+				run.wait(frontend.getConfig(id, { headers: { 'Cache-Control': 'no-cache' } })),
+				id ? run.wait(frontend.getTagset(id)) : undefined,
+			]);
+			run.signal.throwIfAborted();
+			const corpus = index && createCorpusValue(index);
+			if (!corpus) return { index: corpus, config, tagset };
+			const annotations = corpus.annotatedFields[corpus.mainAnnotatedField].annotations;
 			const mainAnnotation = Object.values(annotations).find(annotation => annotation.uiType === 'pos');
-			if (mainAnnotation) context.tagset = normalizeTagset(mainAnnotation, annotations, context.tagset);
-		}
-		onBeforePublishCallbacks.forEach(callback => callback(context));
-	});
+			return { index: corpus, config, tagset: mainAnnotation ? normalizeTagset(mainAnnotation, annotations, tagset) : tagset };
+		},
+		{ source: () => ({ id: toValue(corpusId) ?? null }), key: input => input.id },
+	);
+	const published = shallowRef<Loadable<CorpusContext>>(resource.current.value);
+	watch(
+		resource.current,
+		next => {
+			// Legacy stores must see this corpus before synchronous consumers can read it.
+			if (next.isLoaded()) onBeforePublishCallbacks.forEach(callback => callback(next.value));
+			if (resource.current.value === next) published.value = next;
+		},
+		{ flush: 'sync' },
+	);
+	const publishedContext = loadableReactiveFromSnapshot(published, resource.retry);
 
 	// pretend the value is always there (except for tagset, since that's actually optional)
 	// This isn't technically correct, but usage of the use* functions should be gated

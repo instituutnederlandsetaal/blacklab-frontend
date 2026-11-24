@@ -1,6 +1,5 @@
-import { of } from 'rxjs';
-import { switchMap } from 'rxjs/internal/operators/switchMap';
-import type { ObservableInput } from 'rxjs/internal/types';
+import { useDebounceFn } from '@vueuse/core';
+import { computed, shallowRef } from 'vue';
 
 import type { NormalizedIndex } from '@/types/apptypes';
 
@@ -8,7 +7,7 @@ import { getCorpusTotals, getTotals } from './result-count-helpers';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
-import { createInteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 
 export type SubcorpusInput = {
 	index: NormalizedIndex;
@@ -35,17 +34,28 @@ function getFilteredSubcorpus(api: BlackLabApi, input: SubcorpusInput & { filter
 		}));
 }
 
-/**
- * Given the active filters, retrieve the total amount of matched docs/tokens.
- * Can be passed a new set of filters at any time, and after debouncing, will retrieve and emit the updated count.
- */
-export function createFilteredResultCountLoader(debounceMs = 1000) {
-	return createInteractiveLoadable(
-		switchMap<SubcorpusInput & { blacklab: BlackLabApi }, ObservableInput<Loadable<SubcorpusOutput>>>(input => {
-			if (!input.filter) return of(Loadable.Loaded(getCorpusTotals(input.index, input.annotatedFieldId)));
-
-			return getFilteredSubcorpus(input.blacklab, { ...input, filter: input.filter }).toObservable();
-		}),
-		input => (input.filter ? debounceMs : 0),
-	);
+/** Whole-corpus totals are available immediately; wait for filter edits to settle before querying BlackLab. */
+export function createFilteredResultCountLoader(api: BlackLabApi) {
+	const unfiltered = shallowRef<SubcorpusOutput>();
+	const filtered = useRequestResource((input: SubcorpusInput & { filter: string }) => getFilteredSubcorpus(api, input));
+	const debounced = useDebounceFn((input: SubcorpusInput & { filter: string }) => {
+		filtered.run(input);
+		unfiltered.value = undefined;
+	}, 1000);
+	/** Cancel both a scheduled count and any request that has already started. */
+	function dispose() {
+		debounced.cancel();
+		filtered.reset();
+	}
+	return {
+		current: computed(() => (unfiltered.value ? Loadable.Loaded(unfiltered.value) : filtered.current.value)),
+		update(input: SubcorpusInput) {
+			if (input.filter) void debounced({ ...input, filter: input.filter });
+			else {
+				dispose();
+				unfiltered.value = getCorpusTotals(input.index, input.annotatedFieldId);
+			}
+		},
+		dispose,
+	};
 }

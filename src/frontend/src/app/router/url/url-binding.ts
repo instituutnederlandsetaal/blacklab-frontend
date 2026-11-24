@@ -5,7 +5,7 @@ type UrlBindingOptions<Context> = {
 	/** Return a stable context while this page is ready, or null when it is inactive. */
 	context: (route: RouteLocationNormalizedLoaded) => Context | null;
 	/** Apply every value used by write() before the first await. The draft may finish restoring asynchronously. */
-	read: (route: RouteLocationNormalizedLoaded, replaceUrl: (location: RouteLocationRaw) => void) => void;
+	read: (route: RouteLocationNormalizedLoaded, replaceUrl: (location: RouteLocationRaw) => void, context: Context) => void;
 	write: (route: RouteLocationNormalizedLoaded, context: Context) => RouteLocationRaw;
 	leave?: () => void;
 	published?: (route: RouteLocationResolved) => void;
@@ -35,7 +35,7 @@ export function createUrlBinding<Context>(router: Router, options: UrlBindingOpt
 
 	function restore(route: RouteLocationNormalizedLoaded, source: Context) {
 		stopState?.();
-		options.read(route, location => void publish(location, true));
+		options.read(route, location => void publish(location, true), source);
 		// Subscribe after hydration to preserve an incoming URL until the user changes state.
 		const path = computed(() => router.resolve(options.write(router.currentRoute.value, source)).fullPath);
 		stopState = watch(

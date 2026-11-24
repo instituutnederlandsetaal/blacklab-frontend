@@ -196,7 +196,7 @@ import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByO
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
-import type { BLHitGroupResults, BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
+import type { BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -305,25 +305,22 @@ const firstHitPreviewQuery = computed<BLSearchParameters | undefined>(() => {
 	params.waitfortotal = false;
 	return params;
 });
-const firstHitPreviewQueryHash = computed(() => (active.value ? stableStringify(firstHitPreviewQuery.value) : ''));
 const firstHitPreviewInput = computed(() => {
 	const query = firstHitPreviewQuery.value;
 	return active.value && type === 'hits' && query ? { indexId: corpus.value.id!, query } : null;
 });
-const firstHitPreview = useRequestResource<{ indexId: string; query: BLSearchParameters }, BLHitResults | BLHitGroupResults>({
-	mode: 'reactive',
-	source: firstHitPreviewInput,
-	key: () => firstHitPreviewQueryHash.value,
-	async request({ indexId, query }, run) {
+const firstHitPreview = useRequestResource(
+	async ({ indexId, query }, run) => {
 		const response = await run.wait(blacklab.getHits(indexId, query));
-		run.throwIfAborted();
+		run.signal.throwIfAborted();
 		if (isHitResults(response)) mergeMatchInfos(response);
 		return response;
 	},
-});
+	{ source: firstHitPreviewInput, key: stableStringify },
+);
 const hits = computed(() => {
-	const { loading, settled } = firstHitPreview.state.value;
-	return !loading && settled.isLoaded() && isHitResults(settled.value) ? settled.value : undefined;
+	const response = firstHitPreview.current.value.value;
+	return isHitResults(response) ? response : undefined;
 });
 const contextsize = computed(() => {
 	const params = activeSearchParameters.value;

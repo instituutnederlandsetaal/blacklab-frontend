@@ -17,6 +17,8 @@ declare module 'vue-router' {
 	interface RouteMeta extends PageMeta {}
 }
 
+const infoPage = () => import('@/pages/info/InfoPage.vue');
+
 function createBlfRouter(pageBootstrap: PageBootstrap) {
 	const router = createRouter({
 		history: createWebHistory(CONTEXT_URL),
@@ -31,13 +33,15 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 				name: 'global-help',
 				path: '/help',
 				meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help', customScriptTiming: 'after-page-bootstrap' },
-				component: () => import('@/pages/info/entrypoint').then(pages => pages.HelpPage),
+				component: infoPage,
+				props: { endpoint: 'getHelp' },
 			},
 			{
 				name: 'global-about',
 				path: '/about',
 				meta: { name: 'about', getTitle: () => 'About', customScriptTiming: 'after-page-bootstrap' },
-				component: () => import('@/pages/info/entrypoint').then(pages => pages.AboutPage),
+				component: infoPage,
+				props: { endpoint: 'getAbout' },
 			},
 			{
 				path: '/configwizard',
@@ -73,13 +77,15 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 						name: 'about',
 						path: 'about',
 						meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}`, customScriptTiming: 'after-page-bootstrap' },
-						component: () => import('@/pages/info/entrypoint').then(pages => pages.AboutPage),
+						component: infoPage,
+						props: route => ({ endpoint: 'getAbout', corpusId: route.params.corpus }),
 					},
 					{
 						name: 'help',
 						path: 'help',
 						meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help`, customScriptTiming: 'after-page-bootstrap' },
-						component: () => import('@/pages/info/entrypoint').then(pages => pages.HelpPage),
+						component: infoPage,
+						props: route => ({ endpoint: 'getHelp', corpusId: route.params.corpus }),
 					},
 
 					{

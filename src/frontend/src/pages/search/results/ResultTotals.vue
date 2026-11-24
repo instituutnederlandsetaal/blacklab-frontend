@@ -1,7 +1,7 @@
 <template>
 	<div class="totals">
 		<div class="totals-content">
-			<Spinner v-if="(isCounting || !totals.isLoaded()) && !error" size="25" style="margin-right: 0.25em" />
+			<Spinner v-if="(isCounting || !value) && !error" size="25" style="margin-right: 0.25em" />
 
 			<div class="totals-text" :title="isCollocations ? undefined : percentOfSearchSpaceClarification">
 				<div class="totals-type">
@@ -58,12 +58,10 @@
 import { computed, onUnmounted, watch } from 'vue';
 
 import { createIterativeResultCountLoader } from '@/pages/search/model/result-count/result-count-from-query';
-import type { TotalsOutput } from '@/pages/search/model/result-count/result-count-helpers';
 import type { ExecutedSearchRequest } from '@/pages/search/model/results/result-types';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
-import type { ApiError } from '@/shared/api/lib/api-types';
 import { useI18n } from '@/shared/i18n';
 import { frac2Percent } from '@/shared/utils/number-utils';
 
@@ -81,20 +79,16 @@ const emit = defineEmits<{
 
 const blacklab = useBlackLabApi();
 const { $t } = useI18n();
-const totals = computed(() =>
-	createIterativeResultCountLoader(
-		{
-			annotatedFieldId: props.annotatedFieldId,
-			indexId: props.indexId,
-			request: props.executedRequest,
-			results: props.initialResults,
-		},
-		blacklab,
-	),
-);
-
-const value = computed<TotalsOutput | undefined>(() => (totals.value.isLoaded() ? totals.value.value : undefined));
-const error = computed<ApiError | undefined>(() => (totals.value.isError() ? totals.value.error : undefined));
+const input = computed(() => ({
+	annotatedFieldId: props.annotatedFieldId,
+	indexId: props.indexId,
+	request: props.executedRequest,
+	results: props.initialResults,
+}));
+const totals = createIterativeResultCountLoader(input.value, blacklab);
+watch(input, totals.next);
+const value = computed(() => totals.current.value.value);
+const error = computed(() => totals.current.value.error);
 const isCounting = computed(() => value.value?.state === 'counting');
 const isLimited = computed(() => value.value?.state === 'limited');
 const isPaused = computed(() => value.value?.state === 'paused');
@@ -126,12 +120,11 @@ const percentOfSearchSpaceClarification = computed(
 		`Matched ${numResults.value.toLocaleString()} ${resultType.value} in a total of ${isLimited.value ? ' more than' : ''} ${searchSpaceCount.value.toLocaleString()} ${searchSpaceType.value} in the searched subcorpus.`,
 );
 
-watch(totals, (_current, previous) => previous.dispose());
 watch(value, current => {
 	if (current && current.results !== props.initialResults) emit('update', current.results);
 });
 
-onUnmounted(() => totals.value.dispose());
+onUnmounted(totals.dispose);
 </script>
 
 <style lang="scss">

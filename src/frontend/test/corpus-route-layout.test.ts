@@ -21,7 +21,7 @@ function context(id?: string): CorpusContext {
 
 test('hides the corpus child while switching and lets the remounted child enable scripts', async () => {
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.Loaded(context('alpha')));
-	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry: vi.fn() }) });
+	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, vi.fn()) });
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 	const unmounted = vi.fn();
@@ -55,7 +55,7 @@ test('hides the corpus child while switching and lets the remounted child enable
 
 test('shows an explanation without enabling scripts when a loaded context has no corpus', async () => {
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.Loaded(context()));
-	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry: vi.fn() }) });
+	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, vi.fn()) });
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 	const wrapper = mount(CorpusRouteLayout, {
@@ -71,7 +71,7 @@ test('shows an explanation without enabling scripts when a loaded context has no
 
 test('shows a load error without enabling scripts', async () => {
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.LoadingError(ApiError.wrap(new Error('offline'))));
-	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry: vi.fn() }) });
+	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, vi.fn()) });
 	const pageBootstrap = createPageBootstrapContext();
 	pageBootstrap.changePage({ name: 'search', customScriptTiming: 'after-page-bootstrap' }, false);
 	const wrapper = mount(CorpusRouteLayout, {
@@ -86,7 +86,7 @@ test('shows a load error without enabling scripts', async () => {
 test('shows a missing corpus message without an exception stack', () => {
 	const error = new ApiError('CANNOT_OPEN_INDEX', "Could not open index 'test'. Please check the name.", 'Not Found', 404);
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.LoadingError(error));
-	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry: vi.fn() }) });
+	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, vi.fn()) });
 	const wrapper = mount(CorpusRouteLayout, {
 		global: { plugins: [corpusContext], stubs: { RouterLink: { template: '<a><slot /></a>' }, RouterView: true, Spinner: true } },
 	});
@@ -101,7 +101,7 @@ test('shows a missing corpus message without an exception stack', () => {
 test('explains an access failure without exposing the server error code', () => {
 	const error = new ApiError('NOT_AUTHORIZED', 'Request rejected by server', 'Forbidden', 403);
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.LoadingError(error));
-	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry: vi.fn() }) });
+	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, vi.fn()) });
 	const wrapper = mount(CorpusRouteLayout, {
 		global: { plugins: [corpusContext], stubs: { RouterView: true, Spinner: true } },
 	});
@@ -115,7 +115,7 @@ test('explains an access failure without exposing the server error code', () => 
 test('does not describe an unrelated 404 as a missing corpus', () => {
 	const error = new ApiError('NOT_FOUND', 'No resource at this path', 'Not Found', 404);
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.LoadingError(error));
-	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry: vi.fn() }) });
+	const corpusContext = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, vi.fn()) });
 	const wrapper = mount(CorpusRouteLayout, {
 		global: { plugins: [corpusContext], stubs: { RouterLink: { template: '<a><slot /></a>' }, RouterView: true, Spinner: true } },
 	});

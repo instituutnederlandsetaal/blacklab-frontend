@@ -1,13 +1,14 @@
-import { concatWith, defer, EMPTY, expand, filter, of, switchMap, takeUntil, tap, timer } from 'rxjs';
+import { useTimeoutFn } from '@vueuse/core';
+import { shallowReadonly, shallowRef, watch } from 'vue';
 
 import type { ExecutedSearchRequest } from '@/pages/search/model/results/result-types';
 import { type BLSearchResult } from '@/types/blacklabtypes';
 
 import { getTotals, type TotalsOutput } from './result-count-helpers';
 
-import type { BlackLabApi, CancelableRequest } from '@/shared/api/lib/api-types';
-import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable-core';
-import { createInteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import { Loaded, Loadable } from '@/shared/utils/loadable/loadable-core';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 
 export type TotalsInput = {
 	indexId: string;
@@ -31,45 +32,65 @@ export function createIterativeResultCountLoader(
 		timeoutMs: number | (() => number);
 	}> = {},
 ) {
-	const loader = createInteractiveLoadable(
-		switchMap(({ indexId, request, results }: TotalsInput) => {
-			// Override some settings from the original search, we're not interested in the results, but we need the totals.
-			const getResults = (): CancelableRequest<BLSearchResult> => {
-				const overrides = { number: 0, first: 0 } as const;
-				if (request.operation === 'collocations') return api.getCollocations(indexId, { ...request.params, ...overrides });
-				if (request.operation === 'docs') return api.getDocs(indexId, { ...request.params, ...overrides });
-				return api.getHits(indexId, { ...request.params, ...overrides });
-			};
-			let latest: Loadable<TotalsOutput> | undefined;
-			const recursiveTotal$ = of(Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
-				expand((cur: Loadable<TotalsOutput>) => {
-					// Expand is recursive: called for each input + each of its own outputs.
-					// As a consequence: check carefully for terminating clauses to prevent infinite recursion.
-					if (!cur.isLoaded() || cur.value.state !== 'counting') return EMPTY;
-					// wait a little while before fetching the next batch of results.
-					return timer(typeof intervalMs === 'function' ? intervalMs() : intervalMs).pipe(
-						switchMap(() =>
-							getResults()
-								.then(r => getTotals(r, initial.annotatedFieldId))
-								.toObservable(),
-						),
-					);
-				}),
-				filter(v => !v.isLoading()), // remove loading values. We always want a value or an error in the output.
-				tap(v => (latest = v)),
-				takeUntil(timer(typeof timeoutMs === 'function' ? timeoutMs() : timeoutMs)),
-			);
-
-			return recursiveTotal$.pipe(concatWith(defer(() => (latest?.isLoaded() && latest.value.state === 'counting' ? of(Loaded<TotalsOutput>({ ...latest.value, state: 'paused' })) : EMPTY))));
-		}),
-		0,
-	);
-	loader.next(initial);
-	return Object.assign(loader, {
-		/** Continue a paused count or retry a failed one. */
-		continueCounting: () => {
-			if (loader.isError()) loader.next(initial);
-			else if (loader.isLoaded() && loader.value.state === 'paused') loader.next({ ...initial, results: loader.value.results });
-		},
+	let input = initial;
+	const latest = shallowRef<Loadable<TotalsOutput>>(Loadable.Empty());
+	const request = useRequestResource<TotalsInput, TotalsOutput>(({ indexId, request, annotatedFieldId }) => {
+		const range = { first: 0, number: 0 };
+		let response;
+		if (request.operation === 'collocations') response = api.getCollocations(indexId, { ...request.params, ...range });
+		else if (request.operation === 'docs') response = api.getDocs(indexId, { ...request.params, ...range });
+		else response = api.getHits(indexId, { ...request.params, ...range });
+		return response.then(result => getTotals(result, annotatedFieldId));
 	});
+	const poll = useTimeoutFn(() => request.run(input), intervalMs, { immediate: false });
+	const deadline = useTimeoutFn(
+		() => {
+			stopCounting();
+			if (latest.value.isLoaded()) latest.value = Loaded({ ...latest.value.value, state: 'paused' });
+		},
+		timeoutMs,
+		{ immediate: false },
+	);
+
+	function stopCounting() {
+		poll.stop();
+		deadline.stop();
+		request.reset();
+	}
+	function start(results: BLSearchResult) {
+		stopCounting();
+		latest.value = Loaded(getTotals(results, input.annotatedFieldId));
+		if (latest.value.value?.state === 'counting') {
+			poll.start();
+			deadline.start();
+		}
+	}
+	const stop = watch(
+		request.current,
+		response => {
+			// An empty response during polling means the transport cancelled. Explicit resets stop the deadline first.
+			if (response.isLoading() || !deadline.isPending.value) return;
+			latest.value = response;
+			if (response.value?.state === 'counting') poll.start();
+			else deadline.stop();
+		},
+		{ flush: 'sync' },
+	);
+
+	start(initial.results);
+	return {
+		current: shallowReadonly(latest),
+		next(nextInput: TotalsInput) {
+			input = nextInput;
+			start(input.results);
+		},
+		continueCounting() {
+			if (latest.value.isError()) start(input.results);
+			else if (latest.value.isLoaded() && latest.value.value.state === 'paused') start(latest.value.value.results);
+		},
+		dispose() {
+			stop();
+			stopCounting();
+		},
+	};
 }

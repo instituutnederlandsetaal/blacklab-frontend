@@ -11,7 +11,7 @@ vi.mock('@/pages/config/POS.vue', () => ({ default: {} }));
 vi.mock('@/pages/config/Interface.vue', () => ({ default: {} }));
 vi.mock('@/pages/search/SearchPage.vue', () => ({ default: {} }));
 vi.mock('@/pages/article/ArticlePage.vue', () => ({ default: {} }));
-vi.mock('@/pages/info/AboutPage.vue', () => ({ default: {} }));
+vi.mock('@/pages/info/InfoPage.vue', () => ({ default: {} }));
 
 const cleanup: (() => void)[] = [];
 

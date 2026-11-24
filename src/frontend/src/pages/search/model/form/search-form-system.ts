@@ -62,28 +62,28 @@ import SummaryView from '@/features/form/views/SummaryView.vue';
 const EXPLORE_NGRAM_MAX_SIZE = 5;
 
 function createSearchFormTotals(corpus: Corpus, blacklab: BlackLabApi): SummaryTotalsController {
-	const loader = createFilteredResultCountLoader();
+	const loader = createFilteredResultCountLoader(blacklab);
 	const state = computed<SummaryTotalsState>(() => {
-		if (loader.isError()) return { status: 'error', message: loader.error?.message ?? 'Could not load result totals.' };
-		if (!loader.isLoaded()) return { status: 'loading' };
+		const count = loader.current.value;
+		if (count.isError()) return { status: 'error', message: count.error?.message ?? 'Could not load result totals.' };
+		if (!count.isLoaded()) return { status: 'loading' };
 
 		return {
 			status: 'loaded',
-			documents: loader.value.numberOfMatchingDocuments,
-			tokens: loader.value.tokensInMatchingDocuments,
-			totalDocuments: loader.value.totalDocsInIndex,
-			totalTokens: loader.value.totalTokensInIndex,
+			documents: count.value.numberOfMatchingDocuments,
+			tokens: count.value.tokensInMatchingDocuments,
+			totalDocuments: count.value.totalDocsInIndex,
+			totalTokens: count.value.totalTokensInIndex,
 		};
 	});
 
 	return {
 		state,
 		update: ({ filter, searchfield }) =>
-			loader.next({
+			loader.update({
 				index: corpus,
 				filter,
 				annotatedFieldId: searchfield || corpus.mainAnnotatedField,
-				blacklab,
 			}),
 		dispose: () => loader.dispose(),
 	};

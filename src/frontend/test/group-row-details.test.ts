@@ -138,6 +138,26 @@ describe('GroupRowDetails', () => {
 		expect(wrapper.text()).toContain('results.table.loading');
 	});
 
+	test('replacing an open group cancels the old page and ignores its late response', async () => {
+		const wrapper = shallowMount(GroupRowDetails, {
+			global: { plugins: [api, corpusContext] },
+			props: {
+				row: { id: 'old', size: 50 } as never,
+				info: renderingInfo(),
+				cols: { hitColumns: [], docColumns: [], groupColumns: [], groupModeOptions: [] },
+				type: 'hits',
+				open: true,
+			},
+		});
+		await wrapper.setProps({ row: { id: 'new', size: 1 } as never });
+		expect(requests[0].request.cancel).toHaveBeenCalledOnce();
+		expect(api.blacklabApi.getHits.mock.lastCall?.[1]).toMatchObject({ first: 0, number: 1, viewgroup: 'new' });
+		requests[1].resolve(hitResults(0, 1));
+		requests[0].resolve(hitResults());
+		await flush();
+		expect(wrapper.getComponent({ name: 'GenericTable' }).props('rows').rows).toHaveLength(1);
+	});
+
 	test('converts a collocation group to a hits request for inline context previews', async () => {
 		const wrapper = shallowMount(GroupRowDetails, {
 			global: { plugins: [api, corpusContext] },

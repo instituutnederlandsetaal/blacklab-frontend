@@ -89,10 +89,7 @@ const step = defineComponent({
 	},
 	setup() {
 		const blacklab = useBlackLabApi();
-		const workflow = useRequestResource<Workflow, void>({
-			mode: 'manual',
-			request: (execute, run) => execute(run),
-		});
+		const workflow = useRequestResource<Workflow, void>((execute, run) => execute(run));
 		return {
 			blacklab,
 			runWorkflow: workflow.run,
@@ -164,7 +161,7 @@ const step = defineComponent({
 			if (!this.v.main) {
 				// skip if already loaded
 				const mainPosValues = await run.wait(this.blacklab.getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100));
-				run.throwIfAborted();
+				run.signal.throwIfAborted();
 
 				const values = Object.keys(mainPosValues.termFreq).filter(v => !!v.trim());
 				this.v.main = mapReduce(values, () => ({
@@ -186,7 +183,7 @@ const step = defineComponent({
 					continue;
 				}
 				const r = await run.wait(this.blacklab.getTermFrequencies(this.modelValue.index.id, subAnnot.id, undefined, undefined, 100));
-				run.throwIfAborted();
+				run.signal.throwIfAborted();
 				const subValues = Object.keys(r.termFreq).filter(v => !!v.trim());
 
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
@@ -208,7 +205,7 @@ const step = defineComponent({
 		async generateCombinations(run: RequestRun) {
 			try {
 				await this.getValues(run);
-				run.throwIfAborted();
+				run.signal.throwIfAborted();
 
 				const allSubs = (Object.values(this.v.main!)[0] || { loading: false, subs: {} }).subs;
 				const numSubValues = Object.values(allSubs).flatMap(s => Object.keys(s)).length;
@@ -248,7 +245,7 @@ const step = defineComponent({
 										maxcount: 1,
 									}),
 								);
-								run.throwIfAborted();
+								run.signal.throwIfAborted();
 
 								state.occurances = getMatchingHits(r) ?? 0;
 							} finally {
@@ -272,7 +269,7 @@ const step = defineComponent({
 				}
 				this.currentStep = 'Finished!';
 			} catch (error) {
-				run.throwIfAborted();
+				run.signal.throwIfAborted();
 				console.error('Failed to generate tagset:', error);
 				this.currentStep = 'Failed to generate tagset.';
 				throw error;

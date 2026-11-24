@@ -55,9 +55,15 @@ describe('search form submission', () => {
 		await wrapper.get('form').trigger('submit');
 		expect(confirm).toHaveBeenCalledOnce();
 		expect(submitted.value).toBeUndefined();
+		runtime.state.rawOverrides.value.filter = 'author:Austen';
+		await nextTick();
 		confirm.mockReturnValue(true);
 		await wrapper.get('form').trigger('submit');
 		expect(submitted.value?.form['f.form']).toBe(searchFormIds.exploreForm('corpora'));
+		// Keep the last known size available while the new filter is being debounced.
+		confirm.mockClear();
+		await wrapper.get('form').trigger('submit');
+		expect(confirm).toHaveBeenCalledOnce();
 	});
 
 	test('counts the submitted filter and cancels the request when the form unmounts', async () => {

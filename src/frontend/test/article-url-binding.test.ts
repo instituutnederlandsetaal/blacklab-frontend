@@ -9,14 +9,15 @@ import type { Corpus } from '@/types/apptypes';
 
 const annotatedFields = { contents: { id: 'contents' }, translation: { id: 'translation' } };
 
-async function setup(query: Record<string, string | string[]> = {}) {
+const defaultCorpus = { id: 'test', allAnnotatedFieldsMap: annotatedFields, mainAnnotatedField: 'contents' } as unknown as Corpus;
+
+async function setup(query: Record<string, string | string[]> = {}, corpus = defaultCorpus) {
 	const router = createRouter({
 		history: createMemoryHistory(),
 		routes: [{ name: 'article', path: '/:corpus/docs/:docId', component: {} }],
 	});
 	await router.push({ name: 'article', params: { corpus: 'test', docId: 'doc-1' }, query });
-	const corpus = { id: 'test', allAnnotatedFieldsMap: annotatedFields, mainAnnotatedField: 'contents' } as unknown as Corpus;
-	const state = createArticlePageState(corpus);
+	const state = createArticlePageState();
 	const binding = createArticleUrlBinding(router, state, corpus);
 	await flushPromises();
 	return { router, state, stop: binding.stop };
@@ -27,7 +28,7 @@ describe('article URLs', () => {
 		const { router, state, stop } = await setup();
 		await router.push('/test/docs/doc%2F2?field=translation&searchfield=contents&patt=[]&pattgapdata=two+words&findhit=0&flag&ext=one&ext=two#text');
 		await flushPromises();
-		expect(state.parameters.value).toMatchObject({ docId: 'doc/2', viewField: 'translation', searchfield: 'contents', patt: '[]', pattgapdata: 'two words', findhit: 0 });
+		expect(state.query.value).toMatchObject({ docId: 'doc/2', field: 'translation', searchfield: 'contents', patt: '[]', pattgapdata: 'two words', findhit: 0 });
 		state.showPage(1, 10);
 		await flushPromises();
 		expect(router.currentRoute.value).toMatchObject({
@@ -40,7 +41,7 @@ describe('article URLs', () => {
 	test('removes redundant default fields on arrival and keeps them out of subsequent page URLs', async () => {
 		const { router, state, stop } = await setup({ field: 'contents', searchfield: 'contents', patt: '[]' });
 		expect(router.currentRoute.value.query).toEqual({ patt: '[]' });
-		expect(state.parameters.value).toMatchObject({ viewField: 'contents', searchfield: 'contents' });
+		expect(state.query.value).toMatchObject({ field: undefined, searchfield: undefined });
 		state.showPage(1, 10);
 		await flushPromises();
 		expect(router.currentRoute.value.query).toEqual({ patt: '[]', wordstart: '10', wordend: '20' });
@@ -48,51 +49,39 @@ describe('article URLs', () => {
 	});
 
 	test('resolves parallel version aliases and keeps distinct source and view fields', async () => {
-		const corpus = {
-			id: 'test',
-			isParallelCorpus: true,
-			mainAnnotatedField: 'contents__nl',
-			allAnnotatedFieldsMap: { contents__nl: { id: 'contents__nl' }, contents__en: { id: 'contents__en' } },
-		} as unknown as Corpus;
-		const state = createArticlePageState(corpus);
-		const router = createRouter({ history: createMemoryHistory(), routes: [{ name: 'article', path: '/:corpus/docs/:docId', component: {} }] });
-		await router.push('/test/docs/doc?field=en&searchfield=nl&patt=query');
-		const binding = createArticleUrlBinding(router, state, corpus);
-		await flushPromises();
-		expect(state.parameters.value).toMatchObject({ viewField: 'contents__en', searchfield: 'contents__nl' });
+		const fields = ['contents__nl', 'contents__en', 'contents__de', 'translation__de'];
+		const corpus = { ...defaultCorpus, mainAnnotatedField: 'contents__nl', allAnnotatedFieldsMap: Object.fromEntries(fields.map(id => [id, { ...defaultCorpus.allAnnotatedFieldsMap.contents, id }])) };
+		const { router, state, stop } = await setup({ field: 'en', searchfield: 'nl', patt: 'query' }, corpus);
+		expect(state.query.value).toMatchObject({ field: 'contents__en', searchfield: 'contents__nl' });
 		expect(router.currentRoute.value.query).toEqual({ field: 'contents__en', searchfield: 'contents__nl', patt: 'query' });
-		binding.stop();
-		const ambiguous = createArticlePageState({
-			...corpus,
-			allAnnotatedFieldsMap: { ...corpus.allAnnotatedFieldsMap, translation__en: { ...corpus.allAnnotatedFieldsMap.contents__en, id: 'translation__en' } },
-		});
-		ambiguous.restore({ ...state.query.value, viewField: 'en', searchfield: null });
-		expect(ambiguous.parameters.value.viewField).toBe('contents__nl');
-		ambiguous.restore({ ...state.query.value, viewField: 'translation__en', searchfield: null });
-		expect(ambiguous.parameters.value.viewField).toBe('translation__en');
+		await router.push({ query: { field: 'de' } });
+		await flushPromises();
+		expect(state.query.value.field).toBe('contents__de');
+		await router.push({ query: { field: 'translation__de' } });
+		expect(state.query.value.field).toBe('translation__de');
+		stop();
 	});
 	test.each([
 		['searchfield', { searchfield: 'translation' }],
 		['searchField', { searchField: 'translation' }],
-		['field', { field: 'translation' }],
 	] as const)('accepts the %s search-field alias', async (_name, query) => {
-		const { state, stop } = await setup(query);
-		expect(state.parameters.value.searchfield).toBe('translation');
+		const { state, stop } = await setup({ ...query, patt: '[]' });
+		expect(state.query.value.searchfield).toBe('translation');
 		stop();
 	});
 
 	test('accepts the legacy pattern alias and prefers the canonical pattern', async () => {
 		const { router, state, stop } = await setup({ query: 'legacy' });
-		expect(state.parameters.value.patt).toBe('legacy');
+		expect(state.query.value.patt).toBe('legacy');
 		await router.push({ query: { patt: 'canonical', query: 'legacy' } });
-		expect(state.parameters.value.patt).toBe('canonical');
+		expect(state.query.value.patt).toBe('canonical');
 		stop();
 	});
 
 	test('paging clears the selected hit and publishes the requested word range', async () => {
 		const { router, state, stop } = await setup({ field: 'contents', findhit: '12', patt: 'query', wordstart: '10' });
 		state.showPage(2, 10);
-		expect(state.parameters.value).toMatchObject({ wordstart: 20, wordend: 30, findhit: null });
+		expect(state.query.value).toMatchObject({ wordstart: 20, wordend: 30, findhit: null });
 		await flushPromises();
 		expect(router.currentRoute.value.query).toEqual({ patt: 'query', wordstart: '20', wordend: '30' });
 		stop();
@@ -102,7 +91,7 @@ describe('article URLs', () => {
 		const { router, state, stop } = await setup({ wordstart: '10', wordend: '20' });
 		state.showHit(27);
 		await flushPromises();
-		expect(state.parameters.value).toMatchObject({ findhit: 27, wordstart: null, wordend: null });
+		expect(state.query.value).toMatchObject({ findhit: 27, wordstart: null, wordend: null });
 		const back = new Promise<void>(resolve => {
 			const stop = router.afterEach(() => {
 				stop();
@@ -111,9 +100,9 @@ describe('article URLs', () => {
 		});
 		router.back();
 		await back;
-		expect(state.parameters.value).toMatchObject({ findhit: null, wordstart: 10, wordend: 20 });
+		expect(state.query.value).toMatchObject({ findhit: null, wordstart: 10, wordend: 20 });
 		await router.push('/test/docs/doc-2?findhit=4');
-		expect(state.parameters.value).toMatchObject({ docId: 'doc-2', findhit: 4, wordstart: null });
+		expect(state.query.value).toMatchObject({ docId: 'doc-2', findhit: 4, wordstart: null });
 		stop();
 	});
 
@@ -127,17 +116,17 @@ describe('article URLs', () => {
 			],
 		});
 		await router.push('/test/docs/doc-1?findhit=12');
-		const state = createArticlePageState(corpus);
+		const state = createArticlePageState();
 		const binding = createArticleUrlBinding(router, state, corpus);
-		expect(state.parameters.value.docId).toBeNull();
-		corpus.value = { id: 'test', allAnnotatedFieldsMap: annotatedFields, mainAnnotatedField: 'contents' } as unknown as Corpus;
+		expect(state.query.value.docId).toBeNull();
+		corpus.value = defaultCorpus;
 		await nextTick();
-		expect(state.parameters.value).toMatchObject({ docId: 'doc-1', findhit: 12 });
+		expect(state.query.value).toMatchObject({ docId: 'doc-1', findhit: 12 });
 		state.showPage(2, 10);
 		await flushPromises();
 		expect(router.currentRoute.value.query).toMatchObject({ wordstart: '20', wordend: '30' });
 		await router.push('/test/search');
-		expect(state.parameters.value.docId).toBeNull();
+		expect(state.query.value.docId).toBeNull();
 		state.showHit(42);
 		await flushPromises();
 		expect(router.currentRoute.value.fullPath).toBe('/test/search');

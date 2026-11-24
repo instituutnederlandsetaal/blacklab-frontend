@@ -9,18 +9,18 @@ import type { Corpus } from '@/types/apptypes';
 export function createArticleUrlBinding(router: Router, state: ArticleState, corpus: MaybeRefOrGetter<Corpus | undefined>) {
 	let extras: LocationQueryRaw = {};
 	function location(route: RouteLocationNormalizedLoaded) {
-		return { path: route.path, hash: route.hash, query: { ...extras, ...writeArticleQuery(state.parameters.value, toValue(corpus)?.mainAnnotatedField) } };
+		return { path: route.path, hash: route.hash, query: { ...extras, ...writeArticleQuery(state.query.value) } };
 	}
 	return createUrlBinding(router, {
 		context: route => {
 			const index = toValue(corpus);
 			return route.name === 'article' && index?.id === route.params.corpus ? index : null;
 		},
-		read: (route, replaceUrl) => {
-			const decoded = readArticleQuery(route.query);
+		read: (route, replaceUrl, index) => {
+			const decoded = readArticleQuery(route.query, index);
 			extras = decoded.extras;
 			const docId = route.params.docId;
-			state.restore({ docId: (Array.isArray(docId) ? docId[0] : docId) || null, ...decoded.parameters });
+			state.restore({ indexId: index.id, docId: (Array.isArray(docId) ? docId[0] : docId) || null, ...decoded.parameters });
 			const canonical = location(route);
 			if (router.resolve(canonical).fullPath !== route.fullPath) replaceUrl(canonical);
 		},

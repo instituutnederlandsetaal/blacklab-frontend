@@ -3,12 +3,10 @@
 import en from '@assets/locales/en-us.json';
 import { createMockApi } from '@test/mocks/api';
 import { createMockCorpusContext } from '@test/mocks/corpus';
-import { createMockCustomizations } from '@test/mocks/customizations';
 import { flushPromises, mount, shallowMount } from '@vue/test-utils';
 import type * as VueUse from '@vueuse/core';
-import { BehaviorSubject, Subject } from 'rxjs';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { defineComponent, nextTick, ref, type Ref } from 'vue';
+import { defineComponent, nextTick, ref, shallowRef, type Ref } from 'vue';
 
 import * as ArticleStore from '@/app/legacy-stores/article-configuration-store';
 import type { CFPageConfig, Corpus } from '@/types/apptypes';
@@ -19,12 +17,11 @@ import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import ArticlePage from '@/pages/article/ArticlePage.vue';
 
 const mock = vi.hoisted(() => ({
-	articleRoute: undefined as unknown,
 	cfPageConfig: undefined as unknown,
 	corpus: undefined as unknown,
 	createTooltips: vi.fn(() => vi.fn()),
 	markScriptsReady: vi.fn(),
-	streams: undefined as unknown,
+	statisticsEnabled: (): boolean => false,
 }));
 
 vi.mock('@vueuse/core', async importOriginal => ({
@@ -36,34 +33,26 @@ vi.mock('@vueuse/core', async importOriginal => ({
 vi.mock('@/pages/article/expandable-tooltips', () => ({ default: mock.createTooltips }));
 vi.mock('@/app/router/page-bootstrap', () => ({ usePageBootstrap: () => ({ markScriptsReady: mock.markScriptsReady }) }));
 vi.mock('@/pages/article/model/article-page-state', () => ({
-	useArticleState: () => ({ parameters: ref(mock.articleRoute), showPage: vi.fn(), showHit: vi.fn() }),
+	useArticlePageState: () => ({ query: ref({ indexId: 'test', docId: 'document' }), showPage: vi.fn(), showHit: vi.fn() }),
 }));
-vi.mock('@/pages/article/model/article-streams', () => ({ createArticleStreams: () => mock.streams }));
+vi.mock('@/pages/article/model/article-resources', () => ({
+	createArticleResources: (_blacklab: unknown, _frontend: unknown, _inputs: unknown, enabled: () => boolean) => {
+		mock.statisticsEnabled = enabled;
+		return resources;
+	},
+}));
 
-function createStreams() {
-	const empty = () => new BehaviorSubject(Loadable.Empty());
-	return {
-		contents$: empty(),
-		currentPageSnippet$: empty(),
-		hitToHighlight$: empty(),
-		hits$: empty(),
-		input$: new Subject(),
-		metadata$: empty(),
-		retrieveSnippetToggle$: new BehaviorSubject(false),
-		validPaginationParameters$: empty(),
-	};
+function createResources() {
+	const empty = () => shallowRef<Loadable<unknown>>(Loadable.Empty());
+	return { contents: empty(), statistics: empty(), hitToHighlight: empty(), hits: empty(), metadata: empty(), pagination: empty() };
 }
+let resources: ReturnType<typeof createResources>;
 
 const StatisticsProbe = defineComponent({
 	props: { isPaginated: Boolean },
 	template: '<div data-testid="statistics-probe" :data-paginated="String(isPaginated)" />',
 });
 
-const EmptyHtmlRenderer = defineComponent({
-	template: '<div><slot name="empty" /></div>',
-});
-
-let customizations: ReturnType<typeof createMockCustomizations>;
 let api: ReturnType<typeof createMockApi>;
 let corpusContext: ReturnType<typeof createMockCorpusContext>;
 
@@ -78,22 +67,18 @@ beforeEach(() => {
 	mock.corpus = {
 		id: 'test',
 		allAnnotatedFieldsMap: { contents: { id: 'contents' } },
-		allMetadataFieldsMap: {},
 		isParallelCorpus: false,
-		mainAnnotatedField: { id: 'contents' },
-		metadataGroups: [],
+		mainAnnotatedField: 'contents',
 	};
-	customizations = createMockCustomizations(() => mock.corpus as Corpus);
 	api = createMockApi();
 	corpusContext = createMockCorpusContext({ corpus: () => mock.corpus as Corpus, config: mock.cfPageConfig as Ref<Partial<CFPageConfig>> });
-	mock.articleRoute = { docId: 'document', viewField: 'contents' };
-	mock.streams = createStreams();
+	resources = createResources();
 });
 
 function mountArticle() {
 	return mount(ArticlePage, {
 		global: {
-			plugins: [api, corpusContext, customizations],
+			plugins: [api, corpusContext],
 			mocks: { $t: (key: string) => key },
 			stubs: { ArticlePageStatistics: StatisticsProbe, Collapsible: true, Debug: true, Pagination: true, Spinner: true },
 		},
@@ -111,7 +96,7 @@ describe('ArticlePage bootstrap settlement', () => {
 			expect(wrapper.get('.article .article-marker').text()).toBe('Ready');
 		});
 
-		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: marker }));
+		resources.contents.value = Loadable.Loaded({ html: marker });
 		await flushPromises();
 
 		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
@@ -120,10 +105,10 @@ describe('ArticlePage bootstrap settlement', () => {
 	test('does not run queued settlement after the article instance is unmounted', async () => {
 		const obsolete = mountArticle();
 		const marker = document.createElement('p');
-		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: marker }));
+		resources.contents.value = Loadable.Loaded({ html: marker });
 
 		obsolete.unmount();
-		mock.streams = createStreams();
+		resources = createResources();
 		const current = mountArticle();
 		await flushPromises();
 
@@ -137,7 +122,7 @@ describe('ArticlePage bootstrap settlement', () => {
 			expect(wrapper.get('#content .alert').text()).toContain('Could not load document contents. Request failed');
 		});
 
-		((mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>).next(Loadable.LoadingError(new ApiError('Error', 'Request failed', 'Error', 500)));
+		resources.contents.value = Loadable.LoadingError(new ApiError('Error', 'Request failed', 'Error', 500));
 		await flushPromises();
 
 		expect(mock.markScriptsReady).toHaveBeenCalledOnce();
@@ -148,7 +133,7 @@ describe('ArticlePage statistics tab', () => {
 	test('shows the localized not-configured state without retrieving statistics', async () => {
 		const wrapper = shallowMount(ArticlePage, {
 			global: {
-				plugins: [api, corpusContext, customizations],
+				plugins: [api, corpusContext],
 				mocks: {
 					$t: (key: string) => (key === 'article.statistics.notConfigured' ? en.article.statistics.notConfigured : key),
 				},
@@ -158,13 +143,13 @@ describe('ArticlePage statistics tab', () => {
 		await wrapper.get('#articleTabs a[href="#statistics"]').trigger('click');
 
 		expect(wrapper.get('#statistics').text()).toContain('No statistics have been configured for this corpus.');
-		expect((mock.streams as ReturnType<typeof createStreams>).retrieveSnippetToggle$.value).toBe(false);
+		expect(mock.statisticsEnabled()).toBe(false);
 
 		ArticleStore.actions.distributionAnnotation({ id: 'word', displayName: 'Words' });
 		await nextTick();
 
 		expect(wrapper.get('#statistics').text()).not.toContain('No statistics have been configured for this corpus.');
-		expect((mock.streams as ReturnType<typeof createStreams>).retrieveSnippetToggle$.value).toBe(true);
+		expect(mock.statisticsEnabled()).toBe(true);
 	});
 
 	test.each([
@@ -178,63 +163,25 @@ describe('ArticlePage statistics tab', () => {
 		ArticleStore.actions.distributionAnnotation({ id: 'word', displayName: 'Words' });
 		const wrapper = mountArticle();
 		await wrapper.get('#articleTabs a[href="#statistics"]').trigger('click');
-		((mock.streams as ReturnType<typeof createStreams>).currentPageSnippet$ as BehaviorSubject<unknown>).next(Loadable.Loaded({}));
-		((mock.streams as ReturnType<typeof createStreams>).metadata$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ html: document.createElement('div'), json: {} }));
-		((mock.streams as ReturnType<typeof createStreams>).validPaginationParameters$ as BehaviorSubject<unknown>).next(Loadable.Loaded({ pageSize: expected ? pageSize : null }));
+		resources.statistics.value = Loadable.Loaded({ snippet: {}, document: {} });
+		resources.pagination.value = Loadable.Loaded({ pageSize: expected ? pageSize : null });
 		await flushPromises();
 
 		expect(wrapper.get('[data-testid="statistics-probe"]').attributes('data-paginated')).toBe(String(expected));
 	});
 });
 
-test('updates the displayed metadata when customized field IDs change', async () => {
-	const detailedMetadataIds = ref(['title']);
-	customizations.resultDetailedMetadataIds.mockImplementation(() => detailedMetadataIds.value);
-	mock.corpus = {
-		...(mock.corpus as Record<string, unknown>),
-		allMetadataFieldsMap: { author: { id: 'author' }, title: { id: 'title' } },
-		metadataGroups: [{ entries: ['title', 'author'], id: 'main' }],
-	};
-	const wrapper = mount(ArticlePage, {
-		global: {
-			plugins: [api, corpusContext, customizations],
-			mocks: {
-				$t: (key: string) => key,
-				$tMetaDisplayName: (field: { id: string }) => field.id,
-				$tMetaGroupName: (group: { id: string }) => group.id,
-			},
-			stubs: { ArticlePageStatistics: true, Collapsible: true, Debug: true, HtmlRenderer: EmptyHtmlRenderer, Pagination: true, Spinner: true },
-		},
-	});
-	((mock.streams as ReturnType<typeof createStreams>).metadata$ as BehaviorSubject<unknown>).next(
-		Loadable.Loaded({
-			html: document.createElement('div'),
-			json: { docInfo: { mayView: true, metadata: { author: ['Author value'], title: ['Title value'] }, tokenCounts: [{ fieldName: 'contents', tokens: 269 }] } },
-		}),
-	);
-	await flushPromises();
-	expect(wrapper.get('#metadata').text()).toContain('Title value');
-	expect(wrapper.get('#metadata').text()).not.toContain('Author value');
-	expect(wrapper.get('#docLengthTokens').text()).toBe('269');
-
-	detailedMetadataIds.value = ['author'];
-	await nextTick();
-	expect(wrapper.get('#metadata').text()).not.toContain('Title value');
-	expect(wrapper.get('#metadata').text()).toContain('Author value');
-});
-
 test('replaces and disposes tooltip contexts with article contents', async () => {
 	const firstCleanup = vi.fn();
 	const secondCleanup = vi.fn();
 	mock.createTooltips.mockReturnValueOnce(firstCleanup).mockReturnValueOnce(firstCleanup).mockReturnValueOnce(secondCleanup).mockReturnValueOnce(secondCleanup);
-	const wrapper = shallowMount(ArticlePage, { global: { plugins: [api, corpusContext, customizations] } });
-	const contents$ = (mock.streams as ReturnType<typeof createStreams>).contents$ as BehaviorSubject<unknown>;
+	const wrapper = shallowMount(ArticlePage, { global: { plugins: [api, corpusContext] } });
 
-	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));
+	resources.contents.value = Loadable.Loaded({ html: document.createElement('div') });
 	await nextTick();
 	expect(mock.createTooltips).toHaveBeenCalledWith(expect.objectContaining({ mode: 'title' }), firstCleanup);
 
-	contents$.next(Loadable.Loaded({ html: document.createElement('div') }));
+	resources.contents.value = Loadable.Loaded({ html: document.createElement('div') });
 	await nextTick();
 	expect(firstCleanup).toHaveBeenCalledOnce();
 	expect(mock.createTooltips).toHaveBeenCalledWith(expect.objectContaining({ mode: 'title' }), secondCleanup);

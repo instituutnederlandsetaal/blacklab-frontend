@@ -192,6 +192,20 @@ describe('corpus context publication', () => {
 		expect(state.corpus.value?.annotatedFields.contents.annotations.pos.values).toEqual([{ value: 'nou', label: 'Noun', title: null }]);
 	});
 
+	test('exposes tagset normalization errors without publishing a partial corpus', async () => {
+		const context = createCorpusContext(
+			createMockBlackLabApi({ getCorpus: createPosIndex() }),
+			createMockFrontendApi({ getConfig: createConfig(), getTagset: { values: { NOU: { value: 'NOU', displayName: 'Noun', subAnnotationIds: ['unknown'] } }, subAnnotations: {} } }),
+			'new-corpus',
+		);
+		const beforePublish = vi.fn();
+		context.beforePublish(beforePublish);
+		await settleReactivity();
+		expect(context.contextLoader.error?.message).toContain('unknown subAnnotation');
+		expect(context.corpus.value).toBeUndefined();
+		expect(beforePublish).not.toHaveBeenCalled();
+	});
+
 	test('publishes matching corpus, configuration, and tagset after a corpus switch', async () => {
 		const corpusId = ref('first');
 		const publishedIds: string[] = [];
@@ -213,6 +227,7 @@ describe('corpus context publication', () => {
 		expect(state.tagset.value?.values.first.value).toBe('first');
 
 		corpusId.value = 'second';
+		expect(state.corpus.value).toBeUndefined();
 		await settleReactivity();
 		expect(state.contextLoader.isLoading()).toBe(true);
 		expect(state.corpus.value).toBeUndefined();

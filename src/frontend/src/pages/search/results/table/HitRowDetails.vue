@@ -172,82 +172,66 @@ type SnippetInput = {
 };
 type SentenceInput = { row: PositionedRow; corpusId: string; sentenceElement: string };
 
-const snippetResource = useRequestResource<SnippetInput, { snippet: ContextOfHit; addons: ResultHitAddon[] }>({
-	mode: 'manual',
-	async request({ row, info, corpusId, concordanceSize, addonConstructors }, run) {
-		let citation: BLTypes.BLHit;
+const snippetResource = useRequestResource<SnippetInput, { snippet: ContextOfHit; addons: ResultHitAddon[] }>(async ({ row, info, corpusId, concordanceSize, addonConstructors }, run) => {
+	let citation: BLTypes.BLHit;
+	try {
+		citation = await run.wait(blacklab.getSnippet(corpusId, row.doc.docPid, row.annotatedField?.id, row.hit.start, row.hit.end, concordanceSize));
+	} catch (error) {
+		run.signal.throwIfAborted();
+		if (error instanceof Error && error.stack) debugLog('article', error.stack);
+		throw error;
+	}
+	run.signal.throwIfAborted();
+	customizations.transformResultSnippet(citation);
+	run.signal.throwIfAborted();
+
+	// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
+	// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
+	const highlightColors = [...row.context.before, ...row.context.match, ...row.context.after].reduce<Record<string, TokenHighlight>>((acc, t) => {
+		t.captureAndRelation?.forEach(c => (acc[c.highlight.key] = c.highlight));
+		return acc;
+	}, {});
+	run.signal.throwIfAborted();
+	const snippet = snippetParts(
+		// @ts-ignore matchinfos not included in snippets. copy from the original hit.
+		{ matchInfos: row.hit.matchInfos, ...citation },
+		highlightColors,
+		info.getMatchInfoHighlightStyle,
+	);
+
+	const addons: ResultHitAddon[] = [];
+	for (const [i, makeAddon] of addonConstructors.entries()) {
+		run.signal.throwIfAborted();
 		try {
-			citation = await run.wait(blacklab.getSnippet(corpusId, row.doc.docPid, row.annotatedField?.id, row.hit.start, row.hit.end, concordanceSize));
+			const addon = makeAddon({
+				docId: row.doc.docPid,
+				corpus: corpusId,
+				document: row.doc.docInfo,
+				documentUrl: row.href || '',
+				wordAnnotationId: info.mainAnnotation.id,
+				dir: row.dir,
+				citation,
+			});
+			if (addon != null) addons.push(addon);
 		} catch (error) {
-			run.throwIfAborted();
-			if (error instanceof Error && error.stack) debugLog('article', error.stack);
-			throw error;
+			console.error(error);
+			addons.push({ name: 'error-' + i, content: `<pre class="text-danger">Error in addon: ${error}</pre>` });
 		}
-		run.throwIfAborted();
-		customizations.transformResultSnippet(citation);
-		run.throwIfAborted();
-
-		// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
-		// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
-		const highlightColors = [...row.context.before, ...row.context.match, ...row.context.after].reduce<Record<string, TokenHighlight>>((acc, t) => {
-			t.captureAndRelation?.forEach(c => (acc[c.highlight.key] = c.highlight));
-			return acc;
-		}, {});
-		run.throwIfAborted();
-		const snippet = snippetParts(
-			// @ts-ignore matchinfos not included in snippets. copy from the original hit.
-			{ matchInfos: row.hit.matchInfos, ...citation },
-			highlightColors,
-			info.getMatchInfoHighlightStyle,
-		);
-
-		const addons: ResultHitAddon[] = [];
-		for (const [i, makeAddon] of addonConstructors.entries()) {
-			run.throwIfAborted();
-			try {
-				const addon = makeAddon({
-					docId: row.doc.docPid,
-					corpus: corpusId,
-					document: row.doc.docInfo,
-					documentUrl: row.href || '',
-					wordAnnotationId: info.mainAnnotation.id,
-					dir: row.dir,
-					citation,
-				});
-				if (addon != null) addons.push(addon);
-			} catch (error) {
-				console.error(error);
-				addons.push({ name: 'error-' + i, content: `<pre class="text-danger">Error in addon: ${error}</pre>` });
-			}
-		}
-		run.throwIfAborted();
-		return { snippet, addons };
-	},
+	}
+	run.signal.throwIfAborted();
+	return { snippet, addons };
 });
-const sentenceResource = useRequestResource<SentenceInput, BLTypes.BLHit>({
-	mode: 'manual',
-	request: ({ row, corpusId, sentenceElement }) => blacklab.getSnippet(corpusId, row.doc.docPid, row.annotatedField?.id, row.hit.start, row.hit.end, sentenceElement),
-});
+const sentenceResource = useRequestResource<SentenceInput, BLTypes.BLHit>(({ row, corpusId, sentenceElement }) =>
+	blacklab.getSnippet(corpusId, row.doc.docPid, row.annotatedField?.id, row.hit.start, row.hit.end, sentenceElement),
+);
 
 const snippetLoading = computed(() => snippetResource.state.value.loading);
 const sentenceLoading = computed(() => sentenceResource.state.value.loading);
-const snippetSettled = computed(() => snippetResource.state.value.settled);
-const sentenceSettled = computed(() => sentenceResource.state.value.settled);
-const snippetResult = computed(() => {
-	const settled = snippetSettled.value;
-	return !snippetLoading.value && settled.isLoaded() ? settled.value : null;
-});
-const snippet = computed(() => snippetResult.value?.snippet ?? null);
-const addons = computed(() => snippetResult.value?.addons ?? []);
-const sentence = computed(() => {
-	const settled = sentenceSettled.value;
-	return !sentenceLoading.value && settled.isLoaded() ? settled.value : null;
-});
-const error = computed(() => {
-	if (sentenceSettled.value.isError()) return customizations.formatError(sentenceSettled.value.error, 'snippet');
-	if (snippetSettled.value.isError()) return customizations.formatError(snippetSettled.value.error, 'snippet');
-	return null;
-});
+const snippet = computed(() => snippetResource.current.value.value?.snippet ?? null);
+const addons = computed(() => snippetResource.current.value.value?.addons ?? []);
+const sentence = computed(() => sentenceResource.current.value.value);
+const settledError = computed(() => sentenceResource.state.value.settled.error ?? snippetResource.state.value.settled.error);
+const error = computed(() => (settledError.value ? customizations.formatError(settledError.value, 'snippet') : null));
 
 watch(
 	[() => props.row, () => props.open],

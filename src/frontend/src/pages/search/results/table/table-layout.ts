@@ -427,7 +427,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRendering, indexInRe
 	return {
 		doc: p.doc,
 		href: info.articleUrl(p.doc.docPid, {
-			viewField: info.sourceField.id,
+			field: info.sourceField.id,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,
 		}),
@@ -469,7 +469,7 @@ function makeHitRow(
 
 		context: snippetParts(p.hit, highlightColors, info.getMatchInfoHighlightStyle),
 		href: info.articleUrl(p.doc.docPid, {
-			viewField: field.id,
+			field: field.id,
 			searchfield: info.sourceField.id,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,

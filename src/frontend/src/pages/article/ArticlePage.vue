@@ -43,7 +43,7 @@
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
 			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
-				<h2 v-if="corpus.isParallelCorpus" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
+				<h2 v-if="corpus.isParallelCorpus && viewField" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
 				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView" @settled="pageBootstrap.markScriptsReady">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
@@ -66,42 +66,6 @@
 							</div>
 						</Collapsible>
 					</template>
-					<template #empty>
-						<table v-if="metadata.isLoaded()" class="table-striped">
-							<tbody>
-								<tr v-if="!hits.isEmpty()">
-									<td>Hits in document:</td>
-									<td>
-										<Spinner v-if="hits.isLoading()" inline sm />
-										<template v-else-if="hits.isLoaded()">{{ hits.value.length }}</template>
-									</td>
-								</tr>
-
-								<template v-for="g in metadataFieldsToShow">
-									<tr>
-										<td colspan="2">
-											<b>
-												{{ $tMetaGroupName(g) }}<debug> [{{ g.id }}]</debug>:
-											</b>
-										</td>
-									</tr>
-									<tr v-for="f in g.entries">
-										<td style="padding-left: 0.5em">
-											{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug>
-										</td>
-										<td>
-											<template v-if="getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.length">{{ getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.join(', ') }}</template>
-											<em v-else class="text-muted">{{ $t('results.groupBy.groupNameWithoutValue') }}</em>
-										</td>
-									</tr>
-								</template>
-								<tr>
-									<td>Document length (tokens)</td>
-									<td id="docLengthTokens">{{ getDocumentLength(corpus, metadata.value.json.docInfo, inputs.viewField) }}</td>
-								</tr>
-							</tbody>
-						</table>
-					</template>
 				</HtmlRenderer>
 			</div>
 
@@ -121,8 +85,8 @@
 
 				<ArticlePageStatistics
 					v-else-if="statistics.isLoaded()"
-					:snippet="statistics.value[0]"
-					:document="statistics.value[1].json"
+					:snippet="statistics.value.snippet"
+					:document="statistics.value.document"
 					:is-paginated="validPaginationInfo.isLoaded() && validPaginationInfo.value.pageSize != null"
 				/>
 			</div>
@@ -137,20 +101,15 @@ import { computed, defineAsyncComponent, ref, useTemplateRef, watch, watchEffect
 import * as ArticleStore from '@/app/legacy-stores/article-configuration-store';
 import { usePageBootstrap } from '@/app/router/page-bootstrap';
 import { useLayout } from '@/app/shell/layout';
-import { useCustomizations } from '@/customization-api/internal/customizations-injection';
 import { useCfPageConfig, useCorpus } from '@/features/corpus/corpus-context';
 import createTooltips from '@/pages/article/expandable-tooltips';
 import { useArticlePageState } from '@/pages/article/model/article-page-state';
-import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
-import { createArticleStreams, type Input } from './model/article-streams';
+import { createArticleResources, type Input } from './model/article-resources';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
-import { getDocumentLength } from '@/shared/blacklab-helpers/corpus';
-import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
-import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 import Collapsible from '@/shared/ui/Collapsible.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
@@ -163,44 +122,35 @@ const ArticlePageStatistics = defineAsyncComponent(() => import('@/pages/article
 
 const blacklab = useBlackLabApi();
 const pageBootstrap = usePageBootstrap();
-const corpus = useCorpus();
-const articleStreams = createArticleStreams(blacklab, useFrontendApi(), corpus);
-const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
+const corpus = useCorpus().value;
 const cfPageConfig = useCfPageConfig();
 const articleState = useArticlePageState();
-const { resultDetailedMetadataIds } = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
-const metadata = loadableFromStream(metadata$);
-const metadataHtml = computed(() => Loadable.map(metadata, value => value.html));
-
-const contents = loadableFromStream(contents$);
-const contentsHtml = computed(() => Loadable.map(contents, value => value.html));
-
-const hits = loadableFromStream(hits$);
-const hitToHighlight = loadableFromStream(hitToHighlight$);
-const validPaginationInfo = loadableFromStream(validPaginationParameters$);
-const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet$, metadata$] as const));
-
-watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
-
-const inputs = computed<Input>(() => ({
-	indexId: corpus.value.id,
-	...articleState.parameters.value,
-	pageSize: cfPageConfig.value.pageSize,
-}));
-
-const metadataFieldsToShow = computed(() => fieldSubset(resultDetailedMetadataIds() || Object.keys(corpus.value.allMetadataFieldsMap), corpus.value.metadataGroups, corpus.value.allMetadataFieldsMap));
+const inputs = computed<Input>(() => {
+	const query = articleState.query.value;
+	return { ...query, indexId: query.indexId === corpus.id ? corpus.id : null, mainField: corpus.mainAnnotatedField, pageSize: cfPageConfig.value.pageSize };
+});
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
-const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value.viewField ?? '']);
+const {
+	metadata,
+	contents,
+	hits,
+	hitToHighlight,
+	pagination: validPaginationInfo,
+	statistics,
+} = createArticleResources(blacklab, useFrontendApi(), inputs, () => activeArticleTab.value === 'statistics' && statisticsEnabled.value);
+const metadataHtml = computed(() => Loadable.map(metadata.value, value => value.html));
+const contentsHtml = computed(() => Loadable.map(contents.value, value => value.html));
+const viewField = computed(() => corpus.allAnnotatedFieldsMap[inputs.value.field ?? corpus.mainAnnotatedField]);
 
 function handlePageNavigation(page: number) {
-	if (!validPaginationInfo.isLoaded() || validPaginationInfo.value.pageSize == null) return;
-	void articleState.showPage(page, validPaginationInfo.value.pageSize);
+	if (!validPaginationInfo.value.isLoaded() || validPaginationInfo.value.value.pageSize == null) return;
+	void articleState.showPage(page, validPaginationInfo.value.value.pageSize);
 }
 function scrollCurrentHitIntoView() {
-	const hit = hitToHighlight.isLoaded() ? hitToHighlight.value.hl : null;
+	const hit = hitToHighlight.value.value?.hl;
 	if (!hit) return;
 
 	activeArticleTab.value = 'content';
@@ -211,9 +161,8 @@ function errorDiagnostics(error: ApiError) {
 	return error.diagnostics || error.message;
 }
 
-watch(inputs, v => input$.next(v), { immediate: true });
 watch(
-	() => hitToHighlight.value,
+	() => hitToHighlight.value.value,
 	(cur, prev) => {
 		prev?.hl?.classList.remove('active');
 		cur?.hl?.classList.add('active');
@@ -222,7 +171,7 @@ watch(
 );
 
 watchEffect(onCleanup => {
-	if (!contents.value?.html) return;
+	if (!contents.value.value?.html) return;
 	const tooltipContext = createTooltips({
 		mode: 'attributes',
 		contentAttribute: 'data-tooltip-content',

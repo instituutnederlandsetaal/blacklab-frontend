@@ -1,5 +1,4 @@
 import type { AxiosRequestConfig, Canceler } from 'axios';
-import type { Observable } from 'rxjs';
 
 import type { CFPageConfig, NormalizedBlacklabServer, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import type {
@@ -21,9 +20,6 @@ import type {
 	BLUser,
 } from '@/types/blacklabtypes';
 
-import type { Loadable } from '@/shared/utils/loadable/loadable-core';
-import { toObservable } from '@/shared/utils/loadable/loadable-stream';
-
 type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
 
 export type DocumentContentsParameters = {
@@ -34,7 +30,7 @@ export type DocumentContentsParameters = {
 	wordstart?: number;
 	wordend?: number;
 	/** Annotated field for which to get contents */
-	viewField?: string;
+	field?: string;
 	/** Annotated field in which to search (for parallel corpora) - only required if different from field */
 	searchfield?: string;
 };
@@ -111,10 +107,6 @@ export class CancelableRequest<T> implements Promise<T> {
 
 	public static isCancelableRequest<T>(value: any): value is CancelableRequest<T> {
 		return value instanceof CancelableRequest;
-	}
-
-	public toObservable(): Observable<Loadable<T>> {
-		return toObservable(this);
 	}
 }
 

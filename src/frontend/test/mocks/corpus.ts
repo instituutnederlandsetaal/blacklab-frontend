@@ -5,14 +5,14 @@ import { defaultConfig, provideCorpus, provideCfPageConfig, provideCorpusContext
 import type { CFPageConfig, Corpus } from '@/types/apptypes';
 
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
-import type { LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import type { RetryableLoadable } from '@/shared/utils/loadable/loadable-reactive';
 import { loadableReactiveFromSnapshot } from '@/shared/utils/loadable/loadable-reactive';
 
 export function createMockCorpusContext(
 	options: {
 		corpus?: MaybeRefOrGetter<Corpus | undefined>;
 		config?: MaybeRefOrGetter<Partial<CFPageConfig>>;
-		loader?: LoadableFromRequest<CorpusContext>;
+		loader?: RetryableLoadable<CorpusContext>;
 	} = {},
 ) {
 	const defaults = structuredClone(defaultConfig);
@@ -26,7 +26,7 @@ export function createMockCorpusContext(
 					tagset: undefined,
 				}),
 			),
-			{ retry: vi.fn() },
+			vi.fn(),
 		);
 	const corpus = computed(() => contextLoader.value?.index);
 	const config = computed(() => contextLoader.value?.config ?? defaults);

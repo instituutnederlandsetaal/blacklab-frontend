@@ -1,9 +1,8 @@
 import '@/pages/article/expandable-tooltips.scss';
 
+import { useThrottleFn } from '@vueuse/core';
 import type { PopperOptions } from 'popper.js';
 import Popper from 'popper.js';
-import { asyncScheduler, fromEvent, merge, type Observable } from 'rxjs';
-import { distinctUntilChanged, filter, map, throttleTime } from 'rxjs/operators';
 
 import { debugLog } from '@/shared/debug/debug';
 
@@ -36,17 +35,6 @@ export type ConfigTitle = ConfigCommon & {
 	/** List of data-* attributes to ignore when gathering tooltip contents. Should NOT contain the 'data-' portion of the names. */
 	excludeAttributes: string[];
 };
-
-let sharedEventListener: Observable<{ eventType: 'click' | 'mouseover'; element: HTMLElement | null }> | null = null;
-function getSharedEventListener() {
-	return (sharedEventListener ??= merge(fromEvent<MouseEvent>(document, 'mouseover'), fromEvent<MouseEvent>(document, 'click')).pipe(
-		throttleTime(25, asyncScheduler, { leading: true, trailing: true }),
-		map(e => ({
-			eventType: e.type as 'click' | 'mouseover',
-			element: e.target && (e.target as HTMLElement).closest ? (e.target as HTMLElement) : null,
-		})),
-	));
-}
 
 const ContextSymbol = Symbol('ExpandableTooltipContext');
 
@@ -127,31 +115,38 @@ export default function createTooltips(config: ConfigTitle | ConfigAttributes, c
 		},
 	};
 
-	const activeTooltippable$ = getSharedEventListener().pipe(
-		// not clicking/hovering over the tooltip itself
-		filter(e => !e.element?.closest(tooltipSelector)),
-		map(e => ({
-			element: e.element?.closest<HTMLElement>(eligibleElementSelector),
-			eventType: e.eventType,
-		})),
-		distinctUntilChanged((a, b) => a.element === b.element && a.eventType === b.eventType),
-	);
+	const listeners = new AbortController();
+	const { signal } = listeners;
+	let previousElement: Element | null | undefined;
+	let previousType: string | undefined;
+	const handleEvent = useThrottleFn(
+		(event: MouseEvent) => {
+			const target = event.target instanceof Element ? event.target : null;
+			if (signal.aborted || target?.closest(tooltipSelector)) return;
+			const element = target?.closest<HTMLElement>(eligibleElementSelector);
+			if (element === previousElement && event.type === previousType) return;
+			previousElement = element;
+			previousType = event.type;
 
-	const unsubscribe = activeTooltippable$.subscribe(({ element, eventType }) => {
-		const destroyExistingTooltip = !ctx.explicitlyOpened || (ctx.explicitlyOpened && eventType === 'click');
-		if (ctx.activeTooltip) {
-			if (destroyExistingTooltip) {
-				destroyTooltip(ctx);
+			const destroyExistingTooltip = !ctx.explicitlyOpened || event.type === 'click';
+			if (ctx.activeTooltip) {
+				if (destroyExistingTooltip) {
+					destroyTooltip(ctx);
+				}
+				return;
 			}
-			return;
-		}
 
-		if (element) {
-			ctx.activeTooltip = createNewTooltip(element);
-			ctx.explicitlyOpened = eventType === 'click';
-			(ctx.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', true);
-		}
-	});
+			if (element) {
+				ctx.activeTooltip = createNewTooltip(element);
+				ctx.explicitlyOpened = event.type === 'click';
+				(ctx.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', true);
+			}
+		},
+		25,
+		true,
+	);
+	document.addEventListener('mouseover', handleEvent, { signal });
+	document.addEventListener('click', handleEvent, { signal });
 
 	function createNewTooltip(element: HTMLElement | null) {
 		if (!element) {
@@ -194,7 +189,7 @@ export default function createTooltips(config: ConfigTitle | ConfigAttributes, c
 	}
 
 	ctx.listeners.push(() => {
-		unsubscribe.unsubscribe();
+		listeners.abort();
 		destroyTooltip(ctx);
 	});
 	return ctx;

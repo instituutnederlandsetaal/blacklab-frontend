@@ -16,7 +16,7 @@ export function disambiguatedAnnotationLabel(annotation: NormalizedAnnotation, c
 }
 
 /** Groups always have at least one member, empty array is returned if no groups would have members. */
-export function fieldSubset<T extends { id: string }>(
+function fieldSubset<T extends { id: string }>(
 	ids: string[],
 	groups: Array<{ id: string; entries: string[] }>,
 	fields: Record<string, T>,

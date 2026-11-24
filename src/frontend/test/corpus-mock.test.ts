@@ -20,7 +20,7 @@ test('mounted corpus clients keep loading state, configuration and retries indep
 	});
 	const snapshot = shallowRef<LoadableType<CorpusContext>>(Loadable.Loaded(loaded('alpha', 'First banner')));
 	const retry = vi.fn();
-	const first = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, { retry }) });
+	const first = createMockCorpusContext({ loader: loadableReactiveFromSnapshot(snapshot, retry) });
 	const second = createMockCorpusContext({
 		corpus: shallowRef({ id: 'other' } as Corpus),
 		config: ref({ bannerMessage: 'Other banner' }),

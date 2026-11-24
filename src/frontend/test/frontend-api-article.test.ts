@@ -25,18 +25,13 @@ test('default contents need neither field names nor word bounds', async () => {
 	await metadata;
 });
 
-test.each([
-	{ searchfield: 'contents', patt: undefined, expected: {} },
-	{ searchfield: 'translation', patt: undefined, expected: {} },
-	{ searchfield: 'contents', patt: '[]', expected: { patt: '[]' } },
-	{ searchfield: 'translation', patt: '[]', expected: { patt: '[]', searchfield: 'translation' } },
-])('document contents sends only backend parameters for $searchfield and $patt', async ({ searchfield, patt, expected }) => {
+test('sends the displayed and searched fields for parallel contents', async () => {
 	const http = createMockHttp();
 	const api = createFrontendApi({ baseUrl: '/frontend', user: null, axiosOptions: { adapter: http.adapter } });
-	const request = api.getDocumentContents({ indexId: 'BaB', docId: 'bab0954', viewField: 'contents', searchfield, patt, wordstart: 0, wordend: 269 });
+	const request = api.getDocumentContents({ indexId: 'BaB', docId: 'bab0954', field: 'contents', searchfield: 'translation', patt: '[]', wordstart: 0, wordend: 269 });
 	const sent = await http.nextRequest();
 	expect(sent.config.url).toBe('BaB/api/docs/bab0954/contents');
-	expect(Object.fromEntries(sent.query)).toEqual({ field: 'contents', wordstart: '0', wordend: '269', ...expected });
+	expect(Object.fromEntries(sent.query)).toEqual({ field: 'contents', wordstart: '0', wordend: '269', searchfield: 'translation', patt: '[]' });
 	sent.respond('<article>Document</article>');
 	await expect(request).resolves.toBe('<article>Document</article>');
 });

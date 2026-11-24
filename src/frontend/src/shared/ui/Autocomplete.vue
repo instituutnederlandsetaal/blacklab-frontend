@@ -46,14 +46,8 @@ const emit = defineEmits<{
 
 const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
 const inputElement = computed(() => (autocompleteRef.value?.$el as HTMLElement | undefined)?.querySelector<HTMLInputElement>('input') ?? null);
-const request = useRequestResource<string, string[]>({
-	mode: 'manual',
-	request: term => props.getData(term),
-});
-const options = computed(() => {
-	const { loading, settled } = request.state.value;
-	return !loading && settled.isLoaded() ? settled.value : [];
-});
+const request = useRequestResource<string, string[]>(term => props.getData(term));
+const options = computed(() => request.current.value.value ?? []);
 
 let lastSearchValue = '';
 

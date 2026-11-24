@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, ref, watch } from 'vue';
 
@@ -19,17 +20,12 @@ function deferred<T>(cancel = vi.fn<() => void>()) {
 	};
 }
 
-async function flushPromises() {
-	await Promise.resolve();
-	await Promise.resolve();
-}
-
 describe('useRequestResource ownership', () => {
 	test('replacement cancels the prior request and suppresses its non-cooperative settlement', async () => {
 		const first = deferred<number>();
 		const second = deferred<number>();
 		const request = vi.fn<(input: number) => RequestLike<number>>().mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
-		const resource = useRequestResource({ mode: 'manual', request });
+		const resource = useRequestResource(request);
 
 		resource.run(1);
 		resource.run(2);
@@ -48,10 +44,7 @@ describe('useRequestResource ownership', () => {
 	test('cancel suppresses a late plain Promise and never publishes cancellation as Error', async () => {
 		const pending = deferred<number>();
 		const plainPromise = pending.request.then(value => value);
-		const resource = useRequestResource({
-			mode: 'manual',
-			request: () => plainPromise,
-		});
+		const resource = useRequestResource(() => plainPromise);
 
 		resource.run(undefined);
 		resource.cancel();
@@ -62,22 +55,32 @@ describe('useRequestResource ownership', () => {
 		expect(resource.state.value.settled.isEmpty()).toBe(true);
 	});
 
-	test('distinguishes request cancellation from failures and catches synchronous factory errors', async () => {
-		const cancelled = deferred<number>();
-		const cancellation = useRequestResource({
-			mode: 'manual',
-			request: () => cancelled.request,
-		});
-		cancellation.run(undefined);
-		cancelled.reject(ApiError.CANCELLED);
-		await flushPromises();
-		expect(cancellation.state.value.settled.isEmpty()).toBe(true);
+	test('a newer run started by the transport during cancellation wins', async () => {
+		const first = deferred<number>();
+		const request = vi.fn((input: number) => (input === 1 ? first.request : Promise.resolve(input)));
+		const resource = useRequestResource(request);
+		first.cancel.mockImplementation(() => resource.run(3));
 
-		const failure = useRequestResource<void, number>({
-			mode: 'manual',
-			request: () => {
-				throw new Error('factory failed');
-			},
+		resource.run(1);
+		resource.run(2);
+		await flushPromises();
+
+		expect(request.mock.calls.map(([input]) => input)).toEqual([1, 3]);
+		expect(resource.current.value.value).toBe(3);
+	});
+
+	test.each([ApiError.CANCELLED, { __CANCEL__: true }])('treats transport cancellation as empty', async reason => {
+		const cancelled = deferred<number>();
+		const cancellation = useRequestResource(() => cancelled.request);
+		cancellation.run(undefined);
+		cancelled.reject(reason);
+		await flushPromises();
+		expect(cancellation.current.value.isEmpty()).toBe(true);
+	});
+
+	test('catches synchronous factory errors', () => {
+		const failure = useRequestResource<void, number>(() => {
+			throw new Error('factory failed');
 		});
 		failure.run();
 		expect(failure.state.value.settled.error?.message).toBe('factory failed');
@@ -86,7 +89,7 @@ describe('useRequestResource ownership', () => {
 	test('cancel is reusable while reset also forgets the retry input', async () => {
 		const pending = [deferred<number>(), deferred<number>()];
 		const request = vi.fn().mockReturnValueOnce(pending[0].request).mockReturnValueOnce(pending[1].request);
-		const resource = useRequestResource({ mode: 'manual', request });
+		const resource = useRequestResource(request);
 
 		resource.run(1);
 		resource.cancel();
@@ -103,12 +106,7 @@ describe('useRequestResource reactive triggering', () => {
 		const source = ref<{ id: number; incidental?: boolean } | null>({ id: 1 });
 		const pending = [deferred<number>(), deferred<number>(), deferred<number>()];
 		const request = vi.fn().mockReturnValueOnce(pending[0].request).mockReturnValueOnce(pending[1].request).mockReturnValueOnce(pending[2].request);
-		const resource = useRequestResource({
-			mode: 'reactive',
-			source,
-			key: input => input.id,
-			request,
-		});
+		const resource = useRequestResource(request, { source, key: input => input.id });
 
 		source.value!.incidental = true;
 		expect(request).toHaveBeenCalledOnce();
@@ -137,7 +135,7 @@ describe('useRequestResource reactive triggering', () => {
 		const source = ref(1);
 		const pending = [deferred<number>(), deferred<number>()];
 		const request = vi.fn().mockReturnValueOnce(pending[0].request).mockReturnValueOnce(pending[1].request);
-		const resource = useRequestResource({ mode: 'reactive', source, request });
+		const resource = useRequestResource(request, { source });
 
 		source.value = 2;
 		expect(pending[0].cancel).toHaveBeenCalledOnce();
@@ -156,18 +154,29 @@ describe('useRequestResource reactive triggering', () => {
 });
 
 describe('RequestRun and lifecycle', () => {
+	test('a failed child cancels its pending sibling and preserves the original error', async () => {
+		const first = deferred<number>();
+		const second = deferred<number>();
+		const resource = useRequestResource((_input, run) => Promise.all([run.wait(first.request), run.wait(second.request)]));
+
+		resource.run();
+		first.reject(new Error('metadata failed'));
+		await flushPromises();
+
+		expect(second.cancel).toHaveBeenCalledOnce();
+		expect(first.cancel).not.toHaveBeenCalled();
+		expect(resource.current.value.error?.message).toBe('metadata failed');
+	});
+
 	test('cancels dynamically-created requests across sequential waits', async () => {
 		const first = deferred<number>();
 		const second = deferred<number>();
 		const reachedSecond = vi.fn();
-		const resource = useRequestResource<void, number>({
-			mode: 'manual',
-			request: async (_input, run: RequestRun) => {
-				const value = await run.wait(first.request);
-				run.throwIfAborted();
-				reachedSecond();
-				return value + (await run.wait(second.request));
-			},
+		const resource = useRequestResource<void, number>(async (_input, run: RequestRun) => {
+			const value = await run.wait(first.request);
+			run.signal.throwIfAborted();
+			reachedSecond();
+			return value + (await run.wait(second.request));
 		});
 
 		resource.run();
@@ -182,16 +191,15 @@ describe('RequestRun and lifecycle', () => {
 		const child = deferred<number>();
 		const mutate = vi.fn();
 		const source = ref<number | null>(1);
-		const resource = useRequestResource<number, number>({
-			mode,
-			source,
-			request: async (_input, run) => {
+		const resource = useRequestResource<number, number>(
+			async (_input, run) => {
 				const value = await run.wait(child.request);
-				run.throwIfAborted();
+				run.signal.throwIfAborted();
 				mutate();
 				return value;
 			},
-		});
+			mode === 'reactive' ? { source } : undefined,
+		);
 
 		if (mode === 'manual') resource.run(1);
 		child.resolve(1);
@@ -207,11 +215,7 @@ describe('RequestRun and lifecycle', () => {
 		let resource!: RequestResource<number, number>;
 		const scope = effectScope();
 		scope.run(() => {
-			resource = useRequestResource({
-				mode: 'reactive',
-				source,
-				request,
-			});
+			resource = useRequestResource(request, { source });
 		});
 
 		if (work === 'queued') source.value = 2;
@@ -229,10 +233,7 @@ describe('RequestRun and lifecycle', () => {
 		const first = deferred<number>();
 		const second = deferred<number>();
 		const request = vi.fn().mockReturnValueOnce(first.request).mockReturnValueOnce(second.request);
-		const resource = useRequestResource<void, number>({
-			mode: 'manual',
-			request,
-		});
+		const resource = useRequestResource<void, number>(request);
 		const snapshots: RequestResourceState<number>[] = [];
 		watch(resource.state, state => snapshots.push(state), { flush: 'sync' });
 
@@ -242,6 +243,8 @@ describe('RequestRun and lifecycle', () => {
 		resource.run();
 		expect(resource.state.value.loading).toBe(true);
 		expect(resource.state.value.settled.value).toBe(1);
+		expect(resource.current.value.isLoading()).toBe(true);
+		expect(resource.current.value.value).toBeUndefined();
 		second.reject(new Error('nope'));
 		await flushPromises();
 		expect(resource.state.value.loading).toBe(false);

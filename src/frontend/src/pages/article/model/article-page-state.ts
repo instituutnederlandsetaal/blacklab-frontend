@@ -1,28 +1,20 @@
-import { computed, readonly, shallowRef, toValue, type MaybeRefOrGetter } from 'vue';
+import { readonly, shallowRef } from 'vue';
 
 import type { ArticleParameters } from '@/app/router/url/article-query';
-import type { Corpus } from '@/types/apptypes';
 
-import { resolveAnnotatedField } from '@/shared/blacklab-helpers/corpus';
 import createAppInjection from '@/shared/vue/injection';
 
-type ArticleQuery = ArticleParameters & { docId: string | null };
+type ArticleQuery = ArticleParameters & { indexId: string | null; docId: string | null };
 
 export type ArticleState = ReturnType<typeof createArticlePageState>;
 export const [, provideArticlePageState, useArticlePageState] = createAppInjection<ArticleState>('article-page-state');
 
 /** Article controls change state; URL publication observes the completed change. */
-export function createArticlePageState(corpus: MaybeRefOrGetter<Corpus | undefined>) {
-	const empty: ArticleQuery = { docId: null, viewField: null, searchfield: null, wordstart: null, wordend: null, findhit: null, patt: null, pattgapdata: null };
+export function createArticlePageState() {
+	const empty: ArticleQuery = { indexId: null, docId: null, wordstart: null, wordend: null, findhit: null, patt: null, pattgapdata: null };
 	const query = shallowRef(empty);
 	return {
 		query: readonly(query),
-		parameters: computed(() => {
-			const index = toValue(corpus);
-			const viewField = index && (resolveAnnotatedField(index, query.value.viewField) ?? resolveAnnotatedField(index));
-			const searchField = index && (resolveAnnotatedField(index, query.value.searchfield || viewField?.id) ?? viewField);
-			return { ...query.value, viewField: viewField?.id ?? '', searchfield: searchField?.id ?? '' };
-		}),
 		restore: (value: ArticleQuery) => {
 			query.value = value;
 		},

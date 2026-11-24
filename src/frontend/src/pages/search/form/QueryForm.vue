@@ -42,16 +42,17 @@ const historyOpen = ref(false);
 const corpus = useCorpus();
 const blacklab = useBlackLabApi();
 const { parameters } = useResultsState();
-const subcorpus = createFilteredResultCountLoader();
+const subcorpus = createFilteredResultCountLoader(blacklab);
 watch(
 	[corpus, () => parameters.value?.searchfield, () => parameters.value?.filter],
-	([index, field, filter]) => subcorpus.next({ index, annotatedFieldId: field ?? index.mainAnnotatedField, filter, blacklab }),
+	([index, field, filter]) => subcorpus.update({ index, annotatedFieldId: field ?? index.mainAnnotatedField, filter }),
 	{ immediate: true },
 );
 onScopeDispose(subcorpus.dispose);
 
 function submit(snapshot: CompiledFormResult) {
-	if (searchFormIds.formKind(snapshot.formId) === 'explore' && subcorpus.isLoaded() && subcorpus.value.tokensInMatchingDocuments > 5000000) {
+	const count = subcorpus.current.value;
+	if (searchFormIds.formKind(snapshot.formId) === 'explore' && count.isLoaded() && count.value.tokensInMatchingDocuments > 5000000) {
 		const message = stripIndent`
 			You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.
 			Please note that this query, on first execution, may take a considerable amount of time to complete.

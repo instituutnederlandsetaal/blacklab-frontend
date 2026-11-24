@@ -98,13 +98,13 @@ describe('createIterativeResultCountLoader', () => {
 		const loader = createIterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 1000 });
 		const updates: BLSearchResult[] = [];
 		const stop = watch(
-			() => loader.value,
+			() => loader.current.value.value,
 			value => value && updates.push(value.results),
 			{ flush: 'sync' },
 		);
 
-		expect(loader.value?.results).toEqual(initial);
-		expect(loader.value?.state).toBe('counting');
+		expect(loader.current.value.value?.results).toEqual(initial);
+		expect(loader.current.value.value?.state).toBe('counting');
 		expect(harness.getHits).not.toHaveBeenCalled();
 
 		await vi.advanceTimersByTimeAsync(100);
@@ -113,15 +113,15 @@ describe('createIterativeResultCountLoader', () => {
 
 		harness.hitRequests[0].resolve(intermediate);
 		await settleRequest();
-		expect(loader.value?.results).toEqual(intermediate);
+		expect(loader.current.value.value?.results).toEqual(intermediate);
 
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledTimes(2);
 		harness.hitRequests[1].resolve(finished);
 		await settleRequest();
 
-		expect(loader.value?.results).toEqual(finished);
-		expect(loader.value?.state).toBe('finished');
+		expect(loader.current.value.value?.results).toEqual(finished);
+		expect(loader.current.value.value?.state).toBe('finished');
 		expect(updates).toEqual([intermediate, finished]);
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(harness.getHits).toHaveBeenCalledTimes(2);
@@ -145,12 +145,12 @@ describe('createIterativeResultCountLoader', () => {
 		expect(harness.hitRequests[1].cancel).not.toHaveBeenCalled();
 		await vi.advanceTimersByTimeAsync(50);
 		expect(harness.hitRequests[1].cancel).toHaveBeenCalledOnce();
-		expect(loader.value).toMatchObject({ results: intermediate, state: 'paused' });
+		expect(loader.current.value.value).toMatchObject({ results: intermediate, state: 'paused' });
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(harness.getHits).toHaveBeenCalledTimes(2);
 
 		loader.continueCounting();
-		expect(loader.value).toMatchObject({ results: intermediate, state: 'counting' });
+		expect(loader.current.value.value).toMatchObject({ results: intermediate, state: 'counting' });
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledTimes(3);
 
@@ -159,7 +159,7 @@ describe('createIterativeResultCountLoader', () => {
 		expect(harness.getHits).toHaveBeenCalledTimes(3);
 		harness.hitRequests[2].resolve(resumed);
 		await settleRequest();
-		expect(loader.value).toMatchObject({ results: resumed, state: 'counting' });
+		expect(loader.current.value.value).toMatchObject({ results: resumed, state: 'counting' });
 
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledTimes(4);
@@ -173,11 +173,11 @@ describe('createIterativeResultCountLoader', () => {
 		const initial = result(state, 3);
 		const loader = createIterativeResultCountLoader(input(initial), harness.api, { intervalMs: 100, timeoutMs: 250 });
 
-		expect(loader.value?.results).toEqual(initial);
-		expect(loader.value?.state).toBe(state);
+		expect(loader.current.value.value?.results).toEqual(initial);
+		expect(loader.current.value.value?.state).toBe(state);
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(harness.getHits).not.toHaveBeenCalled();
-		expect(loader.value?.state).toBe(state);
+		expect(loader.current.value.value?.state).toBe(state);
 
 		loader.dispose();
 	});
@@ -192,22 +192,34 @@ describe('createIterativeResultCountLoader', () => {
 		await vi.advanceTimersByTimeAsync(100);
 		harness.hitRequests[0].reject(error);
 		await settleRequest();
-		expect(loader.isError()).toBe(true);
-		expect(loader.error).toBe(error);
-		expect(loader.value).toBeUndefined();
+		expect(loader.current.value.isError()).toBe(true);
+		expect(loader.current.value.error).toBe(error);
+		expect(loader.current.value.value).toBeUndefined();
 
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(harness.getHits).toHaveBeenCalledOnce();
 		loader.continueCounting();
-		expect(loader.value?.results).toEqual(initial);
-		expect(loader.error).toBeUndefined();
+		expect(loader.current.value.value?.results).toEqual(initial);
+		expect(loader.current.value.error).toBeUndefined();
 
 		await vi.advanceTimersByTimeAsync(100);
 		expect(harness.getHits).toHaveBeenCalledTimes(2);
 		harness.hitRequests[1].resolve(result('finished', 3));
 		await settleRequest();
-		expect(loader.value?.state).toBe('finished');
+		expect(loader.current.value.value?.state).toBe('finished');
 
+		loader.dispose();
+	});
+
+	test('a cancelled transport clears the count and ends polling', async () => {
+		vi.useFakeTimers();
+		const harness = apiHarness();
+		const loader = createIterativeResultCountLoader(input(result('counting', 1)), harness.api, { intervalMs: 100, timeoutMs: 250 });
+		await vi.advanceTimersByTimeAsync(100);
+		harness.hitRequests[0].reject(ApiError.CANCELLED);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(loader.current.value.isEmpty()).toBe(true);
+		expect(harness.getHits).toHaveBeenCalledOnce();
 		loader.dispose();
 	});
 

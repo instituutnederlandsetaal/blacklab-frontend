@@ -1,51 +1,15 @@
-import { isEmpty, isLoadable, isLoaded, Loadable, type Loadable as LoadableType } from './loadable-core';
+import { isLoadable, isLoaded, Loadable } from './loadable-core';
 
-export type MaybeLoadable<T> = LoadableType<T>;
-type LoadableShapeArray = readonly unknown[];
-type LoadableShapeObject = Record<string, unknown>;
-export type LoadableShape = LoadableShapeArray | LoadableShapeObject;
-type MaybeLoadablesArray = readonly MaybeLoadable<unknown>[];
-type MaybeLoadablesObject = Record<string, MaybeLoadable<unknown>>;
-export type MaybeLoadablesArrayOrObject = MaybeLoadablesArray | MaybeLoadablesObject;
+type Shape = readonly unknown[] | Record<string, unknown>;
+type LoadedValues<T extends Shape> = { [K in keyof T]: T[K] extends Loadable<infer V> ? V : T[K] };
 
-export type LoadedValues<T extends LoadableShape> = {
-	[K in keyof T]: T[K] extends MaybeLoadable<infer V> ? V : T[K];
-};
-
-export type LoadedValuesIncludingEmpty<T extends LoadableShape> = {
-	[K in keyof T]: T[K] extends MaybeLoadable<infer V> ? V | undefined : T[K];
-};
-
-type PassthroughFrom<T extends LoadableShape> = Extract<T extends readonly unknown[] ? T[number] : T[keyof T], MaybeLoadable<unknown>>;
-
-/** Read array and record loadable shapes through one ordered value view. */
-function valuesOf<T extends LoadableShape>(loadables: T): unknown[] {
-	return Array.isArray(loadables) ? [...loadables] : Object.values(loadables);
-}
-
-/** Map loadable arrays and records without changing their outer shape. */
-function mapShape<T extends LoadableShape>(loadables: T, mapper: (value: unknown) => unknown): { [K in keyof T]: unknown } {
-	return (Array.isArray(loadables) ? loadables.map(mapper) : Object.fromEntries(Object.entries(loadables).map(([key, value]) => [key, mapper(value)]))) as { [K in keyof T]: unknown };
-}
-
-/** Return the first non-loaded loadable from the passed array or object. Plain values are considered settled. */
-function firstNonLoaded<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
-	return valuesOf(loadables).find(v => isLoadable(v) && !isLoaded(v)) as PassthroughFrom<T> | undefined;
-}
-
-/** Return the first loadable that is neither Loaded nor Empty. Empty values are considered settled. */
-function firstNonLoadedOrEmpty<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
-	return valuesOf(loadables).find(v => isLoadable(v) && !isLoaded(v) && !isEmpty(v)) as PassthroughFrom<T> | undefined;
-}
-
-export function combine<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValues<T>> {
-	const nonLoaded = firstNonLoaded(loadables);
-	if (nonLoaded) return nonLoaded;
-	return Loadable.Loaded(mapShape(loadables, value => (isLoadable(value) ? value.value : value)) as LoadedValues<T>);
-}
-
-export function combineOptional<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValuesIncludingEmpty<T>> {
-	const nonLoadedOrEmpty = firstNonLoadedOrEmpty(loadables);
-	if (nonLoadedOrEmpty) return nonLoadedOrEmpty;
-	return Loadable.Loaded(mapShape(loadables, value => (isLoadable(value) ? (isLoaded(value) ? value.value : undefined) : value)) as LoadedValuesIncludingEmpty<T>);
+/** Preserve the first pending, empty, or failed dependency. Otherwise unwrap the whole shape. */
+export function combine<T extends Shape>(inputs: T): Loadable<LoadedValues<T>> {
+	const values: unknown[] = Object.values(inputs);
+	for (const value of values) {
+		if (isLoadable(value) && !isLoaded(value)) return value as Loadable<never>;
+	}
+	const unwrap = (value: unknown) => (isLoadable(value) ? value.value : value);
+	const result = Array.isArray(inputs) ? inputs.map(unwrap) : Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, unwrap(value)]));
+	return Loadable.Loaded(result as LoadedValues<T>);
 }

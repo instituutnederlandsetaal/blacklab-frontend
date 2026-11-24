@@ -1,8 +1,8 @@
 const QUERY_ALIASES: Record<string, string[]> = { patt: ['query'], searchfield: ['searchField', 'field'] };
 
 /** Repeated scalar parameters use the first nonempty string, matching form overrides. */
-export function queryString(query: Record<string, unknown>, name: string): string | null {
-	for (const key of [name, ...(QUERY_ALIASES[name] ?? [])]) {
+export function queryString(query: Record<string, unknown>, name: string, aliases = QUERY_ALIASES[name] ?? []): string | null {
+	for (const key of [name, ...aliases]) {
 		const value = [query[key]].flat().find(value => typeof value === 'string' && value !== '');
 		if (typeof value === 'string') return value;
 	}

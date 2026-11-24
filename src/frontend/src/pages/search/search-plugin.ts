@@ -19,7 +19,7 @@ import type { Corpus, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type { Translate } from '@/shared/i18n';
-import type { LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import type { RetryableLoadable } from '@/shared/utils/loadable/loadable-reactive';
 
 type SearchPluginDependencies = {
 	customizationsReady: MaybeRefOrGetter<boolean>;
@@ -27,7 +27,7 @@ type SearchPluginDependencies = {
 	corpusState: {
 		corpus: Ref<Corpus | undefined>;
 		tagset: Ref<Tagset | undefined>;
-		contextLoader: LoadableFromRequest<CorpusContext>;
+		contextLoader: RetryableLoadable<CorpusContext>;
 		beforePublish(callback: (context: CorpusContext) => void): void;
 	};
 	blacklabApi: BlackLabApi;

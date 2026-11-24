@@ -1,14 +1,14 @@
 <template>
 	<tr class="grouprow-details">
 		<td colspan="10" class="well-light">
-			<template v-if="concordances.results">
+			<template v-if="rows">
 				<div class="concordance-controls clearfix">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')">
 						<span class="fa fa-angle-double-right"></span>
 						{{ operation === 'collocations' ? $t('collocations.results.openAllContexts') : $t('results.table.viewDetailedConcordances') }}
 					</button>
-					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-						<template v-if="concordances.loading"><Spinner :inline="true" /> {{ $t('results.table.loading') }}</template>
+					<button type="button" v-if="offset < row.size" :disabled="loading" class="btn btn-sm btn-default" @click="loadNext()">
+						<template v-if="loading"><Spinner :inline="true" /> {{ $t('results.table.loading') }}</template>
 						<template v-else>{{ $t('results.table.loadMoreConcordances') }}</template>
 					</button>
 
@@ -17,25 +17,25 @@
 					</button>
 				</div>
 
-				<GenericTable style="margin: 8px 0" :rows="concordances.results" :header="type === 'hits' ? cols.hitColumns : cols.docColumns" :cols="cols" :info="previewInfo" :type="type" />
-				<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
+				<GenericTable style="margin: 8px 0" :rows="rows" :header="type === 'hits' ? cols.hitColumns : cols.docColumns" :cols="cols" :info="previewInfo" :type="type" />
+				<div class="concordance-controls clearfix" v-if="rows?.rows.length > 10">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')">
 						<span class="fa fa-angle-double-right"></span>
 						{{ operation === 'collocations' ? $t('collocations.results.openAllContexts') : $t('results.table.viewDetailedConcordances') }}
 					</button>
-					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-						<template v-if="concordances.loading"><Spinner inline /> {{ $t('results.table.loading') }}</template>
+					<button type="button" v-if="offset < row.size" :disabled="loading" class="btn btn-sm btn-default" @click="loadNext()">
+						<template v-if="loading"><Spinner inline /> {{ $t('results.table.loading') }}</template>
 						<template v-else>{{ $t('results.table.loadMoreConcordances') }}</template>
 					</button>
 				</div>
 			</template>
-			<div v-if="concordances.error != null" class="text-danger" role="alert">
-				{{ concordances.error }}
-				<button type="button" class="btn btn-sm btn-default retry-concordances" :disabled="disabled || concordances.loading" @click="concordances.retry()">
+			<div v-if="errorMessage != null" class="text-danger" role="alert">
+				{{ errorMessage }}
+				<button type="button" class="btn btn-sm btn-default retry-concordances" :disabled="disabled || loading" @click="page.retry()">
 					{{ $t('results.resultsView.tryAgain') }}
 				</button>
 			</div>
-			<div v-if="!concordances.results && concordances.loading" role="status" aria-live="polite">
+			<div v-if="!rows && loading" role="status" aria-live="polite">
 				<Spinner center />
 				<span class="sr-only">{{ $t('results.table.loading') }}</span>
 			</div>
@@ -44,19 +44,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 
 import { useCorpus } from '@/features/corpus/corpus-context';
 import { createCollocationHitsParameters } from '@/pages/search/model/results/collocation-request';
 import type { EffectiveCollocationParameters } from '@/pages/search/model/results/result-types';
-import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import type { IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { makeRows } from '@/pages/search/results/table/table-layout';
-import type { BLCollocationsParameters, BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
+import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api';
 import { ApiError } from '@/shared/api/lib/api-types';
+import { useRequestResource } from '@/shared/utils/loadable/loadable-request-resource';
 
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
@@ -68,52 +68,57 @@ const corpus = useCorpus();
 // The parent view's selected range does not apply to a group's inline preview.
 const previewInfo = computed(() => ({ ...props.info, selectedRange: null, detailedAnnotations: [] }));
 
-// NOTE: was initially created using a watcher on props.row only,
-// but that leaves the type as T|undefined, so computed it is
-const concordances = computed(
-	() =>
-		new PaginatedGetter<Rows>((oldRows, first, number) => {
-			// make a copy of the parameters so we don't clear them for all components using the summary
-			const requestParameters: BLSearchParameters | BLCollocationsParameters = {
-				...props.query,
-				// Do not clear sample/samplenum/samplecount,
-				// or we could retrieve concordances that weren't included in the input results for the grouping
-				number,
-				first,
-				viewgroup: props.row.id,
-				// if parallel corpus, show aligned hits first. (if not, we don't care about order)
-				sort: corpus.value.isParallelCorpus ? 'alignments' : undefined,
-			};
+const rows = shallowRef<Rows>();
+const offset = ref(0);
+const page = useRequestResource<number, void>(async (first, run) => {
+	const number = Math.min(20, props.row.size - first);
+	const params: BLSearchParameters = {
+		...props.query,
+		first,
+		number,
+		viewgroup: props.row.id,
+		sort: corpus.value.isParallelCorpus ? 'alignments' : undefined,
+	};
+	const index = corpus.value.id;
+	let request;
+	if (props.operation === 'collocations') {
+		const hits = createCollocationHitsParameters(params as EffectiveCollocationParameters);
+		if (!hits) throw new ApiError('Invalid collocation request', 'The contexts for this collocate could not be requested.', 'No results', undefined);
+		request = blacklab.getHits<BLHitResults>(index, hits);
+	} else {
+		request = props.type === 'hits' ? blacklab.getHits<BLHitResults>(index, params) : blacklab.getDocs<BLDocResults>(index, params);
+	}
+	const results = await run.wait<BLHitResults | BLDocResults>(request);
+	run.signal.throwIfAborted();
+	const next = makeRows(results, previewInfo.value).rows.filter(row => row.type === (props.type === 'hits' ? 'hit' : 'doc'));
+	rows.value = { rows: [...(rows.value?.rows ?? []), ...next] };
+	offset.value = first + number;
+});
+const loading = computed(() => page.state.value.loading);
+const errorMessage = computed(() => {
+	const { error } = page.current.value;
+	if (!error) return null;
+	const { title, message } = error;
+	const detail = message.length > 500 ? message.slice(0, 500) + '…' : message;
+	return title && title !== detail ? title + ': ' + detail : detail;
+});
 
-			const indexId = corpus.value.id!;
-			let r: Promise<BLHitResults | BLDocResults>;
-			if (props.operation === 'collocations') {
-				const hitsParameters = createCollocationHitsParameters(requestParameters as EffectiveCollocationParameters);
-				r = hitsParameters
-					? blacklab.getHits<BLHitResults>(indexId, hitsParameters)
-					: Promise.reject(new ApiError('Invalid collocation request', 'The contexts for this collocate could not be requested.', 'No results', undefined));
-			} else {
-				r = props.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters as BLSearchParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters as BLSearchParameters);
-			}
+function loadNext() {
+	if (offset.value < props.row.size && !loading.value && !errorMessage.value) page.run(offset.value);
+}
 
-			return r
-				.then(newResults => makeRows(newResults, previewInfo.value))
-				.then(newRows => {
-					if (props.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
-					else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
-
-					if (!oldRows) return newRows;
-					oldRows.rows.push(...newRows.rows);
-					return oldRows;
-				});
-		}, props.row.size),
-);
-
+watch([() => props.row.id, () => props.row.size, () => props.query, () => props.type, () => props.operation, () => corpus.value.id], () => {
+	page.reset();
+	offset.value = 0;
+	rows.value = undefined;
+	if (props.open) loadNext();
+});
 watch(
 	() => props.open,
-	newVal => {
-		if (newVal && concordances.value && !concordances.value.done && !concordances.value.loading && !concordances.value.results?.rows.length) concordances.value.next();
+	open => {
+		if (open && !rows.value) loadNext();
 	},
+	{ immediate: true },
 );
 </script>
 

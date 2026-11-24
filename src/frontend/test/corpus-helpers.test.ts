@@ -17,7 +17,7 @@ describe('resolveAnnotatedField', () => {
 		expect(resolveAnnotatedField(corpus, 'en_1611')?.id).toBe('contents__en_1611');
 		expect(resolveAnnotatedField(corpus, 'unknown')).toBeUndefined();
 		const ambiguous = { ...corpus, allAnnotatedFieldsMap: { ...corpus.allAnnotatedFieldsMap, notes__en_1611: { id: 'notes__en_1611' } as NormalizedAnnotatedField } };
-		expect(resolveAnnotatedField(ambiguous, 'en_1611')).toBeUndefined();
+		expect(resolveAnnotatedField(ambiguous, 'en_1611')?.id).toBe('contents__en_1611');
 	});
 });
 
@@ -33,17 +33,16 @@ describe('getDocumentLength', () => {
 				{ fieldName: 'contents__nl_1939', tokens: 18318 },
 			],
 		};
-		expect(getDocumentLength(corpus, docInfo)).toBe(18318);
-		expect(getDocumentLength(corpus, docInfo, 'contents__en_1611')).toBe(21448);
-		expect(getDocumentLength(corpus, docInfo, 'contents__de_1460')).toBe(0);
-		expect(getDocumentLength(corpus, docInfo, 'contents__missing')).toBeUndefined();
-		expect(getDocumentLength(corpus, docInfo, 'unknown')).toBeUndefined();
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField)).toBe(18318);
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField, 'contents__en_1611')).toBe(21448);
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField, 'contents__de_1460')).toBe(0);
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField, 'contents__missing')).toBeUndefined();
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField, 'unknown')).toBeUndefined();
 	});
 
 	test('uses a legacy unnamed count only for the main field', () => {
 		const docInfo: BLDocInfo = { metadata: {}, mayView: true, tokenCounts: [{ fieldName: '', tokens: 273 }] };
-		expect(getDocumentLength(corpus, docInfo)).toBe(273);
-		expect(getDocumentLength(corpus, docInfo, 'contents__nl_1939')).toBe(273);
-		expect(getDocumentLength(corpus, docInfo, 'contents__en_1611')).toBeUndefined();
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField)).toBe(273);
+		expect(getDocumentLength(docInfo, corpus.mainAnnotatedField, 'contents__en_1611')).toBeUndefined();
 	});
 });

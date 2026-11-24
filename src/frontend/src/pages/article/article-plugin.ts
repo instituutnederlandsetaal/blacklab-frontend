@@ -6,7 +6,7 @@ import { createArticlePageState, provideArticlePageState } from '@/pages/article
 import type { Corpus } from '@/types/apptypes';
 
 export function createArticlePlugin({ corpus, router }: { corpus: MaybeRefOrGetter<Corpus | undefined>; router: Router }) {
-	const state = createArticlePageState(corpus);
+	const state = createArticlePageState();
 	const urlBinding = createArticleUrlBinding(router, state, corpus);
 
 	return {

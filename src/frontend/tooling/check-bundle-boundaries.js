@@ -47,7 +47,7 @@ const pages = {
 	search: closure([main, locale, entry('/pages/search/entrypoint.ts')]),
 	article: closure([main, locale, entry('/pages/article/entrypoint.ts')]),
 	config: closure([main, locale, entry('/pages/config/entrypoint.ts')]),
-	info: closure([main, locale, entry('/pages/info/entrypoint.ts')]),
+	info: closure([main, locale, entry('/pages/info/InfoPage.vue')]),
 };
 const template = await readFile(path.join(root, '../main/webapp/WEB-INF/templates/index.vm'), 'utf8');
 for (const stylesheet of new Set(pages.global.flatMap(chunk => [...chunk.viteMetadata.importedCss]))) {

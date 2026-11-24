@@ -135,7 +135,7 @@
 import { computed, markRaw, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { writeArticleQuery } from '@/app/router/url/article-query';
+import { articleFieldParams, writeArticleQuery } from '@/app/router/url/article-query';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import { useCorpus } from '@/features/corpus/corpus-context';
 import { createCollocationHitsParameters } from '@/pages/search/model/results/collocation-request';
@@ -490,7 +490,7 @@ const renderDisplaySettings = computed<DisplaySettingsForRendering>(() => {
 
 	return {
 		articleUrl(docId, parameters) {
-			const query = writeArticleQuery(parameters, currentCorpus.mainAnnotatedField);
+			const query = writeArticleQuery({ ...parameters, ...articleFieldParams(parameters, currentCorpus.mainAnnotatedField) });
 			const { href } = router.resolve({ name: 'article', params: { corpus: currentCorpus.id, docId }, query });
 			return new URL(href, window.location.origin).href;
 		},
