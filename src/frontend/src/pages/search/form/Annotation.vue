@@ -1,5 +1,13 @@
 <template>
-	<div :class="bare ? '' : 'form-group propertyfield'" :id="htmlId"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
+	<Autocomplete v-if="inputOnly"
+		type="text"
+		class="form-control"
+		useQuoteAsWordBoundary
+		:get-data="getSuggestions"
+		v-bind="$attrs"
+		v-on="$listeners"
+	/>
+	<div v-else v-bind="$attrs" :class="bare ? '' : 'form-group propertyfield'" :id="htmlId"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
 		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="description">{{displayName}} <Debug>(id: {{annotation.id}})</Debug></label>
 		<div :class="bare ? '' : 'col-xs-12 col-md-9'">
 			<SelectPicker v-if="annotation.uiType === 'select'"
@@ -37,7 +45,7 @@
 					:dir="textDirection"
 
 					:autocomplete="autocomplete"
-					:url="autocompleteUrl"
+					:get-data="getSuggestions"
 					v-model="value"
 				/>
 				<div v-if="!bare" class="input-group-btn">
@@ -103,7 +111,7 @@ import Autocomplete from '@/components/Autocomplete.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import UID from '@/mixins/uid';
 
-import {blacklabPaths} from '@/api';
+import { blacklab } from '@/api';
 import { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';
 
 export default Vue.extend({
@@ -113,10 +121,13 @@ export default Vue.extend({
 		Autocomplete,
 		Lexicon
 	},
+	inheritAttrs: false,
 	props: {
 		annotation: Object as () => NormalizedAnnotation,
 		htmlId: String,
 		bare: Boolean,
+		/** Render just the text input. The parent supplies the value and handles edits. */
+		inputOnly: Boolean,
 		/**
 		 * Set to true if this annotation is the "simple" annotation. I.e. the Annotation in the "simple" tab of the search form.
 		 * This will change which field the value is written to the vuex store.
@@ -152,7 +163,11 @@ export default Vue.extend({
 		options(): Option[] { return this.annotation.values || []; },
 
 		autocomplete(): boolean { return this.annotation.uiType === 'combobox' && this.annotation.annotatedFieldId !== ''; },
-		autocompleteUrl(): string { return this.autocomplete ? blacklabPaths.autocompleteAnnotation(INDEX_ID, this.annotation.annotatedFieldId ?? '', this.annotation.id ?? '') : ''; },
+		getSuggestions() {
+			if (!this.annotation) return;
+			const { annotatedFieldId, id } = this.annotation;
+			return (term: string) => blacklab.getTermAutocomplete(INDEX_ID, annotatedFieldId, id, term);
+		},
 
 		value: {
 			get(): string {

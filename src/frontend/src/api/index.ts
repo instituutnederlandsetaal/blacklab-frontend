@@ -131,17 +131,10 @@ export const blacklabPaths = {
 	docsCsv: (indexId: string) =>                   `${indexId}/docs-csv/`,
 	snippet: (indexId: string, docId: string) =>    `${indexId}/docs/${docId}/snippet/`,
 	parsePattern: (indexId: string) =>              `${indexId}/parse-pattern/`,
-
-	// Is used outside the axios endpoint we created above, so prefix with the correct location
-	autocompleteAnnotation: (
-		indexId: string,
-		annotatedFieldId: string,
-		annotationId: string) =>                    `${endpoints.blacklab.defaults.baseURL}${indexId}/autocomplete/${annotatedFieldId}/${annotationId}/`,
-	// Is used outside the axios endpoint we created above, so prefix with the correct location
-	autocompleteMetadata: (
-		indexId: string,
-		metadataFieldId: string) =>                 `${endpoints.blacklab.defaults.baseURL}${indexId}/autocomplete/${metadataFieldId}/`,
 	termFrequencies: (indexId: string) =>           `${indexId}/termfreq/`,
+	autocompleteAnnotation: (indexId: string, annotatedFieldId: string, annotationId: string) =>
+		`${indexId}/autocomplete/${annotatedFieldId}/${annotationId}/`,
+	autocompleteMetadata: (indexId: string, metadataFieldId: string) => `${indexId}/autocomplete/${metadataFieldId}/`,
 };
 
 /**
@@ -265,6 +258,12 @@ export const blacklab = {
 
 	getDocumentInfo: (indexId: string, documentId: string, params: { query?: string; } = {}, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.getOrPost<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
+
+	getDocumentContentsUrl: (indexId: string, documentId: string, params: { wordstart?: number; wordend?: number }) =>
+		endpoints.blacklab.getUri({
+			url: `${endpoints.blacklab.defaults.baseURL}${blacklabPaths.docInfo(indexId, documentId)}/contents`,
+			params,
+		}),
 
 	getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => cachedRequest(
 		`blacklab-relations-${indexId}`,
@@ -415,16 +414,19 @@ export const blacklab = {
 		}, requestParameters);
 	},
 
-	getTermAutocomplete: (indexId: string, annotatedFieldId: string, annotationId: string, prefix: string, requestParameters?: AxiosRequestConfig) => {
-		return endpoints.blacklab.getOrPost<string[]>(blacklabPaths.autocompleteAnnotation(
-			indexId,
-			annotatedFieldId,
-			annotationId
-		), {
-			term: prefix
-		}, requestParameters)
-	},
+	getTermAutocomplete: (indexId: string, annotatedFieldId: string, annotationId: string, prefix: string, requestParameters?: AxiosRequestConfig) =>
+		endpoints.blacklab.getOrPost<string[]>(blacklabPaths.autocompleteAnnotation(indexId, annotatedFieldId, annotationId), { term: prefix }, requestParameters),
+
+	getMetadataAutocomplete: (indexId: string, fieldId: string, prefix: string, requestParameters?: AxiosRequestConfig) =>
+		endpoints.blacklab.get<string[]>(blacklabPaths.autocompleteMetadata(indexId, fieldId), { term: prefix }, requestParameters),
 };
+
+const customAutocompleteEndpoint = createEndpoint({});
+
+/** Fetch suggestions from a URL supplied by a custom metadata filter. */
+export function getAutocompleteFromUrl(url: string, prefix: string) {
+	return customAutocompleteEndpoint.get<string[]>(url, { term: prefix });
+}
 
 /**
  * API for blacklab-frontend's own webservice

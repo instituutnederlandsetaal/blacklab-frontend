@@ -10,7 +10,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue, { PropType } from 'vue';
 
 import $ from 'jquery';
 import 'jquery-ui';
@@ -47,23 +47,20 @@ $.widget('custom.autocomplete', $.ui.autocomplete, {
 	}
 });
 
+type GetData = (term: string) => Promise<string[]>;
+
 export default Vue.extend({
 	props: {
 		value: String,
-		url: String,
-		/** alternative to url, use this to get the data yourself. */
-		getData: Function as any as () => (term: string) => Promise<string[]>,
-		/** Process the data before it is displayed. Work on both getData and url. */
-		processData: Function as any as () => (data: any) => string[],
+		getData: Function as PropType<GetData>,
+		/** Process the data before it is displayed. */
+		processData: Function as PropType<(data: string[]) => string[]>,
 		autocomplete: {
 			default: true,
 			type: Boolean
 		},
 		useQuoteAsWordBoundary: Boolean,
 	},
-	data: () => ({
-		withCredentials: WITH_CREDENTIALS,
-	}),
 	computed: {
 		modelvalue: {
 			get(): string { return this.value; },
@@ -74,38 +71,31 @@ export default Vue.extend({
 		_createAutocomplete() {
 			const $input = $(this.$el);
 			const self = this;
-			let lastSearchValue = '';
-			let lastSearchResults: string[]|undefined;
+			let lastSearch: { getData: GetData; value: string; results: Promise<string[]> } | undefined;
 			$input.autocomplete({
 				// Show values when at least 1 letter is present in the input
 				minLength: 1,
 				classes: {
 					'ui-autocomplete': 'dropdown-menu'
 				},
-				source(params: any, render: (v: string[]) => void) {
-					if (!self.getData && !self.url) return;
+				source(_params: any, render: (v: string[]) => void) {
+					const { getData } = self;
+					const { value } = self._getWordAroundCursor(false);
+					if (!getData || !value) return render([]);
 
-					const {value} = self._getWordAroundCursor(false);
-					if (!value.length) return;
-					if (value === lastSearchValue && lastSearchResults) return render(lastSearchResults);
-					lastSearchValue = value;
+					if (lastSearch?.getData !== getData || lastSearch.value !== value) {
+						const results = getData(value).then(data => self.processData ? self.processData(data) : data);
+						lastSearch = { getData, value, results };
+					}
 
-					const getData = (self.getData && self.getData(value)) || $.ajax({
-						method: 'GET',
-						url: self.url,
-						data: {term: value},
-						dataType: 'json',
-						xhrFields: {
-							withCredentials: self.withCredentials
+					const search = lastSearch;
+					search.results.then(
+						results => render(self.getData === getData ? results : []),
+						() => {
+							if (lastSearch === search) lastSearch = undefined;
+							render([]);
 						}
-					});
-
-					getData.then(r => {
-						if (value !== lastSearchValue) return; // stale data.
-						if (self.processData) r = self.processData(r);
-						lastSearchResults = r;
-						render(r);
-					});
+					);
 				},
 				create() {
 					// This element has a div appended every time an element is highlighted

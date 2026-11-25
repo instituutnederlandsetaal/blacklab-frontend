@@ -12,7 +12,6 @@ import * as CorpusModule from '@/store/search/corpus';
 import { FilterDefinition } from '@/types/apptypes';
 
 import { debugLog } from '@/utils/debug';
-import { blacklabPaths } from '@/api';
 import { mapReduce } from '@/utils';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
@@ -172,7 +171,7 @@ const init = () => {
 					break;
 				case 'combobox':
 					componentName = 'filter-autocomplete';
-					metadata = blacklabPaths.autocompleteMetadata(INDEX_ID, f.id);
+					metadata = { field: f.id };
 					break;
 				case 'radio'   :
 					componentName = 'filter-radio';

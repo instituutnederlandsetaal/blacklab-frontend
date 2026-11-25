@@ -23,7 +23,7 @@ import * as loginSystem from '@/utils/loginsystem';
 
 import '@/global.scss';
 import '@/article.scss';
-import { init as initApi } from '@/api';
+import { blacklab, init as initApi } from '@/api';
 import '@/utils/i18n';
 
 // Article-related functions.
@@ -79,14 +79,10 @@ $(document).ready(async () => {
 	RootStore.store.watch(store => ({debug: debug.debug, document: store.document}), ({debug, document}) => {
 		if (debug && document) {
 			// Add the debug tab
-			const queryParamsForContents = {
-				wordstart: PAGE_START,
-				wordend: PAGE_END,
-			} as any;
-			if (!PAGE_START) delete queryParamsForContents.wordstart
-			if (!PAGE_END || PAGE_END === document.docInfo.lengthInTokens) delete queryParamsForContents.wordend;
-
-			const queryString = new URLSearchParams(queryParamsForContents).toString();
+			const rawDocumentUrl = blacklab.getDocumentContentsUrl(INDEX_ID, DOCUMENT_ID, {
+				wordstart: PAGE_START || undefined,
+				wordend: PAGE_END && PAGE_END !== document.docInfo.lengthInTokens ? PAGE_END : undefined,
+			});
 
 			const s =
 			`<div id="debug-info">
@@ -101,7 +97,7 @@ $(document).ready(async () => {
 					${Object.entries(document.docInfo).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => `<tr><td>${k}</td><td>${JSON.stringify(v)}</td></tr>`).join('')}
 				</table>
 
-				<a href="${BLS_URL}${INDEX_ID}/docs/${DOCUMENT_ID}/contents${queryString && ('?' + queryString)}" target="_blank">Open raw document</a>
+				<a href="${rawDocumentUrl}" target="_blank">Open raw document</a>
 			</div>`
 
 			$('#articleTabs').append(`<li id="debug-tab"><a href="#debug" data-toggle="tab">Debug</a></li>`)

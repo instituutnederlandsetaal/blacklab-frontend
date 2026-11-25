@@ -62,13 +62,11 @@
 				@input="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
 			<!-- Text input with optional autocomplete for free text -->
-			<Autocomplete v-else
+			<Annotation v-else input-only
 				data-attribute-role="value"
-				type="text"
-				class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
+				class="input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="textDirection"
-				:url="autocompleteUrl"
-				useQuoteAsWordBoundary
+				:annotation="currentAnnotation"
 				v-model="textValue"
 			/>
 
@@ -136,8 +134,7 @@ import { CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-t
 import SelectPicker from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';
 import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
-import Autocomplete from '@/components/Autocomplete.vue';
-import { blacklabPaths } from '@/api';
+import Annotation from '@/pages/search/form/Annotation.vue';
 
 import useModel from './useModel';
 import { escapeRegex } from '@/utils';
@@ -148,7 +145,7 @@ export default useModel<CqlAttributeData>().extend({
 		CqlAddAttributeButton,
 		SelectPicker,
 		Modal,
-		Autocomplete,
+		Annotation,
 	},
 	props: {
 		options: { type: Object as () => CqlQueryBuilderOptions, required: true },
@@ -158,10 +155,6 @@ export default useModel<CqlAttributeData>().extend({
 		textDirection(): 'ltr' | 'rtl' { return this.options.textDirection; },
 		currentAnnotation(): NormalizedAnnotation | undefined {
 			return this.options.allAnnotationsMap[this.model.annotationId];
-		},
-		autocompleteUrl(): string {
-			if (!this.currentAnnotation) return '';
-			return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.currentAnnotation.annotatedFieldId, this.currentAnnotation.id);
 		},
 
 		hasUploadedValue(): boolean { return !!this.model.uploadedValue },

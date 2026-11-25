@@ -166,7 +166,6 @@ import ParallelSourceAndTargets from '@/pages/search/form/ParallelSourceAndTarge
 import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
 
-import { blacklabPaths } from '@/api';
 import * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
@@ -258,7 +257,6 @@ export default ParallelFields.extend({
 				annotatedFieldId: field ?? '' // no autocomplete if no parallel version selected
 			};
 		},
-		simpleSearchAnnotationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;

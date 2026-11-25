@@ -124,17 +124,11 @@
 							ref="reset"
 						/>
 
-						<Autocomplete v-else
-							type="text"
-							class="form-control"
-
-							useQuoteAsWordBoundary
-
+						<Annotation v-else input-only
+							:annotation="token.annotation"
 							:placeholder="$tAnnotDisplayName(token.annotation)"
 							:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
 							:disabled="index >= ngramSize"
-
-							:url="autocompleteUrl(token.annotation)"
 
 							:value="token.value"
 							@change="updateTokenValue(index, $event)"
@@ -177,11 +171,10 @@ import * as ExploreStore from '@/store/search/form/explore';
 import * as UIStore from '@/store/search/ui';
 
 import SelectPicker, {Option, OptGroup} from '@/components/SelectPicker.vue';
-import Autocomplete from '@/components/Autocomplete.vue';
+import Annotation from '@/pages/search/form/Annotation.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import ParallelSource from '@/pages/search/form/ParallelSource.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
-import { blacklabPaths } from '@/api';
 
 import debug from '@/utils/debug';
 import { corpusCustomizations } from '@/utils/customization';
@@ -191,7 +184,7 @@ export default ParallelFields.extend({
 	components: {
 		ParallelSource,
 		SelectPicker,
-		Autocomplete,
+		Annotation,
 		Lexicon
 	},
 	props: {
@@ -316,9 +309,6 @@ export default ParallelFields.extend({
 				token: { value }
 			});
 		},
-		autocompleteUrl(annot: CorpusStore.NormalizedAnnotation) {
-			return blacklabPaths.autocompleteAnnotation(INDEX_ID, annot.annotatedFieldId, annot.id);
-		}
 	},
 	created() {
 		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value;

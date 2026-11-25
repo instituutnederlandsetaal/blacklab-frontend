@@ -17,7 +17,7 @@
 				:placeholder="displayName"
 				:dir="textDirection"
 
-				:url="autocompleteUrl"
+				:get-data="getSuggestions"
 				v-model="modelvalue"
 			/>
 		</div>
@@ -30,18 +30,18 @@
 <script lang="ts">
 import Autocomplete from '@/components/Autocomplete.vue';
 import FilterText from '@/components/filters/FilterText.vue';
+import { blacklab, getAutocompleteFromUrl } from '@/api';
 
 export default FilterText.extend({
 	components: { Autocomplete },
-	props: {
-		value: {
-			type: String,
-			required: true,
-			default: '',
-		}
-	},
 	computed: {
-		autocompleteUrl(): string { return this.definition.metadata as string; },
+		getSuggestions() {
+			const source = this.definition.metadata as { field: string } | string | undefined;
+			if (!source) return;
+			if (typeof source === 'string') return (term: string) => getAutocompleteFromUrl(source, term);
+			const { field } = source;
+			if (field) return (term: string) => blacklab.getMetadataAutocomplete(INDEX_ID, field, term);
+		},
 		modelvalue: {
 			get(): string { return this.value; },
 			set(v: string) { this.e_input(v); }
