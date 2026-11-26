@@ -109,7 +109,8 @@
 							type="text"
 							class="form-control"
 							:id="model.id + '_property_repeats_min'"
-							v-model.number="model.properties.minRepeats"
+							:value="model.properties.minRepeats"
+							@input="setRepeatBound('minRepeats', $event)"
 						>
 						<span class="input-group-addon" style="border-left-width:0px; border-right-width:0px;">
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_to') }}
@@ -118,7 +119,8 @@
 							type="text"
 							class="form-control"
 							:id="model.id + '_property_repeats_max'"
-							v-model.number="model.properties.maxRepeats"
+							:value="model.properties.maxRepeats"
+							@input="setRepeatBound('maxRepeats', $event)"
 						>
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_times') }}</span>
 					</div>
@@ -160,6 +162,10 @@ export default useModel<CqlTokenData>().extend({
 		}
 	},
 	methods: {
+		setRepeatBound(bound: 'minRepeats' | 'maxRepeats', event: Event) {
+			const value = parseFloat((event.target as HTMLInputElement).value);
+			this.model.properties[bound] = Number.isFinite(value) ? value : null;
+		},
 		updateRootAttributeGroup(updatedGroup: CqlAttributeGroupData) {
 			this.model.rootAttributeGroup = updatedGroup;
 		},

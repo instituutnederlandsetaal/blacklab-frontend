@@ -128,7 +128,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	get withinClausesWithoutSpanFilters(): Record<string, Record<string, any>> {
 		// Only keep within clauses that are not span filters
 		return Object.fromEntries(Object.entries(this.withinClauses)
-			.map(([spanName, attrs]: [string, Record<string, any>]) => {
+			.map<[string, Record<string, any>]>(([spanName, attrs]: [string, Record<string, any>]) => {
 				if (Object.keys(attrs).length === 0) {
 					// No attributes, so this might be the within widget selection.
 					return [spanName, { '_MAYBE_WITHIN_': true } as Record<string, any>];
@@ -149,8 +149,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 					}
 				}
 			})
-			.filter(([elName, attrs]: [string, Record<string, any>]) => Object.keys(attrs).length > 0)
-			.map(([elName, attrs]: [string, Record<string, any>]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs])) as Record<string, Record<string, any>>;
+			.filter(([elName, attrs]) => Object.keys(attrs).length > 0)
+			.map(([elName, attrs]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs])) as Record<string, Record<string, any>>;
 	}
 
 	@memoize
@@ -362,6 +362,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const cql = this._parsedCql[0];
 		if ( // all tokens need to be very simple [annotation="value"] tokens.
 			!cql ||
+			cql.containing ||
 			cql.withinClauses && Object.keys(cql.withinClauses).length > 0 ||
 			cql.targetVersion ||
 			cql.tokens === undefined || cql.tokens.length > ExploreModule.defaults.ngram.maxSize ||
@@ -430,7 +431,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		}
 
 		const result = this._parsedCql[0];
-		if (result == null || result.tokens === undefined) {
+		if (result == null || result.tokens === undefined || result.containing) {
 			return undefined;
 		}
 
@@ -576,21 +577,6 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get expertWithinClauses(): Record<string, Record<string, any>> {
-		// Remove whatever goes into the within widget from the withinClauses.
-		const within = this.withinElementName;
-		const withinAttributes = this.withinAttributes;
-		return Object.fromEntries(Object.entries(this.withinClausesWithoutSpanFilters)
-			.map(([el, attr]) => {
-				if (el === within) {
-					// Remove attributes that are already in the within widget
-					Object.keys(withinAttributes).forEach(attrName => delete attr[attrName]);
-				}
-				return [el, attr];
-			})) as Record<string, Record<string, any>>;
-	}
-
-	@memoize
 	private get shared() {
 		// The query typically doesn't contain the entire parallel field name.
 		// BlackLab allows passing just "en" instead of "contents__en" in some spots
@@ -676,8 +662,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get expertPattern() {
 
-		// Strip any withinClauses from the end of the CQL query,
-		// then add back only those that we cannot place into a widget.
+		// The Expert form has no within widget, so keep every clause not applied by the span filters.
 		const processQueryPart = (r: Result) => {
 			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
 			const rawQuery = r.query ?? '';
@@ -685,7 +670,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
 			}
 			const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
-			const reapplyWithins = this.expertWithinClauses;
+			const reapplyWithins = this.withinClausesWithoutSpanFilters;
 			const finalQuery = Object.keys(reapplyWithins).length > 0 ?
 				applyWithinClauses(query ?? '', reapplyWithins) : query;
 

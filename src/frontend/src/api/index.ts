@@ -182,7 +182,7 @@ export const blacklab = {
 		.get<BLTypes.BLFormatContent>(blacklabPaths.formatContent(id), undefined, requestParameters),
 
 	getFormatXslt: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<string>(blacklabPaths.formatXslt(id), undefined, requestParameters),
+		.get<string>(blacklabPaths.formatXslt(id), { outputformat: 'xml' }, requestParameters),
 
 	postShares: (id: string, users: BLTypes.BLShareInfo, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.post<BLTypes.BLResponse>(blacklabPaths.shares(id),

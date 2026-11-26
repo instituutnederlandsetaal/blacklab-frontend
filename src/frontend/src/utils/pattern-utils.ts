@@ -188,7 +188,7 @@ export function getPatternStringSearch(
 				sourceQuery,
 				withinClauses,
 				targets,
-				state.advanced?.targetQueries.map(tq => CqlGenerator.rootCql(tq)).filter(q => q != null) ?? [],
+				state.advanced.targetQueries.map(tq => CqlGenerator.rootCql(tq) ?? ''),
 				alignBy
 			);
 		case 'expert':

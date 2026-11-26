@@ -8,8 +8,8 @@ export type CqlAnnotationCombinator = '&' | '|';
 
 export interface CqlTokenProperties {
 	optional: boolean;
-	minRepeats: number;
-	maxRepeats: number;
+	minRepeats: number | null;
+	maxRepeats: number | null;
 	beginOfSentence: boolean;
 	endOfSentence: boolean;
 }
@@ -101,19 +101,14 @@ function tokenCql(token: CqlTokenData): string {
 
 	// Handle repeats
 	const { minRepeats, maxRepeats, optional } = token.properties;
-	if (!isNaN(minRepeats) || !isNaN(maxRepeats)) {
-		if (minRepeats === maxRepeats) {
-			if (minRepeats !== 1) {
-				parts.push(`{${minRepeats}}`);
-			}
-		} else {
-			const min = isNaN(minRepeats) ? '' : minRepeats.toString();
-			const max = isNaN(maxRepeats) ? '' : maxRepeats.toString();
-			parts.push(`{${min},${max}}`);
-		}
+	const min = minRepeats ?? 0;
+	if (min !== maxRepeats) {
+		parts.push(`{${min},${maxRepeats ?? ''}}`);
+	} else if (min !== 1) {
+		parts.push(`{${min}}`);
 	}
 
-	if (optional && minRepeats !== 0) {
+	if (optional && min !== 0) {
 		parts.push('?');
 	}
 
@@ -180,12 +175,7 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 		let nextId = 0;
 		const generateId = () => `generated_${nextId++}`;
 
-		const tokens = parsedQuery.tokens || [];
-		const withinClauses = parsedQuery.withinClauses || {};
-
-		// Extract within element and attributes
-		const withinElements = Object.keys(withinClauses);
-		const within = withinElements.length > 0 ? withinElements[0] : '';
+		const tokens = parsedQuery.targetVersion && parsedQuery.query === '_' ? [] : parsedQuery.tokens || [];
 
 		const parsedTokens = tokens.map(token => {
 			const tokenData: CqlTokenData = {
@@ -193,7 +183,7 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 				properties: {
 					optional: token.optional || false,
 					minRepeats: token.repeats?.min ?? 1,
-					maxRepeats: token.repeats?.max ?? 1,
+					maxRepeats: token.repeats ? token.repeats.max : 1,
 					beginOfSentence: !!token.leadingXmlTag && token.leadingXmlTag.name === 's',
 					endOfSentence: !!token.trailingXmlTag && token.trailingXmlTag.name === 's'
 				},
@@ -214,7 +204,7 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 
 		return {
 			tokens: parsedTokens,
-			within,
+			within: parsedQuery.containing ?? '',
 		};
 	};
 
@@ -279,8 +269,13 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 
 			// decode starts-with / ends-with from value regex
 			let comparator: CqlAnnotationValueComparator = '=';
-			if (operator === '=' && value.startsWith('.*')) { comparator = 'endsWith'; }
-			else if (operator === '=' && value.endsWith('.*')) { comparator = 'startsWith'; }
+			if (operator === '=' && value.startsWith('.*')) {
+				comparator = 'endsWith';
+				value = value.slice(2);
+			} else if (operator === '=' && value.endsWith('.*')) {
+				comparator = 'startsWith';
+				value = value.slice(0, -2);
+			}
 			else { comparator = operator as CqlAnnotationValueComparator; }
 
 			// Split values on pipe character for multi-value attributes

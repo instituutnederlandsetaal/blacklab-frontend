@@ -13,8 +13,6 @@
 
 import * as api from '@/api';
 
-export const DEFAULT_ANNOTATION = '__default__';
-
 export type XmlTag = {
 	type: 'xml';
 	/** xml token name excluding namespace, brackets, attributes etc */
@@ -60,6 +58,8 @@ export type Result = {
 	tokens?: Token[];
 	/** Any within clauses on this query. Usually in the form of {[]} */
 	withinClauses?: Record<string, Record<string, string|{ low: string; high: string }>>;
+	/** The span returned by the Advanced builder's `<tag/> containing ...` query. */
+	containing?: string;
 	/** Target version for this query, or undefined if this is the source query */
 	targetVersion?: string;
 	/** Relation type for this (target) query, or undefined if this is the source query */
@@ -83,42 +83,46 @@ type BLTextPatternValue = {
 function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): Result[] {
 
 	function _not(clause: any): Condition {
-		if (clause.type !== 'regex') {
-			throw new Error('Can only interpret not on regex');
+		const condition = clause.type === 'compare' ? _compare(clause)
+			: clause.type === 'regex' ? _regex(clause.annotation, clause.value)
+			: null;
+		if (!condition) {
+			throw new Error('Can only interpret not on a regex or comparison');
 		}
 		return {
-			..._regex(clause.annotation, clause.value),
-			operator: '!=',
+			...condition,
+			operator: condition.operator === '=' ? '!=' : '=',
 		};
 	}
 
 	// BL4 will return [word="de"] as a single regex node
-	function _regex(annotation: string, value: string): Condition {
+	function _regex(annotation: string | undefined, value: string): Condition {
 		return {
 			type: 'condition',
-			name: annotation || DEFAULT_ANNOTATION,
+			name: annotation || defaultAnnotation,
 			operator: '=',
 			value
 		};
 	}
 	// BL5 will return [word="de"] as a compare node with symbol and string clauses
-	function _compare(clauses: any[], operation: string): Condition {
+	function _compare({ clauses, operation, sensitivity }: any): Condition {
 		if (operation !== '=' && operation !== '!=')
 			throw new Error('Cannot interpret compare operation: ' + operation);
 
 		const [compareWhat, compareWith] = clauses;
 
-		if (compareWhat.type !== 'defval' || compareWith.type !== 'symbol')
+		if (compareWhat.type !== 'defval' && compareWhat.type !== 'symbol')
 			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
 		if (compareWith.type !== 'string')
 			throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
-		let annotation = compareWhat.type === 'defval' ? DEFAULT_ANNOTATION : compareWhat.value;
+		if (sensitivity != null && sensitivity !== 's' && sensitivity !== 'i')
+			throw new Error('Cannot interpret compare sensitivity: ' + sensitivity);
 		return {
-			name: annotation,
+			name: compareWhat.type === 'defval' ? defaultAnnotation : compareWhat.value,
 			operator: operation,
-			value: compareWith.value,
+			value: sensitivity === 's' ? '(?-i)' + compareWith.value : compareWith.value,
 			type: 'condition',
-		}
+		};
 	}
 
 	function _boolean(type: string, clauses: any[]): BooleanOp|null {
@@ -151,9 +155,9 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function _tokenExpression(input: any): BooleanOp|Condition|null {
 		switch (input.type) {
 		case 'regex':
-			return _regex(input.annotation || defaultAnnotation, input.value);
+			return _regex(input.annotation, input.value);
 		case 'compare':
-			return _compare(input.clauses, input.operation);
+			return _compare(input);
 		case 'not':
 			return _not(input.clause);
 		case 'and':
@@ -172,7 +176,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 		// <s> and </s> are still separate "tokens"; join them with the appropriate real token
 		for (let i = 0; i < tokens.length - 1; i++) {
-			if (tokens[i].leadingXmlTag && !tokens[i].leadingXmlTag?.isClosingTag && tokens[i].repeats?.min) {
+			if (tokens[i].leadingXmlTag && !tokens[i].leadingXmlTag?.isClosingTag && tokens[i].repeats?.min === -1) {
 				// <s> token followed by a regular [word="..."] token; join with next token
 				tokens[i] = {
 					...tokens[i + 1],
@@ -181,7 +185,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 				tokens.splice(i + 1, 1);
 				i--;
 				continue;
-			} else if (tokens[i + 1].leadingXmlTag && tokens[i + 1].leadingXmlTag?.isClosingTag && tokens[i + 1].repeats?.min) {
+			} else if (tokens[i + 1].leadingXmlTag && tokens[i + 1].leadingXmlTag?.isClosingTag && tokens[i + 1].repeats?.min === -1) {
 				// Regular [word="..."] token followed by a </s> token; join with previous token
 				tokens[i].trailingXmlTag = tokens[i + 1].leadingXmlTag;
 				tokens.splice(i + 1, 1);
@@ -211,30 +215,27 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return r;
 	}
 
-	function _posFilter(producer: any, operation: string, filter: any): Result {
+	function _withinTags(input: any): NonNullable<Result['withinClauses']> {
+		if (input.type === 'tags')
+			return { [input.name]: interpretTagsAttributes(input.attributes) };
+		if (input.type === 'overlapping' && input.operation === 'overlap')
+			return Object.assign({}, ...input.clauses.map(_withinTags));
+		throw new Error('Unsupported within clause type: ' + input.type);
+	}
+
+	function _posFilter(input: any): Result {
+		const { producer, operation, filter, invert } = input;
+		if (invert)
+			throw new Error('Cannot interpret inverted posfilter');
+		if (operation === 'containing' && producer.type === 'tags' && !producer.attributes && !producer.capture && !producer.adjust) {
+			const query = _query(filter);
+			if (query.tokens && !query.containing && !query.withinClauses)
+				return { ...query, containing: producer.name, query: input.bcqlFragment };
+		}
 		if (operation !== 'within')
 			throw new Error('Unknown posfilter operation: ' + operation);
-		if (filter.type !== 'tags' && filter.type !== 'overlapping' && filter.type != 'posfilter')
-			throw new Error('Unknown posfilter filter type: ' + filter.type);
 		const query = _query(producer);
-		query.withinClauses = query.withinClauses ?? {};
-
-		if (filter.type === 'tags') {
-			// regular within (e.g. within <s/>)
-			query.withinClauses[filter.name.toString()] = interpretTagsAttributes(filter.attributes);
-		} else if (filter.type === 'overlapping') {
-			// "within (overlap of) all these tags"; combine withinClauses
-			if (filter.operation !== 'overlap')
-				throw new Error('Unknown overlapping operation: ' + operation);
-			filter.clauses.forEach((c: any) => {
-				if (c.type !== 'tags')
-					throw new Error('Unsupported overlapping clause type: ' + c.type);
-				query.withinClauses![c.name.toString()] = interpretTagsAttributes(c.attributes);
-			});
-		} else if (filter.type === 'posfilter') {
-			// nested posfilter (A within (B within C)); combine withinClauses
-			throw new Error('Cannot interpret nested posfilter');
-		}
+		query.withinClauses = { ...query.withinClauses, ..._withinTags(filter) };
 		return query;
 	}
 
@@ -340,23 +341,15 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 				tokens: _sequence(input.clauses) ?? undefined,
 			};
 
-		case 'posfilter': // (within expression)
-			return _posFilter(input.producer, input.operation, input.filter);
+		case 'posfilter':
+			return _posFilter(input);
 
 		case 'tags':
-			// "show me these tags" (not really within, no query given)
-			return {
-				query: input.bcqlFragment,
-				withinClauses: {
-					[input.name]: interpretTagsAttributes(input.attributes),
-				},
-			};
-
 		case 'overlapping':
-			// "show me the overlaps of these tags" (no query given)
+			// Standalone span selection, with no token query.
 			return {
 				query: input.bcqlFragment,
-				withinClauses: Object.fromEntries(input.clauses.filter( (c: any) => c.type === 'tags').map((c: any) => [c.name, interpretTagsAttributes(c.attributes)])),
+				withinClauses: _withinTags(input),
 			};
 
 		default:

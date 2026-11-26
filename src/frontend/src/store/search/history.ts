@@ -90,7 +90,20 @@ let index: NormalizedIndex;
 
 const getState = b.state();
 
+function normalizeStoredEntry<T extends HistoryEntry>(entry: T): T {
+	const { query, targetQueries } = entry.patterns.advanced;
+	for (const builder of [query, ...targetQueries]) {
+		for (const { properties } of builder?.tokens ?? []) {
+			// Older saved queries may contain empty strings from the repeat inputs.
+			if (!Number.isFinite(properties.minRepeats)) properties.minRepeats = null;
+			if (!Number.isFinite(properties.maxRepeats)) properties.maxRepeats = null;
+		}
+	}
+	return entry;
+}
+
 const get = {
+	fromBrowserState: (entry: HistoryEntry) => normalizeStoredEntry(structuredClone(entry)),
 	asFile: (entry: FullHistoryEntry) => {
 		const date = new Date().toLocaleString('en-EN', {
 			hour12: false,
@@ -128,7 +141,9 @@ const get = {
 				if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
 
 				// Rountrip from url if not compatible.
-				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParser(new URI(originalEntry.url)).get();
+				const entry = originalEntry.version === version
+					? normalizeStoredEntry(originalEntry)
+					: await new UrlStateParser(new URI(originalEntry.url)).get();
 
 				resolve({
 					entry,
@@ -251,7 +266,7 @@ const readFromLocalStorage = () => {
 			return null;
 		}
 
-		internalActions.replace(state.history);
+		internalActions.replace(state.history.map(normalizeStoredEntry));
 	} catch (e) {
 		debugLog('Could not read search history from localstorage', e);
 	}

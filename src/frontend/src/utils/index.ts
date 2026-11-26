@@ -92,7 +92,8 @@ export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) 
 
 	const unescapeBase = (s: string) => s.replace(/\\([\\^$#@&+.(){}[\]])/g, '$1');
 	const unescapeWildcards = (s: string) => s.replace(/\\([*?])/g, '$1');
-	const deactivateWildcards = (s: string) => s.replace(/\.\*/g, '*').replace(/\./g, '?');
+	const deactivateWildcards = (s: string) => s.replace(/\\.|(\.\*)|(\.)/g,
+		(match, many, one) => many ? '*' : one ? '?' : match);
 	const unescapePipes = (s: string) => s.replace(/\\[|]/g, '|');
 	const unescapeQuotes = (s: string) => s.replace(/\\"/g, '"');
 	const identity = (s: string) => s;
