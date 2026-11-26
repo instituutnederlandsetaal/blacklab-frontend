@@ -16,37 +16,34 @@ fi
 
 echo "SOURCE_BRANCH=${SOURCE_BRANCH}" # either the tag or the branch, according to the docs.
 
-# Extract major version (e.g., v2.3.4 → 2)
-if [[ "$SOURCE_BRANCH" =~ ^v?([0-9]+)\. ]]; then
+# Extract the major version from a release tag (e.g., v2.3.4 → 2).
+if [[ "$SOURCE_BRANCH" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
 	BASE_IMAGE_TAG="${BASH_REMATCH[1]}"
 	echo "Detected major version: ${BASE_IMAGE_TAG}"
-# Not building from a semver tag, check if our output version makes sense, and then use that
-elif [[ "$DOCKER_TAG" == "dev" ]]; then
-	BASE_IMAGE_TAG="dev"
-	echo "Detected dev version"
-elif [[ "$DOCKER_TAG" == "latest" ]]; then
-	echo "Detected we're building 'latest' tag i.e. stable release, finding current major version..."
-	# argh, blacklab latest is the "dev" version, which might be the next major already
-	# Parse the latest version from the nearest git tag
-	NEWEST_TAG=$(git describe --tags --abbrev=0 --always)
-	if [[ "$NEWEST_TAG" =~ ^v?([0-9]+)\. ]]; then
-		BASE_IMAGE_TAG="${BASH_REMATCH[1]}"
-		echo "Detected major version from newest tag: ${BASE_IMAGE_TAG}"
-	else
-		BASE_IMAGE_TAG="latest"
-		echo "Unable to parse major version from newest tag (${NEWEST_TAG}), defaulting to latest"
+elif [[ "$SOURCE_BRANCH" == "main" ]]; then
+	# main must point directly at a versioned release, not just descend from one.
+	BASE_IMAGE_TAG=""
+	while IFS= read -r tag; do
+		if [[ "$tag" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+			BASE_IMAGE_TAG="${BASH_REMATCH[1]}"
+			break
+		fi
+	done < <(git tag --points-at HEAD --sort=-version:refname)
+	if [[ -z "$BASE_IMAGE_TAG" ]]; then
+		echo "ERROR: main commit must have a versioned release tag; check that tags are available in the checkout" >&2
+		exit 1
 	fi
-# Source branch unknown, target tag (from dockerhub build config) is also unknown, just use dev?
+	echo "Detected major version ${BASE_IMAGE_TAG} from ${tag} on main"
 else
 	BASE_IMAGE_TAG="dev"
-	echo "Unknown tag/branch ${SOURCE_BRANCH}, and unknown target tag ${DOCKER_TAG}, using dev"
+	echo "Building branch ${SOURCE_BRANCH} with BlackLab dev"
 fi
 
-# Mutate Dockerfile in place
-echo "Patching Dockerfile to use BLACKLAB_IMAGE_VERSION=${BASE_IMAGE_TAG}"
 REPO_ROOT_DIR="$(git rev-parse --show-toplevel)"
 ABS_DOCKERFILE_PATH="${REPO_ROOT_DIR}/${DOCKERFILE_PATH}"
 
+# Mutate Dockerfile in place
+echo "Patching Dockerfile to use BLACKLAB_IMAGE_VERSION=${BASE_IMAGE_TAG}"
 sed -i "s|^ARG BLACKLAB_IMAGE_VERSION=.*|ARG BLACKLAB_IMAGE_VERSION=${BASE_IMAGE_TAG}|" "$ABS_DOCKERFILE_PATH"
 
 echo "✅ Dockerfile successfully updated"

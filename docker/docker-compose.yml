@@ -2,17 +2,15 @@
 
 services:
   frontend:
-    image: instituutnederlandsetaal/blacklab-frontend:dev
     build:
       context: ..
       dockerfile: docker/frontend-bls.dockerfile
-      args: 
-        BLACKLAB_IMAGE_VERSION: dev
     ports:
       - "8080:8080" # frontend and BLS will both be available on 8080
     volumes:
       - ./data/index:/data/index
       - ./data/user-index:/data/user-index
+      - ./data/formats:/etc/blacklab/formats:ro
       - ./data/index-configs:/etc/blacklab/projectconfigs
       
     configs: 

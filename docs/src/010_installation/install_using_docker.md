@@ -15,23 +15,54 @@ Here is an example `docker-compose.yml` file for a simple installation of BlackL
    Data will be stored in a `data` directory in the same location as the `docker-compose.yml` file.
    The compose file contains a basic configuration for BlackLab that enables a **test user**, so you can play around with the application without having to set up a proxy or authentication.
 
-   ::: code-group
-      <<< @/../../docker/docker-compose.yml
-   :::
+   ```yaml
+   services:
+     frontend:
+       image: instituutnederlandsetaal/blacklab-frontend:5
+       ports:
+         - "8080:8080"
+       volumes:
+         - ./data/index:/data/index
+         - ./data/user-index:/data/user-index
+         - ./data/formats:/etc/blacklab/formats:ro
+         - ./data/index-configs:/etc/blacklab/projectconfigs
+       configs:
+         - source: blacklab-server
+           target: /etc/blacklab/blacklab-server.yaml
+           mode: 0444
+
+   configs:
+     blacklab-server:
+       content: |
+         indexLocations:
+           - /data/index
+         userIndexes: /data/user-index
+         authentication:
+           system:
+             class: AuthDebugFixed
+             userId: test_user
+   ```
 
 
-2. **Run Docker Compose**  
+2. **Install input formats for uploads**
+
+   Copy the `.blf.yaml` files for the document formats you want to offer from [BlackLab 5.0.0's example input formats](https://github.com/instituutnederlandsetaal/BlackLab/tree/v5.0.0/contrib/input-formats) into `data/formats/`. BlackLab 5.0.0 loads these files from `/etc/blacklab/formats` in the container.
+
+
+3. **Run Docker Compose**
+
    This will start the service
    ```bash
    docker-compose up -d
    ```
 
-3. **Access the Application**
-   - The BlackLab Frontendis now available at http://localhost:8080/blacklab-frontend/
+4. **Access the Application**
+
+   - The BlackLab Frontend is now available at http://localhost:8080/blacklab-frontend/
    - The BlackLab-Server API is now available at http://localhost:8080/blacklab-server/
 
 
-4. **You should now be presented with options for uploading data.**
+5. **You should now be presented with options for uploading data.**
 
    Since there are no public corpora available (we didn't add any!), you will see a page with options to upload data.
 
@@ -66,6 +97,7 @@ For production use, there are two things you could consider:
    volumes:
       - ./data/index:/data/index
       - ./data/user-index:/data/user-index
+      - ./data/formats:/etc/blacklab/formats:ro
       - ./data/index-configs:/etc/blacklab/projectconfigs
       - ./blacklab-server.yaml:/etc/blacklab/blacklab-server.yaml # [!code ++]      
    configs: # [!code --]

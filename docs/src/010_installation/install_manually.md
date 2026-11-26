@@ -7,18 +7,9 @@ order: 2
 
 ## Requirements
 
-- Java 11 (Jdk up to 15 will work, 16+ might cause some reflection errors, we'll fix these once BlackLab migrates to `jakarta`)
-- A java servlet container such as [Apache Tomcat](https://tomcat.apache.org/).  
-   - Tomcat 7 version `7.0.76` or newer 
-   - Tomcat 8 version `8.0.42` or newer.
-   - Tomcat 9 any version should work, latest is recommended.
-   - Tomcat 10 is **not supported**  
-   This because the Frontend has not yet migrated from `javax`->`jakarta`.  
-   We will likely perform this migration in version `4.1`.
-
-   Using older versions of `Tomcat` will cause some [warnings from dependencies](https://bz.apache.org/bugzilla/show_bug.cgi?id=60688). 
-  - An instance of [BlackLab Server](https://blacklab.ivdnt.org/server/).  
-     While we do our best to make the frontend work with older versions of BlackLab, matching major versions is safest, so e.g.`blacklab-frontend v4.2.12` with `blacklab-server v4.1.1`. The `dev` versions should work together as well.
+- Java 17 or higher for BlackLab Frontend.
+- A Jakarta Servlet 6.0 container such as [Apache Tomcat 10.1](https://tomcat.apache.org/).
+- An instance of [BlackLab Server](https://blacklab.ivdnt.org/server/). Pair BlackLab Frontend 5.0.0 with BlackLab Server 5.0.0. The frontend requests BlackLab's API v4 compatibility mode per request.
 
 ## Steps
 

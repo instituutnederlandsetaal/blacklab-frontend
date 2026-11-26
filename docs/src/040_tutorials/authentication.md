@@ -16,19 +16,18 @@ There is documentation and support for many providers, see [OAuth2 Proxy documen
 
 ## Create the configuration files
 
-Create the following files in a directory of your choice, e.g. `blacklab-auth`:
+Create the following files in a directory of your choice, e.g. `blacklab-auth`.
+To enable uploads, put the input formats you want to offer in `formats/` as described in the [Docker installation guide](/installation/install_using_docker).
 
 ::: code-group
 ```yaml [docker-compose.yml]
 services:
   blacklab:
-    image: instituutnederlandsetaal/blacklab-frontend:4
-    build: 
-      context: ..
-      dockerfile: docker/frontend-bls.dockerfile
+    image: instituutnederlandsetaal/blacklab-frontend:5
     volumes:
       - ./corpora:/data/index
       - ./corpora-user:/data/user-index
+      - ./formats:/etc/blacklab/formats:ro
       - ./configs:/etc/blacklab/projectconfigs
       - ./blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
       - ./blacklab-server.yaml:/etc/blacklab/blacklab-server.yaml

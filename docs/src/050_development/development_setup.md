@@ -26,7 +26,7 @@ This guide helps you set up a development environment for the BlackLab Frontend 
 ```yaml
 services:
   blacklab:
-    image: instituutnederlandsetaal/blacklab-server:dev
+    image: instituutnederlandsetaal/blacklab:5.0.0
     ports:
       - 8082:8080  # Maps container port 8080 (BlackLab) to host port 8082, as 8080 will be used by Tomcat
 ```

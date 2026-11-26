@@ -1,7 +1,7 @@
-# Base image of BlackLab to use. Should match major version of Frontend.
-# NOTE: DO NOT CHANGE THE NAME OF THIS ARGUMENT!!
-# This variable is dynamically updated during dockerhub cloud builds! see the pre_build hook, 
-# DO NOT change manually and expect this to work in the cloud.
+# Use the development image for local builds.
+# The Docker Hub pre_build hook extracts the major version from the release tag for automated builds.
+# Meaning a build of Frontend 5.4.32 will replace `dev` with the extracted `5`
+# Don't change the name of this argument without also updating the pre_build hook
 ARG BLACKLAB_IMAGE_VERSION=dev
 
 # Stage "builder": build the WAR file
