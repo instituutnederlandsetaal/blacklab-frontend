@@ -9,7 +9,7 @@ This guide helps you set up a development environment for the BlackLab Frontend 
   - [Eclipse](https://www.eclipse.org/) ([setup guide](https://eclipse.dev/webtools/community/education/web/t320/Configuring_an_Application_Server_in_Eclipse.pdf))
   - [Visual Studio Code](https://code.visualstudio.com/) ([Tomcat setup](https://code.visualstudio.com/docs/java/java-tomcat-jetty))
 - **Node.js:**  
-  - [Download Node.js](https://nodejs.org/) (latest LTS, e.g. `22.x`)
+  - [Download Node.js](https://nodejs.org/) (use 22.x for this branch)
 - **Frontend Editor:**  
   - [Visual Studio Code](https://code.visualstudio.com/) with the Vue extension (VSCode will prompt to install it when opening `src/frontend`)
 
@@ -26,7 +26,7 @@ This guide helps you set up a development environment for the BlackLab Frontend 
 ```yaml
 services:
   blacklab:
-    image: instituutnederlandsetaal/blacklab-server:dev
+    image: instituutnederlandsetaal/blacklab:4
     ports:
       - 8082:8080  # Maps container port 8080 (BlackLab) to host port 8082, as 8080 will be used by Tomcat
 ```
@@ -36,7 +36,7 @@ services:
 ### 2.3 Start BlackLab
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 - BlackLab Server API: [http://localhost:8082/blacklab-server/](http://localhost:8082/blacklab-server/)
@@ -75,7 +75,7 @@ npm start
 - Webpack dev server: [http://localhost:8081/](http://localhost:8081/)
 
 **Note:**  
-The default port is `8080`, but we use `8081` because Tomcat uses `8080`. To change this, edit the `scripts.start` property in [package.json](src/frontend/package.json).
+The default port is `8080`, but we use `8081` because Tomcat uses `8080`. To change this, edit the `scripts.start` property in [package.json](@github:/src/frontend/package.json).
 
 **Hot Reload:**  
 When you change a JS file, the page reloads automatically.

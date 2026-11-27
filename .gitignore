@@ -29,3 +29,6 @@ docker/data
 docker/docker-compose.override.yml
 
 .DS_Store
+
+# Python release scripts
+__pycache__/

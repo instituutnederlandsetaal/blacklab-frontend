@@ -15,19 +15,44 @@ Here is an example `docker-compose.yml` file for a simple installation of BlackL
    Data will be stored in a `data` directory in the same location as the `docker-compose.yml` file.
    The compose file contains a basic configuration for BlackLab that enables a **test user**, so you can play around with the application without having to set up a proxy or authentication.
 
-   ::: code-group
-      <<< @/../../docker/docker-compose.yml
-   :::
+   ```yaml
+   services:
+     frontend:
+       image: instituutnederlandsetaal/blacklab-frontend:4
+       ports:
+         - "8080:8080"
+       volumes:
+         - ./data/index:/data/index
+         - ./data/user-index:/data/user-index
+         - ./data/index-configs:/etc/blacklab/projectconfigs
+       configs:
+         - source: blacklab-server
+           target: /etc/blacklab/blacklab-server.yaml
+           mode: 0444
+
+   configs:
+     blacklab-server:
+       content: |
+         indexLocations:
+           - /data/index
+         userIndexes: /data/user-index
+         authentication:
+           system:
+             class: AuthDebugFixed
+             userId: test_user
+   ```
 
 
-2. **Run Docker Compose**  
+2. **Run Docker Compose**
+
    This will start the service
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 3. **Access the Application**
-   - The BlackLab Frontendis now available at http://localhost:8080/blacklab-frontend/
+
+   - The BlackLab Frontend is now available at http://localhost:8080/blacklab-frontend/
    - The BlackLab-Server API is now available at http://localhost:8080/blacklab-server/
 
 

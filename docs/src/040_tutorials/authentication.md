@@ -16,16 +16,13 @@ There is documentation and support for many providers, see [OAuth2 Proxy documen
 
 ## Create the configuration files
 
-Create the following files in a directory of your choice, e.g. `blacklab-auth`:
+Create the following files in a directory of your choice, e.g. `blacklab-auth`.
 
 ::: code-group
 ```yaml [docker-compose.yml]
 services:
   blacklab:
     image: instituutnederlandsetaal/blacklab-frontend:4
-    build: 
-      context: ..
-      dockerfile: docker/frontend-bls.dockerfile
     volumes:
       - ./corpora:/data/index
       - ./corpora-user:/data/user-index
@@ -226,7 +223,7 @@ oauth2-proxy:
 ### 6. Try it out
 Start the containers
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 Now you can access the BlackLab Frontend at `http://localhost/blacklab-frontend` and the BlackLab Server API at `http://localhost/blacklab-server`.
 You should be prompted to log in with your Google account.
