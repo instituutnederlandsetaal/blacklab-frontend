@@ -9,8 +9,8 @@
 You can customize field names, labels, and other UI text by creating a locale file. Any keys you provide will override the default locale.  
 If you fully translate the UI, please consider sharing your translation.
 
-::: details Default en-us locale file [github](@github:/src/frontend/src/locales/en-us.json)
-<<< @../../../src/frontend/src/locales/en-us.json
+::: details Default en-us locale file [github](@github:/src/frontend/assets/locales/en-us.json)
+<<< @/../../src/frontend/assets/locales/en-us.json
 :::
 
 

@@ -90,7 +90,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
       md.use(githubLinkPlugin({
         organisation: 'instituutnederlandsetaal',
         repository: 'blacklab-frontend',
-        branch: 'dev',
+        branch: process.env.DOCS_REF || 'dev',
         projectRoot, // absolute path to the project root
       })); 
     },
@@ -105,6 +105,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
       { text: 'Installation', link: '/installation/install_using_docker' },
       { text: 'Configuration', link: '/configuration/global_settings' },
       { text: 'Development', link: '/development/development_setup' },
+      { text: 'Versions', link: 'https://blacklab-frontend.ivdnt.org/versions/', target: '_self' },
       { text: 'BlackLab', link: 'https://blacklab.ivdnt.org/' },
       { text: '/INT/', link: 'https://ivdnt.org/' },
     ],
@@ -117,7 +118,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
       provider: 'local'
     },
     editLink: {
-      pattern: `https://github.com/instituutnederlandsetaal/blacklab-frontend/edit/dev/docs/src/:path`,
+      pattern: `https://github.com/instituutnederlandsetaal/blacklab-frontend/edit/${process.env.DOCS_REF === 'experimental' ? 'experimental' : 'dev'}/docs/src/:path`,
     },
     footer: {
       message: 'Apache license 2.0',

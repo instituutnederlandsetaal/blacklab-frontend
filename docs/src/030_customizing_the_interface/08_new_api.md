@@ -45,7 +45,7 @@ frontend.customizeSearchForm(form => {
 The declaration file is also available in the `.d.ts` and `.tgz` files attached to GitHub releases. A project with `package.json` can install the package:
 
 ```sh
-npm install --save-dev vue@3 https://github.com/instituutnederlandsetaal/blacklab-frontend/releases/download/v5.0.0/blacklab-frontend-customization-api-5.0.0.tgz
+npm install --save-dev vue@3 https://github.com/instituutnederlandsetaal/blacklab-frontend/releases/download/5.0.0/blacklab-frontend-customization-api-5.0.0.tgz
 ```
 
 Then reference it with:

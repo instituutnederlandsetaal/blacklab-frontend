@@ -2,7 +2,7 @@
 
 We have a simple way to quickly show or hide widgets for Annotations & Metadata in the interface. 
 
-This is just a shorthand method of configuring several parts of the UI. Individual features can also be configured one by one. Refer to the [source code](@github:/src/frontend/src/store/search/ui.ts) for the full details. All of this module's exports are exposed under `window.vuexModules.ui`.
+This is just a shorthand method of configuring several parts of the UI. Individual features can also be configured one by one. Refer to the [source code](@github:/src/frontend/src/app/legacy-stores/ui-store.ts) for the full details. All of this module's exports are exposed under `window.vuexModules.ui`.
 
 <!-- @include: ../_custom_js_tip.md -->
 

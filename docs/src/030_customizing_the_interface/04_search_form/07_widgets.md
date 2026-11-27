@@ -140,7 +140,7 @@ use the name of the tab as the `uiType` in the `.blf.yaml` file, or return it fr
 
 ## Metadata _(Filters)_
 
-Set a metadata field's `uiType` in the `.blf.yaml` file, or replace the filter in the [search form graph](../08_new_api.md#changing-the-form).
+Set a metadata field's `uiType` in the `.blf.yaml` file, or replace the filter in the [search form graph](/customizing_the_interface/new_api#changing-the-form).
 
 ::: code-group
 
@@ -230,7 +230,7 @@ frontend.customizeSearchForm({
   
   :::
 
-  Use [`metadataMultiFieldRange`](../08_new_api.md#changing-the-form) to add this filter to the form. Set `fromField` and `toField` to the metadata field names. Pass `mode: 'strict'` or `mode: 'permissive'` to lock the matching mode.
+  Use [`metadataMultiFieldRange`](/customizing_the_interface/new_api#changing-the-form) to add this filter to the form. Set `fromField` and `toField` to the metadata field names. Pass `mode: 'strict'` or `mode: 'permissive'` to lock the matching mode.
 
   The `Permissive`/`Strict` mode (see image) toggles whether to match documents that merely overlap with the provided range, or only documents that fall fully within the range.
   E.G.: the document has `date_lower=1900` and `date_upper=1950`. The query is `1900-1910`, this matches when using Permissive (as the values overlap somewhat), while Strict would not match, as the document's actual value could also be outside this range. To also match using Strict, the query would have to be at least `1899-1951`.

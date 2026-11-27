@@ -10,7 +10,7 @@ hero:
   actions:
     - theme: brand
       text: Learn more →
-      link: /welcome/
+      link: /welcome
     - theme: alt
       text: Or go to the BlackLab docs →
       link: https://blacklab.ivdnt.org/

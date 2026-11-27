@@ -66,8 +66,8 @@ There are a few options for the name of the variables:
 | `blsUrl`           | `BF_blsUrl`     | `BF_BLSURL`     | `BF_BLS_URL`               | `BF_BLS_URL_ON_SERVER` |
 :::
 
-::: details Available variable names ([full file](@github:/src/main/java/nl/inl/corpuswebsite/utils/GlobalConfig.java))
-<<< @/../../src/main/java/nl/inl/corpuswebsite/utils/GlobalConfig.java#GlobalConfigKeysInDocs 
+::: details Available variable names ([full file](@github:/src/main/java/nl/inl/corpuswebsite/config/GlobalConfig.java))
+<<< @/../../src/main/java/nl/inl/corpuswebsite/config/GlobalConfig.java#GlobalConfigKeysInDocs
 :::
 
 

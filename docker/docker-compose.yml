@@ -3,7 +3,6 @@
 name: blacklab-frontend-dev
 services:
   frontend:
-    image: instituutnederlandsetaal/blacklab-frontend:dev
     build:
       context: ..
       dockerfile: docker/frontend-bls.dockerfile

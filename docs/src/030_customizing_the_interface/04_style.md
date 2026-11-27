@@ -4,8 +4,8 @@ Applying custom styling to the page is possible using `CSS`.
 
 We have included a template [SASS](https://sass-lang.com/) file to allow you to customize your page's color theme easily:
 
-::: details template.scss ([github](@github:/src/frontend/src/style-template.scss))
-<<< @/../../src/frontend/src/style-template.scss
+::: details template.scss ([github](@github:/docs/src/030_customizing_the_interface/_style-template.scss))
+<<< ./_style-template.scss
 :::
 
 From there you can then add your own customizations on top.
