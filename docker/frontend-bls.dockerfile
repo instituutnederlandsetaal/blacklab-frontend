@@ -1,7 +1,4 @@
-# Use the development image for local builds.
-# The Docker Hub pre_build hook extracts the major version from the release tag for automated builds.
-# Meaning a build of Frontend 5.4.32 will replace `dev` with the extracted `5`
-# Don't change the name of this argument without also updating the pre_build hook
+# Local builds use BlackLab dev; release builds pass the matching major version.
 ARG BLACKLAB_IMAGE_VERSION=dev
 
 # Stage "builder": build the WAR file

@@ -225,7 +225,7 @@ oauth2-proxy:
 ### 6. Try it out
 Start the containers
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 Now you can access the BlackLab Frontend at `http://localhost/blacklab-frontend` and the BlackLab Server API at `http://localhost/blacklab-server`.
 You should be prompted to log in with your Google account.

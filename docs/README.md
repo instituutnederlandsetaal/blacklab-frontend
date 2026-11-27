@@ -1,4 +1,6 @@
-# These are the source files for the documentation of the BlackLab site.
+# BlackLab Frontend documentation
+
+These files are the source for the documentation site. See [release and build rules](../scripts/README.md) for the published site and release artifacts.
 
 There are a few things to keep in mind when adding documentation:
 

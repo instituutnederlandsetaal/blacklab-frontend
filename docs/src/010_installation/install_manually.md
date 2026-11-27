@@ -18,7 +18,7 @@ order: 2
    - Alternatively, [build from source](/development/build_from_source)
 
 2. **Place the WAR file**
-   - Place the `blacklab-frontend.war` file in the `webapps` directory of your servlet container (e.g., Tomcat).
+   - Copy the release WAR from GitHub Releases or the Maven build to `webapps/blacklab-frontend.war`. Tomcat uses that filename for the `/blacklab-frontend/` URL.
 
 3. [**Configuration**](/configuration/global_settings)  
    Configuration is described in more detail in the [Configuration section](/configuration/global_settings).

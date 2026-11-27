@@ -53,7 +53,7 @@ Here is an example `docker-compose.yml` file for a simple installation of BlackL
 
    This will start the service
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 4. **Access the Application**
